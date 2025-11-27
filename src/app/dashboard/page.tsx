@@ -667,39 +667,50 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="space-y-2 text-xs">
-              {scheduledPosts.map((s) => (
-                <div
-                  key={s.id}
-                  className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {s.upload_title || s.upload_file_name || "Unnamed clip"}
-                    </p>
-                    <p className="text-slate-500 text-[11px]">
-                      Scheduled for:{" "}
-                      {new Date(s.scheduled_for).toLocaleString()}
-                    </p>
-                    {s.platforms && (
-                      <p className="text-slate-400 text-[11px]">
-                        Platforms: {s.platforms}
-                      </p>
-                    )}
-                  </div>
+              {scheduledPosts.map((s) => {
+                const now = new Date();
+                const scheduledDate = new Date(s.scheduled_for);
+                const isPast = scheduledDate.getTime() <= now.getTime();
 
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-[11px] text-emerald-400">
-                      {s.status || "scheduled"}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteScheduled(s)}
-                      className="text-[11px] px-2 py-1 rounded-md border border-red-700 text-red-300 hover:bg-red-900/30"
-                    >
-                      Cancel
-                    </button>
+                const displayStatus = isPast ? "Due" : "Scheduled";
+                const statusClass = isPast
+                  ? "text-yellow-400"
+                  : "text-emerald-400";
+
+                return (
+                  <div
+                    key={s.id}
+                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {s.upload_title || s.upload_file_name || "Unnamed clip"}
+                      </p>
+                      <p className="text-slate-500 text-[11px]">
+                        Scheduled for:{" "}
+                        {new Date(s.scheduled_for).toLocaleString()}
+                      </p>
+                      {s.platforms && (
+                        <p className="text-slate-400 text-[11px]">
+                          Platforms: {s.platforms}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-[11px] ${statusClass}`}>
+                        {displayStatus}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteScheduled(s)}
+                        className="text-[11px] px-2 py-1 rounded-md border border-red-700 text-red-300 hover:bg-red-900/30"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
