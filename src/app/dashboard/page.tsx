@@ -6,6 +6,7 @@ import {
   ChangeEvent,
   FormEvent,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
 
@@ -367,12 +368,20 @@ export default function DashboardPage() {
             Logged in as {user.email || "unknown"}
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="text-xs px-3 py-1 rounded-md border border-slate-600 hover:bg-slate-800"
-        >
-          Log out
-        </button>
+        <div className="flex gap-2">
+          <Link
+            href="/settings"
+            className="text-xs px-3 py-1 rounded-md border border-slate-600 hover:bg-slate-800"
+          >
+            Settings
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-xs px-3 py-1 rounded-md border border-slate-600 hover:bg-slate-800"
+          >
+            Log out
+          </button>
+        </div>
       </header>
 
       <main className="p-6 space-y-8">
