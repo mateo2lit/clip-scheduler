@@ -6,23 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "worker": "curl http://localhost:3000/api/cron/run-worker"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.84.0",
-    "next": "16.0.4",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "better-sqlite3": "^9.4.0",
+    "next": "14.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.8",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.4",
-    "tailwindcss": "^4",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
     "typescript": "^5"
   }
 }
