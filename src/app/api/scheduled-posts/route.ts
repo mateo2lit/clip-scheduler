@@ -1,72 +1,88 @@
+// src/app/api/scheduled-posts/route.ts
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import crypto from "crypto";
+import { sql } from "@vercel/postgres";
+import { requireUserIdFromRequest } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 
-function nowIso() {
-  return new Date().toISOString();
+function jsonError(message: string, status = 500) {
+  return NextResponse.json({ ok: false, error: message }, { status });
 }
 
-function safeJsonParse(value: string, fallback: any) {
+export async function GET(req: Request) {
   try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
+    const auth = await requireUserIdFromRequest(req);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
+
+    // IMPORTANT: Postgres does not have datetime(). Use timestamptz casting + ORDER BY.
+    const { rows } = await sql`
+      SELECT *
+      FROM scheduled_posts
+      WHERE user_id = ${auth.userId}
+      ORDER BY scheduled_for::timestamptz ASC, created_at::timestamptz DESC
+    `;
+
+    return NextResponse.json({ ok: true, data: rows });
+  } catch (err: any) {
+    console.error("GET /api/scheduled-posts failed:", err?.message ?? err);
+    return jsonError(err?.message ?? "Failed to load scheduled posts");
   }
-}
-
-export async function GET() {
-  const rows = db
-    .prepare(`SELECT * FROM scheduled_posts ORDER BY datetime(created_at) DESC`)
-    .all();
-
-  const data = rows.map((r: any) => ({
-    ...r,
-    tags: safeJsonParse(r.tags, []),
-  }));
-
-  return NextResponse.json({ ok: true, data });
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const auth = await requireUserIdFromRequest(req);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
-  const platform = String(body.platform ?? "youtube");
-  const title = String(body.title ?? "");
-  const description = String(body.description ?? "");
-  const tags = Array.isArray(body.tags) ? body.tags : [];
-  const assetUrl = String(body.assetUrl ?? "");
-  const scheduledFor = String(body.scheduledFor ?? "");
+    const body = await req.json().catch(() => ({}));
+    const {
+      platform = "youtube",
+      title = "",
+      description = "",
+      tags = [],
+      assetUrl = "",
+      scheduledFor = "",
+    } = body;
 
-  if (!title || !assetUrl || !scheduledFor) {
-    return NextResponse.json(
-      { ok: false, error: "Missing title, assetUrl, or scheduledFor" },
-      { status: 400 }
-    );
+    if (!title || !assetUrl || !scheduledFor) {
+      return jsonError("Missing title, assetUrl, or scheduledFor", 400);
+    }
+
+    // Validate scheduledFor is parseable
+    const scheduledDate = new Date(scheduledFor);
+    if (Number.isNaN(scheduledDate.getTime())) {
+      return jsonError("scheduledFor must be a valid ISO timestamp", 400);
+    }
+
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const now = new Date().toISOString();
+
+    await sql`
+      INSERT INTO scheduled_posts
+        (id, user_id, platform, title, description, tags, asset_url, scheduled_for, status, created_at, updated_at)
+      VALUES
+        (
+          ${id},
+          ${auth.userId},
+          ${platform},
+          ${title},
+          ${description},
+          ${JSON.stringify(tags)},
+          ${assetUrl},
+          ${scheduledFor},
+          'scheduled',
+          ${now},
+          ${now}
+        )
+    `;
+
+    return NextResponse.json({ ok: true, id });
+  } catch (err: any) {
+    console.error("POST /api/scheduled-posts failed:", err?.message ?? err);
+    return jsonError(err?.message ?? "Failed to create scheduled post");
   }
-
-  const id = crypto.randomUUID();
-  const ts = nowIso();
-
-  db.prepare(`
-    INSERT INTO scheduled_posts
-      (id, platform, title, description, tags, asset_url, scheduled_for, status, error, created_at, updated_at)
-    VALUES
-      (@id, @platform, @title, @description, @tags, @asset_url, @scheduled_for, @status, @error, @created_at, @updated_at)
-  `).run({
-    id,
-    platform,
-    title,
-    description,
-    tags: JSON.stringify(tags),
-    asset_url: assetUrl,
-    scheduled_for: scheduledFor,
-    status: "scheduled",
-    error: null,
-    created_at: ts,
-    updated_at: ts,
-  });
-
-  return NextResponse.json({ ok: true, id });
 }

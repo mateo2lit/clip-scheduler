@@ -1,254 +1,246 @@
+// src/app/scheduler/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../login/supabaseClient";
 
-type ScheduledPost = {
+type ScheduledRow = {
   id: string;
+  user_id?: string | null;
   platform: string;
   title: string;
-  description: string;
-  tags: string[];
+  description?: string | null;
+  tags?: any;
   asset_url: string;
   scheduled_for: string;
   status: string;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
+  error?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
+async function getAccessToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || "";
+}
+
 export default function SchedulerPage() {
-  const [rows, setRows] = useState<ScheduledPost[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [workerResult, setWorkerResult] = useState<any>(null);
+  const [rows, setRows] = useState<ScheduledRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [runningWorker, setRunningWorker] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [platform, setPlatform] = useState("youtube");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("test");
-  const [tags, setTags] = useState("scheduler, test");
-  const [assetUrl, setAssetUrl] = useState("https://example.com/video.mp4");
-  const [scheduledFor, setScheduledFor] = useState(() => {
-    // default to now (local)
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 1);
-    return d.toISOString().slice(0, 16); // yyyy-mm-ddThh:mm
-  });
+  const [showPosted, setShowPosted] = useState(true);
+  const [showFailed, setShowFailed] = useState(true);
 
-  const tagsArr = useMemo(
-    () =>
-      tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-    [tags]
-  );
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (!showPosted && r.status === "posted") return false;
+      if (!showFailed && r.status === "failed") return false;
+      return true;
+    });
+  }, [rows, showPosted, showFailed]);
 
-  async function refresh() {
+  const load = async () => {
+    setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/scheduled-posts", { cache: "no-store" });
-      const json = await res.json();
-      setRows(json.data ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function createPost() {
-    setLoading(true);
-    try {
-      // Convert local datetime-local to ISO
-      const iso = new Date(scheduledFor).toISOString();
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not logged in. Go to /login first.");
 
       const res = await fetch("/api/scheduled-posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform,
-          title,
-          description,
-          tags: tagsArr,
-          assetUrl,
-          scheduledFor: iso,
-        }),
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const json = await res.json();
-      if (!json.ok) {
-        alert(json.error ?? "Failed to create post");
-        return;
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || `Failed to load scheduled posts (${res.status})`);
       }
 
-      setTitle("");
-      await refresh();
+      setRows((json.data ?? []) as ScheduledRow[]);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load scheduled posts.");
+      setRows([]);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function runWorker() {
-    setLoading(true);
+  const runWorker = async () => {
+    setError(null);
+    setRunningWorker(true);
     try {
-      const res = await fetch("/api/cron/run-worker", { cache: "no-store" });
-      const json = await res.json();
-      setWorkerResult(json);
-      await refresh();
+      const res = await fetch("/api/cron/run-worker", {
+        method: "GET",
+        cache: "no-store",
+        headers: process.env.NEXT_PUBLIC_CRON_SECRET
+          ? { "x-cron-secret": process.env.NEXT_PUBLIC_CRON_SECRET }
+          : undefined,
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || `Worker failed (${res.status})`);
+      }
+
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to run worker.");
     } finally {
-      setLoading(false);
+      setRunningWorker(false);
     }
-  }
+  };
 
   useEffect(() => {
-    refresh();
+    load();
   }, []);
 
   return (
-    <main style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>
-        Scheduler
-      </h1>
+    <main className="min-h-screen w-full bg-slate-950 text-slate-100 p-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-semibold">Scheduler</h1>
+            <p className="text-sm text-slate-300 mt-1">
+              This page shows your scheduled posts AND posted history (toggle below).
+            </p>
+          </div>
 
-      <section
-        style={{
-          padding: 16,
-          border: "1px solid #333",
-          borderRadius: 12,
-          marginBottom: 16,
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
-          Create scheduled post
-        </h2>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <label>
-            Platform
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              style={{ width: "100%", padding: 8, marginTop: 6 }}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={load}
+              disabled={loading}
+              className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-sm hover:bg-white/[0.10] disabled:opacity-60"
             >
-              <option value="youtube">YouTube</option>
-              <option value="tiktok">TikTok</option>
-              <option value="instagram">Instagram</option>
-              <option value="x">X</option>
-            </select>
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
+
+            <button
+              onClick={runWorker}
+              disabled={runningWorker}
+              className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+            >
+              {runningWorker ? "Running worker..." : "Run worker"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-4 text-sm text-slate-200">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showPosted}
+              onChange={(e) => setShowPosted(e.target.checked)}
+            />
+            Show posted
           </label>
 
-          <label>
-            Scheduled For (local)
+          <label className="flex items-center gap-2">
             <input
-              type="datetime-local"
-              value={scheduledFor}
-              onChange={(e) => setScheduledFor(e.target.value)}
-              style={{ width: "100%", padding: 8, marginTop: 6 }}
+              type="checkbox"
+              checked={showFailed}
+              onChange={(e) => setShowFailed(e.target.checked)}
             />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Title
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="My clip title"
-              style={{ width: "100%", padding: 8, marginTop: 6 }}
-            />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Asset URL (stub)
-            <input
-              value={assetUrl}
-              onChange={(e) => setAssetUrl(e.target.value)}
-              style={{ width: "100%", padding: 8, marginTop: 6 }}
-            />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Tags (comma-separated)
-            <input
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              style={{ width: "100%", padding: 8, marginTop: 6 }}
-            />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Description
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{ width: "100%", padding: 8, marginTop: 6 }}
-            />
+            Show failed
           </label>
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-          <button onClick={createPost} disabled={loading} style={{ padding: "8px 12px" }}>
-            Create
-          </button>
-          <button onClick={refresh} disabled={loading} style={{ padding: "8px 12px" }}>
-            Refresh
-          </button>
-          <button onClick={runWorker} disabled={loading} style={{ padding: "8px 12px" }}>
-            Run worker
-          </button>
+        {error ? (
+          <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Scheduled posts</h2>
+            <div className="text-xs text-slate-300">
+              Total: {rows.length} • Showing: {filtered.length}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-4 text-sm text-slate-300">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-4 text-sm text-slate-300">
+              No scheduled posts to show (try enabling “Show posted”).
+            </div>
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-slate-300">
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Platform</th>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3">Scheduled for</th>
+                    <th className="px-4 py-3">Asset URL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr key={r.id} className="border-b border-white/5 align-top">
+                      <td className="px-4 py-3">
+                        <span
+                          className={[
+                            "inline-flex rounded-full px-2 py-1 text-xs border",
+                            r.status === "posted"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                              : r.status === "failed"
+                              ? "border-red-500/30 bg-red-500/10 text-red-200"
+                              : r.status === "processing"
+                              ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-200"
+                              : "border-white/10 bg-white/[0.06] text-slate-200",
+                          ].join(" ")}
+                        >
+                          {r.status}
+                        </span>
+                        {r.error ? (
+                          <div className="mt-2 text-xs text-red-200/90 break-words">
+                            {r.error}
+                          </div>
+                        ) : null}
+                      </td>
+
+                      <td className="px-4 py-3 text-slate-200">{r.platform}</td>
+
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-white">{r.title}</div>
+                        {r.description ? (
+                          <div className="text-xs text-slate-300 mt-1 break-words">
+                            {r.description}
+                          </div>
+                        ) : null}
+                      </td>
+
+                      <td className="px-4 py-3 text-slate-200">
+                        {new Date(r.scheduled_for).toLocaleString()}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <a
+                          href={r.asset_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-300 hover:text-blue-200 break-all"
+                        >
+                          {r.asset_url}
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {workerResult && (
-          <pre style={{ marginTop: 12, background: "#111", padding: 12, borderRadius: 8 }}>
-            {JSON.stringify(workerResult, null, 2)}
-          </pre>
-        )}
-      </section>
-
-      <section
-        style={{
-          padding: 16,
-          border: "1px solid #333",
-          borderRadius: 12,
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
-          Scheduled posts
-        </h2>
-
-        {loading && <div>Loading…</div>}
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                {["status", "platform", "title", "scheduled_for", "asset_url", "error"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", borderBottom: "1px solid #333", padding: 8 }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{r.status}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{r.platform}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{r.title}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #222" }}>
-                    {new Date(r.scheduled_for).toLocaleString()}
-                  </td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{r.asset_url}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{r.error ?? ""}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: 12, opacity: 0.8 }}>
-                    No scheduled posts yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <p className="mt-6 text-xs text-slate-400">
+          Note: “posted” currently means the worker processed the job successfully. Actual
+          platform uploading is still stubbed until we add YouTube/TikTok/IG adapters.
+        </p>
+      </div>
     </main>
   );
 }

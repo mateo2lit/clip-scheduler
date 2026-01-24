@@ -1,82 +1,109 @@
+// src/app/api/cron/run-worker/route.ts
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-function isoNow() {
-  return new Date().toISOString();
+function jsonError(message: string, status = 500) {
+  return NextResponse.json({ ok: false, error: message }, { status });
 }
 
-async function fakeUpload(_post: any) {
-  await new Promise((r) => setTimeout(r, 800));
-  return { success: true };
+function requireCronSecret(req: Request) {
+  const secret = process.env.CRON_SECRET;
+
+  // If no secret set, allow local dev
+  if (!secret) return { ok: true as const };
+
+  // Preferred: Authorization: Bearer <secret>
+  const auth = req.headers.get("authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+
+  // Backwards compatible: x-cron-secret header
+  const got = bearer || req.headers.get("x-cron-secret") || "";
+
+  if (got !== secret) {
+    return { ok: false as const, status: 401, error: "Unauthorized" };
+  }
+
+  return { ok: true as const };
 }
 
-export async function GET() {
-  const startedAt = Date.now();
-  const now = isoNow();
+async function runWorker() {
+  const now = new Date().toISOString();
 
-  const due = db
-    .prepare(`
-      SELECT * FROM scheduled_posts
-      WHERE status = 'scheduled'
-        AND datetime(scheduled_for) <= datetime(?)
-      ORDER BY datetime(scheduled_for) ASC
-      LIMIT 10
-    `)
-    .all(now);
+  const due = await sql<{ id: string }>`
+    SELECT id
+    FROM scheduled_posts
+    WHERE status = 'scheduled'
+      AND scheduled_for <= ${now}::timestamptz
+    ORDER BY scheduled_for ASC
+    LIMIT 25
+  `;
 
-  let processed = 0;
-  let posted = 0;
-  let failed = 0;
+  const processed: Array<{ id: string; ok: boolean; error?: string }> = [];
 
-  for (const post of due as any[]) {
-    const lock = db
-      .prepare(`
-        UPDATE scheduled_posts
-        SET status = 'processing', updated_at = ?
-        WHERE id = ? AND status = 'scheduled'
-      `)
-      .run(now, post.id);
+  for (const r of due.rows) {
+    const id = r.id;
+    const claimTime = new Date().toISOString();
 
-    if (lock.changes === 0) continue;
+    const claim = await sql`
+      UPDATE scheduled_posts
+      SET status = 'processing', updated_at = ${claimTime}::timestamptz
+      WHERE id = ${id} AND status = 'scheduled'
+    `;
 
-    processed++;
+    if (claim.rowCount === 0) continue;
 
     try {
-      const res = await fakeUpload(post);
+      // TODO: real platform adapters (YouTube/TikTok/IG)
+      const doneTime = new Date().toISOString();
 
-      if (res.success) {
-        db.prepare(`
-          UPDATE scheduled_posts
-          SET status = 'posted', error = NULL, updated_at = ?
-          WHERE id = ?
-        `).run(isoNow(), post.id);
-        posted++;
-      } else {
-        db.prepare(`
-          UPDATE scheduled_posts
-          SET status = 'failed', error = ?, updated_at = ?
-          WHERE id = ?
-        `).run("Upload failed (fake)", isoNow(), post.id);
-        failed++;
-      }
-    } catch (e: any) {
-      db.prepare(`
+      await sql`
         UPDATE scheduled_posts
-        SET status = 'failed', error = ?, updated_at = ?
-        WHERE id = ?
-      `).run(String(e?.message ?? e), isoNow(), post.id);
-      failed++;
+        SET status = 'posted', error = NULL, updated_at = ${doneTime}::timestamptz
+        WHERE id = ${id}
+      `;
+
+      processed.push({ id, ok: true });
+    } catch (e: any) {
+      const failTime = new Date().toISOString();
+      const msg = String(e?.message ?? e);
+
+      await sql`
+        UPDATE scheduled_posts
+        SET status = 'failed', error = ${msg}, updated_at = ${failTime}::timestamptz
+        WHERE id = ${id}
+      `;
+
+      processed.push({ id, ok: false, error: msg });
     }
   }
 
-  return NextResponse.json({
-    ok: true,
-    dueFound: due.length,
-    processed,
-    posted,
-    failed,
-    ms: Date.now() - startedAt,
-  });
+  return { now, found: due.rows.length, processed };
+}
+
+export async function POST(req: Request) {
+  try {
+    const gate = requireCronSecret(req);
+    if (!gate.ok) return jsonError(gate.error, gate.status);
+
+    const result = await runWorker();
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err: any) {
+    console.error("POST /api/cron/run-worker failed:", err?.message ?? err);
+    return jsonError(err?.message ?? "Worker crashed");
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const gate = requireCronSecret(req);
+    if (!gate.ok) return jsonError(gate.error, gate.status);
+
+    const result = await runWorker();
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err: any) {
+    console.error("GET /api/cron/run-worker failed:", err?.message ?? err);
+    return jsonError(err?.message ?? "Worker crashed");
+  }
 }

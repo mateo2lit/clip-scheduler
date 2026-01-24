@@ -1,0 +1,9 @@
+﻿{
+    "endpoint":  {
+                     "settings":  {
+                                      "pg_settings":  {
+                                                          "cron.database_name":  "neondb"
+                                                      }
+                                  }
+                 }
+}

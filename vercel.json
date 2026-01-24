@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/worker/run-scheduled?token=clip_worker_92kXQpA8FvLrTz_2026_secure",
+      "schedule": "* * * * *"
+    }
+  ]
+}

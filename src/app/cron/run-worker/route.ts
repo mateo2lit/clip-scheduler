@@ -1,83 +1,63 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { pool } from "@/lib/db";
+import { ensureSchema } from "@/lib/migrate";
 
 export const runtime = "nodejs";
 
-function isoNow() {
-  return new Date().toISOString();
-}
-
-// Fake uploader for now
-async function fakeUpload(_post: any) {
-  await new Promise((r) => setTimeout(r, 800));
+async function fakeUpload() {
+  await new Promise((r) => setTimeout(r, 500));
   return { success: true };
 }
 
 export async function GET() {
-  const startedAt = Date.now();
-  const now = isoNow();
+  await ensureSchema();
 
-  const due = db
-    .prepare(`
-      SELECT * FROM scheduled_posts
-      WHERE status = 'scheduled'
-        AND datetime(scheduled_for) <= datetime(?)
-      ORDER BY datetime(scheduled_for) ASC
-      LIMIT 10
-    `)
-    .all(now);
+  const now = new Date().toISOString();
 
-  let processed = 0;
+  const { rows } = await pool.query(
+    `
+    SELECT *
+    FROM scheduled_posts
+    WHERE status = 'scheduled'
+      AND scheduled_for <= $1
+    ORDER BY scheduled_for ASC
+    LIMIT 10
+  `,
+    [now]
+  );
+
   let posted = 0;
-  let failed = 0;
 
-  for (const post of due as any[]) {
-    const lock = db
-      .prepare(`
+  for (const post of rows) {
+    const lock = await pool.query(
+      `
+      UPDATE scheduled_posts
+      SET status = 'processing', updated_at = $1
+      WHERE id = $2 AND status = 'scheduled'
+    `,
+      [now, post.id]
+    );
+
+    if (lock.rowCount === 0) continue;
+
+    const res = await fakeUpload();
+
+    if (res.success) {
+      await pool.query(
+        `
         UPDATE scheduled_posts
-        SET status = 'processing', updated_at = ?
-        WHERE id = ? AND status = 'scheduled'
-      `)
-      .run(now, post.id);
-
-    if (lock.changes === 0) continue;
-
-    processed++;
-
-    try {
-      const res = await fakeUpload(post);
-
-      if (res.success) {
-        db.prepare(`
-          UPDATE scheduled_posts
-          SET status = 'posted', error = NULL, updated_at = ?
-          WHERE id = ?
-        `).run(isoNow(), post.id);
-        posted++;
-      } else {
-        db.prepare(`
-          UPDATE scheduled_posts
-          SET status = 'failed', error = ?, updated_at = ?
-          WHERE id = ?
-        `).run("Upload failed (fake)", isoNow(), post.id);
-        failed++;
-      }
-    } catch (e: any) {
-      db.prepare(`
-        UPDATE scheduled_posts
-        SET status = 'failed', error = ?, updated_at = ?
-        WHERE id = ?
-      `).run(String(e?.message ?? e), isoNow(), post.id);
-      failed++;
+        SET status = 'posted', updated_at = $1
+        WHERE id = $2
+      `,
+        [new Date().toISOString(), post.id]
+      );
+      posted++;
     }
   }
 
   return NextResponse.json({
     ok: true,
-    dueFound: due.length,
-    processed,
+    processed: rows.length,
     posted,
-    failed,
-    ms: Date.now() - startedAt,
   });
 }

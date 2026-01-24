@@ -1,0 +1,1740 @@
+Vercel CLI 50.4.5
+Retrieving project…
+Deploying mateo2lits-projects/clip-scheduler
+Uploading [--------------------] (0.0B/85B)
+Uploading [====================] (85.0B/85B)
+Inspect: https://vercel.com/mateo2lits-projects/clip-scheduler/Ha6UQMfkstvrT57d17ksVQ2ow9EG [2s]
+Production: https://clip-scheduler-i686a8gmb-mateo2lits-projects.vercel.app [2s]
+https://clip-scheduler-i686a8gmb-mateo2lits-projects.vercel.appBuilding...
+Building...
+Building: Running build in Washington, D.C., USA (East) – iad1
+Building: Build machine configuration: 2 cores, 8 GB
+Building: Retrieving list of deployment files...
+Building: Previous build caches not available.
+Building: Downloading 30 deployment files...
+Building: Running "vercel build"
+Building: Vercel CLI 50.4.4
+Building: Installing dependencies...
+Building: npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+Building: npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+Building: npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+Building: npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+Building: npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+Building: npm warn deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+Building: npm warn deprecated next@14.1.0: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/security-update-2025-12-11 for more details.
+Building: npm error code 1
+Building: npm error path /vercel/path0/node_modules/better-sqlite3
+Building: npm error command failed
+Building: npm error command sh -c prebuild-install || node-gyp rebuild --release
+Building: npm error make: Entering directory '/vercel/path0/node_modules/better-sqlite3/build'
+Building: npm error   TOUCH ba23eeee118cd63e16015df367567cb043fed872.intermediate
+Building: npm error   ACTION deps_sqlite3_gyp_locate_sqlite3_target_copy_builtin_sqlite3 ba23eeee118cd63e16015df367567cb043fed872.intermediate
+Building: npm error   TOUCH Release/obj.target/deps/locate_sqlite3.stamp
+Building: npm error   CC(target) Release/obj.target/sqlite3/gen/sqlite3/sqlite3.o
+Building: npm error rm -f Release/obj.target/deps/sqlite3.a Release/obj.target/deps/sqlite3.a.ar-file-list; mkdir -p `dirname Release/obj.target/deps/sqlite3.a`
+Building: npm error ar crs Release/obj.target/deps/sqlite3.a @Release/obj.target/deps/sqlite3.a.ar-file-list
+Building: npm error   COPY Release/sqlite3.a
+Building: npm error   CXX(target) Release/obj.target/better_sqlite3/src/better_sqlite3.o
+Building: npm error rm ba23eeee118cd63e16015df367567cb043fed872.intermediate
+Building: npm error make: Leaving directory '/vercel/path0/node_modules/better-sqlite3/build'
+Building: npm error (node:78) [DEP0176] DeprecationWarning: fs.R_OK is deprecated, use fs.constants.R_OK instead
+Building: npm error (Use `node --trace-deprecation ...` to show where the warning was created)
+Building: npm error prebuild-install warn install No prebuilt binaries found (target=24.13.0 runtime=node arch=x64 libc= platform=linux)
+Building: npm error gyp info it worked if it ends with ok
+Building: npm error gyp info using node-gyp@11.4.2
+Building: npm error gyp info using node@24.13.0 | linux | x64
+Building: npm error gyp info find Python using Python version 3.12.2 found at "/usr/local/bin/python3"
+Building: npm error gyp http GET https://nodejs.org/download/release/v24.13.0/node-v24.13.0-headers.tar.gz
+Building: npm error gyp http 200 https://nodejs.org/download/release/v24.13.0/node-v24.13.0-headers.tar.gz
+Building: npm error gyp http GET https://nodejs.org/download/release/v24.13.0/SHASUMS256.txt
+Building: npm error gyp http 200 https://nodejs.org/download/release/v24.13.0/SHASUMS256.txt
+Building: npm error gyp info spawn /usr/local/bin/python3
+Building: npm error gyp info spawn args [
+Building: npm error gyp info spawn args '/node24/lib/node_modules/npm/node_modules/node-gyp/gyp/gyp_main.py',
+Building: npm error gyp info spawn args 'binding.gyp',
+Building: npm error gyp info spawn args '-f',
+Building: npm error gyp info spawn args 'make',
+Building: npm error gyp info spawn args '-I',
+Building: npm error gyp info spawn args '/vercel/path0/node_modules/better-sqlite3/build/config.gypi',
+Building: npm error gyp info spawn args '-I',
+Building: npm error gyp info spawn args '/node24/lib/node_modules/npm/node_modules/node-gyp/addon.gypi',
+Building: npm error gyp info spawn args '-I',
+Building: npm error gyp info spawn args '/vercel/.cache/node-gyp/24.13.0/include/node/common.gypi',
+Building: npm error gyp info spawn args '-Dlibrary=shared_library',
+Building: npm error gyp info spawn args '-Dvisibility=default',
+Building: npm error gyp info spawn args '-Dnode_root_dir=/vercel/.cache/node-gyp/24.13.0',
+Building: npm error gyp info spawn args '-Dnode_gyp_dir=/node24/lib/node_modules/npm/node_modules/node-gyp',
+Building: npm error gyp info spawn args '-Dnode_lib_file=/vercel/.cache/node-gyp/24.13.0/<(target_arch)/node.lib',
+Building: npm error gyp info spawn args '-Dmodule_root_dir=/vercel/path0/node_modules/better-sqlite3',
+Building: npm error gyp info spawn args '-Dnode_engine=v8',
+Building: npm error gyp info spawn args '--depth=.',
+Building: npm error gyp info spawn args '--no-parallel',
+Building: npm error gyp info spawn args '--generator-output',
+Building: npm error gyp info spawn args 'build',
+Building: npm error gyp info spawn args '-Goutput_dir=.'
+Building: npm error gyp info spawn args ]
+Building: npm error gyp info spawn make
+Building: npm error gyp info spawn args [ 'BUILDTYPE=Release', '-C', 'build' ]
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/common.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:23,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8config.h:13:2: error: #error "C++20 or later required."
+Building: npm error    13 | #error "C++20 or later required."
+Building: npm error       |  ^~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1256:37: error: non-type template parameters of class type only available with '-std=c++20' or '-std=gnu++20'
+Building: npm error  1256 |   template <ExternalPointerTagRange tag_range>
+Building: npm error       |                                     ^~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:280:5: error: 'requires' does not name a type
+Building: npm error   280 |     requires std::is_base_of_v<T, S>
+Building: npm error       |     ^~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:280:5: note: 'requires' only available with '-std=c++20' or '-fconcepts'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:645:5: error: 'requires' does not name a type
+Building: npm error   645 |     requires std::is_base_of_v<T, S>
+Building: npm error       |     ^~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:645:5: note: 'requires' only available with '-std=c++20' or '-fconcepts'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:651:5: error: 'requires' does not name a type
+Building: npm error   651 |     requires std::is_base_of_v<T, S>
+Building: npm error       |     ^~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:651:5: note: 'requires' only available with '-std=c++20' or '-fconcepts'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-memory-span.h:45:28: error: 'std::ranges' has not been declared
+Building: npm error    45 | inline constexpr bool std::ranges::enable_view<v8::MemorySpan<T>> = true;
+Building: npm error       |                            ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-memory-span.h:45:47: error: expected initializer before '<' token
+Building: npm error    45 | inline constexpr bool std::ranges::enable_view<v8::MemorySpan<T>> = true;
+Building: npm error       |                                               ^
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-memory-span.h:47:28: error: 'std::ranges' has not been declared
+Building: npm error    47 | inline constexpr bool std::ranges::enable_borrowed_range<v8::MemorySpan<T>> =
+Building: npm error       |                            ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-memory-span.h:47:57: error: expected initializer before '<' token
+Building: npm error    47 | inline constexpr bool std::ranges::enable_borrowed_range<v8::MemorySpan<T>> =
+Building: npm error       |                                                         ^
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-memory-span.h:168:35: error: 'contiguous_iterator_tag' in namespace 'std' does not name a type; did you mean 'output_iterator_tag'?
+Building: npm error   168 |     using iterator_concept = std::contiguous_iterator_tag;
+Building: npm error       |                                   ^~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error       |                                   output_iterator_tag
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/macros.h:51:1: error: 'concept' does not name a type
+Building: npm error    51 | concept IsStackAllocatedType =
+Building: npm error       | ^~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/macros.h:51:1: note: 'concept' only available with '-std=c++20' or '-fconcepts'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:22:1: error: 'concept' does not name a type
+Building: npm error    22 | concept RequiresStackAllocated =
+Building: npm error       | ^~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:22:1: note: 'concept' only available with '-std=c++20' or '-fconcepts'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:28:11: error: expected constructor, destructor, or type conversion before '(' token
+Building: npm error    28 |   requires(RequiresStackAllocated<T>)
+Building: npm error       |           ^
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:35:11: error: expected constructor, destructor, or type conversion before '(' token
+Building: npm error    35 |   requires(!RequiresStackAllocated<T>)
+Building: npm error       |           ^
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:53:19: error: expected identifier
+Building: npm error    53 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                   ^~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:53:37: error: expected unqualified-id before ')' token
+Building: npm error    53 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                                     ^
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/common.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:23,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8config.h:496:20: error: expected constructor, destructor, or type conversion before 'inline'
+Building: npm error   496 | # define V8_INLINE inline __attribute__((always_inline))
+Building: npm error       |                    ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:54:3: note: in expansion of macro 'V8_INLINE'
+Building: npm error    54 |   V8_INLINE Eternal(Isolate* isolate, Local<S> handle) {
+Building: npm error       |   ^~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:66:19: error: expected identifier
+Building: npm error    66 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                   ^~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:66:37: error: expected unqualified-id before ')' token
+Building: npm error    66 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                                     ^
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:67:3: error: expected constructor, destructor, or type conversion before 'void'
+Building: npm error    67 |   void Set(Isolate* isolate, Local<S> handle) {
+Building: npm error       |   ^~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-weak-callback-info.h: In instantiation of 'class v8::WeakCallbackInfo<void>':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:75:47:   required from here
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-weak-callback-info.h:25:7: error: invalid use of incomplete type 'class cppgc::internal::ConditionalStackAllocatedBase<void>'
+Building: npm error    25 | class WeakCallbackInfo
+Building: npm error       |       ^~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:19:7: note: declaration of 'class cppgc::internal::ConditionalStackAllocatedBase<void>'
+Building: npm error    19 | class ConditionalStackAllocatedBase;
+Building: npm error       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:263:19: error: expected identifier
+Building: npm error   263 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                   ^~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:263:37: error: expected unqualified-id before ')' token
+Building: npm error   263 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                                     ^
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/common.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:23,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8config.h:496:20: error: expected constructor, destructor, or type conversion before 'inline'
+Building: npm error   496 | # define V8_INLINE inline __attribute__((always_inline))
+Building: npm error       |                    ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:264:3: note: in expansion of macro 'V8_INLINE'
+Building: npm error   264 |   V8_INLINE Persistent(Isolate* isolate, Local<S> that)
+Building: npm error       |   ^~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:274:19: error: expected identifier
+Building: npm error   274 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                   ^~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:274:37: error: expected unqualified-id before ')' token
+Building: npm error   274 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                                     ^
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/common.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:23,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8config.h:496:20: error: expected constructor, destructor, or type conversion before 'inline'
+Building: npm error   496 | # define V8_INLINE inline __attribute__((always_inline))
+Building: npm error       |                    ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:275:3: note: in expansion of macro 'V8_INLINE'
+Building: npm error   275 |   V8_INLINE Persistent(Isolate* isolate, const Persistent<S, M2>& that)
+Building: npm error       |   ^~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:362:19: error: expected identifier
+Building: npm error   362 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                   ^~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:362:37: error: expected unqualified-id before ')' token
+Building: npm error   362 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                                     ^
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/common.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:23,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8config.h:496:20: error: expected constructor, destructor, or type conversion before 'inline'
+Building: npm error   496 | # define V8_INLINE inline __attribute__((always_inline))
+Building: npm error       |                    ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:363:3: note: in expansion of macro 'V8_INLINE'
+Building: npm error   363 |   V8_INLINE Global(Isolate* isolate, Local<S> that)
+Building: npm error       |   ^~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:373:19: error: expected identifier
+Building: npm error   373 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                   ^~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:373:37: error: expected unqualified-id before ')' token
+Building: npm error   373 |     requires(std::is_base_of_v<T, S>)
+Building: npm error       |                                     ^
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/common.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:23,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8config.h:496:20: error: expected constructor, destructor, or type conversion before 'inline'
+Building: npm error   496 | # define V8_INLINE inline __attribute__((always_inline))
+Building: npm error       |                    ^~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:374:3: note: in expansion of macro 'V8_INLINE'
+Building: npm error   374 |   V8_INLINE Global(Isolate* isolate, const PersistentBase<S>& that)
+Building: npm error       |   ^~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h: In member function 'v8::String::ExternalStringResource* v8::String::GetExternalStringResource() const':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:998:80: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kExternalStringResourceTag>(v8::Isolate*&, A&, const int&)'
+Building: npm error   998 |     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+Building: npm error       |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   999 |         isolate, obj, I::kStringResourceOffset);
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:998:80: note: invalid template non-type parameter
+Building: npm error   998 |     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+Building: npm error       |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   999 |         isolate, obj, I::kStringResourceOffset);
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h: In member function 'v8::String::ExternalStringResourceBase* v8::String::GetExternalStringResourceBase(v8::Isolate*, v8::String::Encoding*) const':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:1020:80: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kExternalStringResourceTag>(v8::Isolate*&, A&, const int&)'
+Building: npm error  1020 |     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+Building: npm error       |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error  1021 |         isolate, obj, I::kStringResourceOffset);
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:1020:80: note: invalid template non-type parameter
+Building: npm error  1020 |     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+Building: npm error       |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error  1021 |         isolate, obj, I::kStringResourceOffset);
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h: In member function 'v8::String::ExternalStringResourceBase* v8::String::GetExternalStringResourceBase(v8::String::Encoding*) const':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:1043:80: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kExternalStringResourceTag>(v8::Isolate*&, A&, const int&)'
+Building: npm error  1043 |     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+Building: npm error       |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error  1044 |         isolate, obj, I::kStringResourceOffset);
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:1043:80: note: invalid template non-type parameter
+Building: npm error  1043 |     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+Building: npm error       |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error  1044 |         isolate, obj, I::kStringResourceOffset);
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h: In member function 'void* v8::Object::GetAlignedPointerFromInternalField(v8::Isolate*, int)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:896:75: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kEmbedderDataSlotPayloadTag>(v8::Isolate*&, A&, int&)'
+Building: npm error   896 |         I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   897 |             isolate, obj, offset);
+Building: npm error       |             ~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:896:75: note: invalid template non-type parameter
+Building: npm error   896 |         I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   897 |             isolate, obj, offset);
+Building: npm error       |             ~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h: In member function 'void* v8::Object::GetAlignedPointerFromInternalField(int)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:918:75: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kEmbedderDataSlotPayloadTag>(v8::Isolate*&, A&, int&)'
+Building: npm error   918 |         I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   919 |             isolate, obj, offset);
+Building: npm error       |             ~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:918:75: note: invalid template non-type parameter
+Building: npm error   918 |         I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   919 |             isolate, obj, offset);
+Building: npm error       |             ~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:26,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h: In member function 'void* v8::Context::GetAlignedPointerFromEmbedderData(v8::Isolate*, int)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h:473:73: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kEmbedderDataSlotPayloadTag>(v8::Isolate*&, A&, int&)'
+Building: npm error   473 |       I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   474 |           isolate, embedder_data, value_offset));
+Building: npm error       |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:26,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h:473:73: note: invalid template non-type parameter
+Building: npm error   473 |       I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   474 |           isolate, embedder_data, value_offset));
+Building: npm error       |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h: In member function 'void* v8::Context::GetAlignedPointerFromEmbedderData(int)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h:492:73: error: no matching function for call to 'v8::internal::Internals::ReadExternalPointerField<v8::internal::kEmbedderDataSlotPayloadTag>(v8::Isolate*&, A&, int&)'
+Building: npm error   492 |       I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   493 |           isolate, embedder_data, value_offset));
+Building: npm error       |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-handle-base.h:8,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:13,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note: candidate: 'template<<typeprefixerror>tag_range> static v8::internal::Address v8::internal::Internals::ReadExternalPointerField(v8::Isolate*, v8::internal::Address, int)'
+Building: npm error  1257 |   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
+Building: npm error       |                            ^~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-internal.h:1257:28: note:   template argument deduction/substitution failed:
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:26,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h:492:73: note: invalid template non-type parameter
+Building: npm error   492 |       I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+Building: npm error       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Building: npm error   493 |           isolate, embedder_data, value_offset));
+Building: npm error       |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h: In member function 'void v8::Template::Set(v8::Isolate*, const char*, v8::Local<v8::Data>, v8::PropertyAttribute)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1110:6: error: no matching function for call to 'v8::Template::Set(v8::Local<v8::String>, v8::Local<v8::Data>&, v8::PropertyAttribute&)'
+Building: npm error  1110 |   Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
+Building: npm error       |   ~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error  1111 |           .ToLocalChecked(),
+Building: npm error       |           ~~~~~~~~~~~~~~~~~~
+Building: npm error  1112 |       value, attributes);
+Building: npm error       |       ~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:57:8: note: candidate: 'void v8::Template::Set(v8::Local<v8::Name>, v8::Local<v8::Data>, v8::PropertyAttribute)'
+Building: npm error    57 |   void Set(Local<Name> name, Local<Data> value,
+Building: npm error       |        ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:57:24: note:   no known conversion for argument 1 from 'Local<v8::String>' to 'Local<v8::Name>'
+Building: npm error    57 |   void Set(Local<Name> name, Local<Data> value,
+Building: npm error       |            ~~~~~~~~~~~~^~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1108:6: note: candidate: 'void v8::Template::Set(v8::Isolate*, const char*, v8::Local<v8::Data>, v8::PropertyAttribute)'
+Building: npm error  1108 | void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+Building: npm error       |      ^~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1108:29: note:   no known conversion for argument 1 from 'v8::Local<v8::String>' to 'v8::Isolate*'
+Building: npm error  1108 | void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+Building: npm error       |                    ~~~~~~~~~^~~~~~~
+Building: npm error In file included from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h: In function 'void node::NODE_SET_METHOD(v8::Local<v8::Template>, const char*, v8::FunctionCallback)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h:1101:12: error: no matching function for call to 'v8::Template::Set(v8::Local<v8::String>&, v8::Local<v8::FunctionTemplate>&)'
+Building: npm error  1101 |   recv->Set(fn_name, t);
+Building: npm error       |   ~~~~~~~~~^~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:57:8: note: candidate: 'void v8::Template::Set(v8::Local<v8::Name>, v8::Local<v8::Data>, v8::PropertyAttribute)'
+Building: npm error    57 |   void Set(Local<Name> name, Local<Data> value,
+Building: npm error       |        ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:57:24: note:   no known conversion for argument 1 from 'Local<v8::String>' to 'Local<v8::Name>'
+Building: npm error    57 |   void Set(Local<Name> name, Local<Data> value,
+Building: npm error       |            ~~~~~~~~~~~~^~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1108:6: note: candidate: 'void v8::Template::Set(v8::Isolate*, const char*, v8::Local<v8::Data>, v8::PropertyAttribute)'
+Building: npm error  1108 | void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+Building: npm error       |      ^~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1108:6: note:   candidate expects 4 arguments, 2 provided
+Building: npm error In file included from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h: In function 'void node::NODE_SET_METHOD(v8::Local<v8::Object>, const char*, v8::FunctionCallback)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h:1117:12: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Function>&)'
+Building: npm error  1117 |   recv->Set(context, fn_name, fn).Check();
+Building: npm error       |   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error In file included from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h: In function 'void node::NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate>, const char*, v8::FunctionCallback)':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h:1134:33: error: no matching function for call to 'v8::ObjectTemplate::Set(v8::Local<v8::String>&, v8::Local<v8::FunctionTemplate>&)'
+Building: npm error  1134 |   recv->PrototypeTemplate()->Set(fn_name, t);
+Building: npm error       |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:57:8: note: candidate: 'void v8::Template::Set(v8::Local<v8::Name>, v8::Local<v8::Data>, v8::PropertyAttribute)'
+Building: npm error    57 |   void Set(Local<Name> name, Local<Data> value,
+Building: npm error       |        ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:57:24: note:   no known conversion for argument 1 from 'Local<v8::String>' to 'Local<v8::Name>'
+Building: npm error    57 |   void Set(Local<Name> name, Local<Data> value,
+Building: npm error       |            ~~~~~~~~~~~~^~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1108:6: note: candidate: 'void v8::Template::Set(v8::Isolate*, const char*, v8::Local<v8::Data>, v8::PropertyAttribute)'
+Building: npm error  1108 | void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+Building: npm error       |      ^~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:1108:6: note:   candidate expects 4 arguments, 2 provided
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-weak-callback-info.h: In instantiation of 'class v8::WeakCallbackInfo<node::ObjectWrap>':
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-persistent-handle.h:484:16:   required by substitution of 'template<class P> void v8::PersistentBase<v8::Object>::SetWeak<P>(P*, typename v8::WeakCallbackInfo<T>::Callback, v8::WeakCallbackType) [with P = node::ObjectWrap]'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node_object_wrap.h:85:25:   required from here
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-weak-callback-info.h:25:7: error: invalid use of incomplete type 'class cppgc::internal::ConditionalStackAllocatedBase<node::ObjectWrap>'
+Building: npm error    25 | class WeakCallbackInfo
+Building: npm error       |       ^~~~~~~~~~~~~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:19:7: note: declaration of 'class cppgc::internal::ConditionalStackAllocatedBase<node::ObjectWrap>'
+Building: npm error    19 | class ConditionalStackAllocatedBase;
+Building: npm error       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/macros.lzz: At global scope:
+Building: npm error ./src/util/macros.lzz:31:69: error: 'CopyablePersistentTraits' is not a member of 'v8'; did you mean 'NonCopyablePersistentTraits'?
+Building: npm error ./src/util/macros.lzz:31:94: error: template argument 2 is invalid
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/macros.lzz:149:2: error: 'v8::AccessorGetterCallback' has not been declared
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/macros.lzz:33:97: error: 'CopyablePersistent' has not been declared
+Building: npm error ./src/util/macros.lzz:33:116: error: expected ',' or '...' before '<' token
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:119:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:120:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:121:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:122:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:123:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:124:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:125:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:126:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:127:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:128:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:129:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:130:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:131:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:132:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:133:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:134:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:135:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:136:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:140:49: error: 'CopyablePersistent' has not been declared
+Building: npm error ./src/util/constants.lzz:140:68: error: expected ',' or '...' before '<' token
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/constants.lzz:150:28: error: 'CopyablePersistent' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:150:57: error: template argument 2 is invalid
+Building: npm error ./src/util/constants.lzz:150:57: error: template argument 5 is invalid
+Building: npm error ./src/util/constants.lzz:150:59: error: expected unqualified-id before '>' token
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/bind-map.lzz:25:5: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/objects/database.lzz:465:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-function.lzz:57:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz:39:90: error: 'CopyablePersistent' has not been declared
+Building: npm error ./src/util/custom-aggregate.lzz:39:109: error: expected ',' or '...' before '<' token
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz:83:5: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz:118:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz:119:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz:120:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-table.lzz:104:5: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-table.lzz:123:5: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-table.lzz:124:5: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-table.lzz:125:5: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-table.lzz:403:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/better_sqlite3.lzz:56:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/better_sqlite3.lzz:57:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/better_sqlite3.lzz:58:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/better_sqlite3.lzz:59:3: error: 'CopyablePersistent' does not name a type
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/macros.lzz: In function 'v8::Local<v8::Value> InternalizedFromUtf8OrNull(v8::Isolate*, const char*, int)':
+Building: npm error ./src/util/macros.lzz:23:42: error: could not convert 'v8::Null(isolate)' from 'Local<v8::Primitive>' to 'Local<v8::Value>'
+Building: npm error ./src/util/macros.lzz:24:36: error: could not convert 'InternalizedFromUtf8(isolate, data, length)' from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/macros.lzz: At global scope:
+Building: npm error ./src/util/macros.lzz:33:108: error: 'CopyablePersistent' has not been declared
+Building: npm error ./src/util/macros.lzz:33:127: error: expected ',' or '...' before '<' token
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/macros.lzz: In function 'void SetFrozen(v8::Isolate*, v8::Local<v8::Context>, v8::Local<v8::Object>, int)':
+Building: npm error ./src/util/macros.lzz:34:37: error: 'key' was not declared in this scope; did you mean 'key_t'?
+Building: npm error ./src/util/macros.lzz:34:55: error: 'value' was not declared in this scope
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/bind-map.lzz: In member function 'v8::Local<v8::String> BindMap::Pair::GetName(v8::Isolate*)':
+Building: npm error ./src/util/bind-map.lzz:14:40: error: 'name' was not declared in this scope; did you mean 'tzname'?
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/objects/statement-iterator.lzz: In static member function 'static v8::Local<v8::Object> StatementIterator::NewRecord(v8::Isolate*, v8::Local<v8::Context>, v8::Local<v8::Value>, Addon*, bool)':
+Building: npm error ./src/objects/statement-iterator.lzz:121:44: error: 'class CS' has no member named 'value'
+Building: npm error ./src/objects/statement-iterator.lzz:122:44: error: 'class CS' has no member named 'done'
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/objects/statement-iterator.lzz: In static member function 'static v8::Local<v8::Object> StatementIterator::DoneRecord(v8::Isolate*, Addon*)':
+Building: npm error ./src/objects/statement-iterator.lzz:127:91: error: cannot convert 'Local<v8::Primitive>' to 'Local<v8::Value>'
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/objects/statement-iterator.lzz:119:139: note:   initializing argument 3 of 'static v8::Local<v8::Object> StatementIterator::NewRecord(v8::Isolate*, v8::Local<v8::Context>, v8::Local<v8::Value>, Addon*, bool)'
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz: At global scope:
+Building: npm error ./src/util/custom-aggregate.lzz:39:109: error: 'CopyablePersistent' has not been declared
+Building: npm error ./src/util/custom-aggregate.lzz:39:128: error: expected ',' or '...' before '<' token
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz: In static member function 'static void CustomAggregate::xStepBase(sqlite3_context*, int, sqlite3_value**, int)':
+Building: npm error ./src/util/custom-aggregate.lzz:40:269: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-aggregate.lzz:44:32: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-aggregate.lzz:47:70: error: 'ptrtm' was not declared in this scope
+Building: npm error ./src/util/custom-aggregate.lzz:54:63: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error In file included from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/util/custom-aggregate.lzz: In static member function 'static void CustomAggregate::xValueBase(sqlite3_context*, bool)':
+Building: npm error ./src/util/custom-aggregate.lzz:59:269: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-aggregate.lzz:68:52: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-aggregate.lzz:70:71: error: 'class CustomAggregate' has no member named 'result'
+Building: npm error ./src/util/macros.lzz: At global scope:
+Building: npm error ./src/util/macros.lzz:158:2: error: 'v8::AccessorGetterCallback' has not been declared
+Building: npm error ./src/util/macros.lzz: In function 'void SetPrototypeGetter(v8::Isolate*, v8::Local<v8::External>, v8::Local<v8::FunctionTemplate>, const char*, int)':
+Building: npm error ./src/util/macros.lzz:172:28: error: 'class v8::ObjectTemplate' has no member named 'SetAccessor'
+Building: npm error ./src/util/binder.lzz: In function 'bool IsPlainObject(v8::Isolate*, v8::Local<v8::Object>)':
+Building: npm error ./src/util/binder.lzz:51:72: error: cannot convert 'Local<v8::Primitive>' to 'Local<v8::Value>'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-value.h:463:34: note:   initializing argument 1 of 'bool v8::Value::StrictEquals(v8::Local<v8::Value>) const'
+Building: npm error   463 |   bool StrictEquals(Local<Value> that) const;
+Building: npm error       |                     ~~~~~~~~~~~~~^~~~
+Building: npm error In file included from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error ./src/better_sqlite3.lzz: At global scope:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h:1298:7: warning: cast between incompatible function types from 'void (*)(v8::Local<v8::Object>, v8::Local<v8::Value>, v8::Local<v8::Context>)' to 'node::addon_context_register_func' {aka 'void (*)(v8::Local<v8::Object>, v8::Local<v8::Value>, v8::Local<v8::Context>, void*)'} [-Wcast-function-type]
+Building: npm error  1298 |       (node::addon_context_register_func) (regfunc),                  \
+Building: npm error       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h:1316:3: note: in expansion of macro 'NODE_MODULE_CONTEXT_AWARE_X'
+Building: npm error  1316 |   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
+Building: npm error       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/node.h:1347:3: note: in expansion of macro 'NODE_MODULE_CONTEXT_AWARE'
+Building: npm error  1347 |   NODE_MODULE_CONTEXT_AWARE(NODE_GYP_MODULE_NAME,                     \
+Building: npm error       |   ^~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error ./src/better_sqlite3.lzz:67:1: note: in expansion of macro 'NODE_MODULE_INIT'
+Building: npm error ./src/better_sqlite3.lzz: In function 'void node_register_module_v137(v8::Local<v8::Object>, v8::Local<v8::Value>, v8::Local<v8::Context>)':
+Building: npm error ./src/better_sqlite3.lzz:77:14: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>, v8::Local<v8::Function>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:78:14: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>, v8::Local<v8::Function>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:79:14: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>, v8::Local<v8::Function>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:80:14: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>, v8::Local<v8::Function>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:81:146: error: cannot convert 'Local<v8::External>' to 'Local<v8::Value>'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:575:20: note:   initializing argument 3 of 'static v8::Local<v8::FunctionTemplate> v8::FunctionTemplate::New(v8::Isolate*, v8::FunctionCallback, v8::Local<v8::Value>, v8::Local<v8::Signature>, int, v8::ConstructorBehavior, v8::SideEffectType, const v8::CFunction*, uint16_t, uint16_t, uint16_t)'
+Building: npm error   575 |       Local<Value> data = Local<Value>(),
+Building: npm error       |       ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+Building: npm error ./src/better_sqlite3.lzz:84:9: error: 'struct Addon' has no member named 'Statement'
+Building: npm error ./src/better_sqlite3.lzz:84:46: error: no matching function for call to 'v8::Object::Get(v8::Local<v8::Context>&, v8::Local<v8::String>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:297:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>)'
+Building: npm error   297 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:298:60: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   298 |                                               Local<Value> key);
+Building: npm error       |                                               ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   299 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note:   candidate expects 3 arguments, 2 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:303:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   303 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:304:56: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   304 |                                               uint32_t index);
+Building: npm error       |                                               ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:84:134: error: expected primary-expression before '>' token
+Building: npm error ./src/better_sqlite3.lzz:84:136: error: expected primary-expression before ')' token
+Building: npm error ./src/better_sqlite3.lzz:85:9: error: 'struct Addon' has no member named 'StatementIterator'
+Building: npm error ./src/better_sqlite3.lzz:85:54: error: no matching function for call to 'v8::Object::Get(v8::Local<v8::Context>&, v8::Local<v8::String>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:297:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>)'
+Building: npm error   297 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:298:60: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   298 |                                               Local<Value> key);
+Building: npm error       |                                               ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   299 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note:   candidate expects 3 arguments, 2 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:303:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   303 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:304:56: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   304 |                                               uint32_t index);
+Building: npm error       |                                               ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:85:150: error: expected primary-expression before '>' token
+Building: npm error ./src/better_sqlite3.lzz:85:152: error: expected primary-expression before ')' token
+Building: npm error ./src/better_sqlite3.lzz:86:9: error: 'struct Addon' has no member named 'Backup'
+Building: npm error ./src/better_sqlite3.lzz:86:43: error: no matching function for call to 'v8::Object::Get(v8::Local<v8::Context>&, v8::Local<v8::String>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:297:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>)'
+Building: npm error   297 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:298:60: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   298 |                                               Local<Value> key);
+Building: npm error       |                                               ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   299 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note:   candidate expects 3 arguments, 2 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:303:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   303 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:304:56: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   304 |                                               uint32_t index);
+Building: npm error       |                                               ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz:86:128: error: expected primary-expression before '>' token
+Building: npm error ./src/better_sqlite3.lzz:86:130: error: expected primary-expression before ')' token
+Building: npm error ./src/util/macros.lzz: In function 'v8::Local<v8::FunctionTemplate> NewConstructorTemplate(v8::Isolate*, v8::Local<v8::External>, v8::FunctionCallback, const char*)':
+Building: npm error ./src/util/macros.lzz:111:86: error: cannot convert 'Local<v8::External>' to 'Local<v8::Value>'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:575:20: note:   initializing argument 3 of 'static v8::Local<v8::FunctionTemplate> v8::FunctionTemplate::New(v8::Isolate*, v8::FunctionCallback, v8::Local<v8::Value>, v8::Local<v8::Signature>, int, v8::ConstructorBehavior, v8::SideEffectType, const v8::CFunction*, uint16_t, uint16_t, uint16_t)'
+Building: npm error   575 |       Local<Value> data = Local<Value>(),
+Building: npm error       |       ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+Building: npm error ./src/util/macros.lzz: In function 'void SetPrototypeMethod(v8::Isolate*, v8::Local<v8::External>, v8::Local<v8::FunctionTemplate>, const char*, v8::FunctionCallback)':
+Building: npm error ./src/util/macros.lzz:126:58: error: cannot convert 'Local<v8::External>' to 'Local<v8::Value>'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:575:20: note:   initializing argument 3 of 'static v8::Local<v8::FunctionTemplate> v8::FunctionTemplate::New(v8::Isolate*, v8::FunctionCallback, v8::Local<v8::Value>, v8::Local<v8::Signature>, int, v8::ConstructorBehavior, v8::SideEffectType, const v8::CFunction*, uint16_t, uint16_t, uint16_t)'
+Building: npm error   575 |       Local<Value> data = Local<Value>(),
+Building: npm error       |       ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+Building: npm error ./src/util/macros.lzz: In function 'void SetPrototypeSymbolMethod(v8::Isolate*, v8::Local<v8::External>, v8::Local<v8::FunctionTemplate>, v8::Local<v8::Symbol>, v8::FunctionCallback)':
+Building: npm error ./src/util/macros.lzz:139:58: error: cannot convert 'Local<v8::External>' to 'Local<v8::Value>'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-template.h:575:20: note:   initializing argument 3 of 'static v8::Local<v8::FunctionTemplate> v8::FunctionTemplate::New(v8::Isolate*, v8::FunctionCallback, v8::Local<v8::Value>, v8::Local<v8::Signature>, int, v8::ConstructorBehavior, v8::SideEffectType, const v8::CFunction*, uint16_t, uint16_t, uint16_t)'
+Building: npm error   575 |       Local<Value> data = Local<Value>(),
+Building: npm error       |       ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+Building: npm error ./src/util/constants.lzz: In member function 'v8::Local<v8::String> CS::Code(v8::Isolate*, int)':
+Building: npm error ./src/util/constants.lzz:5:32: error: 'codes' was not declared in this scope; did you mean 'code'?
+Building: npm error ./src/util/constants.lzz: In constructor 'CS::CS(v8::Isolate*)':
+Building: npm error ./src/util/constants.lzz:11:36: error: 'database' was not declared in this scope; did you mean 'Database'?
+Building: npm error ./src/util/constants.lzz:12:36: error: 'reader' was not declared in this scope; did you mean 'read'?
+Building: npm error ./src/util/constants.lzz:13:36: error: 'source' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:14:36: error: 'memory' was not declared in this scope; did you mean 'memcpy'?
+Building: npm error ./src/util/constants.lzz:15:36: error: 'readonly' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:16:36: error: 'name' was not declared in this scope; did you mean 'tzname'?
+Building: npm error ./src/util/constants.lzz:17:36: error: 'next' was not declared in this scope; did you mean 'std::next'?
+Building: npm error In file included from /usr/include/c++/11/bits/stl_algobase.h:66,
+Building: npm error                  from /usr/include/c++/11/bits/char_traits.h:39,
+Building: npm error                  from /usr/include/c++/11/string:40,
+Building: npm error                  from ./src/better_sqlite3.lzz:5,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /usr/include/c++/11/bits/stl_iterator_base_funcs.h:213:5: note: 'std::next' declared here
+Building: npm error   213 |     next(_InputIterator __x, typename
+Building: npm error       |     ^~~~
+Building: npm error ./src/util/constants.lzz:18:36: error: 'length' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:19:36: error: 'done' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:20:36: error: 'value' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:21:36: error: 'changes' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:22:36: error: 'lastInsertRowid' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:23:36: error: 'statement' was not declared in this scope; did you mean 'Statement'?
+Building: npm error ./src/util/constants.lzz:24:36: error: 'column' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:25:36: error: 'table' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:26:36: error: 'type' was not declared in this scope; did you mean 'wctype'?
+Building: npm error ./src/util/constants.lzz:27:36: error: 'totalPages' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:28:36: error: 'remainingPages' was not declared in this scope
+Building: npm error ./src/util/constants.lzz: At global scope:
+Building: npm error ./src/util/constants.lzz:140:44: error: 'CopyablePersistent' has not been declared
+Building: npm error ./src/util/constants.lzz:140:63: error: expected ',' or '...' before '<' token
+Building: npm error ./src/util/constants.lzz: In static member function 'static void CS::SetString(v8::Isolate*, int)':
+Building: npm error ./src/util/constants.lzz:141:17: error: 'constant' was not declared in this scope
+Building: npm error ./src/util/constants.lzz:141:73: error: 'str' was not declared in this scope; did you mean 'std'?
+Building: npm error ./src/util/constants.lzz: In member function 'void CS::SetCode(v8::Isolate*, int, const char*)':
+Building: npm error ./src/util/constants.lzz:145:17: error: 'codes' was not declared in this scope; did you mean 'code'?
+Building: npm error ./src/util/bind-map.lzz: In constructor 'BindMap::Pair::Pair(v8::Isolate*, const char*, int)':
+Building: npm error ./src/util/bind-map.lzz:20:5: error: class 'BindMap::Pair' does not have any field named 'name'
+Building: npm error ./src/util/bind-map.lzz: In constructor 'BindMap::Pair::Pair(v8::Isolate*, BindMap::Pair*)':
+Building: npm error ./src/util/bind-map.lzz:23:5: error: class 'BindMap::Pair' does not have any field named 'name'
+Building: npm error ./src/util/bind-map.lzz:23:26: error: 'class BindMap::Pair' has no member named 'name'
+Building: npm error ./src/objects/database.lzz: In static member function 'static v8::Local<v8::Function> Database::Init(v8::Isolate*, v8::Local<v8::External>)':
+Building: npm error ./src/objects/database.lzz:17:35: error: invalid conversion from 'void (*)(v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>&)' to 'int' [-fpermissive]
+Building: npm error ./src/util/macros.lzz:158:29: note:   initializing argument 5 of 'void SetPrototypeGetter(v8::Isolate*, v8::Local<v8::External>, v8::Local<v8::FunctionTemplate>, const char*, int)'
+Building: npm error ./src/objects/database.lzz:18:35: error: invalid conversion from 'void (*)(v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>&)' to 'int' [-fpermissive]
+Building: npm error ./src/util/macros.lzz:158:29: note:   initializing argument 5 of 'void SetPrototypeGetter(v8::Isolate*, v8::Local<v8::External>, v8::Local<v8::FunctionTemplate>, const char*, int)'
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::ThrowSqliteError(Addon*, const char*, int)':
+Building: npm error ./src/objects/database.lzz:55:39: error: conversion from 'Local<v8::String>' to non-scalar type 'Local<v8::Value>' requested
+Building: npm error ./src/objects/database.lzz:56:39: error: conversion from 'Local<v8::String>' to non-scalar type 'Local<v8::Value>' requested
+Building: npm error ./src/objects/database.lzz:58:48: error: 'struct Addon' has no member named 'SqliteError'
+Building: npm error ./src/objects/database.lzz: In member function 'bool Database::Log(v8::Isolate*, sqlite3_stmt*)':
+Building: npm error ./src/objects/database.lzz:68:58: error: conversion from 'Local<v8::String>' to non-scalar type 'Local<v8::Value>' requested
+Building: npm error ./src/objects/database.lzz:69:32: error: 'logger' was not declared in this scope
+Building: npm error ./src/objects/database.lzz:69:67: error: expected primary-expression before '>' token
+Building: npm error ./src/objects/database.lzz:69:69: error: expected primary-expression before ')' token
+Building: npm error ./src/objects/database.lzz: In constructor 'Database::Database(v8::Isolate*, Addon*, sqlite3*, v8::Local<v8::Value>)':
+Building: npm error ./src/objects/database.lzz:131:203: error: class 'Database' does not have any field named 'logger'
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_new(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:163:61: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz:194:64: error: 'class CS' has no member named 'memory'
+Building: npm error ./src/objects/database.lzz:195:64: error: 'class CS' has no member named 'readonly'
+Building: npm error ./src/objects/database.lzz:196:64: error: 'class CS' has no member named 'name'
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_prepare(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:210:52: error: 'struct Addon' has no member named 'Statement'
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_exec(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:226:59: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_backup(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:268:52: error: 'struct Addon' has no member named 'Backup'
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_serialize(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:283:74: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_function(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:310:63: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_aggregate(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:337:63: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_table(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:360:63: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz: In static member function 'static void Database::JS_loadExtension(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/database.lzz:382:65: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/database.lzz:383:97: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/statement.lzz: In static member function 'static v8::Local<v8::Function> Statement::Init(v8::Isolate*, v8::Local<v8::External>)':
+Building: npm error ./src/objects/statement.lzz:16:35: error: invalid conversion from 'void (*)(v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>&)' to 'int' [-fpermissive]
+Building: npm error ./src/util/macros.lzz:158:29: note:   initializing argument 5 of 'void SetPrototypeGetter(v8::Isolate*, v8::Local<v8::External>, v8::Local<v8::FunctionTemplate>, const char*, int)'
+Building: npm error ./src/objects/statement.lzz: In static member function 'static void Statement::JS_new(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/statement.lzz:106:59: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/statement.lzz:148:64: error: 'class CS' has no member named 'reader'
+Building: npm error ./src/objects/statement.lzz:149:64: error: 'class CS' has no member named 'readonly'
+Building: npm error ./src/objects/statement.lzz:150:64: error: 'class CS' has no member named 'source'
+Building: npm error ./src/objects/statement.lzz:151:64: error: 'class CS' has no member named 'database'
+Building: npm error ./src/objects/statement.lzz: In static member function 'static void Statement::JS_run(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/statement.lzz:168:52: error: 'class CS' has no member named 'changes'
+Building: npm error ./src/objects/statement.lzz:169:52: error: 'class CS' has no member named 'lastInsertRowid'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h: In instantiation of 'class v8::Maybe<bool>':
+Building: npm error ./src/objects/statement.lzz:205:36:   required from here
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h:33:7: error: invalid use of incomplete type 'class cppgc::internal::ConditionalStackAllocatedBase<bool>'
+Building: npm error    33 | class Maybe : public cppgc::internal::ConditionalStackAllocatedBase<T> {
+Building: npm error       |       ^~~~~
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-maybe.h:11,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:10,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/cppgc/internal/conditional-stack-allocated.h:19:7: note: declaration of 'class cppgc::internal::ConditionalStackAllocatedBase<bool>'
+Building: npm error    19 | class ConditionalStackAllocatedBase;
+Building: npm error       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Building: npm error ./src/objects/statement.lzz: In static member function 'static void Statement::JS_iterate(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/statement.lzz:218:52: error: 'struct Addon' has no member named 'StatementIterator'
+Building: npm error ./src/objects/statement.lzz: In static member function 'static void Statement::JS_columns(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/statement.lzz:290:56: error: 'class CS' has no member named 'name'
+Building: npm error ./src/objects/statement.lzz:291:62: error: 'class CS' has no member named 'column'
+Building: npm error ./src/objects/statement.lzz:292:61: error: 'class CS' has no member named 'table'
+Building: npm error ./src/objects/statement.lzz:293:64: error: 'class CS' has no member named 'database'
+Building: npm error ./src/objects/statement.lzz:294:60: error: 'class CS' has no member named 'type'
+Building: npm error ./src/objects/statement.lzz:299:36: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Value>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/objects/statement.lzz:302:36: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Value>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/objects/statement.lzz:305:36: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Value>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/objects/statement.lzz:308:36: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Value>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/objects/statement.lzz:311:36: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Value>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/objects/statement.lzz:315:37: error: no matching function for call to 'v8::Array::Set(v8::Local<v8::Context>&, int&, v8::Local<v8::Object>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'int' to 'v8::Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:246:54: note:   no known conversion for argument 3 from 'Local<v8::Object>' to 'Local<v8::Value>'
+Building: npm error   246 |                                         Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~~~
+Building: npm error ./src/objects/statement-iterator.lzz: In static member function 'static void StatementIterator::JS_new(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/statement-iterator.lzz:52:64: error: 'class CS' has no member named 'statement'
+Building: npm error ./src/objects/backup.lzz: In static member function 'static void Backup::JS_new(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/backup.lzz:70:66: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/backup.lzz:71:74: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/objects/backup.lzz:93:94: error: 'class CS' has no member named 'database'
+Building: npm error ./src/objects/backup.lzz: In static member function 'static void Backup::JS_transfer(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/objects/backup.lzz:115:52: error: 'class CS' has no member named 'totalPages'
+Building: npm error ./src/objects/backup.lzz:116:52: error: 'class CS' has no member named 'remainingPages'
+Building: npm error ./src/util/custom-function.lzz: In constructor 'CustomFunction::CustomFunction(v8::Isolate*, Database*, const char*, v8::Local<v8::Function>, bool)':
+Building: npm error ./src/util/custom-function.lzz:10:46: error: class 'CustomFunction' does not have any field named 'fn'
+Building: npm error ./src/util/custom-function.lzz: In static member function 'static void CustomFunction::xFunc(sqlite3_context*, int, sqlite3_value**)':
+Building: npm error ./src/util/custom-function.lzz:33:68: error: 'class CustomFunction' has no member named 'fn'
+Building: npm error ./src/util/custom-aggregate.lzz: In constructor 'CustomAggregate::CustomAggregate(v8::Isolate*, Database*, const char*, v8::Local<v8::Value>, v8::Local<v8::Function>, v8::Local<v8::Value>, v8::Local<v8::Value>, bool)':
+Building: npm error ./src/util/custom-aggregate.lzz:13:132: error: class 'CustomAggregate' does not have any field named 'inverse'
+Building: npm error ./src/util/custom-aggregate.lzz:13:231: error: class 'CustomAggregate' does not have any field named 'result'
+Building: npm error ./src/util/custom-aggregate.lzz:13:327: error: class 'CustomAggregate' does not have any field named 'start'
+Building: npm error ./src/util/custom-aggregate.lzz: In static member function 'static void CustomAggregate::xStep(sqlite3_context*, int, sqlite3_value**)':
+Building: npm error ./src/util/custom-aggregate.lzz:22:69: error: 'fn' is not a member of 'CustomAggregate'
+Building: npm error ./src/util/custom-aggregate.lzz: In static member function 'static void CustomAggregate::xInverse(sqlite3_context*, int, sqlite3_value**)':
+Building: npm error ./src/util/custom-aggregate.lzz:26:69: error: 'inverse' is not a member of 'CustomAggregate'
+Building: npm error ./src/util/custom-aggregate.lzz: In member function 'CustomAggregate::Accumulator* CustomAggregate::GetAccumulator(sqlite3_context*)':
+Building: npm error ./src/util/custom-aggregate.lzz:94:71: error: 'start' was not declared in this scope
+Building: npm error ./src/util/custom-aggregate.lzz:94:105: error: expected primary-expression before '>' token
+Building: npm error ./src/util/custom-aggregate.lzz:94:107: error: expected primary-expression before ')' token
+Building: npm error ./src/util/custom-aggregate.lzz:96:43: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-aggregate.lzz:99:38: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-aggregate.lzz:99:59: error: 'start' was not declared in this scope
+Building: npm error ./src/util/custom-aggregate.lzz: In static member function 'static void CustomAggregate::DestroyAccumulator(sqlite3_context*)':
+Building: npm error ./src/util/custom-aggregate.lzz:108:22: error: 'struct CustomAggregate::Accumulator' has no member named 'value'
+Building: npm error ./src/util/custom-table.lzz: In constructor 'CustomTable::CustomTable(v8::Isolate*, Database*, const char*, v8::Local<v8::Function>)':
+Building: npm error ./src/util/custom-table.lzz:9:70: error: class 'CustomTable' does not have any field named 'factory'
+Building: npm error ./src/util/custom-table.lzz: At global scope:
+Building: npm error ./src/util/custom-table.lzz:45:9: warning: missing initializer for member 'sqlite3_module::xIntegrity' [-Wmissing-field-initializers]
+Building: npm error ./src/util/custom-table.lzz:72:9: warning: missing initializer for member 'sqlite3_module::xIntegrity' [-Wmissing-field-initializers]
+Building: npm error ./src/util/custom-table.lzz: In constructor 'CustomTable::VTab::VTab(CustomTable*, v8::Local<v8::Function>, std::vector<std::__cxx11::basic_string<char> >, bool)':
+Building: npm error ./src/util/custom-table.lzz:83:87: error: class 'CustomTable::VTab' does not have any field named 'generator'
+Building: npm error ./src/util/custom-table.lzz: In static member function 'static int CustomTable::xConnect(sqlite3*, void*, int, const char* const*, sqlite3_vtab**, char**)':
+Building: npm error ./src/util/custom-table.lzz:164:70: error: no match for 'operator=' (operand types are 'v8::Local<v8::Value>' and 'v8::Local<v8::String>')
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note: candidate: 'constexpr v8::Local<v8::Value>& v8::Local<v8::Value>::operator=(const v8::Local<v8::Value>&)'
+Building: npm error   261 | class V8_TRIVIAL_ABI Local : public LocalBase<T>,
+Building: npm error       |                      ^~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note:   no known conversion for argument 1 from 'v8::Local<v8::String>' to 'const v8::Local<v8::Value>&'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note: candidate: 'constexpr v8::Local<v8::Value>& v8::Local<v8::Value>::operator=(v8::Local<v8::Value>&&)'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note:   no known conversion for argument 1 from 'v8::Local<v8::String>' to 'v8::Local<v8::Value>&&'
+Building: npm error ./src/util/custom-table.lzz:168:68: error: 'class CustomTable' has no member named 'factory'
+Building: npm error ./src/util/custom-table.lzz:184:61: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/util/custom-table.lzz:191:84: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/util/custom-table.lzz: In static member function 'static int CustomTable::xFilter(sqlite3_vtab_cursor*, int, const char*, int, sqlite3_value**)':
+Building: npm error ./src/util/custom-table.lzz:257:72: error: no match for 'operator=' (operand types are 'v8::Local<v8::Value>' and 'v8::Local<v8::Primitive>')
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note: candidate: 'constexpr v8::Local<v8::Value>& v8::Local<v8::Value>::operator=(const v8::Local<v8::Value>&)'
+Building: npm error   261 | class V8_TRIVIAL_ABI Local : public LocalBase<T>,
+Building: npm error       |                      ^~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note:   no known conversion for argument 1 from 'v8::Local<v8::Primitive>' to 'const v8::Local<v8::Value>&'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note: candidate: 'constexpr v8::Local<v8::Value>& v8::Local<v8::Value>::operator=(v8::Local<v8::Value>&&)'
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-local-handle.h:261:22: note:   no known conversion for argument 1 from 'v8::Local<v8::Primitive>' to 'v8::Local<v8::Value>&&'
+Building: npm error ./src/util/custom-table.lzz:263:65: error: 'class CustomTable::VTab' has no member named 'generator'
+Building: npm error ./src/util/custom-table.lzz:273:77: error: 'class CS' has no member named 'next'
+Building: npm error ./src/util/custom-table.lzz:273:128: error: expected primary-expression before '>' token
+Building: npm error ./src/util/custom-table.lzz:273:130: error: expected primary-expression before ')' token
+Building: npm error ./src/util/custom-table.lzz:274:25: error: 'class CustomTable::Cursor' has no member named 'iterator'
+Building: npm error ./src/util/custom-table.lzz:275:25: error: 'class CustomTable::Cursor' has no member named 'next'
+Building: npm error ./src/util/custom-table.lzz: In static member function 'static int CustomTable::xNext(sqlite3_vtab_cursor*)':
+Building: npm error ./src/util/custom-table.lzz:292:58: error: 'class CustomTable::Cursor' has no member named 'iterator'
+Building: npm error ./src/util/custom-table.lzz:293:56: error: 'class CustomTable::Cursor' has no member named 'next'
+Building: npm error ./src/util/custom-table.lzz:295:67: error: no matching function for call to 'v8::Function::Call(v8::Local<v8::Context>&, v8::Local<v8::Object>&, int, NULL)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:33,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:56:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Function::Call(v8::Isolate*, v8::Local<v8::Context>, v8::Local<v8::Value>, int, v8::Local<v8::Value>*)'
+Building: npm error    56 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Call(v8::Isolate* isolate,
+Building: npm error       |                                           ^~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:56:43: note:   candidate expects 5 arguments, 4 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:60:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Function::Call(v8::Local<v8::Context>, v8::Local<v8::Value>, int, v8::Local<v8::Value>*)'
+Building: npm error    60 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Call(Local<Context> context,
+Building: npm error       |                                           ^~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-function.h:61:61: note:   no known conversion for argument 2 from 'Local<v8::Object>' to 'Local<v8::Value>'
+Building: npm error    61 |                                                Local<Value> recv, int argc,
+Building: npm error       |                                                ~~~~~~~~~~~~~^~~~
+Building: npm error ./src/util/custom-table.lzz:302:56: error: 'class CS' has no member named 'done'
+Building: npm error ./src/util/custom-table.lzz:302:106: error: expected primary-expression before '>' token
+Building: npm error ./src/util/custom-table.lzz:302:108: error: expected primary-expression before ')' token
+Building: npm error ./src/util/custom-table.lzz:304:33: error: 'class CustomTable::Cursor' has no member named 'row'; did you mean 'rowid'?
+Building: npm error ./src/util/custom-table.lzz:304:79: error: 'class CS' has no member named 'value'
+Building: npm error ./src/util/custom-table.lzz:304:128: error: expected primary-expression before '>' token
+Building: npm error ./src/util/custom-table.lzz:304:130: error: expected primary-expression before ')' token
+Building: npm error ./src/util/custom-table.lzz: In static member function 'static int CustomTable::xColumn(sqlite3_vtab_cursor*, sqlite3_context*, int)':
+Building: npm error ./src/util/custom-table.lzz:325:52: error: 'class CustomTable::Cursor' has no member named 'row'; did you mean 'rowid'?
+Building: npm error ./src/util/data.lzz: In function 'v8::Local<v8::Value> Data::GetValueJS(v8::Isolate*, sqlite3_stmt*, int, bool)':
+Building: npm error ./src/util/data.lzz:73:138: error: could not convert 'v8::BigInt::New(isolate, ((int64_t)sqlite3_column_int64(handle, column)))' from 'Local<v8::BigInt>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:73:244: error: could not convert 'v8::Number::New(isolate, sqlite3_column_double(handle, column))' from 'Local<v8::Number>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:73:343: error: could not convert 'StringFromUtf8(isolate, ((const char*)sqlite3_column_text(handle, column)), sqlite3_column_bytes(handle, column))' from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:73:676: error: could not convert 'node::Buffer::Copy(isolate, ((const char*)sqlite3_column_blob(handle, column)), ((size_t)sqlite3_column_bytes(handle, column))).v8::MaybeLocal<v8::Object>::ToLocalChecked()' from 'Local<v8::Object>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:73:778: error: could not convert 'v8::Null(isolate)' from 'Local<v8::Primitive>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz: In function 'v8::Local<v8::Value> Data::GetValueJS(v8::Isolate*, sqlite3_value*, bool)':
+Building: npm error ./src/util/data.lzz:77:127: error: could not convert 'v8::BigInt::New(isolate, ((int64_t)sqlite3_value_int64(value)))' from 'Local<v8::BigInt>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:77:222: error: could not convert 'v8::Number::New(isolate, sqlite3_value_double(value))' from 'Local<v8::Number>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:77:310: error: could not convert 'StringFromUtf8(isolate, ((const char*)sqlite3_value_text(value)), sqlite3_value_bytes(value))' from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:77:599: error: could not convert 'node::Buffer::Copy(isolate, ((const char*)sqlite3_value_blob(value)), ((size_t)sqlite3_value_bytes(value))).v8::MaybeLocal<v8::Object>::ToLocalChecked()' from 'Local<v8::Object>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz:77:690: error: could not convert 'v8::Null(isolate)' from 'Local<v8::Primitive>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz: In function 'v8::Local<v8::Value> Data::GetFlatRowJS(v8::Isolate*, v8::Local<v8::Context>, sqlite3_stmt*, bool)':
+Building: npm error ./src/util/data.lzz:84:33: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>, v8::Local<v8::Value>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/util/data.lzz:88:24: error: could not convert 'row' from 'Local<v8::Object>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz: In function 'v8::Local<v8::Value> Data::GetExpandedRowJS(v8::Isolate*, v8::Local<v8::Context>, sqlite3_stmt*, bool)':
+Building: npm error ./src/util/data.lzz:99:48: error: no matching function for call to 'v8::Object::HasOwnProperty(v8::Local<v8::Context>&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:621:37: note: candidate: 'v8::Maybe<bool> v8::Object::HasOwnProperty(v8::Local<v8::Context>, v8::Local<v8::Name>)'
+Building: npm error   621 |   V8_WARN_UNUSED_RESULT Maybe<bool> HasOwnProperty(Local<Context> context,
+Building: npm error       |                                     ^~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:622:64: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Name>'
+Building: npm error   622 |                                                    Local<Name> key);
+Building: npm error       |                                                    ~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:623:37: note: candidate: 'v8::Maybe<bool> v8::Object::HasOwnProperty(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   623 |   V8_WARN_UNUSED_RESULT Maybe<bool> HasOwnProperty(Local<Context> context,
+Building: npm error       |                                     ^~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:624:61: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   624 |                                                    uint32_t index);
+Building: npm error       |                                                    ~~~~~~~~~^~~~~
+Building: npm error ./src/util/data.lzz:100:41: error: no matching function for call to 'v8::Object::Get(v8::Local<v8::Context>&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:297:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>)'
+Building: npm error   297 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:298:60: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   298 |                                               Local<Value> key);
+Building: npm error       |                                               ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   299 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note:   candidate expects 3 arguments, 2 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:303:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   303 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:304:56: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   304 |                                               uint32_t index);
+Building: npm error       |                                               ~~~~~~~~~^~~~~
+Building: npm error ./src/util/data.lzz:100:84: error: expected primary-expression before '>' token
+Building: npm error ./src/util/data.lzz:100:86: error: expected primary-expression before ')' token
+Building: npm error ./src/util/data.lzz:103:41: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Object>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/util/data.lzz:104:44: error: no matching function for call to 'v8::Object::Set(v8::Local<v8::Context>&, v8::Local<v8::String>&, v8::Local<v8::Value>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:239:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>)'
+Building: npm error   239 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:240:54: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   240 |                                         Local<Value> key, Local<Value> value);
+Building: npm error       |                                         ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   241 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:241:37: note:   candidate expects 4 arguments, 3 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:37: note: candidate: 'v8::Maybe<bool> v8::Object::Set(v8::Local<v8::Context>, uint32_t, v8::Local<v8::Value>)'
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                     ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:245:74: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   245 |   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
+Building: npm error       |                                                                 ~~~~~~~~~^~~~~
+Building: npm error ./src/util/data.lzz:107:24: error: could not convert 'row' from 'Local<v8::Object>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz: In function 'v8::Local<v8::Value> Data::GetRawRowJS(v8::Isolate*, v8::Local<v8::Context>, sqlite3_stmt*, bool)':
+Building: npm error ./src/util/data.lzz:116:24: error: could not convert 'row' from 'Local<v8::Array>' to 'Local<v8::Value>'
+Building: npm error ./src/util/data.lzz: In function 'int Data::BindValueFromJS(v8::Isolate*, sqlite3_stmt*, int, v8::Local<v8::Value>)':
+Building: npm error ./src/util/data.lzz:136:456: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/util/data.lzz: In function 'void Data::ResultValueFromJS(v8::Isolate*, sqlite3_context*, v8::Local<v8::Value>, DataConverter*)':
+Building: npm error ./src/util/data.lzz:141:452: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/util/binder.lzz: In member function 'int Binder::BindObject(v8::Isolate*, v8::Local<v8::Object>, Statement*)':
+Building: npm error ./src/util/binder.lzz:126:75: error: no matching function for call to 'v8::Object::HasOwnProperty(v8::Local<v8::Context>&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:621:37: note: candidate: 'v8::Maybe<bool> v8::Object::HasOwnProperty(v8::Local<v8::Context>, v8::Local<v8::Name>)'
+Building: npm error   621 |   V8_WARN_UNUSED_RESULT Maybe<bool> HasOwnProperty(Local<Context> context,
+Building: npm error       |                                     ^~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:622:64: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Name>'
+Building: npm error   622 |                                                    Local<Name> key);
+Building: npm error       |                                                    ~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:623:37: note: candidate: 'v8::Maybe<bool> v8::Object::HasOwnProperty(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   623 |   V8_WARN_UNUSED_RESULT Maybe<bool> HasOwnProperty(Local<Context> context,
+Building: npm error       |                                     ^~~~~~~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:624:61: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   624 |                                                    uint32_t index);
+Building: npm error       |                                                    ~~~~~~~~~^~~~~
+Building: npm error ./src/util/binder.lzz:132:78: error: no matching function for call to 'v8::String::Utf8Value::Utf8Value(v8::Isolate*&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:12,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:5: note: candidate: 'v8::String::Utf8Value::Utf8Value(v8::Isolate*, v8::Local<v8::Value>, v8::String::WriteOptions)'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |     ^~~~~~~~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-primitive.h:650:50: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   650 |     Utf8Value(Isolate* isolate, Local<v8::Value> obj,
+Building: npm error       |                                 ~~~~~~~~~~~~~~~~~^~~
+Building: npm error ./src/util/binder.lzz:138:72: error: no matching function for call to 'v8::Object::Get(v8::Local<v8::Context>&, v8::Local<v8::String>&)'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-array-buffer.h:14,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:24,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:297:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>)'
+Building: npm error   297 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:298:60: note:   no known conversion for argument 2 from 'Local<v8::String>' to 'Local<v8::Value>'
+Building: npm error   298 |                                               Local<Value> key);
+Building: npm error       |                                               ~~~~~~~~~~~~~^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, v8::Local<v8::Value>, v8::MaybeLocal<v8::Object>)'
+Building: npm error   299 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:299:43: note:   candidate expects 3 arguments, 2 provided
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:303:43: note: candidate: 'v8::MaybeLocal<v8::Value> v8::Object::Get(v8::Local<v8::Context>, uint32_t)'
+Building: npm error   303 |   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+Building: npm error       |                                           ^~~
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-object.h:304:56: note:   no known conversion for argument 2 from 'v8::Local<v8::String>' to 'uint32_t' {aka 'unsigned int'}
+Building: npm error   304 |                                               uint32_t index);
+Building: npm error       |                                               ~~~~~~~~~^~~~~
+Building: npm error ./src/better_sqlite3.lzz: In static member function 'static void Addon::JS_setErrorConstructor(const v8::FunctionCallbackInfo<v8::Value>&)':
+Building: npm error ./src/better_sqlite3.lzz:37:104: error: 'struct Addon' has no member named 'SqliteError'
+Building: npm error In file included from /vercel/.cache/node-gyp/24.13.0/include/node/v8-isolate.h:22,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-snapshot.h:9,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8-context.h:15,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/v8.h:26,
+Building: npm error                  from /vercel/.cache/node-gyp/24.13.0/include/node/node.h:74,
+Building: npm error                  from ./src/better_sqlite3.lzz:11,
+Building: npm error                  from ../src/better_sqlite3.cpp:4:
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-function-callback.h: In instantiation of 'v8::Local<v8::Value> v8::FunctionCallbackInfo<F>::operator[](int) const [with T = v8::Value]':
+Building: npm error ./src/objects/database.lzz:151:63:   required from here
+Building: npm error /vercel/.cache/node-gyp/24.13.0/include/node/v8-function-callback.h:623:47: error: could not convert 'v8::Undefined(((const v8::FunctionCallbackInfo<v8::Value>*)this)->v8::FunctionCallbackInfo<v8::Value>::GetIsolate())' from 'Local<v8::Primitive>' to 'Local<v8::Value>'
+Building: npm error   623 |   if (i < 0 || Length() <= i) return Undefined(GetIsolate());
+Building: npm error       |                                      ~~~~~~~~~^~~~~~~~~~~~~~
+Building: npm error       |                                               |
+Building: npm error       |                                               Local<v8::Primitive>
+Building: npm error make: *** [better_sqlite3.target.mk:122: Release/obj.target/better_sqlite3/src/better_sqlite3.o] Error 1
+Building: npm error gyp ERR! build error
+Building: npm error gyp ERR! stack Error: `make` failed with exit code: 2
+Building: npm error gyp ERR! stack at ChildProcess.<anonymous> (/node24/lib/node_modules/npm/node_modules/node-gyp/lib/build.js:219:23)
+Building: npm error gyp ERR! System Linux 5.10.174
+Building: npm error gyp ERR! command "/node24/bin/node" "/node24/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "rebuild" "--release"
+Building: npm error gyp ERR! cwd /vercel/path0/node_modules/better-sqlite3
+Building: npm error gyp ERR! node -v v24.13.0
+Building: npm error gyp ERR! node-gyp -v v11.4.2
+Building: npm error gyp ERR! not ok
+Building: npm error A complete log of this run can be found in: /vercel/.npm/_logs/2026-01-17T00_41_36_929Z-debug-0.log
+Building: Error: Command "npm install" exited with 1
+Error: Command "npm install" exited with 1
