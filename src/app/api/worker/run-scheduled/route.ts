@@ -6,33 +6,19 @@ export const runtime = "nodejs";
 
 const MAX_BATCH = 5;
 
-function requireWorkerAuth(req: Request) {
+function isAuthorized(req: Request) {
   const expected = process.env.WORKER_SECRET;
-  if (!expected) return; // allow locally if not set
+  // Allow locally if not set
+  if (!expected) return true;
 
-  // ✅ Vercel Cron can include query params reliably
   const url = new URL(req.url);
-  const token = url.searchParams.get("token") || "";
-
-  if (token !== expected) {
-    throw new Error("Unauthorized worker request");
-  }
+  const token = url.searchParams.get("token");
+  return token === expected;
 }
 
-async function runWorker(req: Request) {
-  requireWorkerAuth(req);
-
+async function runWorker() {
   const nowIso = new Date().toISOString();
 
-  console.log("worker/run-scheduled hit", {
-    nowIso,
-    ua: req.headers.get("user-agent"),
-  });
-
-  // ✅ Pull due jobs.
-  // Supports:
-  //  - provider='youtube'
-  //  - OR platforms contains 'youtube' (if your scheduler uses platforms array)
   const { data: duePosts, error } = await supabaseAdmin
     .from("scheduled_posts")
     .select(
@@ -45,27 +31,25 @@ async function runWorker(req: Request) {
     .limit(MAX_BATCH);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return { ok: false, error: error.message, processed: 0, results: [] as any[] };
   }
 
-  console.log("duePosts", duePosts?.length ?? 0);
-
   if (!duePosts || duePosts.length === 0) {
-    return NextResponse.json({ ok: true, processed: 0, results: [] });
+    return { ok: true, processed: 0, results: [] as any[] };
   }
 
   const results: Array<{ id: string; ok: boolean; youtubeVideoId?: string; error?: string }> = [];
 
   for (const post of duePosts) {
     try {
-      // Lock
+      // Lock the job
       await supabaseAdmin
         .from("scheduled_posts")
         .update({ status: "posting", last_error: null })
         .eq("id", post.id)
         .eq("status", "scheduled");
 
-      // Load upload
+      // Load upload row
       const { data: uploadRow, error: uploadErr } = await supabaseAdmin
         .from("uploads")
         .select("id, user_id, bucket, storage_path")
@@ -89,13 +73,13 @@ async function runWorker(req: Request) {
         throw new Error("YouTube not connected (missing refresh_token)");
       }
 
-      // Upload to YouTube
+      // Upload
       const yt = await uploadSupabaseVideoToYouTube({
         userId: post.user_id,
         platformAccountId: acct.id,
         refreshToken: acct.refresh_token,
         bucket: uploadRow.bucket,
-        storagePath: uploadRow.storage_path, // ✅ correct property name
+        storagePath: uploadRow.storage_path,
         title: post.title ?? "Clip Scheduler Upload",
         description: post.description ?? "",
         privacyStatus: (post.privacy_status ?? "private") as any,
@@ -129,22 +113,22 @@ async function runWorker(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, processed: results.length, results });
+  return { ok: true, processed: results.length, results };
 }
 
-// ✅ Allow both GET and POST (debug + cron friendliness)
-export async function GET(req: Request) {
-  try {
-    return await runWorker(req);
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unauthorized" }, { status: 401 });
-  }
-}
-
+// ✅ Accept BOTH POST and GET so Supabase cron and manual tests work.
 export async function POST(req: Request) {
-  try {
-    return await runWorker(req);
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unauthorized" }, { status: 401 });
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+  const out = await runWorker();
+  return NextResponse.json(out, { status: out.ok ? 200 : 500 });
+}
+
+export async function GET(req: Request) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+  const out = await runWorker();
+  return NextResponse.json(out, { status: out.ok ? 200 : 500 });
 }
