@@ -4,9 +4,6 @@ import { uploadSupabaseVideoToYouTube } from "@/lib/youtubeUpload";
 
 export const runtime = "nodejs";
 
-const MAX_BATCH = 5;
-
-// ✅ Set your storage bucket name here OR via env UPLOADS_BUCKET
 const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
 function requireWorkerAuth(req: Request) {
@@ -18,15 +15,26 @@ function requireWorkerAuth(req: Request) {
 
 type Status = "scheduled" | "posting" | "posted" | "failed";
 
-function pickStoragePath(row: any): string | null {
-  return (
-    row?.storage_path ??
-    row?.path ??
-    row?.file_path ??
-    row?.object_path ??
-    row?.storage_key ??
-    null
-  );
+async function probeUploadPath(uploadId: string): Promise<{ column?: string; value?: string }> {
+  const candidates = ["path", "file_path", "object_path", "storage_key", "key", "url"] as const;
+
+  for (const col of candidates) {
+    const { data, error } = await supabaseAdmin
+      .from("uploads")
+      .select(`id, ${col}`)
+      .eq("id", uploadId)
+      .maybeSingle();
+
+    // If column doesn't exist, Supabase returns an error like "column uploads.X does not exist"
+    if (error) continue;
+
+    const value = (data as any)?.[col];
+    if (typeof value === "string" && value.length > 0) {
+      return { column: col, value };
+    }
+  }
+
+  return {};
 }
 
 async function runWorker(req: Request) {
@@ -36,21 +44,16 @@ async function runWorker(req: Request) {
   const postId = url.searchParams.get("postId");
   const retryFailed = url.searchParams.get("retryFailed") === "1";
   const debug = url.searchParams.get("debug") === "1";
+  const patchUploadId = url.searchParams.get("setUploadId");
 
-  // ✅ Optional: quick patch a post’s upload_id without SQL editor
-  const patchUploadId = url.searchParams.get("setUploadId"); // new upload uuid
-
-  const nowIso = new Date().toISOString();
   const statuses: Status[] = retryFailed ? ["scheduled", "failed"] : ["scheduled"];
+  const nowIso = new Date().toISOString();
 
   if (!postId) {
-    return NextResponse.json(
-      { ok: false, error: "Missing postId (use ?postId=...)" },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false, error: "Missing postId" }, { status: 400 });
   }
 
-  // If requested, patch the post first
+  // Optional: patch upload id + make due
   if (patchUploadId) {
     const { error: patchErr } = await supabaseAdmin
       .from("scheduled_posts")
@@ -80,7 +83,7 @@ async function runWorker(req: Request) {
 
   const dbg: any = { post };
 
-  // Enforce due + provider
+  // Must be youtube + due
   if (post.provider !== "youtube" || post.scheduled_for > nowIso) {
     return NextResponse.json({
       ok: true,
@@ -102,15 +105,15 @@ async function runWorker(req: Request) {
     if (lockErr) throw new Error(`Failed to lock post: ${lockErr.message}`);
     if (!locked || locked.length === 0) throw new Error("Failed to lock post (status changed)");
 
-    // ✅ Load upload row (NO bucket column)
-    const { data: uploadRow, error: uploadErr } = await supabaseAdmin
+    // ✅ Upload base row (guaranteed columns only)
+    const { data: uploadBase, error: uploadBaseErr } = await supabaseAdmin
       .from("uploads")
-      .select("id, user_id, storage_path, path, file_path, object_path, storage_key, created_at")
+      .select("id, user_id, created_at")
       .eq("id", post.upload_id)
       .maybeSingle();
 
-    dbg.uploadRowExists = !!uploadRow;
-    dbg.uploadLookupError = uploadErr?.message ?? null;
+    dbg.uploadBaseExists = !!uploadBase;
+    dbg.uploadBaseError = uploadBaseErr?.message ?? null;
 
     const { data: recentUploads } = await supabaseAdmin
       .from("uploads")
@@ -121,10 +124,19 @@ async function runWorker(req: Request) {
 
     dbg.recentUploads = recentUploads ?? [];
 
-    if (!uploadRow) throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
+    if (!uploadBase) throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
 
-    const storagePath = pickStoragePath(uploadRow);
-    if (!storagePath) throw new Error("Upload row exists but storage path is missing");
+    // ✅ Probe which column actually contains the storage path
+    const probed = await probeUploadPath(post.upload_id);
+    dbg.pathColumn = probed.column ?? null;
+
+    if (!probed.value) {
+      throw new Error(
+        "Upload row exists but no usable path field found. Expected one of: path, file_path, object_path, storage_key, key, url"
+      );
+    }
+
+    const storagePath = probed.value;
 
     // Load YouTube account
     const { data: acct, error: acctErr } = await supabaseAdmin
@@ -167,6 +179,7 @@ async function runWorker(req: Request) {
     });
   } catch (e: any) {
     const message = e?.message || "Unknown error";
+
     await supabaseAdmin
       .from("scheduled_posts")
       .update({ status: "failed", last_error: message })
