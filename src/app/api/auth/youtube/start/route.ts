@@ -11,14 +11,32 @@ function mustEnv(name: string) {
   return v;
 }
 
+function getSiteUrlFromRequest(req: Request): string {
+  // Prefer explicit env if you have it
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  if (explicit) return explicit.replace(/\/$/, "");
+
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host =
+    req.headers.get("x-forwarded-host") ||
+    req.headers.get("host") ||
+    process.env.VERCEL_URL;
+
+  if (!host) {
+    throw new Error("Unable to determine site URL (missing host)");
+  }
+
+  // VERCEL_URL is usually like "clip-scheduler.vercel.app" (no scheme)
+  const normalizedHost = host.startsWith("http") ? host : `${proto}://${host}`;
+  return normalizedHost.replace(/\/$/, "");
+}
+
 function getSupabaseAccessTokenFromCookies(): string | null {
   const store = cookies();
 
-  // 1) Common cookie name
   const direct = store.get("sb-access-token")?.value;
   if (direct) return direct;
 
-  // 2) Some setups store JSON in sb-<project-ref>-auth-token
   const all = store.getAll();
   const authCookie = all.find((c) => c.name.endsWith("-auth-token"))?.value;
   if (!authCookie) return null;
@@ -31,14 +49,13 @@ function getSupabaseAccessTokenFromCookies(): string | null {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const clientId = mustEnv("GOOGLE_CLIENT_ID");
   const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
-  const siteUrl = mustEnv("NEXT_PUBLIC_SITE_URL");
 
+  const siteUrl = getSiteUrlFromRequest(req);
   const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
 
-  // ✅ Identify signed-in user via Supabase session cookie
   const accessToken = getSupabaseAccessTokenFromCookies();
   if (!accessToken) {
     return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
@@ -51,7 +68,6 @@ export async function GET() {
 
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  // ✅ CRITICAL: forces refresh_token
   const googleUrl = oauth2.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",

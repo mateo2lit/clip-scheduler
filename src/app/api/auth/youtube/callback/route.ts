@@ -10,11 +10,29 @@ function mustEnv(name: string) {
   return v;
 }
 
+function getSiteUrlFromRequest(req: Request): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  if (explicit) return explicit.replace(/\/$/, "");
+
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host =
+    req.headers.get("x-forwarded-host") ||
+    req.headers.get("host") ||
+    process.env.VERCEL_URL;
+
+  if (!host) {
+    throw new Error("Unable to determine site URL (missing host)");
+  }
+
+  const normalizedHost = host.startsWith("http") ? host : `${proto}://${host}`;
+  return normalizedHost.replace(/\/$/, "");
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
 
   const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state"); // user id from /start
+  const state = url.searchParams.get("state");
   const errorParam = url.searchParams.get("error");
 
   if (errorParam) {
@@ -31,20 +49,19 @@ export async function GET(req: Request) {
 
   const clientId = mustEnv("GOOGLE_CLIENT_ID");
   const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
-  const siteUrl = mustEnv("NEXT_PUBLIC_SITE_URL");
+
+  const siteUrl = getSiteUrlFromRequest(req);
   const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
 
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  // Exchange auth code for tokens
   const { tokens } = await oauth2.getToken(code);
 
   const accessToken = tokens.access_token ?? null;
-  const refreshTokenFromGoogle = tokens.refresh_token ?? null; // may be null on re-consent
+  const refreshTokenFromGoogle = tokens.refresh_token ?? null;
   const expiryIso =
     typeof tokens.expiry_date === "number" ? new Date(tokens.expiry_date).toISOString() : null;
 
-  // ✅ Preserve existing refresh_token if Google doesn't resend it
   const { data: existing } = await supabaseAdmin
     .from("platform_accounts")
     .select("id, refresh_token")
@@ -54,7 +71,6 @@ export async function GET(req: Request) {
 
   const finalRefreshToken = refreshTokenFromGoogle ?? existing?.refresh_token ?? null;
 
-  // ✅ Upsert tokens (note: your column is "expiry")
   const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
     {
       user_id: state,
