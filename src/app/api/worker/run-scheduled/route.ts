@@ -6,6 +6,9 @@ export const runtime = "nodejs";
 
 const MAX_BATCH = 5;
 
+// ✅ Set your storage bucket name here OR via env UPLOADS_BUCKET
+const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
+
 function requireWorkerAuth(req: Request) {
   const expected = process.env.WORKER_SECRET;
   if (!expected) return;
@@ -34,15 +37,34 @@ async function runWorker(req: Request) {
   const retryFailed = url.searchParams.get("retryFailed") === "1";
   const debug = url.searchParams.get("debug") === "1";
 
+  // ✅ Optional: quick patch a post’s upload_id without SQL editor
+  const patchUploadId = url.searchParams.get("setUploadId"); // new upload uuid
+
   const nowIso = new Date().toISOString();
   const statuses: Status[] = retryFailed ? ["scheduled", "failed"] : ["scheduled"];
 
-  // Fetch targeted post (we only care about your test flow)
   if (!postId) {
     return NextResponse.json(
       { ok: false, error: "Missing postId (use ?postId=...)" },
       { status: 400 }
     );
+  }
+
+  // If requested, patch the post first
+  if (patchUploadId) {
+    const { error: patchErr } = await supabaseAdmin
+      .from("scheduled_posts")
+      .update({
+        upload_id: patchUploadId,
+        status: "scheduled",
+        scheduled_for: new Date(Date.now() - 60_000).toISOString(),
+        last_error: null,
+      })
+      .eq("id", postId);
+
+    if (patchErr) {
+      return NextResponse.json({ ok: false, error: patchErr.message }, { status: 500 });
+    }
   }
 
   const { data: posts, error: postErr } = await supabaseAdmin
@@ -56,24 +78,20 @@ async function runWorker(req: Request) {
   const post = posts?.[0];
   if (!post) return NextResponse.json({ ok: true, processed: 0, results: [] });
 
-  // Debug early info
   const dbg: any = { post };
 
   // Enforce due + provider
   if (post.provider !== "youtube" || post.scheduled_for > nowIso) {
-    if (debug) {
-      return NextResponse.json({
-        ok: true,
-        processed: 0,
-        results: [],
-        debug: { reason: "post not due or provider not youtube", ...dbg },
-      });
-    }
-    return NextResponse.json({ ok: true, processed: 0, results: [] });
+    return NextResponse.json({
+      ok: true,
+      processed: 0,
+      results: [],
+      ...(debug ? { debug: { reason: "post not due or provider not youtube", ...dbg } } : {}),
+    });
   }
 
   try {
-    // Lock job
+    // Lock
     const { data: locked, error: lockErr } = await supabaseAdmin
       .from("scheduled_posts")
       .update({ status: "posting", last_error: null })
@@ -84,17 +102,16 @@ async function runWorker(req: Request) {
     if (lockErr) throw new Error(`Failed to lock post: ${lockErr.message}`);
     if (!locked || locked.length === 0) throw new Error("Failed to lock post (status changed)");
 
-    // Load upload row
+    // ✅ Load upload row (NO bucket column)
     const { data: uploadRow, error: uploadErr } = await supabaseAdmin
       .from("uploads")
-      .select("id, user_id, bucket, storage_path, path, file_path, object_path, storage_key")
+      .select("id, user_id, storage_path, path, file_path, object_path, storage_key, created_at")
       .eq("id", post.upload_id)
       .maybeSingle();
 
     dbg.uploadRowExists = !!uploadRow;
     dbg.uploadLookupError = uploadErr?.message ?? null;
 
-    // Also list recent uploads for that user (helps you pick a valid upload_id)
     const { data: recentUploads } = await supabaseAdmin
       .from("uploads")
       .select("id, created_at")
@@ -104,11 +121,8 @@ async function runWorker(req: Request) {
 
     dbg.recentUploads = recentUploads ?? [];
 
-    if (!uploadRow) {
-      throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
-    }
+    if (!uploadRow) throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
 
-    const bucket = uploadRow.bucket ?? "uploads"; // change if needed
     const storagePath = pickStoragePath(uploadRow);
     if (!storagePath) throw new Error("Upload row exists but storage path is missing");
 
@@ -128,7 +142,7 @@ async function runWorker(req: Request) {
       userId: post.user_id,
       platformAccountId: acct.id,
       refreshToken: acct.refresh_token,
-      bucket,
+      bucket: DEFAULT_BUCKET,
       storagePath,
       title: post.title ?? "Clip Scheduler Upload",
       description: post.description ?? "",
@@ -153,7 +167,6 @@ async function runWorker(req: Request) {
     });
   } catch (e: any) {
     const message = e?.message || "Unknown error";
-
     await supabaseAdmin
       .from("scheduled_posts")
       .update({ status: "failed", last_error: message })
