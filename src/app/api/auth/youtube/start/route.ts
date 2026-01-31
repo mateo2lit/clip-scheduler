@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -15,47 +14,35 @@ function getSiteUrl(req: Request) {
   return process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
 }
 
-function supabaseFromCookies() {
-  const cookieStore = cookies();
-
-  return createServerClient(
-    mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    // ✅ use the public anon key env var
-    mustEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options, maxAge: 0 });
-        },
-      },
-    }
-  );
+function readBearer(req: Request) {
+  const h = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  return m?.[1] || null;
 }
 
 async function handler(req: Request) {
-  const supabase = supabaseFromCookies();
+  const token = readBearer(req);
+  if (!token) {
+    return NextResponse.json({ ok: false, error: "Missing Authorization Bearer token" }, { status: 401 });
+  }
 
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
   const user = data?.user;
 
   if (error || !user) {
     return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
   }
 
-  const clientId = mustEnv("GOOGLE_CLIENT_ID");
-  const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
-
   const siteUrl = getSiteUrl(req);
   const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
 
-  const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  const oauth2 = new google.auth.OAuth2(
+    mustEnv("GOOGLE_CLIENT_ID"),
+    mustEnv("GOOGLE_CLIENT_SECRET"),
+    redirectUri
+  );
 
+  // ✅ state=user.id is REQUIRED so callback can upsert platform_accounts for the right user
   const authUrl = oauth2.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
@@ -63,20 +50,23 @@ async function handler(req: Request) {
     state: user.id,
   });
 
-  return NextResponse.redirect(authUrl);
-}
-
-export async function GET(req: Request) {
-  try {
-    return await handler(req);
-  } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e.message || "Unknown error" },
-      { status: 500 }
-    );
-  }
+  // ✅ Return JSON because your Settings page expects it
+  return NextResponse.json({ ok: true, url: authUrl });
 }
 
 export async function POST(req: Request) {
-  return GET(req);
+  try {
+    return await handler(req);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  // Optional: allow GET too (handy for manual testing)
+  try {
+    return await handler(req);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+  }
 }
