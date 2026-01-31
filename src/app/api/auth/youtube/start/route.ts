@@ -18,19 +18,24 @@ function getSiteUrl(req: Request) {
 function supabaseFromCookies() {
   const cookieStore = cookies();
 
-  return createServerClient(mustEnv("NEXT_PUBLIC_SUPABASE_URL"), mustEnv("SUPABASE_ANON_KEY"), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+  return createServerClient(
+    mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    // ✅ use the public anon key env var
+    mustEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+        },
       },
-      set(name: string, value: string, options: any) {
-        cookieStore.set({ name, value, ...options });
-      },
-      remove(name: string, options: any) {
-        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
-      },
-    },
-  });
+    }
+  );
 }
 
 async function handler(req: Request) {
@@ -55,7 +60,7 @@ async function handler(req: Request) {
     access_type: "offline",
     prompt: "consent",
     scope: ["https://www.googleapis.com/auth/youtube.upload"],
-    state: user.id, // ✅ critical for callback to link tokens
+    state: user.id,
   });
 
   return NextResponse.redirect(authUrl);
@@ -65,7 +70,10 @@ export async function GET(req: Request) {
   try {
     return await handler(req);
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message || "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e.message || "Unknown error" },
+      { status: 500 }
+    );
   }
 }
 
