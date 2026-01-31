@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { cookies } from "next/headers";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -9,49 +11,68 @@ function mustEnv(name: string) {
   return v;
 }
 
-function getRedirectUri(req: Request) {
-  // Prefer env, but fall back to request origin (works even if env missing/misconfigured)
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
-
-  return `${siteUrl}/api/auth/youtube/callback`;
+function getSiteUrl(req: Request) {
+  return process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
 }
 
-function buildAuthUrl(req: Request) {
-  const clientId = mustEnv("GOOGLE_CLIENT_ID");
-  const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
-  const redirectUri = getRedirectUri(req);
+function getSupabaseAccessTokenFromCookies(): string | null {
+  const store = cookies();
 
-  const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  // Common cookie
+  const direct = store.get("sb-access-token")?.value;
+  if (direct) return direct;
 
-  // Offline + consent => refresh_token
-  return oauth2.generateAuthUrl({
-    access_type: "offline",
-    prompt: "consent",
-    scope: [
-      "https://www.googleapis.com/auth/youtube.upload",
-      "https://www.googleapis.com/auth/userinfo.email",
-      "openid",
-      "profile",
-    ],
-    include_granted_scopes: true,
-  });
-}
+  // Fallback cookie
+  const all = store.getAll();
+  const authCookie = all.find((c) => c.name.endsWith("-auth-token"))?.value;
+  if (!authCookie) return null;
 
-// ✅ Support GET
-export async function GET(req: Request) {
   try {
-    const url = buildAuthUrl(req);
-    return NextResponse.redirect(url);
-  } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Unknown error" },
-      { status: 500 }
-    );
+    const parsed = JSON.parse(decodeURIComponent(authCookie));
+    return parsed?.access_token ?? null;
+  } catch {
+    return null;
   }
 }
 
-// ✅ Support POST too (fixes your 405)
+async function handler(req: Request) {
+  const clientId = mustEnv("GOOGLE_CLIENT_ID");
+  const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
+
+  const siteUrl = getSiteUrl(req);
+  const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
+
+  // ✅ Must be signed in
+  const accessToken = getSupabaseAccessTokenFromCookies();
+  if (!accessToken) {
+    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+  if (error || !data?.user) {
+    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+  }
+
+  const userId = data.user.id;
+
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+  // ✅ CRITICAL: state = userId so callback can save refresh_token correctly
+  const authUrl = oauth2.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: ["https://www.googleapis.com/auth/youtube.upload"],
+    response_type: "code",
+    state: userId,
+  });
+
+  return NextResponse.redirect(authUrl);
+}
+
+export async function GET(req: Request) {
+  return handler(req);
+}
+
 export async function POST(req: Request) {
-  return GET(req);
+  return handler(req);
 }
