@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { cookies } from "next/headers";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createServerClient } from "@supabase/ssr";
 
 export const runtime = "nodejs";
 
@@ -15,64 +15,60 @@ function getSiteUrl(req: Request) {
   return process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
 }
 
-function getSupabaseAccessTokenFromCookies(): string | null {
-  const store = cookies();
+function supabaseFromCookies() {
+  const cookieStore = cookies();
 
-  // Common cookie
-  const direct = store.get("sb-access-token")?.value;
-  if (direct) return direct;
-
-  // Fallback cookie
-  const all = store.getAll();
-  const authCookie = all.find((c) => c.name.endsWith("-auth-token"))?.value;
-  if (!authCookie) return null;
-
-  try {
-    const parsed = JSON.parse(decodeURIComponent(authCookie));
-    return parsed?.access_token ?? null;
-  } catch {
-    return null;
-  }
+  return createServerClient(mustEnv("NEXT_PUBLIC_SUPABASE_URL"), mustEnv("SUPABASE_ANON_KEY"), {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: any) {
+        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+      },
+    },
+  });
 }
 
 async function handler(req: Request) {
+  const supabase = supabaseFromCookies();
+
+  const { data, error } = await supabase.auth.getUser();
+  const user = data?.user;
+
+  if (error || !user) {
+    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+  }
+
   const clientId = mustEnv("GOOGLE_CLIENT_ID");
   const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
 
   const siteUrl = getSiteUrl(req);
   const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
 
-  // ✅ Must be signed in
-  const accessToken = getSupabaseAccessTokenFromCookies();
-  if (!accessToken) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
-
-  const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
-  if (error || !data?.user) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
-
-  const userId = data.user.id;
-
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  // ✅ CRITICAL: state = userId so callback can save refresh_token correctly
   const authUrl = oauth2.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     scope: ["https://www.googleapis.com/auth/youtube.upload"],
-    response_type: "code",
-    state: userId,
+    state: user.id, // ✅ critical for callback to link tokens
   });
 
   return NextResponse.redirect(authUrl);
 }
 
 export async function GET(req: Request) {
-  return handler(req);
+  try {
+    return await handler(req);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e.message || "Unknown error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  return handler(req);
+  return GET(req);
 }
