@@ -42,9 +42,9 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
-  // statuses to fetch
   const statuses = retryFailed ? ["scheduled", "failed"] : ["scheduled"];
 
+  // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
     .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
@@ -91,19 +91,34 @@ async function runWorker(req: Request) {
         if (debugOut) debugOut.post.upload_id = setUploadId;
       }
 
-      // Lock job (best-effort)
-      const { error: lockErr } = await supabaseAdmin
+      // ✅ Concurrency-safe claim
+      // Only claim if status is in the allowed set (scheduled, and failed if retryFailed)
+      const claimStatuses = retryFailed ? ["scheduled", "failed"] : ["scheduled"];
+
+      const { data: claimedRows, error: claimErr } = await supabaseAdmin
         .from("scheduled_posts")
         .update({ status: "posting", last_error: null })
-        .eq("id", post.id);
+        .eq("id", post.id)
+        .in("status", claimStatuses)
+        .select("id");
 
-      if (lockErr) {
-        throw new Error(
-          `Failed to lock post: ${lockErr.message || "Unknown lock error"}`
-        );
+      if (claimErr) {
+        throw new Error(`Failed to claim post: ${claimErr.message}`);
       }
 
-      // Load upload row (we don't assume column names — we probe)
+      // If 0 rows returned, someone else already claimed it or it is not eligible anymore
+      if (!claimedRows || claimedRows.length === 0) {
+        results.push({
+          id: post.id,
+          ok: true,
+          skipped: true,
+          reason: "Already claimed or not eligible",
+          ...(debugOut ? { debug: debugOut } : {}),
+        });
+        continue;
+      }
+
+      // Load upload row (probe schema)
       const { data: uploadBase, error: uploadBaseErr } = await supabaseAdmin
         .from("uploads")
         .select("*")
@@ -119,7 +134,6 @@ async function runWorker(req: Request) {
         throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
       }
 
-      // Determine path column (your schema drift has changed names)
       const probed = pickFirstNonEmpty(uploadBase, [
         "file_path",
         "storage_path",
@@ -133,15 +147,14 @@ async function runWorker(req: Request) {
         throw new Error("Upload row exists but storage path is missing");
       }
 
-      // ✅ Read bucket from uploads table if present, else fallback
       const bucket =
-        (typeof uploadBase.bucket === "string" && uploadBase.bucket.trim()
+        typeof uploadBase.bucket === "string" && uploadBase.bucket.trim()
           ? uploadBase.bucket.trim()
-          : DEFAULT_BUCKET);
+          : DEFAULT_BUCKET;
 
       const storagePath = probed.value;
 
-      // Load YouTube account (must have refresh_token)
+      // Load YouTube account
       const { data: acct, error: acctErr } = await supabaseAdmin
         .from("platform_accounts")
         .select("id, refresh_token")
@@ -183,7 +196,11 @@ async function runWorker(req: Request) {
         })
         .eq("id", post.id);
 
-      const okResult: any = { id: post.id, ok: true, youtubeVideoId: yt.youtubeVideoId };
+      const okResult: any = {
+        id: post.id,
+        ok: true,
+        youtubeVideoId: yt.youtubeVideoId,
+      };
       if (debugOut) okResult.debug = debugOut;
 
       results.push(okResult);
@@ -205,8 +222,7 @@ async function runWorker(req: Request) {
     }
   }
 
-  const out: any = { ok: true, processed: results.length, results };
-  return NextResponse.json(out);
+  return NextResponse.json({ ok: true, processed: results.length, results });
 }
 
 export async function POST(req: Request) {
