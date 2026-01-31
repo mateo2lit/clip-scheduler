@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import { cookies } from "next/headers";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -11,74 +9,49 @@ function mustEnv(name: string) {
   return v;
 }
 
-function getSiteUrlFromRequest(req: Request): string {
-  // Prefer explicit env if you have it
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
-  if (explicit) return explicit.replace(/\/$/, "");
+function getRedirectUri(req: Request) {
+  // Prefer env, but fall back to request origin (works even if env missing/misconfigured)
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
 
-  const proto = req.headers.get("x-forwarded-proto") || "https";
-  const host =
-    req.headers.get("x-forwarded-host") ||
-    req.headers.get("host") ||
-    process.env.VERCEL_URL;
-
-  if (!host) {
-    throw new Error("Unable to determine site URL (missing host)");
-  }
-
-  // VERCEL_URL is usually like "clip-scheduler.vercel.app" (no scheme)
-  const normalizedHost = host.startsWith("http") ? host : `${proto}://${host}`;
-  return normalizedHost.replace(/\/$/, "");
+  return `${siteUrl}/api/auth/youtube/callback`;
 }
 
-function getSupabaseAccessTokenFromCookies(): string | null {
-  const store = cookies();
-
-  const direct = store.get("sb-access-token")?.value;
-  if (direct) return direct;
-
-  const all = store.getAll();
-  const authCookie = all.find((c) => c.name.endsWith("-auth-token"))?.value;
-  if (!authCookie) return null;
-
-  try {
-    const parsed = JSON.parse(decodeURIComponent(authCookie));
-    return parsed?.access_token ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: Request) {
+function buildAuthUrl(req: Request) {
   const clientId = mustEnv("GOOGLE_CLIENT_ID");
   const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
-
-  const siteUrl = getSiteUrlFromRequest(req);
-  const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
-
-  const accessToken = getSupabaseAccessTokenFromCookies();
-  if (!accessToken) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
-
-  const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
-  if (error || !data?.user) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
+  const redirectUri = getRedirectUri(req);
 
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  const googleUrl = oauth2.generateAuthUrl({
+  // Offline + consent => refresh_token
+  return oauth2.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    include_granted_scopes: true,
-    response_type: "code",
     scope: [
       "https://www.googleapis.com/auth/youtube.upload",
-      "https://www.googleapis.com/auth/youtube.readonly",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "openid",
+      "profile",
     ],
-    state: data.user.id,
+    include_granted_scopes: true,
   });
+}
 
-  return NextResponse.redirect(googleUrl);
+// ✅ Support GET
+export async function GET(req: Request) {
+  try {
+    const url = buildAuthUrl(req);
+    return NextResponse.redirect(url);
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+// ✅ Support POST too (fixes your 405)
+export async function POST(req: Request) {
+  return GET(req);
 }
