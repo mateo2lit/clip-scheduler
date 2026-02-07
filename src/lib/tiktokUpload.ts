@@ -91,7 +91,7 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     .update({
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
-      expires_at: tokens.expiresAt.toISOString(),
+      expiry: tokens.expiresAt.toISOString(),
     })
     .eq("id", platformAccountId)
     .eq("user_id", userId);
