@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { uploadSupabaseVideoToYouTube } from "@/lib/youtubeUpload";
+import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 
 export const runtime = "nodejs";
 
@@ -47,7 +48,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
+    .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,tiktok_settings")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -56,7 +57,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
+      .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,tiktok_settings")
       .eq("id", postId)
       .limit(1);
   }
@@ -154,44 +155,68 @@ async function runWorker(req: Request) {
 
       const storagePath = probed.value;
 
-      // Load YouTube account
+      const provider = post.provider || "youtube";
+
+      // Load platform account
       const { data: acct, error: acctErr } = await supabaseAdmin
         .from("platform_accounts")
-        .select("id, refresh_token")
+        .select("id, refresh_token, access_token, expires_at, platform_user_id")
         .eq("user_id", post.user_id)
-        .eq("provider", "youtube")
+        .eq("provider", provider)
         .maybeSingle();
 
       if (acctErr) {
-        throw new Error(`Failed to load YouTube account: ${acctErr.message}`);
+        throw new Error(`Failed to load ${provider} account: ${acctErr.message}`);
       }
 
       if (!acct?.refresh_token) {
         throw new Error(
-          `YouTube not connected for scheduled_posts.user_id=${post.user_id}`
+          `${provider} not connected for scheduled_posts.user_id=${post.user_id}`
         );
       }
 
-      // Upload to YouTube
-      const yt = await uploadSupabaseVideoToYouTube({
-        userId: post.user_id,
-        platformAccountId: acct.id,
-        refreshToken: acct.refresh_token,
-        bucket,
-        storagePath,
-        title: post.title ?? "Clip Scheduler Upload",
-        description: post.description ?? "",
-        privacyStatus: (post.privacy_status ?? "private") as any,
-      });
+      let platformPostId: string | null = null;
+
+      if (provider === "tiktok") {
+        const ttSettings = (post as any).tiktok_settings || {};
+        const tt = await uploadSupabaseVideoToTikTok({
+          userId: post.user_id,
+          platformAccountId: acct.id,
+          refreshToken: acct.refresh_token,
+          accessToken: acct.access_token,
+          expiresAt: acct.expires_at,
+          bucket,
+          storagePath,
+          title: post.title ?? "Clip Scheduler Upload",
+          description: post.description ?? "",
+          privacyLevel: ttSettings.privacy_level || "SELF_ONLY",
+          allowComments: ttSettings.allow_comments ?? true,
+          allowDuet: ttSettings.allow_duet ?? true,
+          allowStitch: ttSettings.allow_stitch ?? true,
+        });
+        platformPostId = tt.publishId;
+      } else {
+        // YouTube (default)
+        const yt = await uploadSupabaseVideoToYouTube({
+          userId: post.user_id,
+          platformAccountId: acct.id,
+          refreshToken: acct.refresh_token,
+          bucket,
+          storagePath,
+          title: post.title ?? "Clip Scheduler Upload",
+          description: post.description ?? "",
+          privacyStatus: (post.privacy_status ?? "private") as any,
+        });
+        platformPostId = yt.youtubeVideoId;
+      }
 
       // Mark posted
       await supabaseAdmin
         .from("scheduled_posts")
         .update({
           status: "posted",
-          provider: "youtube",
           posted_at: new Date().toISOString(),
-          platform_post_id: yt.youtubeVideoId,
+          platform_post_id: platformPostId,
           last_error: null,
         })
         .eq("id", post.id);
@@ -199,7 +224,7 @@ async function runWorker(req: Request) {
       const okResult: any = {
         id: post.id,
         ok: true,
-        youtubeVideoId: yt.youtubeVideoId,
+        platformPostId,
       };
       if (debugOut) okResult.debug = debugOut;
 

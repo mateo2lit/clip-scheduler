@@ -10,8 +10,18 @@ function mustEnv(name: string) {
   return v;
 }
 
+/**
+ * Server-safe site URL resolution:
+ * - Prefer explicit server env if present
+ * - Otherwise rely on the actual request origin (best on Vercel)
+ */
 function getSiteUrl(req: Request) {
-  return process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
+  return (
+    process.env.SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    new URL(req.url).origin
+  );
 }
 
 function readBearer(req: Request) {
@@ -23,7 +33,10 @@ function readBearer(req: Request) {
 async function handler(req: Request) {
   const token = readBearer(req);
   if (!token) {
-    return NextResponse.json({ ok: false, error: "Missing Authorization Bearer token" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Missing Authorization Bearer token" },
+      { status: 401 }
+    );
   }
 
   const { data, error } = await supabaseAdmin.auth.getUser(token);
@@ -42,23 +55,34 @@ async function handler(req: Request) {
     redirectUri
   );
 
-  // ✅ state=user.id is REQUIRED so callback can upsert platform_accounts for the right user
+  // ✅ IMPORTANT:
+  // - access_type=offline + prompt=consent requests a refresh token
+  // - include_granted_scopes helps when users already granted some scopes previously
+  // - state=user.id so callback can upsert platform_accounts correctly
   const authUrl = oauth2.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: ["https://www.googleapis.com/auth/youtube.upload"],
+    include_granted_scopes: true,
+    scope: [
+      "https://www.googleapis.com/auth/youtube.upload",
+      // Optional but reduces edge-case permission weirdness in some accounts:
+      "https://www.googleapis.com/auth/youtube",
+    ],
     state: user.id,
   });
 
   // ✅ Return JSON because your Settings page expects it
-  return NextResponse.json({ ok: true, url: authUrl });
+  return NextResponse.json({ ok: true, url: authUrl, redirectUri });
 }
 
 export async function POST(req: Request) {
   try {
     return await handler(req);
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Unknown error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -67,6 +91,9 @@ export async function GET(req: Request) {
   try {
     return await handler(req);
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Unknown error" },
+      { status: 500 }
+    );
   }
 }

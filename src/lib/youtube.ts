@@ -10,11 +10,16 @@ type YouTubeAuthConfig = {
 function getYouTubeAuthConfig(): YouTubeAuthConfig {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  // Use the same priority as the OAuth start/callback routes
+  const siteUrl =
+    process.env.SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL;
 
   if (!clientId || !clientSecret || !siteUrl) {
     throw new Error(
-      "Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / NEXT_PUBLIC_SITE_URL env vars"
+      "Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / SITE_URL (or NEXT_PUBLIC_SITE_URL) env vars"
     );
   }
 
