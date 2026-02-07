@@ -82,6 +82,7 @@ export default function ScheduledPage() {
       const { data } = await supabase
         .from("scheduled_posts")
         .select("id, title, description, provider, scheduled_for, status, created_at")
+        .eq("user_id", auth.session.user.id)
         .eq("status", "scheduled")
         .order("scheduled_for", { ascending: true });
 

@@ -52,6 +52,7 @@ export default function DraftsPage() {
       const { data } = await supabase
         .from("scheduled_posts")
         .select("id, title, description, provider, created_at")
+        .eq("user_id", auth.session.user.id)
         .eq("status", "draft")
         .order("created_at", { ascending: false });
 

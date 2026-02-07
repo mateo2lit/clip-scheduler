@@ -37,6 +37,7 @@ export default function DashboardPage() {
       }
 
       if (cancelled) return;
+      const userId = auth.session.user.id;
       setSessionEmail(auth.session.user.email ?? null);
 
       // Get counts for each status
@@ -44,14 +45,17 @@ export default function DashboardPage() {
         supabase
           .from("scheduled_posts")
           .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("status", "scheduled"),
         supabase
           .from("scheduled_posts")
           .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("status", "posted"),
         supabase
           .from("scheduled_posts")
           .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("status", "draft"),
       ]);
 

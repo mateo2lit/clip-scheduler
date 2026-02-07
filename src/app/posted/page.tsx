@@ -78,6 +78,7 @@ export default function PostedPage() {
       const { data } = await supabase
         .from("scheduled_posts")
         .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status")
+        .eq("user_id", auth.session.user.id)
         .eq("status", "posted")
         .order("posted_at", { ascending: false });
 
