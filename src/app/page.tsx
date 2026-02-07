@@ -1,68 +1,380 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "./login/supabaseClient";
+
 export default function Home() {
+  const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      setLoaded(true);
+    });
+  }, []);
+
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-4xl px-6 py-16 sm:py-20">
-        <div className="flex flex-col items-center text-center gap-5">
-          <span className="rounded-full border border-zinc-800/80 bg-zinc-900/40 px-3 py-1 text-xs text-zinc-300">
-            Clip Scheduler MVP
+    <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
+      {/* Background gradient orbs */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-t from-purple-500/[0.05] to-transparent rounded-full blur-3xl" />
+
+      {/* Nav */}
+      <nav className="relative z-10 border-b border-white/5">
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+          <a href="/" className="text-lg font-semibold tracking-tight">Clip Pilot</a>
+          <div className="flex items-center gap-3">
+            {loaded && (
+              user ? (
+                <>
+                  <span className="hidden sm:inline text-sm text-white/40">{user.email}</span>
+                  <a
+                    href="/dashboard"
+                    className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+                  >
+                    Open Dashboard
+                  </a>
+                </>
+              ) : (
+                <>
+                  <a
+                    href="/login"
+                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                  >
+                    Sign In
+                  </a>
+                  <a
+                    href="/login"
+                    className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+                  >
+                    Get Started
+                  </a>
+                </>
+              )
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="relative z-10 mx-auto max-w-4xl px-6 pt-24 pb-20 text-center">
+        <div className="inline-block rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 mb-8">
+          Multi-platform video scheduling
+        </div>
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]">
+          Upload once.{" "}
+          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Post everywhere.
           </span>
+        </h1>
+        <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
+          Schedule and publish your videos to YouTube, TikTok, Instagram, and more — all from a single dashboard.
+        </p>
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          {loaded && (
+            user ? (
+              <a
+                href="/dashboard"
+                className="rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
+              >
+                Open Dashboard
+              </a>
+            ) : (
+              <a
+                href="/login"
+                className="rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
+              >
+                Get Started Free
+              </a>
+            )
+          )}
+          <a
+            href="#how"
+            className="rounded-full border border-white/10 bg-white/5 px-8 py-3.5 text-base text-white/70 hover:bg-white/10 transition-colors"
+          >
+            How it works
+          </a>
+        </div>
 
-          <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight">
-            Upload once. Post everywhere.
-          </h1>
+        {/* Platform icons */}
+        <div className="mt-14 flex items-center justify-center gap-6 text-white/30">
+          {/* YouTube */}
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          {/* TikTok */}
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+          </svg>
+          {/* Instagram */}
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+          </svg>
+          {/* X */}
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+          {/* Facebook */}
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+        </div>
+      </section>
 
-          <p className="max-w-2xl text-zinc-300 text-base leading-relaxed">
-            Upload a clip once, edit titles/descriptions, and schedule it for YouTube,
-            TikTok, and Shorts — from one dashboard.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <a
-              href="/scheduler"
-              className="rounded-xl bg-white text-zinc-900 px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition"
+      {/* Features */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Everything you need to grow</h2>
+          <p className="mt-4 text-white/40 text-lg">One tool to manage your entire content pipeline.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+                </svg>
+              ),
+              title: "Multi-Platform Publishing",
+              desc: "Upload once and publish to YouTube, TikTok, Instagram, X, and Facebook simultaneously.",
+              color: "blue",
+            },
+            {
+              icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              ),
+              title: "Smart Scheduling",
+              desc: "Schedule posts for optimal engagement times. Set it and forget it — we handle the rest.",
+              color: "purple",
+            },
+            {
+              icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
+                </svg>
+              ),
+              title: "One Dashboard",
+              desc: "Manage all your content, platforms, and analytics from a single, unified interface.",
+              color: "emerald",
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
             >
-              Open Scheduler
-            </a>
+              <div className={`inline-flex rounded-xl p-3 mb-4 ${
+                f.color === "blue" ? "bg-blue-500/10 text-blue-400" :
+                f.color === "purple" ? "bg-purple-500/10 text-purple-400" :
+                "bg-emerald-500/10 text-emerald-400"
+              }`}>
+                {f.icon}
+              </div>
+              <h3 className="text-lg font-semibold">{f.title}</h3>
+              <p className="mt-2 text-sm text-white/50 leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how" className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">How it works</h2>
+          <p className="mt-4 text-white/40 text-lg">Three steps. Zero headaches.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { step: "1", title: "Upload your video", desc: "Drag and drop or select your video file. Add titles, descriptions, and tags." },
+            { step: "2", title: "Choose platforms & schedule", desc: "Pick which platforms to publish to and set your preferred date and time." },
+            { step: "3", title: "We publish automatically", desc: "Sit back — Clip Pilot posts your content on schedule, to every platform." },
+          ].map((s) => (
+            <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5">
+                {s.step}
+              </div>
+              <h3 className="text-lg font-semibold">{s.title}</h3>
+              <p className="mt-2 text-sm text-white/50 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Simple, transparent pricing</h2>
+          <p className="mt-4 text-white/40 text-lg">Start free. Upgrade when you&apos;re ready.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Free */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
+            <h3 className="text-lg font-semibold">Free</h3>
+            <div className="mt-3 mb-5">
+              <span className="text-4xl font-bold">$0</span>
+              <span className="text-white/40 text-sm ml-1">/month</span>
+            </div>
+            <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                5 uploads per month
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                1 platform
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Basic scheduling
+              </li>
+            </ul>
             <a
-              href="#how"
-              className="rounded-xl border border-zinc-800/80 bg-transparent px-5 py-2.5 text-sm font-semibold text-zinc-100 hover:bg-zinc-900/40 transition"
+              href="/login"
+              className="block text-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors"
             >
-              How it works
+              Get Started
             </a>
           </div>
 
-          <div className="mt-10 grid w-full grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Pro */}
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
+              Most Popular
+            </div>
+            <h3 className="text-lg font-semibold">Pro</h3>
+            <div className="mt-3 mb-5">
+              <span className="text-4xl font-bold">$12</span>
+              <span className="text-white/40 text-sm ml-1">/month</span>
+            </div>
+            <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Unlimited uploads
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                All platforms
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Analytics dashboard
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Priority support
+              </li>
+            </ul>
+            <a
+              href="/login"
+              className="block text-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+            >
+              Start Free Trial
+            </a>
+          </div>
+
+          {/* Team */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
+            <h3 className="text-lg font-semibold">Team</h3>
+            <div className="mt-3 mb-5">
+              <span className="text-4xl font-bold">$29</span>
+              <span className="text-white/40 text-sm ml-1">/month</span>
+            </div>
+            <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Everything in Pro
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Up to 5 team members
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Approval workflows
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                API access
+              </li>
+            </ul>
+            <a
+              href="/login"
+              className="block text-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors"
+            >
+              Contact Us
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats / Social Proof */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-16">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
             {[
-              { title: "Upload clips", desc: "Store clips with titles, descriptions, and tags." },
-              { title: "Schedule posts", desc: "Pick platforms and schedule future uploads." },
-              { title: "Run worker", desc: "Processes due posts and marks them posted." },
-            ].map((c) => (
-              <div
-                key={c.title}
-                className="rounded-2xl border border-zinc-800/70 bg-zinc-900/20 p-4 text-left"
-              >
-                <div className="text-sm font-semibold text-zinc-100">{c.title}</div>
-                <div className="mt-2 text-sm text-zinc-300 leading-relaxed">{c.desc}</div>
+              { value: "5+", label: "Platforms supported" },
+              { value: "10K+", label: "Videos scheduled" },
+              { value: "2K+", label: "Creators" },
+              { value: "99.9%", label: "Uptime" },
+            ].map((s) => (
+              <div key={s.label}>
+                <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  {s.value}
+                </div>
+                <div className="mt-2 text-sm text-white/40">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
+      </section>
 
-        <section
-          id="how"
-          className="mt-10 rounded-2xl border border-zinc-800/70 bg-zinc-900/15 p-5"
-        >
-          <h2 className="text-sm font-semibold">How it works</h2>
-          <ol className="mt-3 space-y-2 text-sm text-zinc-300">
-            <li>1) Create a scheduled post in the Scheduler.</li>
-            <li>2) The worker checks for due posts and processes them.</li>
-            <li>3) GitHub Actions can hit the worker on a schedule in production.</li>
-          </ol>
-          <div className="mt-4 text-xs text-zinc-400">
-            MVP note: uploads are currently stubbed. Next step is platform auth + real upload adapters.
+      {/* Final CTA */}
+      <section className="relative z-10 mx-auto max-w-4xl px-6 py-20 text-center">
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          Ready to grow your audience?
+        </h2>
+        <p className="mt-4 text-white/40 text-lg max-w-xl mx-auto">
+          Join thousands of creators who save hours every week with Clip Pilot.
+        </p>
+        <div className="mt-8">
+          {loaded && (
+            user ? (
+              <a
+                href="/dashboard"
+                className="inline-block rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
+              >
+                Open Dashboard
+              </a>
+            ) : (
+              <a
+                href="/login"
+                className="inline-block rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
+              >
+                Get Started Free
+              </a>
+            )
+          )}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-white/5">
+        <div className="mx-auto max-w-6xl px-6 py-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-white/30">
+              &copy; {new Date().getFullYear()} Clip Pilot. All rights reserved.
+            </div>
+            <div className="flex items-center gap-6 text-sm text-white/40">
+              <a href="/dashboard" className="hover:text-white/70 transition-colors">Dashboard</a>
+              <a href="/terms" className="hover:text-white/70 transition-colors">Terms</a>
+              <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy</a>
+              <a href="#pricing" className="hover:text-white/70 transition-colors">Pricing</a>
+            </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </footer>
     </main>
   );
 }
