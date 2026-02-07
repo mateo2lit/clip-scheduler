@@ -91,12 +91,13 @@ export default function SettingsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
 
-  const [connected, setConnected] = useState<Record<ProviderKey, boolean>>({
-    youtube: false,
-    tiktok: false,
-    instagram: false,
-    facebook: false,
-    x: false,
+  type AccountInfo = { connected: boolean; profileName?: string; avatarUrl?: string };
+  const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo>>({
+    youtube: { connected: false },
+    tiktok: { connected: false },
+    instagram: { connected: false },
+    facebook: { connected: false },
+    x: { connected: false },
   });
 
   const query = useMemo(() => {
@@ -123,7 +124,7 @@ export default function SettingsPage() {
       setCreatedAt(user?.created_at ?? null);
 
       if (!token) {
-        setConnected({ youtube: false, tiktok: false, instagram: false, facebook: false, x: false });
+        setAccounts({ youtube: { connected: false }, tiktok: { connected: false }, instagram: { connected: false }, facebook: { connected: false }, x: { connected: false } });
         return;
       }
 
@@ -134,21 +135,21 @@ export default function SettingsPage() {
       const { json } = await safeReadJson(res);
       if (!res.ok || !json?.ok) return;
 
-      const rows = (json.data || []) as Array<{ provider?: string }>;
-      const next: Record<ProviderKey, boolean> = {
-        youtube: false,
-        tiktok: false,
-        instagram: false,
-        facebook: false,
-        x: false,
+      const rows = (json.data || []) as Array<{ provider?: string; profile_name?: string; avatar_url?: string }>;
+      const next: Record<ProviderKey, AccountInfo> = {
+        youtube: { connected: false },
+        tiktok: { connected: false },
+        instagram: { connected: false },
+        facebook: { connected: false },
+        x: { connected: false },
       };
 
       for (const r of rows) {
         const p = (r.provider || "").toLowerCase() as ProviderKey;
-        if (p in next) next[p] = true;
+        if (p in next) next[p] = { connected: true, profileName: r.profile_name, avatarUrl: r.avatar_url };
       }
 
-      setConnected(next);
+      setAccounts(next);
     } catch (e) {
       console.error(e);
     } finally {
@@ -200,7 +201,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setConnected((prev) => ({ ...prev, youtube: false }));
+        setAccounts((prev) => ({ ...prev, youtube: { connected: false } }));
       }
     } catch (e) {
       console.error(e);
@@ -251,7 +252,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setConnected((prev) => ({ ...prev, tiktok: false }));
+        setAccounts((prev) => ({ ...prev, tiktok: { connected: false } }));
       }
     } catch (e) {
       console.error(e);
@@ -267,7 +268,7 @@ export default function SettingsPage() {
     loadConnectedAccounts();
   }, []);
 
-  const connectedCount = Object.values(connected).filter(Boolean).length;
+  const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
@@ -403,73 +404,89 @@ export default function SettingsPage() {
             </button>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-            {PLATFORMS.map((platform) => (
-              <div key={platform.key} className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`rounded-full p-2.5 ${connected[platform.key] ? "bg-white/10 text-white" : "bg-white/5 text-white/40"}`}>
-                      {platform.icon}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{platform.name}</span>
-                        {connected[platform.key] && (
-                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 border border-emerald-500/20">
-                            Connected
-                          </span>
-                        )}
-                        {!platform.available && !connected[platform.key] && (
-                          <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-white/40 border border-white/10">
-                            Coming soon
-                          </span>
+            {PLATFORMS.map((platform) => {
+              const acct = accounts[platform.key];
+              return (
+                <div key={platform.key} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className={`rounded-full p-2.5 ${acct.connected ? "bg-white/10 text-white" : "bg-white/5 text-white/40"}`}>
+                          {platform.icon}
+                        </div>
+                        {acct.connected && acct.avatarUrl && (
+                          <img
+                            src={acct.avatarUrl}
+                            alt=""
+                            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#050505] object-cover"
+                          />
                         )}
                       </div>
-                      <div className="text-sm text-white/40 mt-0.5">{platform.description}</div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{platform.name}</span>
+                          {acct.connected && (
+                            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 border border-emerald-500/20">
+                              Connected
+                            </span>
+                          )}
+                          {!platform.available && !acct.connected && (
+                            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-white/40 border border-white/10">
+                              Coming soon
+                            </span>
+                          )}
+                        </div>
+                        {acct.connected && acct.profileName ? (
+                          <div className="text-sm text-white/50 mt-0.5">{acct.profileName}</div>
+                        ) : (
+                          <div className="text-sm text-white/40 mt-0.5">{platform.description}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {platform.key === "youtube" && acct.connected && (
+                        <button
+                          onClick={disconnectYouTube}
+                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                      {platform.key === "tiktok" && acct.connected && (
+                        <button
+                          onClick={disconnectTikTok}
+                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                      {platform.key === "youtube" ? (
+                        <button
+                          onClick={connectYouTube}
+                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                        >
+                          {acct.connected ? "Reconnect" : "Connect"}
+                        </button>
+                      ) : platform.key === "tiktok" ? (
+                        <button
+                          onClick={connectTikTok}
+                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                        >
+                          {acct.connected ? "Reconnect" : "Connect"}
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/30 cursor-not-allowed"
+                        >
+                          Connect
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {platform.key === "youtube" && connected.youtube && (
-                      <button
-                        onClick={disconnectYouTube}
-                        className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                      >
-                        Disconnect
-                      </button>
-                    )}
-                    {platform.key === "tiktok" && connected.tiktok && (
-                      <button
-                        onClick={disconnectTikTok}
-                        className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                      >
-                        Disconnect
-                      </button>
-                    )}
-                    {platform.key === "youtube" ? (
-                      <button
-                        onClick={connectYouTube}
-                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                      >
-                        {connected.youtube ? "Reconnect" : "Connect"}
-                      </button>
-                    ) : platform.key === "tiktok" ? (
-                      <button
-                        onClick={connectTikTok}
-                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                      >
-                        {connected.tiktok ? "Reconnect" : "Connect"}
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/30 cursor-not-allowed"
-                      >
-                        Connect
-                      </button>
-                    )}
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 

@@ -111,6 +111,29 @@ export async function GET(req: Request) {
       );
     }
 
+    // Fetch TikTok user profile info (display name + avatar)
+    let profileName: string | null = null;
+    let avatarUrl: string | null = null;
+    try {
+      const profileRes = await fetch(
+        "https://open.tiktokapis.com/v2/user/info/?fields=display_name,avatar_url",
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        const user = profileData?.data?.user;
+        if (user) {
+          profileName = user.display_name ?? null;
+          avatarUrl = user.avatar_url ?? null;
+        }
+      }
+    } catch (profileErr) {
+      // Non-fatal: continue without profile data
+      console.warn("Failed to fetch TikTok user info:", profileErr);
+    }
+
     // Upsert platform_accounts
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
@@ -120,6 +143,8 @@ export async function GET(req: Request) {
         refresh_token: refreshTokenToStore,
         platform_user_id: openId || null,
         expiry: expiresAt,
+        profile_name: profileName,
+        avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,provider" }

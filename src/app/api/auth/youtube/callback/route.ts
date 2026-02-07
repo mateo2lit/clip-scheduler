@@ -89,7 +89,24 @@ export async function GET(req: Request) {
       );
     }
 
-    // 2) Upsert platform_accounts safely
+    // 2) Fetch channel profile info (name + avatar)
+    let profileName: string | null = null;
+    let avatarUrl: string | null = null;
+    try {
+      oauth2.setCredentials(tokens);
+      const youtube = google.youtube({ version: "v3", auth: oauth2 });
+      const channelRes = await youtube.channels.list({ part: ["snippet"], mine: true });
+      const channel = channelRes.data.items?.[0];
+      if (channel?.snippet) {
+        profileName = channel.snippet.title ?? null;
+        avatarUrl = channel.snippet.thumbnails?.default?.url ?? null;
+      }
+    } catch (profileErr) {
+      // Non-fatal: continue without profile data
+      console.warn("Failed to fetch YouTube channel info:", profileErr);
+    }
+
+    // 3) Upsert platform_accounts safely
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -97,6 +114,8 @@ export async function GET(req: Request) {
         access_token: accessToken, // access tokens rotate, safe to update
         refresh_token: refreshTokenToStore, // preserve if Google didn't return one
         expiry: expiryIso, // store expiry if your table has this column
+        profile_name: profileName,
+        avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,provider" }

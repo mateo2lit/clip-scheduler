@@ -32,7 +32,7 @@ export async function GET(req: Request) {
 
     const { data, error: dbError } = await supabaseAdmin
       .from("platform_accounts")
-      .select("provider, created_at, updated_at, expiry")
+      .select("provider, created_at, updated_at, expiry, profile_name, avatar_url")
       .eq("user_id", userId);
 
     if (dbError) return jsonError(dbError.message, 500);
