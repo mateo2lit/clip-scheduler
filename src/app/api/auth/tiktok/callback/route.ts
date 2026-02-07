@@ -37,15 +37,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
     }
 
-    // State format: "userId:csrfToken"
-    const userId = state.split(":")[0];
-    if (!userId) {
+    // State format: "userId:codeVerifier"
+    const [userId, codeVerifier] = state.split(":");
+    if (!userId || !codeVerifier) {
       return NextResponse.json({ ok: false, error: "Invalid state" }, { status: 400 });
     }
 
     const { clientKey, clientSecret, redirectUri } = getTikTokAuthConfig();
 
-    // Exchange code for tokens via TikTok API
+    // Exchange code for tokens via TikTok API (with PKCE code_verifier)
     const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -55,6 +55,7 @@ export async function GET(req: Request) {
         code,
         grant_type: "authorization_code",
         redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
       }),
     });
 

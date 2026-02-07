@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTikTokAuthConfig } from "@/lib/tiktok";
+import crypto from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,16 @@ function readBearer(req: Request) {
   const h = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   const m = h.match(/^Bearer\s+(.+)$/i);
   return m?.[1] || null;
+}
+
+function generateCodeVerifier(): string {
+  // 43-128 character random string using unreserved characters
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const hash = crypto.createHash("sha256").update(verifier).digest();
+  return hash.toString("base64url");
 }
 
 async function handler(req: Request) {
@@ -28,9 +39,12 @@ async function handler(req: Request) {
 
   const { clientKey, redirectUri } = getTikTokAuthConfig();
 
-  // Generate a random CSRF token and encode state as userId
-  const csrfState = crypto.randomUUID();
-  const state = `${user.id}:${csrfState}`;
+  // Generate PKCE code_verifier and code_challenge
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+  // Encode userId and code_verifier in state so callback can use both
+  const state = `${user.id}:${codeVerifier}`;
 
   const params = new URLSearchParams({
     client_key: clientKey,
@@ -38,6 +52,8 @@ async function handler(req: Request) {
     scope: "user.info.basic,video.upload,video.publish",
     redirect_uri: redirectUri,
     state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
   });
 
   const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
