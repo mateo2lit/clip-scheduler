@@ -160,7 +160,7 @@ async function runWorker(req: Request) {
       // Load platform account
       const { data: acct, error: acctErr } = await supabaseAdmin
         .from("platform_accounts")
-        .select("id, refresh_token, access_token, expires_at, platform_user_id")
+        .select("id, refresh_token, access_token, expiry, platform_user_id")
         .eq("user_id", post.user_id)
         .eq("provider", provider)
         .maybeSingle();
@@ -194,7 +194,7 @@ async function runWorker(req: Request) {
           platformAccountId: acct.id,
           refreshToken: acct.refresh_token,
           accessToken: acct.access_token,
-          expiresAt: acct.expires_at,
+          expiresAt: acct.expiry,
           bucket,
           storagePath,
           title: post.title ?? "Clip Scheduler Upload",
