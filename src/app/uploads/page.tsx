@@ -383,34 +383,60 @@ export default function UploadsPage() {
 
       const scheduledForIso = scheduleType === "now" ? new Date().toISOString() : toIsoFromDatetimeLocal(scheduledForLocal);
 
-      const res = await fetch("/api/scheduled-posts/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      // Create a separate scheduled post for each selected platform
+      const errors: string[] = [];
+
+      for (const platform of selectedPlatforms) {
+        const body: any = {
           upload_id: lastUploadId,
-          provider: selectedPlatforms[0] || "youtube",
+          provider: platform,
           title: title || null,
           description: description || null,
-          privacy_status: selectedPlatforms.includes("tiktok") ? ttPrivacyLevel : ytVisibility,
+          privacy_status: platform === "tiktok" ? ttPrivacyLevel : ytVisibility,
           scheduled_for: scheduledForIso,
           status: asDraft ? "draft" : "scheduled",
-          platforms: selectedPlatforms,
           hashtags,
-          youtube_settings: {
+        };
+
+        if (platform === "youtube") {
+          body.youtube_settings = {
             is_short: ytIsShort,
             category: ytCategory,
             notify_subscribers: ytNotifySubscribers,
             allow_comments: ytAllowComments,
             allow_embedding: ytAllowEmbedding,
             made_for_kids: ytMadeForKids,
-          },
-          tiktok_settings: { privacy_level: ttPrivacyLevel, allow_comments: ttAllowComments, allow_duet: ttAllowDuet, allow_stitch: ttAllowStitch },
-          instagram_settings: { type: igType, first_comment: igFirstComment, shop_link: igShopLink },
-        }),
-      });
+          };
+        }
 
-      const out = await res.json().catch(() => null);
-      if (!res.ok || !out?.scheduledPost?.id) throw new Error(out?.error || "Scheduling failed");
+        if (platform === "tiktok") {
+          body.tiktok_settings = {
+            privacy_level: ttPrivacyLevel,
+            allow_comments: ttAllowComments,
+            allow_duet: ttAllowDuet,
+            allow_stitch: ttAllowStitch,
+          };
+        }
+
+        const res = await fetch("/api/scheduled-posts/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+
+        const out = await res.json().catch(() => null);
+        if (!res.ok || !out?.scheduledPost?.id) {
+          errors.push(`${platform}: ${out?.error || "Scheduling failed"}`);
+        }
+      }
+
+      if (errors.length === selectedPlatforms.length) {
+        throw new Error(errors.join("\n"));
+      }
+
+      if (errors.length > 0) {
+        alert(`Some platforms failed to schedule:\n${errors.join("\n")}`);
+      }
 
       window.location.href = asDraft ? "/drafts" : "/scheduled";
     } catch (e: any) {
