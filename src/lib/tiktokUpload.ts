@@ -137,7 +137,7 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
 
   const initData = await initRes.json();
 
-  if (initData.error?.code) {
+  if (initData.error?.code && initData.error.code !== "ok") {
     throw new Error(
       `TikTok upload init error: ${initData.error.code} - ${initData.error.message}`
     );
