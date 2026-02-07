@@ -48,7 +48,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,tiktok_settings")
+    .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -57,7 +57,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,tiktok_settings")
+      .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
       .eq("id", postId)
       .limit(1);
   }
@@ -178,7 +178,17 @@ async function runWorker(req: Request) {
       let platformPostId: string | null = null;
 
       if (provider === "tiktok") {
-        const ttSettings = (post as any).tiktok_settings || {};
+        // Fetch tiktok_settings separately to avoid breaking the main query if column doesn't exist
+        let ttSettings: any = {};
+        try {
+          const { data: ttRow } = await supabaseAdmin
+            .from("scheduled_posts")
+            .select("tiktok_settings")
+            .eq("id", post.id)
+            .maybeSingle();
+          ttSettings = ttRow?.tiktok_settings || {};
+        } catch {}
+
         const tt = await uploadSupabaseVideoToTikTok({
           userId: post.user_id,
           platformAccountId: acct.id,
