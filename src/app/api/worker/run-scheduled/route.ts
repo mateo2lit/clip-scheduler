@@ -215,7 +215,9 @@ async function runWorker(req: Request) {
           storagePath,
           title: post.title ?? "Clip Scheduler Upload",
           description: post.description ?? "",
-          privacyStatus: (post.privacy_status ?? "private") as any,
+          privacyStatus: (["private", "unlisted", "public"].includes(post.privacy_status ?? "")
+            ? post.privacy_status
+            : "private") as any,
         });
         platformPostId = yt.youtubeVideoId;
       }
