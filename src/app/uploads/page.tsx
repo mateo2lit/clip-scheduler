@@ -60,7 +60,7 @@ const PLATFORMS: PlatformConfig[] = [
   {
     key: "instagram",
     name: "Instagram",
-    available: false,
+    available: true,
     charLimit: 2200,
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -82,7 +82,7 @@ const PLATFORMS: PlatformConfig[] = [
   {
     key: "facebook",
     name: "Facebook",
-    available: false,
+    available: true,
     charLimit: 63206,
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -415,6 +415,16 @@ export default function UploadsPage() {
             allow_comments: ttAllowComments,
             allow_duet: ttAllowDuet,
             allow_stitch: ttAllowStitch,
+          };
+        }
+
+        if (platform === "facebook") {
+          body.facebook_settings = {};
+        }
+
+        if (platform === "instagram") {
+          body.instagram_settings = {
+            first_comment: igFirstComment || undefined,
           };
         }
 
@@ -803,20 +813,20 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[0.02]">
                   <div className="text-pink-500">{PLATFORMS.find(p => p.key === "instagram")?.icon}</div>
                   <span className="font-medium">Instagram Settings</span>
-                  <span className="ml-auto rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/40">Coming soon</span>
                 </div>
-                <div className="p-5 space-y-4 opacity-50">
+                <div className="p-5 space-y-4">
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Post Type</label>
                     <div className="flex gap-2">
-                      {(["post", "reel", "story"] as InstagramType[]).map((type) => (
-                        <button key={type} disabled className={`flex-1 rounded-lg py-2 text-sm capitalize ${igType === type ? "bg-white/10 border border-white/20" : "bg-white/5 border border-white/10"}`}>{type}</button>
+                      {(["reel"] as InstagramType[]).map((type) => (
+                        <button key={type} onClick={() => setIgType(type)} className={`flex-1 rounded-lg py-2 text-sm capitalize ${igType === type ? "bg-white/10 border border-white/20" : "bg-white/5 border border-white/10"}`}>{type}</button>
                       ))}
                     </div>
+                    <p className="text-xs text-white/30 mt-1.5">Videos are published as Reels via the Instagram API</p>
                   </div>
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">First Comment</label>
-                    <input type="text" value={igFirstComment} disabled placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm placeholder-white/20 outline-none" />
+                    <input type="text" value={igFirstComment} onChange={(e) => setIgFirstComment(e.target.value)} placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none" />
                   </div>
                 </div>
               </div>

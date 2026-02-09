@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { uploadSupabaseVideoToYouTube } from "@/lib/youtubeUpload";
 import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
+import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
+import { uploadSupabaseVideoToInstagram } from "@/lib/instagramUpload";
 
 export const runtime = "nodejs";
 
@@ -160,7 +162,7 @@ async function runWorker(req: Request) {
       // Load platform account
       const { data: acct, error: acctErr } = await supabaseAdmin
         .from("platform_accounts")
-        .select("id, refresh_token, access_token, expiry, platform_user_id")
+        .select("id, refresh_token, access_token, expiry, platform_user_id, page_id, page_access_token, ig_user_id")
         .eq("user_id", post.user_id)
         .eq("provider", provider)
         .maybeSingle();
@@ -205,6 +207,37 @@ async function runWorker(req: Request) {
           allowStitch: ttSettings.allow_stitch ?? true,
         });
         platformPostId = tt.publishId;
+      } else if (provider === "facebook") {
+        if (!acct.page_id || !acct.page_access_token) {
+          throw new Error("Facebook Page not configured. Please reconnect your Facebook account.");
+        }
+
+        const fb = await uploadSupabaseVideoToFacebook({
+          userId: post.user_id,
+          platformAccountId: acct.id,
+          pageId: acct.page_id,
+          pageAccessToken: acct.page_access_token,
+          bucket,
+          storagePath,
+          title: post.title ?? "Clip Scheduler Upload",
+          description: post.description ?? "",
+        });
+        platformPostId = fb.facebookVideoId;
+      } else if (provider === "instagram") {
+        if (!acct.ig_user_id || !acct.page_access_token) {
+          throw new Error("Instagram account not configured. Please reconnect your Instagram account.");
+        }
+
+        const ig = await uploadSupabaseVideoToInstagram({
+          userId: post.user_id,
+          platformAccountId: acct.id,
+          igUserId: acct.ig_user_id,
+          pageAccessToken: acct.page_access_token,
+          bucket,
+          storagePath,
+          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+        });
+        platformPostId = ig.instagramMediaId;
       } else {
         // YouTube (default)
         const yt = await uploadSupabaseVideoToYouTube({

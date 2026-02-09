@@ -31,6 +31,8 @@ export async function POST(req: Request) {
       privacy_status,
       scheduled_for,
       tiktok_settings,
+      facebook_settings,
+      instagram_settings,
     } = body;
 
     if (!upload_id || !scheduled_for) {
@@ -54,6 +56,14 @@ export async function POST(req: Request) {
 
     if (tiktok_settings && provider === "tiktok") {
       insertRow.tiktok_settings = tiktok_settings;
+    }
+
+    if (facebook_settings && provider === "facebook") {
+      insertRow.facebook_settings = facebook_settings;
+    }
+
+    if (instagram_settings && provider === "instagram") {
+      insertRow.instagram_settings = instagram_settings;
     }
 
     const { data, error } = await supabaseAdmin
