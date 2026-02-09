@@ -25,28 +25,28 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-base font-medium text-white mb-3">1. Acceptance of Terms</h2>
             <p>
-              By accessing or using Clip Pilot ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.
+              By accessing or using Clip Dash ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.
             </p>
           </section>
 
           <section>
             <h2 className="text-base font-medium text-white mb-3">2. Description of Service</h2>
             <p>
-              Clip Pilot is a video scheduling and publishing tool that allows users to upload video content and schedule it for publication across social media platforms including YouTube and TikTok. The Service acts on your behalf to publish content at your specified times using authorized access to your connected accounts.
+              Clip Dash is a video scheduling and publishing tool that allows users to upload video content and schedule it for publication across social media platforms including YouTube and TikTok. The Service acts on your behalf to publish content at your specified times using authorized access to your connected accounts.
             </p>
           </section>
 
           <section>
             <h2 className="text-base font-medium text-white mb-3">3. Account and Authorization</h2>
             <p>
-              To use the Service, you must create an account and authorize Clip Pilot to access your social media accounts through each platform's official OAuth authorization flow. You are responsible for maintaining the confidentiality of your account credentials. You may revoke Clip Pilot's access to any connected platform at any time through the Settings page or through the platform's own security settings.
+              To use the Service, you must create an account and authorize Clip Dash to access your social media accounts through each platform's official OAuth authorization flow. You are responsible for maintaining the confidentiality of your account credentials. You may revoke Clip Dash's access to any connected platform at any time through the Settings page or through the platform's own security settings.
             </p>
           </section>
 
           <section>
             <h2 className="text-base font-medium text-white mb-3">4. User Content</h2>
             <p>
-              You retain full ownership of all content you upload to the Service. By using Clip Pilot, you grant us a limited license to store, process, and transmit your content solely for the purpose of delivering the Service (i.e., uploading your videos to your connected platforms on your behalf). We do not claim any ownership rights over your content. You are solely responsible for ensuring that your content complies with the terms of service of each platform you publish to.
+              You retain full ownership of all content you upload to the Service. By using Clip Dash, you grant us a limited license to store, process, and transmit your content solely for the purpose of delivering the Service (i.e., uploading your videos to your connected platforms on your behalf). We do not claim any ownership rights over your content. You are solely responsible for ensuring that your content complies with the terms of service of each platform you publish to.
             </p>
           </section>
 
@@ -65,7 +65,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-base font-medium text-white mb-3">6. Third-Party Platforms</h2>
             <p>
-              Clip Pilot integrates with third-party platforms such as YouTube and TikTok. Your use of these platforms is subject to their respective terms of service and privacy policies. Clip Pilot is not responsible for the actions, policies, or availability of any third-party platform. Publishing through Clip Pilot does not exempt you from complying with each platform's community guidelines and terms.
+              Clip Dash integrates with third-party platforms such as YouTube and TikTok. Your use of these platforms is subject to their respective terms of service and privacy policies. Clip Dash is not responsible for the actions, policies, or availability of any third-party platform. Publishing through Clip Dash does not exempt you from complying with each platform's community guidelines and terms.
             </p>
           </section>
 
@@ -79,7 +79,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-base font-medium text-white mb-3">8. Limitation of Liability</h2>
             <p>
-              The Service is provided "as is" without warranties of any kind. To the maximum extent permitted by law, Clip Pilot shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service.
+              The Service is provided "as is" without warranties of any kind. To the maximum extent permitted by law, Clip Dash shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service.
             </p>
           </section>
 
@@ -106,7 +106,7 @@ export default function TermsOfServicePage() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5 text-center">
-          <p className="text-xs text-white/30">Clip Pilot</p>
+          <p className="text-xs text-white/30">Clip Dash</p>
         </div>
       </div>
     </div>

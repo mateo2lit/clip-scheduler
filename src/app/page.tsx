@@ -23,7 +23,7 @@ export default function Home() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <a href="/" className="text-lg font-semibold tracking-tight">Clip Pilot</a>
+          <a href="/" className="text-lg font-semibold tracking-tight">Clip Dash</a>
           <div className="flex items-center gap-3">
             {loaded && (
               user ? (
@@ -189,7 +189,7 @@ export default function Home() {
           {[
             { step: "1", title: "Upload your video", desc: "Drag and drop or select your video file. Add titles, descriptions, and tags." },
             { step: "2", title: "Choose platforms & schedule", desc: "Pick which platforms to publish to and set your preferred date and time." },
-            { step: "3", title: "We publish automatically", desc: "Sit back — Clip Pilot posts your content on schedule, to every platform." },
+            { step: "3", title: "We publish automatically", desc: "Sit back — Clip Dash posts your content on schedule, to every platform." },
           ].map((s) => (
             <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5">
@@ -336,7 +336,7 @@ export default function Home() {
           Ready to grow your audience?
         </h2>
         <p className="mt-4 text-white/40 text-lg max-w-xl mx-auto">
-          Join thousands of creators who save hours every week with Clip Pilot.
+          Join thousands of creators who save hours every week with Clip Dash.
         </p>
         <div className="mt-8">
           {loaded && (
@@ -364,7 +364,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-white/30">
-              &copy; {new Date().getFullYear()} Clip Pilot. All rights reserved.
+              &copy; {new Date().getFullYear()} Clip Dash. All rights reserved.
             </div>
             <div className="flex items-center gap-6 text-sm text-white/40">
               <a href="/dashboard" className="hover:text-white/70 transition-colors">Dashboard</a>

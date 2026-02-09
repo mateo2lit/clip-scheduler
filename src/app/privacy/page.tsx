@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-base font-medium text-white mb-3">1. Introduction</h2>
             <p>
-              Clip Pilot ("we", "our", "the Service") respects your privacy. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
+              Clip Dash ("we", "our", "the Service") respects your privacy. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
             </p>
           </section>
 
@@ -67,7 +67,7 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-base font-medium text-white mb-3">4. Third-Party Services</h2>
-            <p>Clip Pilot integrates with the following third-party services:</p>
+            <p>Clip Dash integrates with the following third-party services:</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-white/60">
               <li><strong className="text-white/80">YouTube (Google):</strong> To upload videos to your channel. Subject to Google's Privacy Policy.</li>
               <li><strong className="text-white/80">TikTok:</strong> To publish videos to your account. Subject to TikTok's Privacy Policy.</li>
@@ -99,7 +99,7 @@ export default function PrivacyPolicyPage() {
               <li>Access the personal data we hold about you</li>
               <li>Disconnect any linked social media account at any time via Settings</li>
               <li>Delete your account and all associated data</li>
-              <li>Revoke Clip Pilot's access through each platform's security settings</li>
+              <li>Revoke Clip Dash's access through each platform's security settings</li>
             </ul>
           </section>
 
@@ -126,7 +126,7 @@ export default function PrivacyPolicyPage() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5 text-center">
-          <p className="text-xs text-white/30">Clip Pilot</p>
+          <p className="text-xs text-white/30">Clip Dash</p>
         </div>
       </div>
     </div>
