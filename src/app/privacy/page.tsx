@@ -71,6 +71,8 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc list-inside mt-2 space-y-1 text-white/60">
               <li><strong className="text-white/80">YouTube (Google):</strong> To upload videos to your channel. Subject to Google's Privacy Policy.</li>
               <li><strong className="text-white/80">TikTok:</strong> To publish videos to your account. Subject to TikTok's Privacy Policy.</li>
+              <li><strong className="text-white/80">Facebook (Meta):</strong> To post videos to your Facebook Page. Subject to Meta's Privacy Policy.</li>
+              <li><strong className="text-white/80">Instagram (Meta):</strong> To publish Reels to your Instagram account. Subject to Meta's Privacy Policy.</li>
               <li><strong className="text-white/80">Supabase:</strong> For authentication and secure data storage.</li>
             </ul>
             <p className="mt-3">
@@ -93,7 +95,17 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">7. Your Rights</h2>
+            <h2 className="text-base font-medium text-white mb-3">7. Data Deletion</h2>
+            <p>You can request deletion of your data at any time:</p>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-white/60">
+              <li><strong className="text-white/80">Disconnect a platform:</strong> Go to Settings and click "Disconnect" next to any connected account. This immediately deletes all stored tokens and platform-specific data for that connection.</li>
+              <li><strong className="text-white/80">Delete your account:</strong> Contact us to request full account deletion. We will delete your account, all uploaded videos, scheduled posts, platform tokens, and any other associated data within 30 days.</li>
+              <li><strong className="text-white/80">Facebook/Instagram data:</strong> When you disconnect Facebook or Instagram, we delete your Page access tokens, Page ID, Instagram user ID, and any stored profile information. You can also remove Clip Dash's access from your Facebook Settings under Apps and Websites.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-base font-medium text-white mb-3">8. Your Rights</h2>
             <p>You have the right to:</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-white/60">
               <li>Access the personal data we hold about you</li>
@@ -104,21 +116,21 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">8. Children's Privacy</h2>
+            <h2 className="text-base font-medium text-white mb-3">9. Children's Privacy</h2>
             <p>
               The Service is not intended for children under 13. We do not knowingly collect personal information from children under 13.
             </p>
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">9. Changes to This Policy</h2>
+            <h2 className="text-base font-medium text-white mb-3">10. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. Continued use of the Service after changes constitutes acceptance of the updated policy. We will make reasonable efforts to notify users of significant changes.
             </p>
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">10. Contact</h2>
+            <h2 className="text-base font-medium text-white mb-3">11. Contact</h2>
             <p>
               If you have questions about this Privacy Policy or how your data is handled, please contact us through the Service.
             </p>
