@@ -24,6 +24,14 @@ export default function DashboardPage() {
     return "Good evening";
   }, [now]);
 
+  const firstName = useMemo(() => {
+    if (!sessionEmail) return "";
+    const name = sessionEmail.split("@")[0];
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }, [sessionEmail]);
+
+  const totalPosts = counts.scheduled + counts.posted + counts.drafts;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -92,225 +100,203 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      {/* Subtle gradient background */}
+    <div className="min-h-screen bg-[#0A0A0A] text-white antialiased">
+      {/* Background noise */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/50 via-transparent to-transparent" />
-        <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-white/[0.02] blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/[0.03] via-transparent to-transparent" />
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 py-12">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-white/40">{greeting}</p>
-            <h1 className="text-2xl font-medium tracking-tight mt-1">
-              {sessionEmail ? sessionEmail.split("@")[0] : "Dashboard"}
-            </h1>
+      <div className="mx-auto max-w-5xl px-6 pt-8 pb-16">
+        {/* Top bar */}
+        <nav className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center">
+              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+              </svg>
+            </div>
+            <span className="text-[15px] font-semibold tracking-tight text-white/90">Clip Dash</span>
           </div>
 
+          <div className="flex items-center gap-2">
+            <Link
+              href="/settings"
+              className="rounded-lg px-3 py-1.5 text-[13px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
+            >
+              Settings
+            </Link>
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex items-center gap-2 pl-2">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-[11px] font-semibold">
+                {firstName ? firstName[0] : "?"}
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Greeting */}
+        <div className="mt-10">
+          <p className="text-[13px] text-white/40 font-medium">{greeting}</p>
+          <h1 className="text-[28px] font-semibold tracking-tight mt-1 text-white">
+            {firstName || "Dashboard"}
+          </h1>
+        </div>
+
+        {/* Stats row */}
+        <div className="mt-8 grid grid-cols-4 gap-3">
+          {[
+            { label: "Total", value: totalPosts, color: "text-white/80" },
+            { label: "Scheduled", value: counts.scheduled, color: "text-blue-400" },
+            { label: "Posted", value: counts.posted, color: "text-emerald-400" },
+            { label: "Drafts", value: counts.drafts, color: "text-amber-400" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+            >
+              <p className="text-[11px] font-medium text-white/35 uppercase tracking-wider">{stat.label}</p>
+              <p className={`text-2xl font-semibold mt-1 tabular-nums ${stat.color}`}>
+                {loading ? (
+                  <span className="inline-block w-6 h-6 rounded bg-white/[0.06] animate-pulse" />
+                ) : (
+                  stat.value
+                )}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Upload CTA */}
+        <div className="mt-8">
           <Link
-            href="/settings"
-            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+            href="/upload"
+            className="group flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 hover:bg-white/[0.05] hover:border-white/[0.12] transition-all"
           >
-            Settings
+            <div className="flex items-center gap-4">
+              <div className="h-11 w-11 rounded-xl bg-white/[0.08] flex items-center justify-center group-hover:bg-white/[0.12] transition-colors">
+                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-white/90">Upload a new video</p>
+                <p className="text-[13px] text-white/40 mt-0.5">Schedule across all your platforms in one go</p>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
           </Link>
         </div>
 
-        {/* Central Upload CTA */}
-        <div className="mt-16 flex flex-col items-center text-center">
-          <div className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/50 mb-6">
-            Upload once, publish everywhere
-          </div>
-
-          <h2 className="text-4xl font-semibold tracking-tight">
-            Ready to share your content?
-          </h2>
-          <p className="text-white/50 mt-3 max-w-md">
-            Upload your video and schedule it across all your platforms with just a few clicks.
-          </p>
-
-          <Link
-            href="/upload"
-            className="mt-8 group relative inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 text-base font-semibold text-black hover:bg-white/90 transition-colors"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Upload a new video
-          </Link>
+        {/* Section label */}
+        <div className="mt-10 mb-4">
+          <h2 className="text-[11px] font-semibold text-white/30 uppercase tracking-widest">Overview</h2>
         </div>
 
         {/* Navigation Cards */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Scheduled */}
           <Link
             href="/scheduled"
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group relative rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all overflow-hidden"
           >
-            <div className="flex items-center justify-between">
-              <div className="rounded-full bg-blue-500/10 p-3">
-                <svg
-                  className="w-5 h-5 text-blue-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/[0.04] rounded-full -translate-y-8 translate-x-8" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </div>
+                <span className="text-[28px] font-semibold tabular-nums text-white/80">
+                  {loading ? (
+                    <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
+                  ) : (
+                    counts.scheduled
+                  )}
+                </span>
+              </div>
+              <div className="mt-4">
+                <h3 className="text-[14px] font-medium text-white/85">Scheduled</h3>
+                <p className="text-[12px] text-white/35 mt-0.5">Queued for publishing</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/[0.04] flex items-center text-[12px] font-medium text-white/30 group-hover:text-blue-400/70 transition-colors">
+                View all
+                <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </div>
-              <span className="text-2xl font-semibold text-white/90">
-                {loading ? "–" : counts.scheduled}
-              </span>
-            </div>
-            <div className="mt-4">
-              <h3 className="font-medium text-white/90">Scheduled</h3>
-              <p className="text-sm text-white/40 mt-1">
-                Posts queued for the future
-              </p>
-            </div>
-            <div className="mt-4 flex items-center text-sm text-white/40 group-hover:text-white/60 transition-colors">
-              View all
-              <svg
-                className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
             </div>
           </Link>
 
+          {/* Posted */}
           <Link
             href="/posted"
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group relative rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all overflow-hidden"
           >
-            <div className="flex items-center justify-between">
-              <div className="rounded-full bg-emerald-500/10 p-3">
-                <svg
-                  className="w-5 h-5 text-emerald-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M5 13l4 4L19 7"
-                  />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.04] rounded-full -translate-y-8 translate-x-8" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </div>
+                <span className="text-[28px] font-semibold tabular-nums text-white/80">
+                  {loading ? (
+                    <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
+                  ) : (
+                    counts.posted
+                  )}
+                </span>
+              </div>
+              <div className="mt-4">
+                <h3 className="text-[14px] font-medium text-white/85">Posted</h3>
+                <p className="text-[12px] text-white/35 mt-0.5">Successfully published</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/[0.04] flex items-center text-[12px] font-medium text-white/30 group-hover:text-emerald-400/70 transition-colors">
+                View all
+                <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </div>
-              <span className="text-2xl font-semibold text-white/90">
-                {loading ? "–" : counts.posted}
-              </span>
-            </div>
-            <div className="mt-4">
-              <h3 className="font-medium text-white/90">Posted</h3>
-              <p className="text-sm text-white/40 mt-1">
-                Successfully published content
-              </p>
-            </div>
-            <div className="mt-4 flex items-center text-sm text-white/40 group-hover:text-white/60 transition-colors">
-              View all
-              <svg
-                className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
             </div>
           </Link>
 
+          {/* Drafts */}
           <Link
             href="/drafts"
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group relative rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all overflow-hidden"
           >
-            <div className="flex items-center justify-between">
-              <div className="rounded-full bg-amber-500/10 p-3">
-                <svg
-                  className="w-5 h-5 text-amber-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.04] rounded-full -translate-y-8 translate-x-8" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                  </svg>
+                </div>
+                <span className="text-[28px] font-semibold tabular-nums text-white/80">
+                  {loading ? (
+                    <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
+                  ) : (
+                    counts.drafts
+                  )}
+                </span>
+              </div>
+              <div className="mt-4">
+                <h3 className="text-[14px] font-medium text-white/85">Drafts</h3>
+                <p className="text-[12px] text-white/35 mt-0.5">Saved for later</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/[0.04] flex items-center text-[12px] font-medium text-white/30 group-hover:text-amber-400/70 transition-colors">
+                View all
+                <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </div>
-              <span className="text-2xl font-semibold text-white/90">
-                {loading ? "–" : counts.drafts}
-              </span>
-            </div>
-            <div className="mt-4">
-              <h3 className="font-medium text-white/90">Drafts</h3>
-              <p className="text-sm text-white/40 mt-1">
-                Saved but not yet scheduled
-              </p>
-            </div>
-            <div className="mt-4 flex items-center text-sm text-white/40 group-hover:text-white/60 transition-colors">
-              View all
-              <svg
-                className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
             </div>
           </Link>
-        </div>
-
-        {/* Quick Stats Footer */}
-        <div className="mt-16 pt-8 border-t border-white/5">
-          <div className="flex items-center justify-between text-sm text-white/30">
-            <span>Clip Scheduler</span>
-            <div className="flex items-center gap-6">
-              <Link href="/settings" className="hover:text-white/60 transition-colors">
-                Connected accounts
-              </Link>
-              <Link href="/upload" className="hover:text-white/60 transition-colors">
-                New upload
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>
