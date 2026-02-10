@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 
@@ -14,21 +14,6 @@ export default function DashboardPage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState<PostCounts>({ scheduled: 0, posted: 0, drafts: 0 });
   const [loading, setLoading] = useState(true);
-
-  const now = useMemo(() => new Date(), []);
-
-  const greeting = useMemo(() => {
-    const h = now.getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
-  }, [now]);
-
-  const firstName = useMemo(() => {
-    if (!sessionEmail) return "";
-    const name = sessionEmail.split("@")[0];
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  }, [sessionEmail]);
 
   const totalPosts = counts.scheduled + counts.posted + counts.drafts;
 
@@ -128,21 +113,14 @@ export default function DashboardPage() {
             <div className="w-px h-4 bg-white/10" />
             <div className="flex items-center gap-2 pl-2">
               <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-[11px] font-semibold">
-                {firstName ? firstName[0] : "?"}
+                {sessionEmail ? sessionEmail[0].toUpperCase() : "?"}
               </div>
             </div>
           </div>
         </nav>
 
-        {/* Greeting */}
-        <div className="mt-10">
-          <p className="text-[13px] text-white/40 font-medium">{greeting}</p>
-          <h1 className="text-[28px] font-semibold tracking-tight mt-1 text-white">
-            {firstName || "Dashboard"}
-          </h1>
-        </div>
-
         {/* Stats row */}
+        <div className="mt-10" />
         <div className="mt-8 grid grid-cols-4 gap-3">
           {[
             { label: "Total", value: totalPosts, color: "text-white/80" },

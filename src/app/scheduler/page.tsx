@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 
@@ -45,8 +45,6 @@ export default function SchedulerPage() {
   const [rows, setRows] = useState<ScheduledPostRow[]>([]);
   const [runMsg, setRunMsg] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
-
-  const now = useMemo(() => new Date(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,19 +99,11 @@ export default function SchedulerPage() {
     }
   }
 
-  const greeting = useMemo(() => {
-    const h = now.getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
-  }, [now]);
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-5xl px-4 py-10">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-xs text-slate-400">{greeting}</div>
             <h1 className="text-2xl font-semibold tracking-tight">Scheduler</h1>
             <div className="mt-1 text-sm text-slate-400 truncate">
               {sessionEmail ? sessionEmail : "—"}
