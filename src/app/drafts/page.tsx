@@ -49,10 +49,26 @@ export default function DraftsPage() {
         return;
       }
 
+      // Get team info
+      const token = auth.session.access_token;
+      let teamId: string | null = null;
+      try {
+        const res = await fetch("/api/team/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.ok) teamId = json.teamId;
+      } catch {}
+
+      if (!teamId) {
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("scheduled_posts")
         .select("id, title, description, provider, created_at")
-        .eq("user_id", auth.session.user.id)
+        .eq("team_id", teamId)
         .eq("status", "draft")
         .order("created_at", { ascending: false });
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireOwner } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing state (user id)" }, { status: 400 });
     }
 
+    // Look up team membership and verify owner role
+    const { data: membership } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id, role")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!membership) {
+      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
+    }
+
+    const ownerCheck = requireOwner(membership.role);
+    if (ownerCheck) return ownerCheck;
+
+    const teamId = membership.team_id;
+
     const clientId = mustEnv("GOOGLE_CLIENT_ID");
     const clientSecret = mustEnv("GOOGLE_CLIENT_SECRET");
 
@@ -65,7 +83,7 @@ export async function GET(req: Request) {
     const existing = await supabaseAdmin
       .from("platform_accounts")
       .select("id, refresh_token")
-      .eq("user_id", userId)
+      .eq("team_id", teamId)
       .eq("provider", "youtube")
       .maybeSingle();
 
@@ -110,15 +128,16 @@ export async function GET(req: Request) {
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
+        team_id: teamId,
         provider: "youtube",
-        access_token: accessToken, // access tokens rotate, safe to update
-        refresh_token: refreshTokenToStore, // preserve if Google didn't return one
-        expiry: expiryIso, // store expiry if your table has this column
+        access_token: accessToken,
+        refresh_token: refreshTokenToStore,
+        expiry: expiryIso,
         profile_name: profileName,
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id,provider" }
+      { onConflict: "team_id,provider" }
     );
 
     if (upsertErr) {

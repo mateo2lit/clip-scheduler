@@ -14,18 +14,30 @@ export default function AuthCallbackPage() {
       try {
         // This reads tokens from the URL (including the hash for recovery links)
         // and stores the session in Supabase client.
-        const { error } = await supabase.auth.getSession();
+        const { error, data } = await supabase.auth.getSession();
         if (error) {
           setMsg(`Auth error: ${error.message}`);
           return;
         }
 
         // If this was a recovery link, go to reset-password form
-        // Otherwise, go to dashboard.
+        // Otherwise, ensure team exists and go to dashboard.
         const hash = window.location.hash || "";
         if (hash.includes("type=recovery")) {
           router.replace("/reset-password");
         } else {
+          // Ensure the user has a team (idempotent)
+          const token = data.session?.access_token;
+          if (token) {
+            try {
+              await fetch("/api/auth/after-signup", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+            } catch {
+              // Non-fatal: team will be created on next API call
+            }
+          }
           router.replace("/dashboard");
         }
       } catch (e: any) {

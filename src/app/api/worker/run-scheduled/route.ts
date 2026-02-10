@@ -50,7 +50,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -59,7 +59,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
       .eq("id", postId)
       .limit(1);
   }
@@ -159,11 +159,11 @@ async function runWorker(req: Request) {
 
       const provider = post.provider || "youtube";
 
-      // Load platform account
+      // Load platform account (team-based lookup)
       const { data: acct, error: acctErr } = await supabaseAdmin
         .from("platform_accounts")
         .select("id, refresh_token, access_token, expiry, platform_user_id, page_id, page_access_token, ig_user_id")
-        .eq("user_id", post.user_id)
+        .eq("team_id", post.team_id)
         .eq("provider", provider)
         .maybeSingle();
 

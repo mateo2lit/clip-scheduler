@@ -5,6 +5,7 @@ import {
   exchangeForLongLivedToken,
   getFacebookUserPages,
 } from "@/lib/facebook";
+import { requireOwner } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,23 @@ export async function GET(req: Request) {
     if (!userId) {
       return NextResponse.json({ ok: false, error: "Missing state (user id)" }, { status: 400 });
     }
+
+    // Look up team membership and verify owner role
+    const { data: membership } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id, role")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!membership) {
+      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
+    }
+
+    const ownerCheckResult = requireOwner(membership.role);
+    if (ownerCheckResult) return ownerCheckResult;
+
+    const teamId = membership.team_id;
 
     const { appId, appSecret, redirectUri } = getFacebookAuthConfig();
 
@@ -117,9 +135,10 @@ export async function GET(req: Request) {
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
+        team_id: teamId,
         provider: "facebook",
         access_token: longLivedToken,
-        refresh_token: longLivedToken, // Facebook long-lived tokens serve as both
+        refresh_token: longLivedToken,
         expiry: expiresAt,
         platform_user_id: page.id,
         page_id: page.id,
@@ -128,7 +147,7 @@ export async function GET(req: Request) {
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id,provider" }
+      { onConflict: "team_id,provider" }
     );
 
     if (upsertErr) {

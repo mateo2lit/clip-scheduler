@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getInstagramAuthConfig } from "@/lib/instagram";
+import { getTeamContext, requireOwner } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -11,20 +12,12 @@ function readBearer(req: Request) {
 }
 
 async function handler(req: Request) {
-  const token = readBearer(req);
-  if (!token) {
-    return NextResponse.json(
-      { ok: false, error: "Missing Authorization Bearer token" },
-      { status: 401 }
-    );
-  }
+  const result = await getTeamContext(req);
+  if (!result.ok) return result.error;
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  const user = data?.user;
-
-  if (error || !user) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
+  const { userId, role } = result.ctx;
+  const ownerCheck = requireOwner(role);
+  if (ownerCheck) return ownerCheck;
 
   const { appId, redirectUri } = getInstagramAuthConfig();
 
@@ -33,7 +26,7 @@ async function handler(req: Request) {
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement",
-    state: user.id,
+    state: userId,
   });
 
   const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;

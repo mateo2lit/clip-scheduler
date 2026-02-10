@@ -1,6 +1,7 @@
 // src/app/api/platform-accounts/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getTeamContext, requireOwner } from "@/lib/teamAuth";
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
@@ -8,32 +9,17 @@ function jsonError(message: string, status = 400) {
 
 export const runtime = "nodejs";
 
-function extractToken(req: Request): string {
-  const authHeader = req.headers.get("authorization") || "";
-  return authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : "";
-}
-
-async function getUserId(token: string): Promise<{ userId?: string; error?: NextResponse }> {
-  if (!token) {
-    return { error: jsonError("Missing Authorization token", 401) };
-  }
-  const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-  if (userErr || !userData?.user) {
-    return { error: jsonError("Invalid session", 401) };
-  }
-  return { userId: userData.user.id };
-}
-
 export async function GET(req: Request) {
   try {
-    const token = extractToken(req);
-    const { userId, error } = await getUserId(token);
-    if (error) return error;
+    const result = await getTeamContext(req);
+    if (!result.ok) return result.error;
+
+    const { teamId } = result.ctx;
 
     const { data, error: dbError } = await supabaseAdmin
       .from("platform_accounts")
       .select("provider, created_at, updated_at, expiry, profile_name, avatar_url")
-      .eq("user_id", userId);
+      .eq("team_id", teamId);
 
     if (dbError) return jsonError(dbError.message, 500);
 
@@ -46,9 +32,14 @@ export async function GET(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const token = extractToken(req);
-    const { userId, error } = await getUserId(token);
-    if (error) return error;
+    const result = await getTeamContext(req);
+    if (!result.ok) return result.error;
+
+    const { teamId, role } = result.ctx;
+
+    // Only owners can disconnect platforms
+    const ownerCheck = requireOwner(role);
+    if (ownerCheck) return ownerCheck;
 
     const url = new URL(req.url);
     const provider = url.searchParams.get("provider");
@@ -60,7 +51,7 @@ export async function DELETE(req: Request) {
     const { error: deleteError } = await supabaseAdmin
       .from("platform_accounts")
       .delete()
-      .eq("user_id", userId)
+      .eq("team_id", teamId)
       .eq("provider", provider.toLowerCase());
 
     if (deleteError) {

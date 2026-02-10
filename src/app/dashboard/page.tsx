@@ -37,25 +37,40 @@ export default function DashboardPage() {
       }
 
       if (cancelled) return;
-      const userId = auth.session.user.id;
       setSessionEmail(auth.session.user.email ?? null);
+
+      // Get team info
+      const token = auth.session.access_token;
+      let teamId: string | null = null;
+      try {
+        const res = await fetch("/api/team/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.ok) teamId = json.teamId;
+      } catch {}
+
+      if (!teamId || cancelled) {
+        setLoading(false);
+        return;
+      }
 
       // Get counts for each status
       const [scheduledRes, postedRes, draftsRes] = await Promise.all([
         supabase
           .from("scheduled_posts")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
+          .eq("team_id", teamId)
           .eq("status", "scheduled"),
         supabase
           .from("scheduled_posts")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
+          .eq("team_id", teamId)
           .eq("status", "posted"),
         supabase
           .from("scheduled_posts")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
+          .eq("team_id", teamId)
           .eq("status", "draft"),
       ]);
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTikTokAuthConfig } from "@/lib/tiktok";
+import { requireOwner } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,23 @@ export async function GET(req: Request) {
     if (!userId || !codeVerifier) {
       return NextResponse.json({ ok: false, error: "Invalid state" }, { status: 400 });
     }
+
+    // Look up team membership and verify owner role
+    const { data: membership } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id, role")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!membership) {
+      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
+    }
+
+    const ownerCheckResult = requireOwner(membership.role);
+    if (ownerCheckResult) return ownerCheckResult;
+
+    const teamId = membership.team_id;
 
     const { clientKey, clientSecret, redirectUri } = getTikTokAuthConfig();
 
@@ -94,7 +112,7 @@ export async function GET(req: Request) {
     const existing = await supabaseAdmin
       .from("platform_accounts")
       .select("id, refresh_token")
-      .eq("user_id", userId)
+      .eq("team_id", teamId)
       .eq("provider", "tiktok")
       .maybeSingle();
 
@@ -138,6 +156,7 @@ export async function GET(req: Request) {
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
+        team_id: teamId,
         provider: "tiktok",
         access_token: accessToken,
         refresh_token: refreshTokenToStore,
@@ -147,7 +166,7 @@ export async function GET(req: Request) {
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id,provider" }
+      { onConflict: "team_id,provider" }
     );
 
     if (upsertErr) {

@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" log --oneline -20)",
+      "WebSearch",
+      "WebFetch(domain:developers.tiktok.com)",
+      "Bash(dir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel logs --output json)",
+      "Bash(npx vercel logs:*)",
+      "Bash(npx next build:*)",
+      "WebFetch(domain:docs.mixpost.app)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" diff)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" log --oneline -5)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" add src/app/login/LoginClient.tsx)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit -m \"$\\(cat <<''EOF''\nSwitch login from magic link to email/password authentication\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" push)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" log --oneline -3)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" add src/app/dashboard/page.tsx src/app/drafts/page.tsx src/app/posted/page.tsx src/app/scheduled/page.tsx)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit -m \"$\\(cat <<''EOF''\nFix scheduled_posts queries to filter by user_id\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(vercel:*)",
+      "Bash(npx vercel:*)",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Trigger production deploy for clipdash.org\")",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Trigger deploy for custom domain\")",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Trigger fresh deploy\")",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Retry custom domain deploy\")",
+      "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Trigger deploy after disabling deployment protection\")",
+      "Bash(xargs:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

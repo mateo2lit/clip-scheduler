@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 
@@ -91,6 +91,17 @@ export default function SettingsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
 
+  // Team state
+  type TeamMember = { userId: string; email: string | null; role: string; joinedAt: string };
+  type TeamInvite = { id: string; email: string; status: string; created_at: string };
+  const [teamRole, setTeamRole] = useState<"owner" | "member" | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamInvites, setTeamInvites] = useState<TeamInvite[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+
   type AccountInfo = { connected: boolean; profileName?: string; avatarUrl?: string };
   const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo>>({
     youtube: { connected: false },
@@ -156,6 +167,100 @@ export default function SettingsPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  const loadTeamInfo = useCallback(async () => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/team/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json();
+      if (json.ok) {
+        setTeamRole(json.role);
+        setTeamMembers(json.members ?? []);
+        setTeamInvites(json.invites ?? []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return;
+    setInviteLoading(true);
+    setInviteError(null);
+    setInviteSuccess(null);
+
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/team/invite", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: inviteEmail.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setInviteError(json.error || "Failed to send invite");
+      } else {
+        setInviteSuccess(json.joined ? "User added to team" : "Invite sent");
+        setInviteEmail("");
+        loadTeamInfo();
+      }
+    } catch (e: any) {
+      setInviteError(e?.message || "Failed");
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function handleRemoveMember(targetUserId: string) {
+    if (!confirm("Remove this member from your team?")) return;
+
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch(`/api/team/invite?userId=${targetUserId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) loadTeamInfo();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleCancelInvite(inviteId: string) {
+    if (!confirm("Cancel this invite?")) return;
+
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch(`/api/team/invite?inviteId=${inviteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) loadTeamInfo();
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -370,7 +475,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadConnectedAccounts();
-  }, []);
+    loadTeamInfo();
+  }, [loadTeamInfo]);
 
   const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
 
@@ -484,8 +590,8 @@ export default function SettingsPage() {
                   <div className="text-xs text-white/40 mt-1">Uploads/month</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-semibold">1</div>
-                  <div className="text-xs text-white/40 mt-1">Team member</div>
+                  <div className="text-2xl font-semibold">{teamMembers.length}</div>
+                  <div className="text-xs text-white/40 mt-1">Team member{teamMembers.length !== 1 ? "s" : ""}</div>
                 </div>
                 <div>
                   <div className="text-2xl font-semibold">{connectedCount}</div>
@@ -548,73 +654,80 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {platform.key === "youtube" && acct.connected && (
-                        <button
-                          onClick={disconnectYouTube}
-                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                        >
-                          Disconnect
-                        </button>
+                      {teamRole === "owner" && (
+                        <>
+                          {platform.key === "youtube" && acct.connected && (
+                            <button
+                              onClick={disconnectYouTube}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
+                          {platform.key === "tiktok" && acct.connected && (
+                            <button
+                              onClick={disconnectTikTok}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
+                          {platform.key === "facebook" && acct.connected && (
+                            <button
+                              onClick={disconnectFacebook}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
+                          {platform.key === "instagram" && acct.connected && (
+                            <button
+                              onClick={disconnectInstagram}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
+                          {platform.key === "youtube" ? (
+                            <button
+                              onClick={connectYouTube}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            >
+                              {acct.connected ? "Reconnect" : "Connect"}
+                            </button>
+                          ) : platform.key === "tiktok" ? (
+                            <button
+                              onClick={connectTikTok}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            >
+                              {acct.connected ? "Reconnect" : "Connect"}
+                            </button>
+                          ) : platform.key === "facebook" ? (
+                            <button
+                              onClick={connectFacebook}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            >
+                              {acct.connected ? "Reconnect" : "Connect"}
+                            </button>
+                          ) : platform.key === "instagram" ? (
+                            <button
+                              onClick={connectInstagram}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            >
+                              {acct.connected ? "Reconnect" : "Connect"}
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/30 cursor-not-allowed"
+                            >
+                              Connect
+                            </button>
+                          )}
+                        </>
                       )}
-                      {platform.key === "tiktok" && acct.connected && (
-                        <button
-                          onClick={disconnectTikTok}
-                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                        >
-                          Disconnect
-                        </button>
-                      )}
-                      {platform.key === "facebook" && acct.connected && (
-                        <button
-                          onClick={disconnectFacebook}
-                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                        >
-                          Disconnect
-                        </button>
-                      )}
-                      {platform.key === "instagram" && acct.connected && (
-                        <button
-                          onClick={disconnectInstagram}
-                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                        >
-                          Disconnect
-                        </button>
-                      )}
-                      {platform.key === "youtube" ? (
-                        <button
-                          onClick={connectYouTube}
-                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                        >
-                          {acct.connected ? "Reconnect" : "Connect"}
-                        </button>
-                      ) : platform.key === "tiktok" ? (
-                        <button
-                          onClick={connectTikTok}
-                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                        >
-                          {acct.connected ? "Reconnect" : "Connect"}
-                        </button>
-                      ) : platform.key === "facebook" ? (
-                        <button
-                          onClick={connectFacebook}
-                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                        >
-                          {acct.connected ? "Reconnect" : "Connect"}
-                        </button>
-                      ) : platform.key === "instagram" ? (
-                        <button
-                          onClick={connectInstagram}
-                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                        >
-                          {acct.connected ? "Reconnect" : "Connect"}
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/30 cursor-not-allowed"
-                        >
-                          Connect
-                        </button>
+                      {teamRole === "member" && !platform.available && (
+                        <span className="text-xs text-white/30">Coming soon</span>
                       )}
                     </div>
                   </div>
@@ -626,29 +739,97 @@ export default function SettingsPage() {
 
         {/* Team Section */}
         <section className="mt-10">
-          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Team</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-purple-500/10 p-3">
-                  <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-medium">Invite team members</div>
-                  <div className="text-sm text-white/40 mt-0.5">
-                    Let editors and collaborators manage uploads on your behalf
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Team</h2>
+            <span className="text-xs text-white/30">{teamMembers.length + teamInvites.length}/3 members</span>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+            {/* Members list */}
+            {teamMembers.map((member) => (
+              <div key={member.userId} className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white/70">
+                      {(member.email ?? "?")[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium text-white/90">{member.email ?? "Unknown"}</div>
+                      <div className="text-xs text-white/40 mt-0.5">
+                        {member.role === "owner" ? "Owner" : "Member"} &middot; Joined {new Date(member.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </div>
+                    </div>
                   </div>
+                  {teamRole === "owner" && member.role !== "owner" && (
+                    <button
+                      onClick={() => handleRemoveMember(member.userId)}
+                      className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
-              <button
-                disabled
-                className="rounded-full bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/40 cursor-not-allowed"
-              >
-                Coming soon
-              </button>
-            </div>
+            ))}
+
+            {/* Pending invites */}
+            {teamInvites.map((invite) => (
+              <div key={invite.id} className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/5 border border-dashed border-white/20 flex items-center justify-center text-sm text-white/30">
+                      ?
+                    </div>
+                    <div>
+                      <div className="font-medium text-white/60">{invite.email}</div>
+                      <div className="text-xs text-amber-400/70 mt-0.5">
+                        Pending invite &middot; Sent {new Date(invite.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </div>
+                    </div>
+                  </div>
+                  {teamRole === "owner" && (
+                    <button
+                      onClick={() => handleCancelInvite(invite.id)}
+                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Invite form (owner only) */}
+            {teamRole === "owner" && (
+              <div className="p-5">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => {
+                      setInviteEmail(e.target.value);
+                      setInviteError(null);
+                      setInviteSuccess(null);
+                    }}
+                    placeholder="Enter email to invite..."
+                    className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-white/20"
+                    onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                  />
+                  <button
+                    onClick={handleInvite}
+                    disabled={inviteLoading || !inviteEmail.trim()}
+                    className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors disabled:opacity-50"
+                  >
+                    {inviteLoading ? "Sending..." : "Invite"}
+                  </button>
+                </div>
+                {inviteError && (
+                  <p className="text-xs text-red-400 mt-2">{inviteError}</p>
+                )}
+                {inviteSuccess && (
+                  <p className="text-xs text-emerald-400 mt-2">{inviteSuccess}</p>
+                )}
+              </div>
+            )}
           </div>
         </section>
 

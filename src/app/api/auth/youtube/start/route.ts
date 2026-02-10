@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getTeamContext, requireOwner } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -31,20 +32,12 @@ function readBearer(req: Request) {
 }
 
 async function handler(req: Request) {
-  const token = readBearer(req);
-  if (!token) {
-    return NextResponse.json(
-      { ok: false, error: "Missing Authorization Bearer token" },
-      { status: 401 }
-    );
-  }
+  const result = await getTeamContext(req);
+  if (!result.ok) return result.error;
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  const user = data?.user;
-
-  if (error || !user) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
+  const { userId, role } = result.ctx;
+  const ownerCheck = requireOwner(role);
+  if (ownerCheck) return ownerCheck;
 
   const siteUrl = getSiteUrl(req);
   const redirectUri = `${siteUrl}/api/auth/youtube/callback`;
@@ -68,7 +61,7 @@ async function handler(req: Request) {
       // Optional but reduces edge-case permission weirdness in some accounts:
       "https://www.googleapis.com/auth/youtube",
     ],
-    state: user.id,
+    state: userId,
   });
 
   // ✅ Return JSON because your Settings page expects it

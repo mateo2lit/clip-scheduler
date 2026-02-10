@@ -75,10 +75,26 @@ export default function PostedPage() {
         return;
       }
 
+      // Get team info
+      const token = auth.session.access_token;
+      let teamId: string | null = null;
+      try {
+        const res = await fetch("/api/team/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.ok) teamId = json.teamId;
+      } catch {}
+
+      if (!teamId) {
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("scheduled_posts")
         .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status")
-        .eq("user_id", auth.session.user.id)
+        .eq("team_id", teamId)
         .eq("status", "posted")
         .order("posted_at", { ascending: false });
 

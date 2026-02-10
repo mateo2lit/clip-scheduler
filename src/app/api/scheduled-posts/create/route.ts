@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getTeamContext } from "@/lib/teamAuth";
 
 export async function POST(req: Request) {
   try {
-    // 1) Verify auth header (matches your uploads/create pattern)
-    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const result = await getTeamContext(req);
+    if (!result.ok) return result.error;
 
-    if (!token) {
-      return NextResponse.json({ error: "Missing Authorization bearer token" }, { status: 401 });
-    }
+    const { userId, teamId } = result.ctx;
 
-    // 2) Validate token and derive user_id from Supabase Auth (do NOT trust client user_id)
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-
-    if (userErr || !userData?.user?.id) {
-      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
-    }
-
-    const user_id = userData.user.id;
-
-    // 3) Parse body
+    // Parse body
     const body = await req.json();
 
     const {
@@ -42,9 +31,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4) Insert scheduled post via admin client (bypass RLS)
+    // Insert scheduled post via admin client (bypass RLS)
     const insertRow: any = {
-      user_id,
+      user_id: userId,
+      team_id: teamId,
       upload_id,
       provider: provider ?? "youtube",
       title: title ?? "Untitled Clip",

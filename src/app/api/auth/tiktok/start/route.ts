@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTikTokAuthConfig } from "@/lib/tiktok";
+import { getTeamContext, requireOwner } from "@/lib/teamAuth";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -22,20 +23,12 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 }
 
 async function handler(req: Request) {
-  const token = readBearer(req);
-  if (!token) {
-    return NextResponse.json(
-      { ok: false, error: "Missing Authorization Bearer token" },
-      { status: 401 }
-    );
-  }
+  const result = await getTeamContext(req);
+  if (!result.ok) return result.error;
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  const user = data?.user;
-
-  if (error || !user) {
-    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  }
+  const { userId, role } = result.ctx;
+  const ownerCheck = requireOwner(role);
+  if (ownerCheck) return ownerCheck;
 
   const { clientKey, redirectUri } = getTikTokAuthConfig();
 
@@ -44,7 +37,7 @@ async function handler(req: Request) {
   const codeChallenge = await generateCodeChallenge(codeVerifier);
 
   // Encode userId and code_verifier in state so callback can use both
-  const state = `${user.id}:${codeVerifier}`;
+  const state = `${userId}:${codeVerifier}`;
 
   const params = new URLSearchParams({
     client_key: clientKey,

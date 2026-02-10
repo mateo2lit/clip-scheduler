@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/login/supabaseClient";
+import { useTeam } from "@/lib/useTeam";
 import Link from "next/link";
 
 const EMOJI_CATEGORIES = {
@@ -117,6 +118,7 @@ function toIsoFromDatetimeLocal(value: string) {
 
 export default function UploadsPage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const { teamId } = useTeam();
   const [step, setStep] = useState<Step>("upload");
 
   // Upload state
@@ -330,7 +332,8 @@ export default function UploadsPage() {
     setUploadProgress(0);
 
     try {
-      const objectKey = `${userId}/${Date.now()}-${file.name}`.replace(/\s+/g, "_");
+      const pathPrefix = teamId || userId;
+      const objectKey = `${pathPrefix}/${Date.now()}-${file.name}`.replace(/\s+/g, "_");
       const progressInterval = setInterval(() => {
         setUploadProgress((p) => Math.min(p + 10, 90));
       }, 200);
