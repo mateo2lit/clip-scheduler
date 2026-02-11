@@ -87,6 +87,34 @@ export async function POST(req: Request) {
         role: "member",
       });
 
+      // Clean up their old personal team (solo team where they're the only owner)
+      const { data: oldMemberships } = await supabaseAdmin
+        .from("team_members")
+        .select("team_id, role")
+        .eq("user_id", matchedUser.id)
+        .neq("team_id", teamId);
+
+      for (const old of oldMemberships ?? []) {
+        if (old.role !== "owner") continue;
+        // Check if this team has other members
+        const { count } = await supabaseAdmin
+          .from("team_members")
+          .select("id", { count: "exact", head: true })
+          .eq("team_id", old.team_id);
+        if ((count ?? 0) <= 1) {
+          // Solo team — remove membership and delete team
+          await supabaseAdmin
+            .from("team_members")
+            .delete()
+            .eq("team_id", old.team_id)
+            .eq("user_id", matchedUser.id);
+          await supabaseAdmin
+            .from("teams")
+            .delete()
+            .eq("id", old.team_id);
+        }
+      }
+
       return NextResponse.json({
         ok: true,
         message: "User added to team",

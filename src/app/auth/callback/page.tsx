@@ -66,8 +66,8 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen w-full flex items-center justify-center p-6 bg-[#0A0A0A]">
-      <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-white">
+    <main className="min-h-screen w-full flex items-center justify-center p-6 bg-[#050505]">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-white">
         <h1 className="text-xl font-semibold">Working...</h1>
         <p className="mt-2 text-sm text-white/50">{msg}</p>
       </div>

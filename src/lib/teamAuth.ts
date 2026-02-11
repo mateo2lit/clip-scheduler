@@ -47,6 +47,7 @@ export async function getTeamContext(req: Request): Promise<TeamContextResult> {
     .from("team_members")
     .select("team_id, role")
     .eq("user_id", userId)
+    .order("joined_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 

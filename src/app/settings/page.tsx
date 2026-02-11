@@ -481,26 +481,39 @@ export default function SettingsPage() {
   const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      {/* Background */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/50 via-transparent to-transparent" />
-      </div>
+    <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
+      {/* Background gradient orbs */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
 
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      {/* Nav */}
+      <nav className="relative z-10 border-b border-white/5">
+        <div className="mx-auto max-w-3xl px-6 py-4 flex items-center justify-between">
+          <Link href="/dashboard" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-white/40">Settings</span>
+            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[11px] font-semibold">
+              {sessionEmail ? sessionEmail[0].toUpperCase() : "?"}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="relative z-10 mx-auto max-w-3xl px-6 pt-10 pb-16">
         {/* Header */}
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white/70 transition-colors mb-8"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
-        </Link>
-
-        <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
-        <p className="text-white/40 mt-1">Manage your account and preferences</p>
+        <div className="flex items-center gap-3 mb-2">
+          <Link
+            href="/dashboard"
+            className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
+            <p className="text-sm text-white/40">Manage your account and preferences</p>
+          </div>
+        </div>
 
         {/* Success Banner */}
         {banner && (
@@ -512,7 +525,7 @@ export default function SettingsPage() {
         {/* Account Section */}
         <section className="mt-10">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Account</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -574,7 +587,7 @@ export default function SettingsPage() {
         {/* Subscription Section */}
         <section className="mt-10">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Subscription</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-emerald-500/10 p-3">
@@ -624,7 +637,7 @@ export default function SettingsPage() {
               {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             {PLATFORMS.map((platform) => {
               const acct = accounts[platform.key];
               return (
@@ -754,7 +767,7 @@ export default function SettingsPage() {
             <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Team</h2>
             <span className="text-xs text-white/30">{teamMembers.length + teamInvites.length}/3 members</span>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             {/* Members list */}
             {teamMembers.map((member) => (
               <div key={member.userId} className="p-5">
@@ -847,7 +860,7 @@ export default function SettingsPage() {
         {/* Preferences Section */}
         <section className="mt-10">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Preferences</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -896,7 +909,7 @@ export default function SettingsPage() {
         {/* Danger Zone */}
         <section className="mt-10">
           <h2 className="text-sm font-medium text-red-400/60 uppercase tracking-wider mb-4">Danger Zone</h2>
-          <div className="rounded-2xl border border-red-500/10 bg-red-500/[0.02] divide-y divide-red-500/5">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -931,10 +944,10 @@ export default function SettingsPage() {
         {/* Footer */}
         <div className="mt-16 pt-8 border-t border-white/5 text-center">
           <p className="text-xs text-white/30">
-            Clip Scheduler v0.1.0
+            Clip Dash v0.1.0
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
