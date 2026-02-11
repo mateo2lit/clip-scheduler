@@ -4,7 +4,7 @@ type UploadToInstagramArgs = {
   userId: string;
   platformAccountId: string;
   igUserId: string;
-  pageAccessToken: string;
+  accessToken: string;
 
   bucket: string;
   storagePath: string;
@@ -45,14 +45,14 @@ export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs
     userId,
     platformAccountId,
     igUserId,
-    pageAccessToken,
+    accessToken,
     bucket,
     storagePath,
     caption,
   } = args;
 
   assertOk(igUserId, "Missing igUserId");
-  assertOk(pageAccessToken, "Missing pageAccessToken");
+  assertOk(accessToken, "Missing accessToken");
   assertOk(bucket, "Missing bucket");
   assertOk(storagePath, "Missing storagePath");
 
@@ -61,14 +61,14 @@ export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs
 
   // 2) Create media container
   const containerParams = new URLSearchParams({
-    access_token: pageAccessToken,
+    access_token: accessToken,
     media_type: "REELS",
     video_url: signedUrl,
     caption: (caption || "").slice(0, 2200),
   });
 
   const containerRes = await fetch(
-    `https://graph.facebook.com/v21.0/${igUserId}/media`,
+    `https://graph.instagram.com/v21.0/${igUserId}/media`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -100,7 +100,7 @@ export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs
     await sleep(pollInterval);
 
     const statusRes = await fetch(
-      `https://graph.facebook.com/v21.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(pageAccessToken)}`
+      `https://graph.instagram.com/v21.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`
     );
 
     if (!statusRes.ok) continue;
@@ -123,12 +123,12 @@ export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs
 
   // 4) Publish the container
   const publishParams = new URLSearchParams({
-    access_token: pageAccessToken,
+    access_token: accessToken,
     creation_id: containerId,
   });
 
   const publishRes = await fetch(
-    `https://graph.facebook.com/v21.0/${igUserId}/media_publish`,
+    `https://graph.instagram.com/v21.0/${igUserId}/media_publish`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },

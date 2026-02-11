@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   getInstagramAuthConfig,
+  exchangeCodeForToken,
   exchangeForLongLivedToken,
-  getInstagramAccounts,
+  getInstagramProfile,
 } from "@/lib/instagram";
 import { requireOwner } from "@/lib/teamAuth";
 
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
       .from("team_members")
       .select("team_id, role")
       .eq("user_id", userId)
+      .order("joined_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -58,87 +60,29 @@ export async function GET(req: Request) {
     if (ownerCheckResult) return ownerCheckResult;
 
     const teamId = membership.team_id;
+    const { redirectUri } = getInstagramAuthConfig();
 
-    const { appId, appSecret, redirectUri } = getInstagramAuthConfig();
-
-    // 1) Exchange code for short-lived token
-    const tokenParams = new URLSearchParams({
-      client_id: appId,
-      client_secret: appSecret,
-      redirect_uri: redirectUri,
-      code,
-    });
-
-    const tokenRes = await fetch(
-      `https://graph.facebook.com/v21.0/oauth/access_token?${tokenParams.toString()}`
-    );
-
-    if (!tokenRes.ok) {
-      const text = await tokenRes.text();
-      return NextResponse.json(
-        { ok: false, error: `Instagram token exchange failed: ${tokenRes.status} ${text}` },
-        { status: 500 }
-      );
-    }
-
-    const tokenData = await tokenRes.json();
-
-    if (tokenData.error) {
-      return NextResponse.json(
-        { ok: false, error: `Instagram error: ${tokenData.error.message}` },
-        { status: 400 }
-      );
-    }
-
-    const shortToken = tokenData.access_token;
-    if (!shortToken) {
-      return NextResponse.json(
-        { ok: false, error: "Facebook did not return an access token" },
-        { status: 400 }
-      );
-    }
+    // 1) Exchange code for short-lived token via Instagram API
+    const shortLived = await exchangeCodeForToken(code, redirectUri);
+    const igUserId = shortLived.user_id;
 
     // 2) Exchange for long-lived token (~60 days)
-    const longLived = await exchangeForLongLivedToken(shortToken);
+    const longLived = await exchangeForLongLivedToken(shortLived.access_token);
     const longLivedToken = longLived.access_token;
-    const expiresIn = longLived.expires_in || 5184000; // default 60 days
-    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + longLived.expires_in * 1000).toISOString();
 
-    // 3) Fetch Instagram Business accounts linked to Pages
-    const igAccounts = await getInstagramAccounts(longLivedToken);
-
-    if (igAccounts.length === 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "No Instagram Business account found. Make sure your Instagram account is linked to a Facebook Page as a Business or Creator account.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Auto-select first IG account
-    const ig = igAccounts[0];
-
-    // 4) Fetch IG profile info (username, profile picture)
+    // 3) Fetch Instagram profile info
     let profileName: string | null = null;
     let avatarUrl: string | null = null;
     try {
-      const profileRes = await fetch(
-        `https://graph.facebook.com/v21.0/${ig.igUserId}?fields=username,profile_picture_url&access_token=${encodeURIComponent(ig.pageAccessToken)}`
-      );
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        profileName = profileData.username || ig.pageName || null;
-        avatarUrl = profileData.profile_picture_url || null;
-      }
+      const profile = await getInstagramProfile(longLivedToken);
+      profileName = profile.username || null;
+      avatarUrl = profile.profilePictureUrl || null;
     } catch {
       // Non-fatal
-      profileName = ig.pageName || null;
     }
 
-    // 5) Upsert platform_accounts with provider="instagram"
+    // 4) Upsert platform_accounts with provider="instagram"
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -147,10 +91,8 @@ export async function GET(req: Request) {
         access_token: longLivedToken,
         refresh_token: longLivedToken,
         expiry: expiresAt,
-        platform_user_id: ig.igUserId,
-        ig_user_id: ig.igUserId,
-        page_id: ig.pageId,
-        page_access_token: ig.pageAccessToken,
+        platform_user_id: igUserId,
+        ig_user_id: igUserId,
         profile_name: profileName,
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),

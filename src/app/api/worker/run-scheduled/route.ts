@@ -224,7 +224,7 @@ async function runWorker(req: Request) {
         });
         platformPostId = fb.facebookVideoId;
       } else if (provider === "instagram") {
-        if (!acct.ig_user_id || !acct.page_access_token) {
+        if (!acct.ig_user_id || !acct.access_token) {
           throw new Error("Instagram account not configured. Please reconnect your Instagram account.");
         }
 
@@ -232,7 +232,7 @@ async function runWorker(req: Request) {
           userId: post.user_id,
           platformAccountId: acct.id,
           igUserId: acct.ig_user_id,
-          pageAccessToken: acct.page_access_token,
+          accessToken: acct.access_token,
           bucket,
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
