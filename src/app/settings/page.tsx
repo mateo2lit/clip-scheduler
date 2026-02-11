@@ -533,12 +533,23 @@ export default function SettingsPage() {
                   <div className="text-sm text-white/40">Password</div>
                   <div className="mt-1 text-white/60">••••••••••••</div>
                 </div>
-                <Link
-                  href="/reset-password"
+                <button
+                  onClick={async () => {
+                    if (!sessionEmail) return;
+                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                    const { error } = await supabase.auth.resetPasswordForEmail(sessionEmail, {
+                      redirectTo: `${origin}/auth/callback?next=/reset-password`,
+                    });
+                    if (error) {
+                      alert(error.message);
+                    } else {
+                      alert("Check your email for a password reset link.");
+                    }
+                  }}
                   className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
                 >
                   Reset
-                </Link>
+                </button>
               </div>
             </div>
             <div className="p-5">

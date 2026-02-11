@@ -10,49 +10,66 @@ export default function AuthCallbackPage() {
   const [msg, setMsg] = useState("Finishing sign-in...");
 
   useEffect(() => {
-    const run = async () => {
-      try {
-        // This reads tokens from the URL (including the hash for recovery links)
-        // and stores the session in Supabase client.
-        const { error, data } = await supabase.auth.getSession();
-        if (error) {
-          setMsg(`Auth error: ${error.message}`);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          // Supabase detected a recovery token — send to reset form
+          router.replace("/reset-password");
           return;
         }
 
-        // If this was a recovery link, go to reset-password form
-        // Otherwise, ensure team exists and go to dashboard.
-        const hash = window.location.hash || "";
-        if (hash.includes("type=recovery")) {
-          router.replace("/reset-password");
-        } else {
+        if (event === "SIGNED_IN" && session) {
           // Ensure the user has a team (idempotent)
-          const token = data.session?.access_token;
-          if (token) {
-            try {
-              await fetch("/api/auth/after-signup", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-              });
-            } catch {
-              // Non-fatal: team will be created on next API call
-            }
+          try {
+            await fetch("/api/auth/after-signup", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+          } catch {
+            // Non-fatal: team will be created on next API call
           }
           router.replace("/dashboard");
         }
-      } catch (e: any) {
-        setMsg(`Auth error: ${String(e?.message ?? e)}`);
       }
-    };
+    );
 
-    run();
+    // Fallback: if no auth event fires within 5 seconds, check session manually
+    const fallbackTimer = setTimeout(async () => {
+      const hash = window.location.hash || "";
+      const params = new URLSearchParams(window.location.search);
+
+      // Check hash or query params for recovery type
+      if (hash.includes("type=recovery") || params.get("next") === "/reset-password") {
+        router.replace("/reset-password");
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        try {
+          await fetch("/api/auth/after-signup", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${data.session.access_token}` },
+          });
+        } catch {}
+        router.replace("/dashboard");
+      } else {
+        setMsg("Session expired. Redirecting to login...");
+        setTimeout(() => router.replace("/login"), 1500);
+      }
+    }, 5000);
+
+    return () => {
+      listener.subscription.unsubscribe();
+      clearTimeout(fallbackTimer);
+    };
   }, [router]);
 
   return (
-    <main className="min-h-screen w-full flex items-center justify-center p-6 bg-slate-950">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur p-6 shadow-2xl text-slate-200">
-        <h1 className="text-xl font-semibold text-white">Working...</h1>
-        <p className="mt-2 text-sm text-slate-300">{msg}</p>
+    <main className="min-h-screen w-full flex items-center justify-center p-6 bg-[#0A0A0A]">
+      <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-white">
+        <h1 className="text-xl font-semibold">Working...</h1>
+        <p className="mt-2 text-sm text-white/50">{msg}</p>
       </div>
     </main>
   );

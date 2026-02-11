@@ -790,7 +790,6 @@ export default function UploadsPage() {
                       <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
                       <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
                     </select>
-                    <p className="text-xs text-amber-400/70 mt-1.5">Until TikTok API audit approval, only "Private (Self Only)" is available.</p>
                   </div>
                   <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2">
                     <label className="flex items-center gap-2 cursor-pointer">

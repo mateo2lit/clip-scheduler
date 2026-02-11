@@ -20,7 +20,6 @@ function formatDate(iso: string | null) {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, {
-      weekday: "short",
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -66,6 +65,7 @@ function getPostUrl(provider: string | null, platformPostId: string | null) {
 export default function PostedPage() {
   const [posts, setPosts] = useState<PostedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -75,7 +75,8 @@ export default function PostedPage() {
         return;
       }
 
-      // Get team info
+      setSessionEmail(auth.session.user.email ?? null);
+
       const token = auth.session.access_token;
       let teamId: string | null = null;
       try {
@@ -106,105 +107,147 @@ export default function PostedPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-[#0A0A0A] text-white antialiased">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/50 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/[0.03] via-transparent to-transparent" />
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 py-12">
-        {/* Header */}
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white/70 transition-colors mb-8"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
-        </Link>
+      <div className="mx-auto max-w-5xl px-6 pt-8 pb-16">
+        {/* Nav */}
+        <nav className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard" className="flex items-center gap-3 group">
+              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center">
+                <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                </svg>
+              </div>
+              <span className="text-[15px] font-semibold tracking-tight text-white/90 group-hover:text-white transition-colors">Clip Dash</span>
+            </Link>
+          </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-medium tracking-tight">Posted</h1>
-            <p className="text-white/40 mt-1">
-              {loading ? "Loading..." : `${posts.length} post${posts.length === 1 ? "" : "s"} published`}
-            </p>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/settings"
+              className="rounded-lg px-3 py-1.5 text-[13px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
+            >
+              Settings
+            </Link>
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex items-center gap-2 pl-2">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-[11px] font-semibold">
+                {sessionEmail ? sessionEmail[0].toUpperCase() : "?"}
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Header */}
+        <div className="mt-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </Link>
+            <div>
+              <h1 className="text-[15px] font-semibold tracking-tight text-white/90">Posted</h1>
+              <p className="text-[12px] text-white/35">
+                {loading ? "Loading..." : `${posts.length} post${posts.length === 1 ? "" : "s"} published`}
+              </p>
+            </div>
           </div>
 
           <Link
             href="/upload"
-            className="rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black hover:bg-white/90 transition-colors"
+            className="rounded-lg bg-white px-4 py-2 text-[13px] font-medium text-black hover:bg-white/90 transition-colors"
           >
-            + New upload
+            New upload
           </Link>
         </div>
 
-        {/* Posts List */}
-        <div className="mt-10">
+        {/* Posts */}
+        <div className="mt-6">
           {loading ? (
-            <div className="text-center py-20 text-white/40">Loading posted content...</div>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02]">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="px-5 py-4 border-t border-white/[0.04] first:border-t-0">
+                  <div className="flex items-center gap-4">
+                    <div className="h-4 w-32 rounded bg-white/[0.06] animate-pulse" />
+                    <div className="h-4 w-16 rounded bg-white/[0.06] animate-pulse" />
+                    <div className="ml-auto h-4 w-20 rounded bg-white/[0.06] animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : posts.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="rounded-full bg-emerald-500/10 p-4 w-fit mx-auto mb-4">
-                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-6 py-16 text-center">
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mx-auto">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-white/90">No posts yet</h3>
-              <p className="text-white/40 mt-1">Once your scheduled posts go live, they'll appear here.</p>
+              <p className="text-[14px] font-medium text-white/80 mt-4">No posts yet</p>
+              <p className="text-[13px] text-white/35 mt-1">Once your scheduled posts go live, they&apos;ll appear here.</p>
               <Link
                 href="/scheduled"
-                className="inline-flex mt-6 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                className="inline-flex mt-5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-5 py-2.5 text-[13px] font-medium text-white/60 hover:bg-white/[0.08] transition-colors"
               >
                 View scheduled posts
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.04]">
               {posts.map((post) => {
                 const postUrl = getPostUrl(post.provider, post.platform_post_id);
                 return (
                   <div
                     key={post.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors"
+                    className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      {/* Title */}
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-white/90 truncate">
+                        <p className="text-[14px] font-medium text-white/85 truncate">
                           {post.title || "Untitled"}
-                        </h3>
-                        {post.description && (
-                          <p className="text-sm text-white/40 mt-1 line-clamp-2">
-                            {post.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-3 mt-3">
-                          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-400 border border-emerald-500/20">
-                            {providerLabel(post.provider)}
-                          </span>
-                          <span className="text-xs text-white/30">
-                            Posted {formatDate(post.posted_at)} at {formatTime(post.posted_at)}
-                          </span>
-                        </div>
+                        </p>
                       </div>
-                      <div className="shrink-0">
-                        {postUrl ? (
-                          <a
-                            href={postUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                          >
-                            View
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </a>
-                        ) : (
-                          <span className="text-xs text-white/30">Published</span>
-                        )}
-                      </div>
+
+                      {/* Provider pill */}
+                      <span className="shrink-0 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+                        {providerLabel(post.provider)}
+                      </span>
+
+                      {/* Date + time */}
+                      <span className="shrink-0 text-[12px] text-white/30 tabular-nums hidden sm:block">
+                        {formatDate(post.posted_at)}, {formatTime(post.posted_at)}
+                      </span>
+
+                      {/* View link */}
+                      {postUrl ? (
+                        <a
+                          href={postUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
+                        >
+                          View
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          </svg>
+                        </a>
+                      ) : (
+                        <span className="shrink-0 text-[11px] text-white/20">Published</span>
+                      )}
                     </div>
+                    {post.description && (
+                      <p className="text-[12px] text-white/25 mt-1 line-clamp-1">
+                        {post.description}
+                      </p>
+                    )}
                   </div>
                 );
               })}
