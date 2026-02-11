@@ -25,7 +25,7 @@ async function handler(req: Request) {
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "pages_manage_posts,pages_read_engagement,pages_show_list,publish_video",
+    scope: "pages_manage_posts,pages_read_engagement,pages_show_list",
     state: userId,
   });
 
