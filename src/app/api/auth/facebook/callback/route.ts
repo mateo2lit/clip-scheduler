@@ -101,7 +101,8 @@ export async function GET(req: Request) {
     // 2) Exchange for long-lived token (~60 days)
     const longLived = await exchangeForLongLivedToken(shortToken);
     const longLivedToken = longLived.access_token;
-    const expiresAt = new Date(Date.now() + longLived.expires_in * 1000).toISOString();
+    const expiresIn = longLived.expires_in || 5184000; // default 60 days
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     // 3) Fetch user's Pages
     const pages = await getFacebookUserPages(longLivedToken);
