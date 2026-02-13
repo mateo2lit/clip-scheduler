@@ -22,7 +22,7 @@ async function handler(req: Request) {
     state: userId,
   });
 
-  const authUrl = `https://api.instagram.com/oauth/authorize?${params.toString()}`;
+  const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 
   return NextResponse.json({ ok: true, url: authUrl, redirectUri });
 }
