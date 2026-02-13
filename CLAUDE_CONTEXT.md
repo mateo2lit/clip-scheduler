@@ -2,6 +2,14 @@
 
 **Last updated:** 2026-02-13
 
+## Instructions for Claude
+
+- **Always commit and push** after making code changes — the site runs on Vercel and deploys from `main`, so changes aren't live until pushed.
+- When committing, use descriptive messages and include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`.
+- Do not commit `.env.local` (it's gitignored). Environment variable changes for production must be set manually in Vercel Dashboard.
+
+---
+
 ## Project Summary
 
 ClipDash is a web app that lets creators upload video clips, schedule them, and automatically post them to multiple social platforms. The core pipeline is:
@@ -58,7 +66,9 @@ The site is live at clipdash.org.
 | privacy_status | text | private/unlisted/public (YouTube) |
 | tiktok_settings | jsonb | privacy_level, allow_comments, etc. |
 | scheduled_for | timestamptz | when to post |
-| status | text | scheduled / posting / posted / failed |
+| status | text | scheduled / posting / posted / failed / ig_processing |
+| ig_container_id | text | Instagram container ID (for split upload flow) |
+| ig_container_created_at | timestamptz | When IG container was created (for timeout) |
 | platform_post_id | text | ID from the platform after posting |
 | last_error | text | error message if failed |
 | posted_at | timestamptz | |
@@ -332,7 +342,11 @@ These are small tasks that can be knocked out quickly to improve the product:
 - The worker uses **concurrency-safe claiming** (atomic status update + row count check)
 - Video files are stored in Supabase Storage and accessed via **signed URLs** for platform uploads
 - Facebook uses **Page Access Tokens** (not user tokens) for posting
-- Instagram uses the **Reels container** flow (create → poll → publish)
+- Instagram uses a **split Reels container** flow to work within Vercel Hobby's 10s timeout:
+  1. Worker creates container → sets status to `ig_processing` with `ig_container_id` and `ig_container_created_at`
+  2. Next cron tick(s) poll container status via `checkAndPublishInstagramContainer()`
+  3. When `FINISHED` → publishes and marks `posted`. If >10 min → marks `failed` with timeout error
+  - Each step completes in 2-3 seconds. Total flow takes 1-5 minutes across multiple cron runs
 - Instagram Business Login uses a **separate App ID and Secret** from the Facebook app — must be set via `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`
 - No Stripe or payment code exists yet — needs to be built from scratch
 
@@ -346,7 +360,26 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Changed "Overdue" label to "Posting soon..." with amber color on scheduled posts page
 - Built Instagram webhook endpoint at `/api/webhooks/instagram` for future analytics
 - Created this `CLAUDE_CONTEXT.md` file
+- Instagram OAuth fully working — users can connect Instagram accounts
+- Added "Business or Creator account required" hint for Instagram in settings
+- Facebook posting tested and confirmed working (video posted to Facebook Page)
+- Changed Meta app display name to ClipDash.org for attribution on Facebook posts
+- Removed Switch account button for Instagram (force_authentication not supported by Business Login API)
 
-### In Progress
-- Instagram OAuth — Meta Console setup (redirect URI added, tester role + permissions needed)
-- Facebook upload testing
+### In Progress — PICK UP HERE NEXT SESSION
+- **Instagram split worker implemented** — container creation + polling now runs across multiple cron ticks (fits in 10s timeout)
+  - **DB migration needed:** Run in Supabase SQL editor:
+    ```sql
+    ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS ig_container_id TEXT;
+    ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS ig_container_created_at TIMESTAMPTZ;
+    ```
+  - **Test end-to-end:** Schedule an Instagram post, verify it goes through ig_processing → posted across 2-4 cron ticks
+- **After Instagram fix, next task is Stripe setup + plan pricing**
+
+### Key Decisions Made
+- NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan
+- Instagram API only supports Business/Creator accounts for posting (no personal accounts)
+- Instagram videos always post as Reels (Instagram converts all video to Reels now)
+- Stories support via API is possible and can be added later
+- Supabase Pro ($25/mo) will be needed eventually for the 50MB upload limit (Pro = 5GB)
+- Plan to add auto-delete of posted videos after 7 days to manage storage

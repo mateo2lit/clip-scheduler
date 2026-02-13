@@ -12,6 +12,20 @@ type UploadToInstagramArgs = {
   caption: string;
 };
 
+type CreateContainerArgs = {
+  igUserId: string;
+  accessToken: string;
+  bucket: string;
+  storagePath: string;
+  caption: string;
+};
+
+type CheckAndPublishArgs = {
+  containerId: string;
+  igUserId: string;
+  accessToken: string;
+};
+
 function assertOk(condition: any, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -38,28 +52,22 @@ async function getSignedDownloadUrl(params: {
   return data.signedUrl;
 }
 
-export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs): Promise<{
-  instagramMediaId: string;
+/**
+ * Step 1: Create an Instagram Reels container. Returns the container ID.
+ * Completes in 2-3 seconds — safe for Vercel Hobby 10s timeout.
+ */
+export async function createInstagramContainer(args: CreateContainerArgs): Promise<{
+  containerId: string;
 }> {
-  const {
-    userId,
-    platformAccountId,
-    igUserId,
-    accessToken,
-    bucket,
-    storagePath,
-    caption,
-  } = args;
+  const { igUserId, accessToken, bucket, storagePath, caption } = args;
 
   assertOk(igUserId, "Missing igUserId");
   assertOk(accessToken, "Missing accessToken");
   assertOk(bucket, "Missing bucket");
   assertOk(storagePath, "Missing storagePath");
 
-  // 1) Create signed URL with long expiry (IG needs time to process)
   const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
 
-  // 2) Create media container
   const containerParams = new URLSearchParams({
     access_token: accessToken,
     media_type: "REELS",
@@ -92,36 +100,43 @@ export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs
     throw new Error("Instagram container creation succeeded but no container ID returned");
   }
 
-  // 3) Poll container status until FINISHED
-  const maxPolls = 60; // Up to 5 minutes (60 * 5s)
-  const pollInterval = 5000;
+  return { containerId };
+}
 
-  for (let i = 0; i < maxPolls; i++) {
-    await sleep(pollInterval);
+/**
+ * Step 2: Check container status and publish if ready.
+ * Completes in 2-3 seconds — safe for Vercel Hobby 10s timeout.
+ */
+export async function checkAndPublishInstagramContainer(args: CheckAndPublishArgs): Promise<{
+  status: "processing" | "posted" | "error";
+  instagramMediaId?: string;
+  error?: string;
+}> {
+  const { containerId, igUserId, accessToken } = args;
 
-    const statusRes = await fetch(
-      `https://graph.instagram.com/v21.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`
-    );
+  // Check container status
+  const statusRes = await fetch(
+    `https://graph.instagram.com/v21.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`
+  );
 
-    if (!statusRes.ok) continue;
-
-    const statusData = await statusRes.json();
-    const status = statusData.status_code;
-
-    if (status === "FINISHED") {
-      break;
-    }
-
-    if (status === "ERROR") {
-      throw new Error(
-        `Instagram media processing failed: ${statusData.status || "Unknown error"}`
-      );
-    }
-
-    // IN_PROGRESS - keep polling
+  if (!statusRes.ok) {
+    const text = await statusRes.text();
+    return { status: "error", error: `Status check failed: ${statusRes.status} ${text}` };
   }
 
-  // 4) Publish the container
+  const statusData = await statusRes.json();
+  const statusCode = statusData.status_code;
+
+  if (statusCode === "ERROR") {
+    return { status: "error", error: `Instagram media processing failed: ${statusData.status || "Unknown error"}` };
+  }
+
+  if (statusCode !== "FINISHED") {
+    // Still IN_PROGRESS — leave for next cron tick
+    return { status: "processing" };
+  }
+
+  // FINISHED — publish the container
   const publishParams = new URLSearchParams({
     access_token: accessToken,
     creation_id: containerId,
@@ -138,19 +153,69 @@ export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs
 
   if (!publishRes.ok) {
     const text = await publishRes.text();
-    throw new Error(`Instagram publish failed: ${publishRes.status} ${text}`);
+    return { status: "error", error: `Instagram publish failed: ${publishRes.status} ${text}` };
   }
 
   const publishData = await publishRes.json();
 
   if (publishData.error) {
-    throw new Error(`Instagram publish error: ${publishData.error.message}`);
+    return { status: "error", error: `Instagram publish error: ${publishData.error.message}` };
   }
 
   const instagramMediaId = publishData.id;
   if (!instagramMediaId) {
-    throw new Error("Instagram publish succeeded but no media ID returned");
+    return { status: "error", error: "Instagram publish succeeded but no media ID returned" };
   }
 
-  return { instagramMediaId };
+  return { status: "posted", instagramMediaId };
+}
+
+/**
+ * Legacy: Full upload flow (create → poll → publish) in a single call.
+ * NOT used by the worker anymore — kept for backwards compatibility.
+ */
+export async function uploadSupabaseVideoToInstagram(args: UploadToInstagramArgs): Promise<{
+  instagramMediaId: string;
+}> {
+  const {
+    igUserId,
+    accessToken,
+    bucket,
+    storagePath,
+    caption,
+  } = args;
+
+  const { containerId } = await createInstagramContainer({
+    igUserId,
+    accessToken,
+    bucket,
+    storagePath,
+    caption,
+  });
+
+  // Poll container status until FINISHED
+  const maxPolls = 60; // Up to 5 minutes (60 * 5s)
+  const pollInterval = 5000;
+
+  for (let i = 0; i < maxPolls; i++) {
+    await sleep(pollInterval);
+
+    const result = await checkAndPublishInstagramContainer({
+      containerId,
+      igUserId,
+      accessToken,
+    });
+
+    if (result.status === "posted") {
+      return { instagramMediaId: result.instagramMediaId! };
+    }
+
+    if (result.status === "error") {
+      throw new Error(result.error);
+    }
+
+    // processing — keep polling
+  }
+
+  throw new Error("Instagram media processing timed out after 5 minutes");
 }

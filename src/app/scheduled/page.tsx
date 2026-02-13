@@ -73,6 +73,23 @@ function providerLabel(provider: string | null) {
   return labels[provider.toLowerCase()] || provider;
 }
 
+function getTimeEstimate(provider: string | null) {
+  if (provider === "instagram") return "Usually posts within ~3-5 minutes";
+  return "Usually posts within ~1 minute";
+}
+
+function getStatusDisplay(post: ScheduledPost) {
+  if (post.status === "ig_processing") {
+    return { text: "Processing video\u2026", color: "text-blue-400", pulse: true };
+  }
+  // scheduled + past due
+  const diffMs = new Date(post.scheduled_for).getTime() - Date.now();
+  if (diffMs < 0) {
+    return { text: "Posting soon\u2026", color: "text-amber-400", pulse: false };
+  }
+  return { text: getRelativeTime(post.scheduled_for), color: getRelativeColor(post.scheduled_for), pulse: false };
+}
+
 export default function ScheduledPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +124,7 @@ export default function ScheduledPage() {
         .from("scheduled_posts")
         .select("id, title, description, provider, scheduled_for, status, created_at")
         .eq("team_id", teamId)
-        .eq("status", "scheduled")
+        .in("status", ["scheduled", "ig_processing"])
         .order("scheduled_for", { ascending: true });
 
       setPosts(data ?? []);
@@ -194,37 +211,41 @@ export default function ScheduledPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-              {posts.map((post) => (
-                <div
-                  key={post.id}
-                  className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white/90 truncate">
-                        {post.title || "Untitled"}
-                      </p>
+              {posts.map((post) => {
+                const statusInfo = getStatusDisplay(post);
+                return (
+                  <div
+                    key={post.id}
+                    className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-white/90 truncate">
+                          {post.title || "Untitled"}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-400 border border-blue-500/20">
+                        {providerLabel(post.provider)}
+                      </span>
+
+                      <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
+                        {formatDate(post.scheduled_for)}, {formatTime(post.scheduled_for)}
+                      </span>
+
+                      <span className={`shrink-0 text-xs font-semibold tabular-nums text-right ${statusInfo.color} ${statusInfo.pulse ? "animate-pulse" : ""}`}>
+                        {statusInfo.text}
+                      </span>
                     </div>
-
-                    <span className="shrink-0 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-400 border border-blue-500/20">
-                      {providerLabel(post.provider)}
-                    </span>
-
-                    <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
-                      {formatDate(post.scheduled_for)}, {formatTime(post.scheduled_for)}
-                    </span>
-
-                    <span className={`shrink-0 text-xs font-semibold tabular-nums w-16 text-right ${getRelativeColor(post.scheduled_for)}`}>
-                      {getRelativeTime(post.scheduled_for)}
-                    </span>
-                  </div>
-                  {post.description && (
-                    <p className="text-xs text-white/30 mt-1 line-clamp-1">
-                      {post.description}
+                    <p className="text-xs text-white/20 mt-1">
+                      {post.description ? (
+                        <span className="text-white/30 line-clamp-1">{post.description} · </span>
+                      ) : null}
+                      {getTimeEstimate(post.provider)}
                     </p>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

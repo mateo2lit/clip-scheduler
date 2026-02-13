@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { uploadSupabaseVideoToYouTube } from "@/lib/youtubeUpload";
 import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
-import { uploadSupabaseVideoToInstagram } from "@/lib/instagramUpload";
+import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 
 export const runtime = "nodejs";
 
@@ -44,6 +44,77 @@ async function runWorker(req: Request) {
   const setUploadId = params.get("setUploadId"); // optional debug override
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
+
+  // ── Process ig_processing posts first ──────────────────────────────
+  const igProcessingResults: any[] = [];
+  {
+    const { data: igPosts, error: igErr } = await supabaseAdmin
+      .from("scheduled_posts")
+      .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at")
+      .eq("status", "ig_processing")
+      .limit(5);
+
+    if (!igErr && igPosts && igPosts.length > 0) {
+      for (const igPost of igPosts) {
+        try {
+          // Load platform account for access_token and ig_user_id
+          const { data: acct } = await supabaseAdmin
+            .from("platform_accounts")
+            .select("id, access_token, ig_user_id")
+            .eq("team_id", igPost.team_id)
+            .eq("provider", "instagram")
+            .maybeSingle();
+
+          if (!acct?.access_token || !acct?.ig_user_id || !igPost.ig_container_id) {
+            throw new Error("Missing Instagram account or container ID");
+          }
+
+          const result = await checkAndPublishInstagramContainer({
+            containerId: igPost.ig_container_id,
+            igUserId: acct.ig_user_id,
+            accessToken: acct.access_token,
+          });
+
+          if (result.status === "posted") {
+            await supabaseAdmin
+              .from("scheduled_posts")
+              .update({
+                status: "posted",
+                posted_at: new Date().toISOString(),
+                platform_post_id: result.instagramMediaId,
+                last_error: null,
+              })
+              .eq("id", igPost.id);
+            igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: result.instagramMediaId });
+          } else if (result.status === "error") {
+            await supabaseAdmin
+              .from("scheduled_posts")
+              .update({ status: "failed", last_error: result.error })
+              .eq("id", igPost.id);
+            igProcessingResults.push({ id: igPost.id, ok: false, error: result.error });
+          } else {
+            // Still processing — check timeout (10 min)
+            const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
+            const tenMinAgo = Date.now() - 10 * 60 * 1000;
+            if (createdAt < tenMinAgo) {
+              await supabaseAdmin
+                .from("scheduled_posts")
+                .update({ status: "failed", last_error: "Instagram processing timed out" })
+                .eq("id", igPost.id);
+              igProcessingResults.push({ id: igPost.id, ok: false, error: "Instagram processing timed out" });
+            }
+            // else: do nothing, next cron tick will retry
+          }
+        } catch (e: any) {
+          await supabaseAdmin
+            .from("scheduled_posts")
+            .update({ status: "failed", last_error: e?.message || "Unknown error" })
+            .eq("id", igPost.id);
+          igProcessingResults.push({ id: igPost.id, ok: false, error: e?.message });
+        }
+      }
+    }
+  }
 
   const statuses = retryFailed ? ["scheduled", "failed"] : ["scheduled"];
 
@@ -228,16 +299,27 @@ async function runWorker(req: Request) {
           throw new Error("Instagram account not configured. Please reconnect your Instagram account.");
         }
 
-        const ig = await uploadSupabaseVideoToInstagram({
-          userId: post.user_id,
-          platformAccountId: acct.id,
+        // Create container only — next cron tick will poll and publish
+        const { containerId } = await createInstagramContainer({
           igUserId: acct.ig_user_id,
           accessToken: acct.access_token,
           bucket,
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
         });
-        platformPostId = ig.instagramMediaId;
+
+        await supabaseAdmin
+          .from("scheduled_posts")
+          .update({
+            status: "ig_processing",
+            ig_container_id: containerId,
+            ig_container_created_at: new Date().toISOString(),
+            last_error: null,
+          })
+          .eq("id", post.id);
+
+        results.push({ id: post.id, ok: true, igProcessing: true, containerId });
+        continue; // Skip the "mark posted" step below
       } else {
         // YouTube (default)
         const yt = await uploadSupabaseVideoToYouTube({
@@ -292,7 +374,8 @@ async function runWorker(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, processed: results.length, results });
+  const allResults = [...igProcessingResults, ...results];
+  return NextResponse.json({ ok: true, processed: allResults.length, results: allResults });
 }
 
 export async function POST(req: Request) {
