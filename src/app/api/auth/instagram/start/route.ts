@@ -14,9 +14,6 @@ async function handler(req: Request) {
 
   const { appId, redirectUri } = getInstagramAuthConfig();
 
-  const reqUrl = new URL(req.url);
-  const force = reqUrl.searchParams.get("force") === "1";
-
   const params = new URLSearchParams({
     client_id: appId,
     redirect_uri: redirectUri,
@@ -24,10 +21,6 @@ async function handler(req: Request) {
     scope: "instagram_business_basic,instagram_business_content_publish",
     state: userId,
   });
-
-  if (force) {
-    params.set("force_authentication", "1");
-  }
 
   const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 
