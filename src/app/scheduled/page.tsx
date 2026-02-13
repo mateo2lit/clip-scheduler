@@ -46,7 +46,7 @@ function getRelativeTime(iso: string) {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffMs < 0) return "Overdue";
+  if (diffMs < 0) return "Posting soon\u2026";
   if (diffHours < 1) return "< 1 hr";
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays === 1) return "Tomorrow";
@@ -56,7 +56,7 @@ function getRelativeTime(iso: string) {
 
 function getRelativeColor(iso: string) {
   const diffMs = new Date(iso).getTime() - Date.now();
-  if (diffMs < 0) return "text-red-400";
+  if (diffMs < 0) return "text-amber-400";
   if (diffMs < 1000 * 60 * 60) return "text-amber-400";
   return "text-blue-400";
 }
