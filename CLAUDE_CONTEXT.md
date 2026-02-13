@@ -1,0 +1,352 @@
+# ClipDash (clipdash.org) — Project Context for Claude
+
+**Last updated:** 2026-02-13
+
+## Project Summary
+
+ClipDash is a web app that lets creators upload video clips, schedule them, and automatically post them to multiple social platforms. The core pipeline is:
+
+**Upload → Store → Schedule → Cron Worker → Auto-Post → Mark Posted**
+
+The site is live at clipdash.org.
+
+---
+
+## Tech Stack
+
+### Frontend
+- **Next.js 14** (App Router, `app/` directory)
+- **React 18**
+- **TypeScript**
+- **Tailwind CSS v4**
+
+### Backend
+- **Supabase** — Auth (email login), Storage (video files), Postgres database
+- **Neon Postgres** — additional serverless Postgres connection (`@neondatabase/serverless`, `pg`)
+- **Next.js API Routes** — all backend logic in `src/app/api/`
+
+### Deployment
+- **Vercel** — hosting + cron jobs
+
+### Design
+- Dark theme (`bg-[#050505]`), gradient orbs, rounded cards with `border-white/10`, emerald accents for success states
+- Consistent design system across all pages
+
+---
+
+## Database Structure
+
+### `uploads`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| user_id | uuid | |
+| bucket | text | defaults to "uploads" |
+| file_path | text | storage path in Supabase |
+| created_at | timestamptz | |
+
+### `scheduled_posts`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| user_id | uuid | |
+| team_id | uuid | team-scoped |
+| upload_id | uuid | FK → uploads |
+| provider | text | youtube, tiktok, facebook, instagram |
+| title | text | |
+| description | text | |
+| privacy_status | text | private/unlisted/public (YouTube) |
+| tiktok_settings | jsonb | privacy_level, allow_comments, etc. |
+| scheduled_for | timestamptz | when to post |
+| status | text | scheduled / posting / posted / failed |
+| platform_post_id | text | ID from the platform after posting |
+| last_error | text | error message if failed |
+| posted_at | timestamptz | |
+
+### `platform_accounts`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| user_id | uuid | |
+| team_id | uuid | unique constraint on (team_id, provider) |
+| provider | text | youtube, tiktok, facebook, instagram |
+| access_token | text | |
+| refresh_token | text | |
+| expiry | timestamptz | |
+| platform_user_id | text | |
+| page_id | text | Facebook Page ID |
+| page_access_token | text | Facebook Page token |
+| ig_user_id | text | Instagram user ID |
+| profile_name | text | display name |
+| avatar_url | text | profile picture |
+| updated_at | timestamptz | |
+
+### `team_members`
+| Column | Type | Notes |
+|--------|------|-------|
+| user_id | uuid | |
+| team_id | uuid | |
+| role | text | owner / member |
+| joined_at | timestamptz | |
+
+### `team_invites`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| email | text | |
+| status | text | pending/accepted |
+| created_at | timestamptz | |
+
+---
+
+## Platform Integrations — Current Status
+
+### YouTube — FULLY WORKING
+- OAuth2 via Google (`googleapis` package)
+- OAuth flow: `/api/auth/youtube/start` → Google consent → `/api/auth/youtube/callback`
+- Upload: `src/lib/youtubeUpload.ts` — uses refresh_token to get access_token, uploads via YouTube Data API v3
+- Supports privacy_status: private/unlisted/public
+
+### TikTok — FULLY WORKING
+- OAuth flow: `/api/auth/tiktok/start` → TikTok consent → `/api/auth/tiktok/callback`
+- Upload: `src/lib/tiktokUpload.ts` — uses TikTok Content Posting API
+- Supports tiktok_settings (privacy_level, allow_comments, allow_duet, allow_stitch)
+
+### Facebook — CONNECTED, needs upload testing
+- OAuth flow: `/api/auth/facebook/start` → Facebook Login → `/api/auth/facebook/callback`
+- OAuth is working — Facebook account connects successfully in Settings
+- Uses Facebook Business Login API (no Facebook Page required for auth, but Page needed for posting)
+- Scopes: `pages_manage_posts, pages_read_engagement, pages_show_list`
+- Token exchange: short-lived → long-lived (~60 days) via `src/lib/facebook.ts`
+- Auto-selects first Facebook Page, stores page_id + page_access_token
+- Upload: `src/lib/facebookUpload.ts` — posts via `/{page_id}/videos` with signed Supabase URL
+- Graph API version: v21.0
+- **TODO:** Test end-to-end video upload to Facebook Page
+
+### Instagram — IN PROGRESS (OAuth being configured)
+- OAuth flow: `/api/auth/instagram/start` → Instagram Business Login → `/api/auth/instagram/callback`
+- Uses Instagram Business Login API with **separate Instagram App ID** (not the Facebook App ID)
+- OAuth endpoint: `https://www.instagram.com/oauth/authorize` (NOT api.instagram.com)
+- Scopes: `instagram_business_basic, instagram_business_content_publish`
+- Token exchange: short-lived → long-lived (~60 days) via `src/lib/instagram.ts`
+- Upload: `src/lib/instagramUpload.ts` — creates Reels container → polls status → publishes
+- Polling: up to 5 minutes (60 polls × 5s interval)
+- Graph API: `graph.instagram.com` v21.0
+- Webhook endpoint ready at `/api/webhooks/instagram` (for future analytics)
+- **Meta Console setup required:** Instagram App ID, App Secret, Valid OAuth Redirect URI, Instagram Tester role, permissions
+- **TODO:** Finish Meta Console configuration, test OAuth flow, test end-to-end video upload
+
+### X (Twitter) — NOT STARTED
+- Listed in settings UI as "Coming soon"
+
+---
+
+## Webhooks
+
+### Instagram Webhook — BUILT (for future analytics)
+- **Route:** `/api/webhooks/instagram` (GET for verification, POST for events)
+- **Verify token:** `clipdash_ig_webhook_2026` (or `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` env var)
+- **Status:** Endpoint deployed, Meta Console webhook configuration in progress
+- **Purpose:** Will receive real-time events (comments, mentions, insights) for a future analytics dashboard
+- Currently just logs events — processing logic to be built later
+
+---
+
+## Worker System
+
+- **Route:** `/api/worker/run-scheduled` (GET or POST)
+- **Auth:** `WORKER_SECRET` query param (optional locally)
+- **Behavior:** Pulls up to 5 due `scheduled_posts`, claims them (concurrency-safe), uploads to the correct platform based on `provider` field, marks as posted/failed
+- **Cron:** Runs every minute via Vercel cron
+
+---
+
+## OAuth Architecture
+
+1. User clicks "Connect [Platform]" in Settings
+2. Frontend calls `/api/auth/{provider}/start` with Bearer token
+3. Start route validates team ownership, builds consent URL with `state=userId`
+4. User completes consent on platform
+5. Callback route exchanges code for tokens, upserts `platform_accounts`
+6. Redirects to `/settings?connected={provider}`
+
+All OAuth flows are team-scoped — only team owners can connect/disconnect accounts.
+
+**Important Instagram note:** Instagram Business Login uses a separate Instagram App ID (not the Facebook App ID). The OAuth authorize endpoint is `www.instagram.com`, not `api.instagram.com`. The token exchange endpoint remains `api.instagram.com/oauth/access_token`.
+
+---
+
+## Key Files
+
+```
+src/
+├── app/
+│   ├── page.tsx                          # Landing page
+│   ├── login/
+│   │   ├── page.tsx                      # Login page
+│   │   ├── LoginClient.tsx               # Login form component
+│   │   └── supabaseClient.ts             # Browser Supabase client
+│   ├── dashboard/page.tsx                # Main dashboard
+│   ├── upload/page.tsx                   # Upload page
+│   ├── scheduler/page.tsx                # Schedule posts
+│   ├── uploads/page.tsx                  # View uploads
+│   ├── scheduled/page.tsx                # View scheduled posts
+│   ├── posted/page.tsx                   # View posted items
+│   ├── drafts/page.tsx                   # Drafts
+│   ├── settings/page.tsx                 # Settings (accounts, team, subscription)
+│   ├── terms/page.tsx                    # Terms of service
+│   ├── privacy/page.tsx                  # Privacy policy
+│   ├── reset-password/page.tsx           # Password reset
+│   ├── auth/callback/page.tsx            # Supabase auth callback
+│   ├── layout.tsx                        # Root layout
+│   └── api/
+│       ├── auth/
+│       │   ├── youtube/start/route.ts
+│       │   ├── youtube/callback/route.ts
+│       │   ├── tiktok/start/route.ts
+│       │   ├── tiktok/callback/route.ts
+│       │   ├── facebook/start/route.ts
+│       │   ├── facebook/callback/route.ts
+│       │   ├── instagram/start/route.ts
+│       │   ├── instagram/callback/route.ts
+│       │   └── after-signup/route.ts
+│       ├── webhooks/
+│       │   └── instagram/route.ts        # Instagram webhook (future analytics)
+│       ├── worker/run-scheduled/route.ts # Cron worker
+│       ├── uploads/create/route.ts
+│       ├── scheduled-posts/
+│       │   ├── create/route.ts
+│       │   └── route.ts
+│       ├── platform-accounts/route.ts
+│       ├── team/
+│       │   ├── me/route.ts
+│       │   └── invite/route.ts
+│       ├── ping/route.ts
+│       ├── version/route.ts
+│       └── debug/force-scheduled/route.ts
+├── lib/
+│   ├── supabaseAdmin.ts                  # Service role client
+│   ├── supabaseServer.ts                 # Server-side client
+│   ├── youtube.ts                        # YouTube helpers
+│   ├── youtubeUpload.ts                  # YouTube upload logic
+│   ├── tiktok.ts                         # TikTok helpers
+│   ├── tiktokUpload.ts                   # TikTok upload logic
+│   ├── facebook.ts                       # Facebook auth helpers
+│   ├── facebookUpload.ts                 # Facebook upload logic
+│   ├── instagram.ts                      # Instagram auth helpers
+│   ├── instagramUpload.ts               # Instagram upload logic
+│   ├── teamAuth.ts                       # Team/role auth helpers
+│   └── useTeam.ts                        # Client-side team hook
+```
+
+---
+
+## Environment Variables
+
+```
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+
+# Database
+DATABASE_URL
+POSTGRES_URL
+
+# Site
+NEXT_PUBLIC_SITE_URL
+
+# Google / YouTube
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+
+# TikTok
+TIKTOK_CLIENT_KEY
+TIKTOK_CLIENT_SECRET
+
+# Facebook
+FACEBOOK_APP_ID
+FACEBOOK_APP_SECRET
+
+# Instagram (REQUIRED — different from Facebook credentials)
+INSTAGRAM_APP_ID              # Instagram-specific App ID from Meta Console
+INSTAGRAM_APP_SECRET          # Instagram-specific App Secret from Meta Console
+
+# Instagram Webhook (optional, has default)
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN  # defaults to "clipdash_ig_webhook_2026"
+
+# Worker
+WORKER_SECRET
+CRON_SECRET
+
+# Auth
+OAUTH_STATE_SECRET
+
+# Vercel
+VERCEL_OIDC_TOKEN
+```
+
+---
+
+## Current Goals
+
+### In Progress
+1. **Finish Instagram OAuth** — Meta Console configuration (redirect URI, tester role, permissions)
+2. **Test Facebook video upload** — OAuth works, need to test actual posting
+3. **Test Instagram video upload** — after OAuth is working
+
+### Up Next
+4. **Set up Stripe** — Add payment processing, subscription management, plan tiers
+5. **Finalize plan pricing** — Define Free/Pro/Business tier limits and features
+
+### Future
+6. X (Twitter) integration
+7. Analytics dashboard (Instagram webhook endpoint already deployed)
+8. Email notifications
+9. AI caption/description generator
+
+---
+
+## Quick Wins / Low-Effort High-Value Tasks
+
+These are small tasks that can be knocked out quickly to improve the product:
+
+- [ ] **Add Facebook webhook endpoint** — Same pattern as Instagram webhook (`/api/webhooks/facebook`), will support future analytics for Facebook Pages
+- [ ] **Token refresh cron job** — Facebook/Instagram long-lived tokens expire after ~60 days. Build a scheduled job to refresh them before expiry (libraries already exist: `refreshFacebookToken`, `refreshInstagramToken`)
+- [ ] **Add error toast notifications** — Replace `alert()` calls in settings page with proper toast UI
+- [ ] **Subscription plan enforcement** — Add middleware or checks to enforce upload limits (currently no limits enforced, settings page shows "5 uploads/month" for Free but nothing blocks it)
+- [ ] **Add `SITE_URL` env var to Vercel** — The code checks `SITE_URL` first before `NEXT_PUBLIC_SITE_URL`. Setting `SITE_URL=https://clipdash.org` in Vercel avoids relying on the public env var for server-side OAuth redirects
+- [ ] **Add LinkedIn OAuth scaffold** — Similar pattern to existing integrations, low effort to set up the start/callback routes
+- [ ] **Improve worker error logging** — Add structured logging or Sentry integration for failed uploads to diagnose issues faster
+- [ ] **Add a data deletion endpoint** — Privacy policy page links to `/privacy` for data deletion but there's no actual deletion flow. Required for Meta app review
+- [ ] **Multi-page Facebook support** — Currently auto-selects first Page. Add UI to let users pick which Page to post to if they manage multiple
+- [ ] **Scheduled post editing** — Allow editing title/description/time of scheduled posts before they're posted
+
+---
+
+## Architecture Notes
+
+- All platform accounts are **team-scoped** (keyed on `team_id + provider`)
+- Only team **owners** can connect/disconnect platform accounts
+- The worker uses **concurrency-safe claiming** (atomic status update + row count check)
+- Video files are stored in Supabase Storage and accessed via **signed URLs** for platform uploads
+- Facebook uses **Page Access Tokens** (not user tokens) for posting
+- Instagram uses the **Reels container** flow (create → poll → publish)
+- Instagram Business Login uses a **separate App ID and Secret** from the Facebook app — must be set via `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`
+- No Stripe or payment code exists yet — needs to be built from scratch
+
+---
+
+## Session Log (2026-02-13)
+
+### Completed
+- Fixed Instagram OAuth endpoint: changed from `api.instagram.com` to `www.instagram.com/oauth/authorize`
+- Added `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET` env vars (separate from Facebook credentials)
+- Changed "Overdue" label to "Posting soon..." with amber color on scheduled posts page
+- Built Instagram webhook endpoint at `/api/webhooks/instagram` for future analytics
+- Created this `CLAUDE_CONTEXT.md` file
+
+### In Progress
+- Instagram OAuth — Meta Console setup (redirect URI added, tester role + permissions needed)
+- Facebook upload testing

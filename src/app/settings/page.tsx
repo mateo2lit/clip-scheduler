@@ -444,6 +444,33 @@ export default function SettingsPage() {
     }
   }
 
+  async function connectInstagramSwitchAccount() {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) {
+        alert("Please log in first.");
+        return;
+      }
+
+      const res = await fetch("/api/auth/instagram/start?force=1", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const { json } = await safeReadJson(res);
+      if (!res.ok || !json?.ok || !json?.url) {
+        alert("Failed to start Instagram connection. Please try again.");
+        return;
+      }
+
+      window.location.href = json.url;
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Connect failed");
+    }
+  }
+
   async function disconnectInstagram() {
     if (!confirm("Disconnect Instagram? You'll need to reconnect before scheduling uploads.")) {
       return;
@@ -705,12 +732,20 @@ export default function SettingsPage() {
                             </button>
                           )}
                           {platform.key === "instagram" && acct.connected && (
-                            <button
-                              onClick={disconnectInstagram}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
+                            <>
+                              <button
+                                onClick={connectInstagramSwitchAccount}
+                                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/50 hover:bg-white/10 transition-colors"
+                              >
+                                Switch account
+                              </button>
+                              <button
+                                onClick={disconnectInstagram}
+                                className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                              >
+                                Disconnect
+                              </button>
+                            </>
                           )}
                           {platform.key === "youtube" ? (
                             <button
