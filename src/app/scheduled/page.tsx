@@ -264,8 +264,8 @@ export default function ScheduledPage() {
                     </div>
                     {post.status === "failed" ? (
                       <div className="mt-2 flex items-center gap-3">
-                        <p className="text-xs text-red-400/70 flex-1 line-clamp-1">
-                          {post.last_error || "Upload failed"}
+                        <p className="text-xs text-red-400/70 flex-1">
+                          Upload failed
                         </p>
                         <button
                           onClick={() => handleRetry(post.id)}
