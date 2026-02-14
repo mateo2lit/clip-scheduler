@@ -146,7 +146,7 @@ export async function getInstagramProfile(accessToken: string): Promise<{
   profilePictureUrl: string | null;
 }> {
   const res = await fetch(
-    `https://graph.instagram.com/me?fields=user_id,username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`
+    `https://graph.instagram.com/me?fields=id,user_id,username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`
   );
 
   if (!res.ok) {

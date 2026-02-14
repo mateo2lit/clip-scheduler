@@ -64,23 +64,17 @@ export async function GET(req: Request) {
 
     // 1) Exchange code for short-lived token via Instagram API
     const shortLived = await exchangeCodeForToken(code, redirectUri);
-    const igUserId = shortLived.user_id;
 
     // 2) Exchange for long-lived token (~60 days)
     const longLived = await exchangeForLongLivedToken(shortLived.access_token);
     const longLivedToken = longLived.access_token;
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000).toISOString();
 
-    // 3) Fetch Instagram profile info
-    let profileName: string | null = null;
-    let avatarUrl: string | null = null;
-    try {
-      const profile = await getInstagramProfile(longLivedToken);
-      profileName = profile.username || null;
-      avatarUrl = profile.profilePictureUrl || null;
-    } catch {
-      // Non-fatal
-    }
+    // 3) Fetch Instagram profile info — use the Graph API `id` for content publishing
+    const profile = await getInstagramProfile(longLivedToken);
+    const igUserId = profile.id; // Graph API IG User ID (needed for /media and /media_publish)
+    const profileName = profile.username || null;
+    const avatarUrl = profile.profilePictureUrl || null;
 
     // 4) Upsert platform_accounts with provider="instagram"
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
