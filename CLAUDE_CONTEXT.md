@@ -145,18 +145,24 @@ The site is live at clipdash.org.
 - Graph API version: v21.0
 - **TODO:** Test end-to-end video upload to Facebook Page
 
-### Instagram — IN PROGRESS (OAuth being configured)
+### Instagram — FULLY WORKING
 - OAuth flow: `/api/auth/instagram/start` → Instagram Business Login → `/api/auth/instagram/callback`
 - Uses Instagram Business Login API with **separate Instagram App ID** (not the Facebook App ID)
 - OAuth endpoint: `https://www.instagram.com/oauth/authorize` (NOT api.instagram.com)
 - Scopes: `instagram_business_basic, instagram_business_content_publish`
 - Token exchange: short-lived → long-lived (~60 days) via `src/lib/instagram.ts`
-- Upload: `src/lib/instagramUpload.ts` — creates Reels container → polls status → publishes
-- Polling: up to 5 minutes (60 polls × 5s interval)
+- Upload: `src/lib/instagramUpload.ts` — split container flow (create → poll → publish across cron ticks)
+- **Supports 3 types:** Post (uploads as Reel), Reel, and Story (STORIES media_type)
+- **Image Stories supported:** detects image files by extension and uses `image_url` instead of `video_url`
+- Stories don't support captions (Instagram API limitation)
 - Graph API: `graph.instagram.com` v21.0
 - Webhook endpoint ready at `/api/webhooks/instagram` (for future analytics)
-- **Meta Console setup required:** Instagram App ID, App Secret, Valid OAuth Redirect URI, Instagram Tester role, permissions
-- **TODO:** Finish Meta Console configuration, test OAuth flow, test end-to-end video upload
+
+### LinkedIn — NOT STARTED (NEXT PRIORITY)
+- Goal: Add LinkedIn as a posting platform (video + text posts)
+- Same pattern as other integrations: OAuth start/callback, upload lib, worker support
+- Will need: LinkedIn App in LinkedIn Developer Portal, OAuth 2.0, `w_member_social` scope
+- Listed in settings UI as "Coming soon" (to be implemented)
 
 ### X (Twitter) — NOT STARTED
 - Listed in settings UI as "Coming soon"
@@ -213,6 +219,7 @@ src/
 │   ├── scheduler/page.tsx                # Schedule posts
 │   ├── uploads/page.tsx                  # View uploads
 │   ├── scheduled/page.tsx                # View scheduled posts
+│   ├── calendar/page.tsx                 # Calendar view (month grid, day detail)
 │   ├── posted/page.tsx                   # View posted items
 │   ├── drafts/page.tsx                   # Drafts
 │   ├── settings/page.tsx                 # Settings (accounts, team, subscription)
@@ -329,19 +336,24 @@ VERCEL_OIDC_TOKEN
 ## Current Goals
 
 ### In Progress
-1. **Finish Instagram OAuth** — Meta Console configuration (redirect URI, tester role, permissions)
-2. **Test Facebook video upload** — OAuth works, need to test actual posting
-3. **Test Instagram video upload** — after OAuth is working
-4. **Configure Stripe in production** — Create Products/Prices in Stripe Dashboard, set env vars in Vercel, create webhook endpoint
+1. **Switch Stripe to live mode** — Create live Products/Prices, webhook endpoint, swap env vars in Vercel
+2. **LinkedIn integration** — Add as a new platform for users to post to (OAuth + upload, same pattern as other integrations)
 
 ### Completed
-- **Stripe integration built** — Two paid tiers (Creator $12/mo, Team $29/mo) with 7-day free trials, plan gating, webhook handling
+- Instagram OAuth fully working — posts as Reels, Stories, and image Stories
+- Facebook OAuth + video posting working
+- YouTube OAuth + video posting working
+- TikTok OAuth + video posting working
+- Stripe integration built and tested — two paid tiers with 7-day free trials, plan gating, webhook handling
+- Calendar view with platform color coding and day detail panel
+- Upload + scheduling gating (requires active subscription)
+- Cancel button on scheduled posts
 
 ### Future
-5. X (Twitter) integration
-6. Analytics dashboard (Instagram webhook endpoint already deployed)
-7. Email notifications
-8. AI caption/description generator
+3. X (Twitter) integration
+4. Analytics dashboard (Instagram webhook endpoint already deployed)
+5. Email notifications
+6. AI caption/description generator
 
 ---
 
@@ -354,7 +366,7 @@ These are small tasks that can be knocked out quickly to improve the product:
 - [ ] **Add error toast notifications** — Replace `alert()` calls in settings page with proper toast UI
 - [x] **Subscription plan enforcement** — Plan gating implemented: scheduling blocked without active plan, team invites blocked on Creator plan
 - [ ] **Add `SITE_URL` env var to Vercel** — The code checks `SITE_URL` first before `NEXT_PUBLIC_SITE_URL`. Setting `SITE_URL=https://clipdash.org` in Vercel avoids relying on the public env var for server-side OAuth redirects
-- [ ] **Add LinkedIn OAuth scaffold** — Similar pattern to existing integrations, low effort to set up the start/callback routes
+- [ ] **Build full LinkedIn integration** — OAuth start/callback + upload lib + worker support, next platform priority
 - [ ] **Improve worker error logging** — Add structured logging or Sentry integration for failed uploads to diagnose issues faster
 - [ ] **Add a data deletion endpoint** — Privacy policy page links to `/privacy` for data deletion but there's no actual deletion flow. Required for Meta app review
 - [ ] **Multi-page Facebook support** — Currently auto-selects first Page. Add UI to let users pick which Page to post to if they manage multiple
@@ -376,7 +388,7 @@ These are small tasks that can be knocked out quickly to improve the product:
   - Each step completes in 2-3 seconds. Total flow takes 1-5 minutes across multiple cron runs
 - Instagram Business Login uses a **separate App ID and Secret** from the Facebook app — must be set via `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`
 - **Stripe integration** uses Checkout Sessions (hosted by Stripe) — no client-side Stripe.js needed
-  - Two plans: Creator ($12/mo, 1 member) and Team ($29/mo, up to 5 members), both with 7-day free trials
+  - Two plans: Creator ($9.99/mo, 1 member) and Team ($19.99/mo, up to 5 members), both with 7-day free trials
   - Plans are team-scoped (one subscription per team)
   - Webhook at `/api/stripe/webhook` handles: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
   - Plan gating: scheduling posts requires `plan_status` of `trialing` or `active`; team invites require `plan === 'team'`
@@ -399,7 +411,7 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Removed Switch account button for Instagram (force_authentication not supported by Business Login API)
 
 ### Stripe Integration Built
-- Two paid tiers: Creator ($12/mo) and Team ($29/mo), both with 7-day free trials
+- Two paid tiers: Creator ($9.99/mo) and Team ($19.99/mo), both with 7-day free trials
 - **DB migration needed:** Run in Supabase SQL editor:
   ```sql
   ALTER TABLE teams ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
@@ -416,20 +428,28 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Landing page: updated from 3 tiers to 2 tiers (Creator + Team)
 - Uploads page: shows subscribe banner when no active plan
 
-### In Progress — PICK UP HERE NEXT SESSION
-- **Instagram split worker implemented** — container creation + polling now runs across multiple cron ticks (fits in 10s timeout)
-  - **DB migration needed:** Run in Supabase SQL editor:
-    ```sql
-    ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS ig_container_id TEXT;
-    ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS ig_container_created_at TIMESTAMPTZ;
-    ```
-  - **Test end-to-end:** Schedule an Instagram post, verify it goes through ig_processing → posted across 2-4 cron ticks
-- **After Instagram fix, next task is Stripe setup + plan pricing**
+### Session 2 Progress (2026-02-13)
+- Updated Stripe pricing to $9.99/mo Creator and $19.99/mo Team
+- Stripe tested end-to-end in test mode (checkout, webhook, plan updates, portal, cancel all working)
+- Added cancel button to scheduled posts page (with remove button for failed posts)
+- Built calendar view at `/calendar` — month grid with platform color-coded posts, clickable day detail panel
+- Added calendar link from dashboard and scheduled page
+- Added upload gating — uploads blocked without active plan (API + client-side)
+- Instagram Story support: users can choose Post, Reel, or Story when scheduling
+- Instagram image Story support: detects image files and uses `image_url` instead of `video_url`
+- Wider calendar layout with taller day cells and platform legend on side panel
+- `scheduled_posts` now has `instagram_settings` jsonb column with `ig_type` field (post/reel/story)
+
+### PICK UP HERE NEXT SESSION
+- **Switch Stripe to live mode** — create live Products/Prices/Webhook in Stripe Dashboard, update Vercel env vars
+- **Build LinkedIn integration** — next platform to add
 
 ### Key Decisions Made
 - NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan
 - Instagram API only supports Business/Creator accounts for posting (no personal accounts)
-- Instagram videos always post as Reels (Instagram converts all video to Reels now)
-- Stories support via API is possible and can be added later
+- Instagram "Post" option actually uploads as a Reel (Instagram converts all video to Reels) — gives users the feeling of choice
+- Instagram Stories: uses STORIES media_type, supports both video and images, no captions
 - Supabase Pro ($25/mo) will be needed eventually for the 50MB upload limit (Pro = 5GB)
 - Plan to add auto-delete of posted videos after 7 days to manage storage
+- Stripe pricing: $9.99/mo Creator (1 member), $19.99/mo Team (up to 5 members), both with 7-day free trials
+- Plan gating blocks both uploads and scheduling (not just scheduling)
