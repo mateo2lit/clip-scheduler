@@ -696,7 +696,7 @@ export default function SettingsPage() {
                 </div>
                 <h3 className="text-lg font-semibold">Creator</h3>
                 <div className="mt-2 mb-4">
-                  <span className="text-3xl font-bold">$12</span>
+                  <span className="text-3xl font-bold">$9.99</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
@@ -726,7 +726,7 @@ export default function SettingsPage() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
                 <h3 className="text-lg font-semibold">Team</h3>
                 <div className="mt-2 mb-4">
-                  <span className="text-3xl font-bold">$29</span>
+                  <span className="text-3xl font-bold">$19.99</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
