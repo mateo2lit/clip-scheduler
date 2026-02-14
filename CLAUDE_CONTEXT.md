@@ -350,10 +350,12 @@ VERCEL_OIDC_TOKEN
 - Cancel button on scheduled posts
 
 ### Future
-3. X (Twitter) integration
-4. Analytics dashboard (Instagram webhook endpoint already deployed)
-5. Email notifications
-6. AI caption/description generator
+3. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
+4. **Tag suggestions** — Suggest relevant hashtags based on title/description content, trending tags, or previously used tags
+5. X (Twitter) integration
+6. Analytics dashboard (Instagram webhook endpoint already deployed)
+7. Email notifications
+8. AI caption/description generator
 
 ---
 
@@ -441,8 +443,29 @@ These are small tasks that can be knocked out quickly to improve the product:
 - `scheduled_posts` now has `instagram_settings` jsonb column with `ig_type` field (post/reel/story)
 
 ### PICK UP HERE NEXT SESSION
+
 - **Switch Stripe to live mode** — create live Products/Prices/Webhook in Stripe Dashboard, update Vercel env vars
 - **Build LinkedIn integration** — next platform to add
+- **Fix: Save as draft already done** — API route `src/app/api/scheduled-posts/create/route.ts` was updated to respect `status: "draft"` from the client. Commit and push this change.
+
+#### Ready-to-implement: YouTube Thumbnail Upload Support
+
+The uploads page has a thumbnail picker UI, but the selected thumbnail is never uploaded to storage or passed to YouTube. Here's the plan:
+
+**DB Migration (run in Supabase SQL Editor):**
+```sql
+ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS thumbnail_path TEXT;
+```
+
+**Changes needed:**
+
+1. **`src/app/uploads/page.tsx`** — In `doUpload()`: after video upload succeeds, if `thumbnail` file is set, upload it to Supabase Storage at `{pathPrefix}/thumbnails/{timestamp}-{filename}`. Store path in new state `lastThumbnailPath`. In `handleSchedule()`: include `thumbnail_path: lastThumbnailPath` in request body.
+
+2. **`src/app/api/scheduled-posts/create/route.ts`** — Read `thumbnail_path` from body, include in `insertRow` if present.
+
+3. **`src/app/api/worker/run-scheduled/route.ts`** — Add `thumbnail_path` to the select query. Pass `thumbnailBucket` and `thumbnailPath` to `uploadSupabaseVideoToYouTube()` when `post.thumbnail_path` exists.
+
+4. **`src/lib/youtubeUpload.ts`** — Add optional `thumbnailBucket?: string` and `thumbnailPath?: string` to `UploadToYouTubeArgs`. After `youtube.videos.insert()` succeeds, if `thumbnailPath` is provided: create signed URL for thumbnail, fetch as Node stream, call `youtube.thumbnails.set({ videoId, media: { body: imageStream } })`. If thumbnail set fails (channel not verified), log error but don't fail the whole upload.
 
 ### Key Decisions Made
 - NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan

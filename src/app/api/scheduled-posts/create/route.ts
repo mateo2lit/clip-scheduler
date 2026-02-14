@@ -34,12 +34,15 @@ export async function POST(req: Request) {
       description,
       privacy_status,
       scheduled_for,
+      status: requestedStatus,
       tiktok_settings,
       facebook_settings,
       instagram_settings,
     } = body;
 
-    if (!upload_id || !scheduled_for) {
+    const isDraft = requestedStatus === "draft";
+
+    if (!upload_id || (!isDraft && !scheduled_for)) {
       return NextResponse.json(
         { error: "Missing required fields: upload_id, scheduled_for" },
         { status: 400 }
@@ -55,8 +58,8 @@ export async function POST(req: Request) {
       title: title ?? "Untitled Clip",
       description: description ?? "",
       privacy_status: privacy_status ?? "private",
-      scheduled_for,
-      status: "scheduled",
+      scheduled_for: scheduled_for || null,
+      status: isDraft ? "draft" : "scheduled",
     };
 
     if (tiktok_settings && provider === "tiktok") {
