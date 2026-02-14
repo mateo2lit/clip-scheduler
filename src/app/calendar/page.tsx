@@ -157,7 +157,7 @@ export default function CalendarPage() {
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-[1400px] px-6 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">Settings</Link>
@@ -168,7 +168,7 @@ export default function CalendarPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-6 pt-10 pb-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -259,7 +259,7 @@ export default function CalendarPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedDate(cell.date)}
-                      className={`min-h-[90px] border-b border-r border-white/5 p-1.5 text-left transition-colors ${
+                      className={`min-h-[120px] border-b border-r border-white/5 p-1.5 text-left transition-colors ${
                         !cell.currentMonth ? "bg-white/[0.01]" : ""
                       } ${i % 7 === 6 ? "border-r-0" : ""} ${
                         isSelected ? "bg-white/[0.06] ring-1 ring-inset ring-blue-500/40" : "hover:bg-white/[0.03]"
@@ -278,8 +278,8 @@ export default function CalendarPage() {
                       {/* Condensed: show platform dots when there are posts */}
                       {dayPosts.length > 0 && (
                         <div className="flex flex-wrap gap-1 px-0.5">
-                          {dayPosts.length <= 4 ? (
-                            // Show individual pills for up to 4 posts
+                          {dayPosts.length <= 6 ? (
+                            // Show individual pills for up to 6 posts
                             dayPosts.map((post) => {
                               const style = getStyle(post.provider);
                               return (
@@ -293,7 +293,7 @@ export default function CalendarPage() {
                               );
                             })
                           ) : (
-                            // 5+ posts: show platform dot summary
+                            // 7+ posts: show platform dot summary
                             <>
                               {dayPosts.slice(0, 2).map((post) => {
                                 const style = getStyle(post.provider);
@@ -324,19 +324,23 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
-              {Object.entries(PROVIDER_STYLES).map(([key, style]) => (
-                <div key={key} className="flex items-center gap-1.5">
-                  <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
-                  {style.label}
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Day detail panel */}
           <div className="w-80 shrink-0">
+            {/* Platform legend */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4 mb-4">
+              <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-3">Platforms</h3>
+              <div className="flex flex-col gap-2">
+                {Object.entries(PROVIDER_STYLES).map(([key, style]) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
+                    <span className="text-sm text-white/60">{style.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="sticky top-10 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
               {selectedDate ? (
                 <>
