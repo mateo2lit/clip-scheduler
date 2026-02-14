@@ -12,6 +12,7 @@ type ScheduledPost = {
   scheduled_for: string;
   status: string;
   created_at: string;
+  last_error: string | null;
 };
 
 function formatDate(iso: string) {
@@ -79,6 +80,9 @@ function getTimeEstimate(provider: string | null) {
 }
 
 function getStatusDisplay(post: ScheduledPost) {
+  if (post.status === "failed") {
+    return { text: "Failed", color: "text-red-400", pulse: false };
+  }
   if (post.status === "ig_processing") {
     return { text: "Processing video\u2026", color: "text-blue-400", pulse: true };
   }
@@ -94,6 +98,7 @@ export default function ScheduledPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -122,9 +127,9 @@ export default function ScheduledPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, description, provider, scheduled_for, status, created_at")
+        .select("id, title, description, provider, scheduled_for, status, created_at, last_error")
         .eq("team_id", teamId)
-        .in("status", ["scheduled", "ig_processing"])
+        .in("status", ["scheduled", "ig_processing", "failed"])
         .order("scheduled_for", { ascending: true });
 
       setPosts(data ?? []);
@@ -133,6 +138,26 @@ export default function ScheduledPage() {
 
     load();
   }, []);
+
+  async function handleRetry(postId: string) {
+    setRetrying(postId);
+    try {
+      const { error } = await supabase
+        .from("scheduled_posts")
+        .update({ status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() })
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      setPosts((prev) =>
+        prev.map((p) => p.id === postId ? { ...p, status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() } : p)
+      );
+    } catch (e: any) {
+      alert(e?.message || "Failed to retry");
+    } finally {
+      setRetrying(null);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -237,12 +262,27 @@ export default function ScheduledPage() {
                         {statusInfo.text}
                       </span>
                     </div>
-                    <p className="text-xs text-white/20 mt-1">
-                      {post.description ? (
-                        <span className="text-white/30 line-clamp-1">{post.description} · </span>
-                      ) : null}
-                      {getTimeEstimate(post.provider)}
-                    </p>
+                    {post.status === "failed" ? (
+                      <div className="mt-2 flex items-center gap-3">
+                        <p className="text-xs text-red-400/70 flex-1 line-clamp-1">
+                          {post.last_error || "Upload failed"}
+                        </p>
+                        <button
+                          onClick={() => handleRetry(post.id)}
+                          disabled={retrying === post.id}
+                          className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors disabled:opacity-50"
+                        >
+                          {retrying === post.id ? "Retrying..." : "Retry"}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-white/20 mt-1">
+                        {post.description ? (
+                          <span className="text-white/30 line-clamp-1">{post.description} · </span>
+                        ) : null}
+                        {getTimeEstimate(post.provider)}
+                      </p>
+                    )}
                   </div>
                 );
               })}
