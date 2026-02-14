@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/worker/run-scheduled",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/worker/refresh-tokens",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

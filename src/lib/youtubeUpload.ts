@@ -13,6 +13,9 @@ type UploadToYouTubeArgs = {
   title: string;
   description?: string;
   privacyStatus: "private" | "unlisted" | "public";
+
+  thumbnailBucket?: string;
+  thumbnailPath?: string;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -59,6 +62,8 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
     title,
     description,
     privacyStatus,
+    thumbnailBucket,
+    thumbnailPath,
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -118,6 +123,29 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
   const youtubeVideoId = uploadResp.data.id;
   if (!youtubeVideoId) {
     throw new Error("YouTube upload succeeded but no video ID was returned.");
+  }
+
+  // Set custom thumbnail if provided
+  if (thumbnailPath) {
+    try {
+      const thumbBucket = thumbnailBucket || bucket;
+      const thumbSignedUrl = await getSignedDownloadUrl({ bucket: thumbBucket, path: thumbnailPath });
+      const thumbRes = await fetch(thumbSignedUrl);
+
+      if (thumbRes.ok && thumbRes.body) {
+        const thumbStream = toNodeReadable(thumbRes.body);
+
+        await youtube.thumbnails.set({
+          videoId: youtubeVideoId,
+          media: {
+            body: thumbStream,
+          },
+        });
+      }
+    } catch (thumbErr: any) {
+      // Thumbnail set can fail if the channel isn't verified — don't fail the whole upload
+      console.error(`[YouTube] Failed to set thumbnail for ${youtubeVideoId}:`, thumbErr?.message);
+    }
   }
 
   return { youtubeVideoId };

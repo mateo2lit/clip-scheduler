@@ -38,6 +38,7 @@ export async function POST(req: Request) {
       tiktok_settings,
       facebook_settings,
       instagram_settings,
+      thumbnail_path,
     } = body;
 
     const isDraft = requestedStatus === "draft";
@@ -61,6 +62,10 @@ export async function POST(req: Request) {
       scheduled_for: scheduled_for || null,
       status: isDraft ? "draft" : "scheduled",
     };
+
+    if (thumbnail_path) {
+      insertRow.thumbnail_path = thumbnail_path;
+    }
 
     if (tiktok_settings && provider === "tiktok") {
       insertRow.tiktok_settings = tiktok_settings;

@@ -4,6 +4,7 @@ import { uploadSupabaseVideoToYouTube } from "@/lib/youtubeUpload";
 import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
+import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
 
 export const runtime = "nodejs";
 
@@ -121,7 +122,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -130,7 +131,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path")
       .eq("id", postId)
       .limit(1);
   }
@@ -326,9 +327,25 @@ async function runWorker(req: Request) {
 
         results.push({ id: post.id, ok: true, igProcessing: true, containerId });
         continue; // Skip the "mark posted" step below
+      } else if (provider === "linkedin") {
+        if (!acct.access_token || !acct.platform_user_id) {
+          throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");
+        }
+
+        const li = await uploadSupabaseVideoToLinkedIn({
+          userId: post.user_id,
+          platformAccountId: acct.id,
+          accessToken: acct.access_token,
+          personUrn: `urn:li:person:${acct.platform_user_id}`,
+          bucket,
+          storagePath,
+          title: post.title ?? "Clip Scheduler Upload",
+          description: post.description ?? "",
+        });
+        platformPostId = li.linkedinPostId;
       } else {
         // YouTube (default)
-        const yt = await uploadSupabaseVideoToYouTube({
+        const ytArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
           refreshToken: acct.refresh_token,
@@ -339,7 +356,14 @@ async function runWorker(req: Request) {
           privacyStatus: (["private", "unlisted", "public"].includes(post.privacy_status ?? "")
             ? post.privacy_status
             : "private") as any,
-        });
+        };
+
+        if (post.thumbnail_path) {
+          ytArgs.thumbnailBucket = bucket;
+          ytArgs.thumbnailPath = post.thumbnail_path;
+        }
+
+        const yt = await uploadSupabaseVideoToYouTube(ytArgs);
         platformPostId = yt.youtubeVideoId;
       }
 
