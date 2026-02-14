@@ -12,20 +12,12 @@ type ScheduledPost = {
   status: string;
 };
 
-const PROVIDER_COLORS: Record<string, string> = {
-  youtube: "bg-red-500",
-  tiktok: "bg-white",
-  instagram: "bg-pink-500",
-  facebook: "bg-blue-500",
-  x: "bg-white",
-};
-
-const PROVIDER_LABELS: Record<string, string> = {
-  youtube: "YT",
-  tiktok: "TT",
-  instagram: "IG",
-  facebook: "FB",
-  x: "X",
+const PROVIDER_STYLES: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  youtube: { bg: "bg-red-500/15", text: "text-red-400", dot: "bg-red-500", label: "YouTube" },
+  tiktok: { bg: "bg-white/10", text: "text-white/70", dot: "bg-white", label: "TikTok" },
+  instagram: { bg: "bg-pink-500/15", text: "text-pink-400", dot: "bg-pink-500", label: "Instagram" },
+  facebook: { bg: "bg-blue-500/15", text: "text-blue-400", dot: "bg-blue-500", label: "Facebook" },
+  x: { bg: "bg-white/10", text: "text-white/70", dot: "bg-white", label: "X" },
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -41,18 +33,15 @@ function getMonthDays(year: number, month: number) {
 
   const cells: { day: number; currentMonth: boolean; date: Date }[] = [];
 
-  // Previous month padding
   for (let i = firstDay - 1; i >= 0; i--) {
     const day = daysInPrevMonth - i;
     cells.push({ day, currentMonth: false, date: new Date(year, month - 1, day) });
   }
 
-  // Current month
   for (let day = 1; day <= daysInMonth; day++) {
     cells.push({ day, currentMonth: true, date: new Date(year, month, day) });
   }
 
-  // Next month padding to fill 6 rows
   const remaining = 42 - cells.length;
   for (let day = 1; day <= remaining; day++) {
     cells.push({ day, currentMonth: false, date: new Date(year, month + 1, day) });
@@ -69,10 +58,27 @@ function isToday(date: Date) {
   return isSameDay(date, new Date());
 }
 
+function formatTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function formatFullDate(date: Date) {
+  return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+}
+
+function getStyle(provider: string | null) {
+  return PROVIDER_STYLES[(provider || "").toLowerCase()] || { bg: "bg-white/10", text: "text-white/50", dot: "bg-white/40", label: provider || "Unknown" };
+}
+
 export default function CalendarPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -81,21 +87,13 @@ export default function CalendarPage() {
   const cells = getMonthDays(viewYear, viewMonth);
 
   function prevMonth() {
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear(viewYear - 1);
-    } else {
-      setViewMonth(viewMonth - 1);
-    }
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
+    else setViewMonth(viewMonth - 1);
   }
 
   function nextMonth() {
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear(viewYear + 1);
-    } else {
-      setViewMonth(viewMonth + 1);
-    }
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
+    else setViewMonth(viewMonth + 1);
   }
 
   function goToday() {
@@ -129,11 +127,12 @@ export default function CalendarPage() {
         return;
       }
 
+      // Only fetch scheduled + posted (no failed)
       const { data } = await supabase
         .from("scheduled_posts")
         .select("id, title, provider, scheduled_for, status")
         .eq("team_id", teamId)
-        .in("status", ["scheduled", "ig_processing", "posted", "failed"])
+        .in("status", ["scheduled", "ig_processing", "posted"])
         .order("scheduled_for", { ascending: true });
 
       setPosts(data ?? []);
@@ -146,6 +145,11 @@ export default function CalendarPage() {
   function getPostsForDate(date: Date) {
     return posts.filter((p) => isSameDay(new Date(p.scheduled_for), date));
   }
+
+  // Selected day posts sorted by time
+  const selectedDayPosts = selectedDate
+    ? getPostsForDate(selectedDate).sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime())
+    : [];
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -200,113 +204,198 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* Month navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">
-            {MONTH_NAMES[viewMonth]} {viewYear}
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={goToday}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
-            >
-              Today
-            </button>
-            <button
-              onClick={prevMonth}
-              className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-            <button
-              onClick={nextMonth}
-              className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Calendar grid */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-          {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-white/5">
-            {DAY_NAMES.map((day) => (
-              <div key={day} className="px-3 py-2.5 text-center text-xs font-medium text-white/40 uppercase tracking-wider">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Day cells */}
-          <div className="grid grid-cols-7">
-            {cells.map((cell, i) => {
-              const dayPosts = getPostsForDate(cell.date);
-              const today = isToday(cell.date);
-
-              return (
-                <div
-                  key={i}
-                  className={`min-h-[100px] border-b border-r border-white/5 p-2 ${
-                    !cell.currentMonth ? "bg-white/[0.01]" : ""
-                  } ${i % 7 === 6 ? "border-r-0" : ""}`}
+        <div className="flex gap-6">
+          {/* Calendar grid */}
+          <div className="flex-1 min-w-0">
+            {/* Month navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">
+                {MONTH_NAMES[viewMonth]} {viewYear}
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToday}
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
                 >
-                  <div className={`text-xs mb-1 ${
-                    today
-                      ? "inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white font-bold"
-                      : cell.currentMonth
-                        ? "text-white/60"
-                        : "text-white/20"
-                  }`}>
-                    {cell.day}
-                  </div>
+                  Today
+                </button>
+                <button
+                  onClick={prevMonth}
+                  className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextMonth}
+                  className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
 
-                  <div className="space-y-1">
-                    {dayPosts.slice(0, 3).map((post) => (
-                      <div
-                        key={post.id}
-                        className={`rounded-md px-1.5 py-0.5 text-[10px] leading-tight truncate ${
-                          post.status === "posted"
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : post.status === "failed"
-                              ? "bg-red-500/15 text-red-400"
-                              : "bg-blue-500/15 text-blue-400"
-                        }`}
-                        title={`${post.title || "Untitled"} — ${(post.provider || "").toUpperCase()} — ${post.status}`}
-                      >
-                        <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${PROVIDER_COLORS[post.provider || ""] || "bg-white/40"}`} />
-                        {post.title || "Untitled"}
-                      </div>
-                    ))}
-                    {dayPosts.length > 3 && (
-                      <div className="text-[10px] text-white/30 px-1.5">
-                        +{dayPosts.length - 3} more
-                      </div>
-                    )}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+              {/* Day headers */}
+              <div className="grid grid-cols-7 border-b border-white/5">
+                {DAY_NAMES.map((day) => (
+                  <div key={day} className="px-2 py-2.5 text-center text-xs font-medium text-white/40 uppercase tracking-wider">
+                    {day}
                   </div>
+                ))}
+              </div>
+
+              {/* Day cells */}
+              <div className="grid grid-cols-7">
+                {cells.map((cell, i) => {
+                  const dayPosts = getPostsForDate(cell.date);
+                  const today = isToday(cell.date);
+                  const isSelected = selectedDate && isSameDay(cell.date, selectedDate);
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDate(cell.date)}
+                      className={`min-h-[90px] border-b border-r border-white/5 p-1.5 text-left transition-colors ${
+                        !cell.currentMonth ? "bg-white/[0.01]" : ""
+                      } ${i % 7 === 6 ? "border-r-0" : ""} ${
+                        isSelected ? "bg-white/[0.06] ring-1 ring-inset ring-blue-500/40" : "hover:bg-white/[0.03]"
+                      }`}
+                    >
+                      <div className={`text-xs mb-1 ${
+                        today
+                          ? "inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white font-bold"
+                          : cell.currentMonth
+                            ? "text-white/60 pl-1"
+                            : "text-white/20 pl-1"
+                      }`}>
+                        {cell.day}
+                      </div>
+
+                      {/* Condensed: show platform dots when there are posts */}
+                      {dayPosts.length > 0 && (
+                        <div className="flex flex-wrap gap-1 px-0.5">
+                          {dayPosts.length <= 4 ? (
+                            // Show individual pills for up to 4 posts
+                            dayPosts.map((post) => {
+                              const style = getStyle(post.provider);
+                              return (
+                                <div
+                                  key={post.id}
+                                  className={`rounded px-1 py-px text-[9px] leading-tight truncate max-w-full ${style.bg} ${style.text}`}
+                                  title={`${post.title || "Untitled"} — ${style.label} — ${formatTime(post.scheduled_for)}`}
+                                >
+                                  {post.title || "Untitled"}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            // 5+ posts: show platform dot summary
+                            <>
+                              {dayPosts.slice(0, 2).map((post) => {
+                                const style = getStyle(post.provider);
+                                return (
+                                  <div
+                                    key={post.id}
+                                    className={`rounded px-1 py-px text-[9px] leading-tight truncate max-w-full ${style.bg} ${style.text}`}
+                                  >
+                                    {post.title || "Untitled"}
+                                  </div>
+                                );
+                              })}
+                              <div className="flex items-center gap-0.5 mt-0.5">
+                                {/* Show unique platform dots */}
+                                {[...new Set(dayPosts.slice(2).map((p) => p.provider))].map((prov) => {
+                                  const style = getStyle(prov);
+                                  return <div key={prov} className={`w-2 h-2 rounded-full ${style.dot}`} title={style.label} />;
+                                })}
+                                <span className="text-[9px] text-white/30 ml-0.5">+{dayPosts.length - 2}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
+              {Object.entries(PROVIDER_STYLES).map(([key, style]) => (
+                <div key={key} className="flex items-center gap-1.5">
+                  <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
+                  {style.label}
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Legend */}
-        <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-blue-500/30" />
-            Scheduled
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500/30" />
-            Posted
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-red-500/30" />
-            Failed
+          {/* Day detail panel */}
+          <div className="w-80 shrink-0">
+            <div className="sticky top-10 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+              {selectedDate ? (
+                <>
+                  <div className="px-5 py-4 border-b border-white/5">
+                    <h3 className="font-semibold">{formatFullDate(selectedDate)}</h3>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {selectedDayPosts.length} post{selectedDayPosts.length !== 1 ? "s" : ""}
+                      {isToday(selectedDate) ? " · Today" : ""}
+                    </p>
+                  </div>
+
+                  {selectedDayPosts.length === 0 ? (
+                    <div className="px-5 py-10 text-center">
+                      <p className="text-sm text-white/30">No posts this day</p>
+                      <Link
+                        href="/upload"
+                        className="inline-block mt-3 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
+                      >
+                        Schedule a post
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-white/5 max-h-[60vh] overflow-y-auto">
+                      {selectedDayPosts.map((post) => {
+                        const style = getStyle(post.provider);
+                        const isPast = post.status === "posted";
+                        return (
+                          <div key={post.id} className="px-5 py-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-white/40 tabular-nums w-16 shrink-0">
+                                {formatTime(post.scheduled_for)}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${style.bg} ${style.text}`}>
+                                {style.label}
+                              </span>
+                              {isPast && (
+                                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
+                                  Posted
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-white/80 truncate pl-16">
+                              {post.title || "Untitled"}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="px-5 py-14 text-center">
+                  <svg className="w-8 h-8 text-white/15 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                  </svg>
+                  <p className="text-sm text-white/30">Click a day to see details</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
