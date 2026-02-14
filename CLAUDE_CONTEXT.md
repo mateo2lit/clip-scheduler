@@ -1,6 +1,6 @@
 # ClipDash (clipdash.org) — Project Context for Claude
 
-**Last updated:** 2026-02-13
+**Last updated:** 2026-02-14
 
 ## Instructions for Claude
 
@@ -158,11 +158,15 @@ The site is live at clipdash.org.
 - Graph API: `graph.instagram.com` v21.0
 - Webhook endpoint ready at `/api/webhooks/instagram` (for future analytics)
 
-### LinkedIn — NOT STARTED (NEXT PRIORITY)
-- Goal: Add LinkedIn as a posting platform (video + text posts)
-- Same pattern as other integrations: OAuth start/callback, upload lib, worker support
-- Will need: LinkedIn App in LinkedIn Developer Portal, OAuth 2.0, `w_member_social` scope
-- Listed in settings UI as "Coming soon" (to be implemented)
+### LinkedIn — BACKEND BUILT (needs LinkedIn App + frontend UI)
+- OAuth flow: `/api/auth/linkedin/start` → LinkedIn consent → `/api/auth/linkedin/callback`
+- Scopes: `openid profile w_member_social`
+- Auth helper: `src/lib/linkedin.ts` (token exchange, profile fetch, token refresh)
+- Upload: `src/lib/linkedinUpload.ts` — LinkedIn Video API (initialize upload → PUT binary → create post)
+- Worker support added — posts video with title + description as commentary
+- **TODO:** Create LinkedIn App in LinkedIn Developer Portal, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` env vars
+- **TODO:** Add LinkedIn connect/disconnect button in settings UI
+- **TODO:** Add LinkedIn as a platform option in uploads/scheduler pages
 
 ### X (Twitter) — NOT STARTED
 - Listed in settings UI as "Coming soon"
@@ -178,6 +182,11 @@ The site is live at clipdash.org.
 - **Purpose:** Will receive real-time events (comments, mentions, insights) for a future analytics dashboard
 - Currently just logs events — processing logic to be built later
 
+### Facebook Webhook — BUILT (for future analytics)
+- **Route:** `/api/webhooks/facebook` (GET for verification, POST for events)
+- **Verify token:** `clipdash_fb_webhook_2026` (or `FACEBOOK_WEBHOOK_VERIFY_TOKEN` env var)
+- Same pattern as Instagram webhook — logs events for now
+
 ---
 
 ## Worker System
@@ -186,6 +195,18 @@ The site is live at clipdash.org.
 - **Auth:** `WORKER_SECRET` query param (optional locally)
 - **Behavior:** Pulls up to 5 due `scheduled_posts`, claims them (concurrency-safe), uploads to the correct platform based on `provider` field, marks as posted/failed
 - **Cron:** Runs every minute via Vercel cron
+- **Supports:** YouTube (with optional thumbnail), TikTok, Facebook, Instagram, LinkedIn
+
+### Token Refresh Worker
+- **Route:** `/api/worker/refresh-tokens` (GET or POST)
+- **Cron:** Runs daily at 3:00 AM UTC via Vercel cron
+- **Behavior:** Finds Facebook/Instagram tokens expiring within 7 days, refreshes them, updates DB
+- Also refreshes Facebook Page access tokens when refreshing the user token
+
+### Data Deletion
+- **Route:** `/api/account/delete` (DELETE for authenticated users, POST for Meta callback)
+- DELETE: Removes all user data (scheduled posts, uploads + storage files, platform accounts, team, auth user)
+- POST: Handles Meta's data deletion callback (signed_request), returns confirmation URL per Meta requirements
 
 ---
 
@@ -238,10 +259,17 @@ src/
 │       │   ├── facebook/callback/route.ts
 │       │   ├── instagram/start/route.ts
 │       │   ├── instagram/callback/route.ts
+│       │   ├── linkedin/start/route.ts
+│       │   ├── linkedin/callback/route.ts
 │       │   └── after-signup/route.ts
+│       ├── account/
+│       │   └── delete/route.ts             # Data deletion (user + Meta callback)
 │       ├── webhooks/
-│       │   └── instagram/route.ts        # Instagram webhook (future analytics)
-│       ├── worker/run-scheduled/route.ts # Cron worker
+│       │   ├── instagram/route.ts          # Instagram webhook (future analytics)
+│       │   └── facebook/route.ts           # Facebook webhook (future analytics)
+│       ├── worker/
+│       │   ├── run-scheduled/route.ts      # Cron worker (every minute)
+│       │   └── refresh-tokens/route.ts     # Token refresh worker (daily)
 │       ├── uploads/create/route.ts
 │       ├── scheduled-posts/
 │       │   ├── create/route.ts
@@ -269,6 +297,8 @@ src/
 │   ├── facebookUpload.ts                 # Facebook upload logic
 │   ├── instagram.ts                      # Instagram auth helpers
 │   ├── instagramUpload.ts               # Instagram upload logic
+│   ├── linkedin.ts                       # LinkedIn auth helpers
+│   ├── linkedinUpload.ts                # LinkedIn upload logic
 │   ├── stripe.ts                         # Stripe client + plan helpers
 │   ├── teamAuth.ts                       # Team/role auth helpers
 │   └── useTeam.ts                        # Client-side team hook
@@ -311,6 +341,13 @@ INSTAGRAM_APP_SECRET          # Instagram-specific App Secret from Meta Console
 # Instagram Webhook (optional, has default)
 INSTAGRAM_WEBHOOK_VERIFY_TOKEN  # defaults to "clipdash_ig_webhook_2026"
 
+# LinkedIn
+LINKEDIN_CLIENT_ID
+LINKEDIN_CLIENT_SECRET
+
+# Facebook Webhook (optional, has default)
+FACEBOOK_WEBHOOK_VERIFY_TOKEN   # defaults to "clipdash_fb_webhook_2026"
+
 # Stripe
 STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
@@ -337,17 +374,23 @@ VERCEL_OIDC_TOKEN
 
 ### In Progress
 1. **Switch Stripe to live mode** — Create live Products/Prices, webhook endpoint, swap env vars in Vercel
-2. **LinkedIn integration** — Add as a new platform for users to post to (OAuth + upload, same pattern as other integrations)
+2. **LinkedIn frontend UI** — Backend is built (OAuth + upload + worker). Need: settings connect button, platform option in uploads/scheduler
+3. **YouTube thumbnail frontend** — Backend accepts `thumbnail_path` and sets thumbnails on YouTube. Need: frontend to upload thumbnail to storage and pass path when scheduling
 
 ### Completed
 - Instagram OAuth fully working — posts as Reels, Stories, and image Stories
 - Facebook OAuth + video posting working
-- YouTube OAuth + video posting working
+- YouTube OAuth + video posting working (with thumbnail support)
 - TikTok OAuth + video posting working
+- LinkedIn backend built — OAuth, upload lib, worker support
 - Stripe integration built and tested — two paid tiers with 7-day free trials, plan gating, webhook handling
 - Calendar view with platform color coding and day detail panel
 - Upload + scheduling gating (requires active subscription)
 - Cancel button on scheduled posts
+- Facebook webhook endpoint built
+- Token refresh cron job (daily, refreshes FB/IG tokens expiring within 7 days)
+- Data deletion endpoint (for users + Meta app review compliance)
+- Vercel cron config (vercel.json) for both workers
 
 ### Future
 3. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
@@ -363,16 +406,19 @@ VERCEL_OIDC_TOKEN
 
 These are small tasks that can be knocked out quickly to improve the product:
 
-- [ ] **Add Facebook webhook endpoint** — Same pattern as Instagram webhook (`/api/webhooks/facebook`), will support future analytics for Facebook Pages
-- [ ] **Token refresh cron job** — Facebook/Instagram long-lived tokens expire after ~60 days. Build a scheduled job to refresh them before expiry (libraries already exist: `refreshFacebookToken`, `refreshInstagramToken`)
+- [x] **Add Facebook webhook endpoint** — Built at `/api/webhooks/facebook`
+- [x] **Token refresh cron job** — Built at `/api/worker/refresh-tokens`, runs daily via Vercel cron
 - [ ] **Add error toast notifications** — Replace `alert()` calls in settings page with proper toast UI
 - [x] **Subscription plan enforcement** — Plan gating implemented: scheduling blocked without active plan, team invites blocked on Creator plan
 - [ ] **Add `SITE_URL` env var to Vercel** — The code checks `SITE_URL` first before `NEXT_PUBLIC_SITE_URL`. Setting `SITE_URL=https://clipdash.org` in Vercel avoids relying on the public env var for server-side OAuth redirects
-- [ ] **Build full LinkedIn integration** — OAuth start/callback + upload lib + worker support, next platform priority
+- [x] **Build full LinkedIn integration** — Backend complete (OAuth + upload + worker). Frontend UI still needed
 - [ ] **Improve worker error logging** — Add structured logging or Sentry integration for failed uploads to diagnose issues faster
-- [ ] **Add a data deletion endpoint** — Privacy policy page links to `/privacy` for data deletion but there's no actual deletion flow. Required for Meta app review
+- [x] **Add a data deletion endpoint** — Built at `/api/account/delete` (DELETE for users, POST for Meta callback)
 - [ ] **Multi-page Facebook support** — Currently auto-selects first Page. Add UI to let users pick which Page to post to if they manage multiple
 - [ ] **Scheduled post editing** — Allow editing title/description/time of scheduled posts before they're posted
+- [ ] **LinkedIn settings UI** — Add connect/disconnect button for LinkedIn in settings page
+- [ ] **LinkedIn platform option in uploads** — Add LinkedIn to platform picker when scheduling posts
+- [ ] **YouTube thumbnail frontend** — Wire up thumbnail picker to upload to storage and pass `thumbnail_path` to API
 
 ---
 
@@ -442,30 +488,33 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Wider calendar layout with taller day cells and platform legend on side panel
 - `scheduled_posts` now has `instagram_settings` jsonb column with `ig_type` field (post/reel/story)
 
-### PICK UP HERE NEXT SESSION
+### Session 3 (2026-02-14) — Backend Sprint
 
-- **Switch Stripe to live mode** — create live Products/Prices/Webhook in Stripe Dashboard, update Vercel env vars
-- **Build LinkedIn integration** — next platform to add
-- **Fix: Save as draft already done** — API route `src/app/api/scheduled-posts/create/route.ts` was updated to respect `status: "draft"` from the client. Commit and push this change.
+#### Completed
+- **LinkedIn integration (backend):** OAuth start/callback routes, auth helper lib (`linkedin.ts`), video upload lib (`linkedinUpload.ts`), worker support
+- **YouTube thumbnail upload (backend):** `scheduled-posts/create` API accepts `thumbnail_path`, worker passes it to YouTube upload, `youtubeUpload.ts` sets thumbnail via `youtube.thumbnails.set()` after video upload (gracefully fails if channel not verified)
+- **Facebook webhook endpoint:** `/api/webhooks/facebook` — same pattern as Instagram webhook
+- **Token refresh cron job:** `/api/worker/refresh-tokens` — refreshes Facebook/Instagram tokens expiring within 7 days, runs daily at 3 AM UTC
+- **Data deletion endpoint:** `/api/account/delete` — DELETE for authenticated users (full account wipe), POST for Meta's data deletion callback (signed_request)
+- **Vercel cron config:** Created `vercel.json` with cron schedules for both workers
 
-#### Ready-to-implement: YouTube Thumbnail Upload Support
-
-The uploads page has a thumbnail picker UI, but the selected thumbnail is never uploaded to storage or passed to YouTube. Here's the plan:
-
-**DB Migration (run in Supabase SQL Editor):**
+#### DB Migrations Needed (run in Supabase SQL Editor)
 ```sql
 ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS thumbnail_path TEXT;
 ```
 
-**Changes needed:**
+#### Env Vars Needed (set in Vercel Dashboard)
+```
+LINKEDIN_CLIENT_ID       # From LinkedIn Developer Portal
+LINKEDIN_CLIENT_SECRET   # From LinkedIn Developer Portal
+```
 
-1. **`src/app/uploads/page.tsx`** — In `doUpload()`: after video upload succeeds, if `thumbnail` file is set, upload it to Supabase Storage at `{pathPrefix}/thumbnails/{timestamp}-{filename}`. Store path in new state `lastThumbnailPath`. In `handleSchedule()`: include `thumbnail_path: lastThumbnailPath` in request body.
+### PICK UP HERE NEXT SESSION
 
-2. **`src/app/api/scheduled-posts/create/route.ts`** — Read `thumbnail_path` from body, include in `insertRow` if present.
-
-3. **`src/app/api/worker/run-scheduled/route.ts`** — Add `thumbnail_path` to the select query. Pass `thumbnailBucket` and `thumbnailPath` to `uploadSupabaseVideoToYouTube()` when `post.thumbnail_path` exists.
-
-4. **`src/lib/youtubeUpload.ts`** — Add optional `thumbnailBucket?: string` and `thumbnailPath?: string` to `UploadToYouTubeArgs`. After `youtube.videos.insert()` succeeds, if `thumbnailPath` is provided: create signed URL for thumbnail, fetch as Node stream, call `youtube.thumbnails.set({ videoId, media: { body: imageStream } })`. If thumbnail set fails (channel not verified), log error but don't fail the whole upload.
+- **Switch Stripe to live mode** — create live Products/Prices/Webhook in Stripe Dashboard, update Vercel env vars
+- **LinkedIn frontend UI** — Add connect/disconnect in settings, add as platform option in uploads/scheduler
+- **YouTube thumbnail frontend** — Wire up existing thumbnail picker to upload to storage and pass `thumbnail_path` when scheduling
+- **Create LinkedIn App** in LinkedIn Developer Portal, set env vars
 
 ### Key Decisions Made
 - NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan
