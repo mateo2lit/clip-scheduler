@@ -9,6 +9,21 @@ export async function POST(req: Request) {
 
     const { userId, teamId } = result.ctx;
 
+    // Check plan status
+    const { data: team } = await supabaseAdmin
+      .from("teams")
+      .select("plan_status")
+      .eq("id", teamId)
+      .single();
+
+    const status = team?.plan_status;
+    if (status !== "trialing" && status !== "active") {
+      return NextResponse.json(
+        { error: "Subscribe to schedule posts" },
+        { status: 403 }
+      );
+    }
+
     // Parse body
     const body = await req.json();
 

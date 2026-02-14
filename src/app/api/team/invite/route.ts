@@ -4,7 +4,7 @@ import { getTeamContext, requireOwner } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
-const MAX_MEMBERS = 3;
+const MAX_MEMBERS = 5;
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
@@ -22,6 +22,17 @@ export async function POST(req: Request) {
     const { teamId, role } = result.ctx;
     const ownerCheck = requireOwner(role);
     if (ownerCheck) return ownerCheck;
+
+    // Check team plan — only Team plan can invite members
+    const { data: teamData } = await supabaseAdmin
+      .from("teams")
+      .select("plan")
+      .eq("id", teamId)
+      .single();
+
+    if (teamData?.plan !== "team") {
+      return jsonError("Upgrade to Team plan to invite members", 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";

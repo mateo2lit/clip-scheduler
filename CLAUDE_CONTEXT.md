@@ -91,6 +91,18 @@ The site is live at clipdash.org.
 | avatar_url | text | profile picture |
 | updated_at | timestamptz | |
 
+### `teams`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| name | text | |
+| owner_id | uuid | |
+| stripe_customer_id | text | Stripe Customer ID |
+| stripe_subscription_id | text | Stripe Subscription ID |
+| plan | text | 'none' / 'creator' / 'team' (default: 'none') |
+| plan_status | text | 'inactive' / 'trialing' / 'active' / 'past_due' / 'canceled' (default: 'inactive') |
+| trial_ends_at | timestamptz | When trial expires |
+
 ### `team_members`
 | Column | Type | Notes |
 |--------|------|-------|
@@ -228,9 +240,14 @@ src/
 │       │   ├── create/route.ts
 │       │   └── route.ts
 │       ├── platform-accounts/route.ts
+│       ├── stripe/
+│       │   ├── checkout/route.ts           # Create Stripe Checkout session
+│       │   ├── portal/route.ts             # Create Stripe Customer Portal session
+│       │   └── webhook/route.ts            # Stripe webhook handler
 │       ├── team/
 │       │   ├── me/route.ts
-│       │   └── invite/route.ts
+│       │   ├── invite/route.ts
+│       │   └── plan/route.ts               # Get team plan status
 │       ├── ping/route.ts
 │       ├── version/route.ts
 │       └── debug/force-scheduled/route.ts
@@ -245,6 +262,7 @@ src/
 │   ├── facebookUpload.ts                 # Facebook upload logic
 │   ├── instagram.ts                      # Instagram auth helpers
 │   ├── instagramUpload.ts               # Instagram upload logic
+│   ├── stripe.ts                         # Stripe client + plan helpers
 │   ├── teamAuth.ts                       # Team/role auth helpers
 │   └── useTeam.ts                        # Client-side team hook
 ```
@@ -286,6 +304,15 @@ INSTAGRAM_APP_SECRET          # Instagram-specific App Secret from Meta Console
 # Instagram Webhook (optional, has default)
 INSTAGRAM_WEBHOOK_VERIFY_TOKEN  # defaults to "clipdash_ig_webhook_2026"
 
+# Stripe
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+STRIPE_CREATOR_PRICE_ID
+STRIPE_TEAM_PRICE_ID
+NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID   # client-side access for checkout button
+NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID      # client-side access for checkout button
+
 # Worker
 WORKER_SECRET
 CRON_SECRET
@@ -305,16 +332,16 @@ VERCEL_OIDC_TOKEN
 1. **Finish Instagram OAuth** — Meta Console configuration (redirect URI, tester role, permissions)
 2. **Test Facebook video upload** — OAuth works, need to test actual posting
 3. **Test Instagram video upload** — after OAuth is working
+4. **Configure Stripe in production** — Create Products/Prices in Stripe Dashboard, set env vars in Vercel, create webhook endpoint
 
-### Up Next
-4. **Set up Stripe** — Add payment processing, subscription management, plan tiers
-5. **Finalize plan pricing** — Define Free/Pro/Business tier limits and features
+### Completed
+- **Stripe integration built** — Two paid tiers (Creator $12/mo, Team $29/mo) with 7-day free trials, plan gating, webhook handling
 
 ### Future
-6. X (Twitter) integration
-7. Analytics dashboard (Instagram webhook endpoint already deployed)
-8. Email notifications
-9. AI caption/description generator
+5. X (Twitter) integration
+6. Analytics dashboard (Instagram webhook endpoint already deployed)
+7. Email notifications
+8. AI caption/description generator
 
 ---
 
@@ -325,7 +352,7 @@ These are small tasks that can be knocked out quickly to improve the product:
 - [ ] **Add Facebook webhook endpoint** — Same pattern as Instagram webhook (`/api/webhooks/facebook`), will support future analytics for Facebook Pages
 - [ ] **Token refresh cron job** — Facebook/Instagram long-lived tokens expire after ~60 days. Build a scheduled job to refresh them before expiry (libraries already exist: `refreshFacebookToken`, `refreshInstagramToken`)
 - [ ] **Add error toast notifications** — Replace `alert()` calls in settings page with proper toast UI
-- [ ] **Subscription plan enforcement** — Add middleware or checks to enforce upload limits (currently no limits enforced, settings page shows "5 uploads/month" for Free but nothing blocks it)
+- [x] **Subscription plan enforcement** — Plan gating implemented: scheduling blocked without active plan, team invites blocked on Creator plan
 - [ ] **Add `SITE_URL` env var to Vercel** — The code checks `SITE_URL` first before `NEXT_PUBLIC_SITE_URL`. Setting `SITE_URL=https://clipdash.org` in Vercel avoids relying on the public env var for server-side OAuth redirects
 - [ ] **Add LinkedIn OAuth scaffold** — Similar pattern to existing integrations, low effort to set up the start/callback routes
 - [ ] **Improve worker error logging** — Add structured logging or Sentry integration for failed uploads to diagnose issues faster
@@ -348,7 +375,12 @@ These are small tasks that can be knocked out quickly to improve the product:
   3. When `FINISHED` → publishes and marks `posted`. If >10 min → marks `failed` with timeout error
   - Each step completes in 2-3 seconds. Total flow takes 1-5 minutes across multiple cron runs
 - Instagram Business Login uses a **separate App ID and Secret** from the Facebook app — must be set via `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`
-- No Stripe or payment code exists yet — needs to be built from scratch
+- **Stripe integration** uses Checkout Sessions (hosted by Stripe) — no client-side Stripe.js needed
+  - Two plans: Creator ($12/mo, 1 member) and Team ($29/mo, up to 5 members), both with 7-day free trials
+  - Plans are team-scoped (one subscription per team)
+  - Webhook at `/api/stripe/webhook` handles: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+  - Plan gating: scheduling posts requires `plan_status` of `trialing` or `active`; team invites require `plan === 'team'`
+  - Self-serve billing via Stripe Customer Portal at `/api/stripe/portal`
 
 ---
 
@@ -365,6 +397,24 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Facebook posting tested and confirmed working (video posted to Facebook Page)
 - Changed Meta app display name to ClipDash.org for attribution on Facebook posts
 - Removed Switch account button for Instagram (force_authentication not supported by Business Login API)
+
+### Stripe Integration Built
+- Two paid tiers: Creator ($12/mo) and Team ($29/mo), both with 7-day free trials
+- **DB migration needed:** Run in Supabase SQL editor:
+  ```sql
+  ALTER TABLE teams ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+  ALTER TABLE teams ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+  ALTER TABLE teams ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE teams ADD COLUMN IF NOT EXISTS plan_status TEXT NOT NULL DEFAULT 'inactive';
+  ALTER TABLE teams ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
+  ```
+- **Stripe Dashboard setup needed:** Create Products/Prices, webhook endpoint, Customer Portal config
+- **Vercel env vars needed:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_CREATOR_PRICE_ID`, `STRIPE_TEAM_PRICE_ID`, `NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID`, `NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID`
+- API routes: `/api/stripe/checkout`, `/api/stripe/portal`, `/api/stripe/webhook`, `/api/team/plan`
+- Plan gating: scheduling requires active plan; team invites require Team plan
+- Settings page: dynamic plan picker / subscription display
+- Landing page: updated from 3 tiers to 2 tiers (Creator + Team)
+- Uploads page: shows subscribe banner when no active plan
 
 ### In Progress — PICK UP HERE NEXT SESSION
 - **Instagram split worker implemented** — container creation + polling now runs across multiple cron ticks (fits in 10s timeout)

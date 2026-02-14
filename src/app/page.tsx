@@ -85,7 +85,7 @@ export default function Home() {
                 href="/login"
                 className="rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
               >
-                Get Started Free
+                Start Free Trial
               </a>
             )
           )}
@@ -203,47 +203,18 @@ export default function Home() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+      <section id="pricing" className="relative z-10 mx-auto max-w-4xl px-6 py-20">
         <div className="text-center mb-14">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Simple, transparent pricing</h2>
-          <p className="mt-4 text-white/40 text-lg">Start free. Upgrade when you&apos;re ready.</p>
+          <p className="mt-4 text-white/40 text-lg">Start with a 7-day free trial. Cancel anytime.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Free */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
-            <h3 className="text-lg font-semibold">Free</h3>
-            <div className="mt-3 mb-5">
-              <span className="text-4xl font-bold">$0</span>
-              <span className="text-white/40 text-sm ml-1">/month</span>
-            </div>
-            <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
-              <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                5 uploads per month
-              </li>
-              <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                1 platform
-              </li>
-              <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Basic scheduling
-              </li>
-            </ul>
-            <a
-              href="/login"
-              className="block text-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors"
-            >
-              Get Started
-            </a>
-          </div>
-
-          {/* Pro */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Creator */}
           <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
               Most Popular
             </div>
-            <h3 className="text-lg font-semibold">Pro</h3>
+            <h3 className="text-lg font-semibold">Creator</h3>
             <div className="mt-3 mb-5">
               <span className="text-4xl font-bold">$12</span>
               <span className="text-white/40 text-sm ml-1">/month</span>
@@ -259,18 +230,18 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Analytics dashboard
+                Smart scheduling
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Priority support
+                1 team member (solo)
               </li>
             </ul>
             <a
               href="/login"
               className="block text-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
             >
-              Start Free Trial
+              Start 7-day free trial
             </a>
           </div>
 
@@ -284,7 +255,7 @@ export default function Home() {
             <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Everything in Pro
+                Everything in Creator
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
@@ -292,18 +263,18 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Approval workflows
+                Collaborative workflows
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                API access
+                Priority support
               </li>
             </ul>
             <a
               href="/login"
               className="block text-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors"
             >
-              Contact Us
+              Start 7-day free trial
             </a>
           </div>
         </div>
@@ -352,7 +323,7 @@ export default function Home() {
                 href="/login"
                 className="inline-block rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
               >
-                Get Started Free
+                Start Free Trial
               </a>
             )
           )}

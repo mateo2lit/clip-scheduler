@@ -127,6 +127,7 @@ export default function UploadsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [lastUploadId, setLastUploadId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [planActive, setPlanActive] = useState<boolean | null>(null);
 
   // Shared content
   const [title, setTitle] = useState("");
@@ -220,6 +221,17 @@ export default function UploadsPage() {
         return;
       }
       setUserId(data.session.user.id);
+
+      // Check plan status
+      try {
+        const res = await fetch("/api/team/plan", {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        const json = await res.json();
+        if (json.ok) {
+          setPlanActive(json.plan_status === "trialing" || json.plan_status === "active");
+        }
+      } catch {}
     }
     loadSession();
   }, []);
@@ -498,6 +510,16 @@ export default function UploadsPage() {
             </button>
           )}
         </div>
+
+        {/* Subscribe banner */}
+        {planActive === false && (
+          <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
+            <span>You need an active subscription to schedule posts.</span>
+            <Link href="/settings" className="rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-black hover:bg-amber-400 transition-colors">
+              Subscribe
+            </Link>
+          </div>
+        )}
 
         {/* Upload Step */}
         {step === "upload" && (

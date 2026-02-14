@@ -102,6 +102,12 @@ export default function SettingsPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
+  // Plan state
+  const [plan, setPlan] = useState<string>("none");
+  const [planStatus, setPlanStatus] = useState<string>("inactive");
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+
   type AccountInfo = { connected: boolean; profileName?: string; avatarUrl?: string };
   const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo>>({
     youtube: { connected: false },
@@ -122,6 +128,9 @@ export default function SettingsPage() {
     if (conn === "tiktok") return { kind: "success" as const, text: "TikTok connected successfully" };
     if (conn === "facebook") return { kind: "success" as const, text: "Facebook connected successfully" };
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
+    const checkout = query.get("checkout");
+    if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
+    if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
     return null;
   }, [query]);
 
@@ -190,6 +199,80 @@ export default function SettingsPage() {
       console.error(e);
     }
   }, []);
+
+  const loadPlanInfo = useCallback(async () => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/team/plan", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setPlan(json.plan);
+        setPlanStatus(json.plan_status);
+        setTrialEndsAt(json.trial_ends_at);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  async function handleCheckout(priceId: string) {
+    setPlanLoading(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ priceId }),
+      });
+
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        alert(json.error || "Failed to start checkout");
+      }
+    } catch (e: any) {
+      alert(e?.message || "Failed to start checkout");
+    } finally {
+      setPlanLoading(false);
+    }
+  }
+
+  async function handleManageSubscription() {
+    setPlanLoading(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        alert(json.error || "Failed to open billing portal");
+      }
+    } catch (e: any) {
+      alert(e?.message || "Failed to open billing portal");
+    } finally {
+      setPlanLoading(false);
+    }
+  }
 
   async function handleInvite() {
     if (!inviteEmail.trim()) return;
@@ -476,7 +559,8 @@ export default function SettingsPage() {
   useEffect(() => {
     loadConnectedAccounts();
     loadTeamInfo();
-  }, [loadTeamInfo]);
+    loadPlanInfo();
+  }, [loadTeamInfo, loadPlanInfo]);
 
   const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
 
@@ -587,43 +671,164 @@ export default function SettingsPage() {
         {/* Subscription Section */}
         <section className="mt-10">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Subscription</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-emerald-500/10 p-3">
-                  <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-medium">Free Plan</div>
-                  <div className="text-sm text-white/40 mt-0.5">Basic features for getting started</div>
-                </div>
-              </div>
+
+          {/* Past due warning */}
+          {planStatus === "past_due" && (
+            <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
+              <span>Payment failed — please update your payment method.</span>
               <button
-                disabled
-                className="rounded-full bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/40 cursor-not-allowed"
+                onClick={handleManageSubscription}
+                disabled={planLoading}
+                className="rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-black hover:bg-amber-400 transition-colors"
               >
-                Upgrade — Coming soon
+                Update
               </button>
             </div>
-            <div className="mt-5 pt-5 border-t border-white/5">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-2xl font-semibold">5</div>
-                  <div className="text-xs text-white/40 mt-1">Uploads/month</div>
+          )}
+
+          {/* No plan — show plan picker */}
+          {(plan === "none" && planStatus !== "canceled") && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Creator */}
+              <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
+                  Most Popular
                 </div>
-                <div>
-                  <div className="text-2xl font-semibold">{teamMembers.length}</div>
-                  <div className="text-xs text-white/40 mt-1">Team member{teamMembers.length !== 1 ? "s" : ""}</div>
+                <h3 className="text-lg font-semibold">Creator</h3>
+                <div className="mt-2 mb-4">
+                  <span className="text-3xl font-bold">$12</span>
+                  <span className="text-white/40 text-sm ml-1">/month</span>
                 </div>
-                <div>
-                  <div className="text-2xl font-semibold">{connectedCount}</div>
-                  <div className="text-xs text-white/40 mt-1">Connected</div>
+                <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
+                  <li className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    Unlimited uploads
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    All platforms
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    1 team member (solo)
+                  </li>
+                </ul>
+                <button
+                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || "")}
+                  disabled={planLoading}
+                  className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50"
+                >
+                  {planLoading ? "Loading..." : "Start 7-day free trial"}
+                </button>
+              </div>
+
+              {/* Team */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
+                <h3 className="text-lg font-semibold">Team</h3>
+                <div className="mt-2 mb-4">
+                  <span className="text-3xl font-bold">$29</span>
+                  <span className="text-white/40 text-sm ml-1">/month</span>
+                </div>
+                <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
+                  <li className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    Unlimited uploads
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    All platforms
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    Up to 5 team members
+                  </li>
+                </ul>
+                <button
+                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || "")}
+                  disabled={planLoading}
+                  className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  {planLoading ? "Loading..." : "Start 7-day free trial"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Active or trialing plan */}
+          {(planStatus === "trialing" || planStatus === "active") && (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="rounded-full bg-emerald-500/10 p-3">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-medium capitalize">{plan === "creator" ? "Creator" : "Team"} Plan</div>
+                    <div className="text-sm text-white/40 mt-0.5">
+                      {planStatus === "trialing" && trialEndsAt
+                        ? `Trial ends ${new Date(trialEndsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}`
+                        : "Active subscription"}
+                    </div>
+                  </div>
+                </div>
+                {teamRole === "owner" && (
+                  <button
+                    onClick={handleManageSubscription}
+                    disabled={planLoading}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    {planLoading ? "Loading..." : "Manage Subscription"}
+                  </button>
+                )}
+              </div>
+              <div className="mt-5 pt-5 border-t border-white/5">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-semibold">&infin;</div>
+                    <div className="text-xs text-white/40 mt-1">Uploads</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold">{teamMembers.length}</div>
+                    <div className="text-xs text-white/40 mt-1">Team member{teamMembers.length !== 1 ? "s" : ""}</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold">{connectedCount}</div>
+                    <div className="text-xs text-white/40 mt-1">Connected</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Canceled */}
+          {planStatus === "canceled" && (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="rounded-full bg-red-500/10 p-3">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-medium">Plan Canceled</div>
+                    <div className="text-sm text-white/40 mt-0.5">Subscribe to continue scheduling posts</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setPlan("none");
+                    setPlanStatus("inactive");
+                  }}
+                  className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors"
+                >
+                  Re-subscribe
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Connected Accounts Section */}
@@ -765,7 +970,7 @@ export default function SettingsPage() {
         <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Team</h2>
-            <span className="text-xs text-white/30">{teamMembers.length + teamInvites.length}/3 members</span>
+            <span className="text-xs text-white/30">{teamMembers.length + teamInvites.length}/{plan === "team" ? 5 : 1} members</span>
           </div>
           <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             {/* Members list */}
