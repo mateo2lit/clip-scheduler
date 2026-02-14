@@ -18,6 +18,7 @@ type CreateContainerArgs = {
   bucket: string;
   storagePath: string;
   caption: string;
+  mediaType?: "REELS" | "STORIES";
 };
 
 type CheckAndPublishArgs = {
@@ -59,7 +60,7 @@ async function getSignedDownloadUrl(params: {
 export async function createInstagramContainer(args: CreateContainerArgs): Promise<{
   containerId: string;
 }> {
-  const { igUserId, accessToken, bucket, storagePath, caption } = args;
+  const { igUserId, accessToken, bucket, storagePath, caption, mediaType = "REELS" } = args;
 
   assertOk(igUserId, "Missing igUserId");
   assertOk(accessToken, "Missing accessToken");
@@ -70,10 +71,14 @@ export async function createInstagramContainer(args: CreateContainerArgs): Promi
 
   const containerParams = new URLSearchParams({
     access_token: accessToken,
-    media_type: "REELS",
+    media_type: mediaType,
     video_url: signedUrl,
-    caption: (caption || "").slice(0, 2200),
   });
+
+  // Stories don't support captions
+  if (mediaType !== "STORIES" && caption) {
+    containerParams.set("caption", caption.slice(0, 2200));
+  }
 
   const containerRes = await fetch(
     `https://graph.instagram.com/v21.0/${igUserId}/media`,

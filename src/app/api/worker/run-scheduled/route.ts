@@ -121,7 +121,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -130,7 +130,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings")
       .eq("id", postId)
       .limit(1);
   }
@@ -299,6 +299,11 @@ async function runWorker(req: Request) {
           throw new Error("Instagram account not configured. Please reconnect your Instagram account.");
         }
 
+        // Determine media type from instagram_settings
+        const igSettings = post.instagram_settings as any;
+        const igType = igSettings?.ig_type || "reel";
+        const mediaType = igType === "story" ? "STORIES" as const : "REELS" as const;
+
         // Create container only — next cron tick will poll and publish
         const { containerId } = await createInstagramContainer({
           igUserId: acct.ig_user_id,
@@ -306,6 +311,7 @@ async function runWorker(req: Request) {
           bucket,
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+          mediaType,
         });
 
         await supabaseAdmin

@@ -439,6 +439,7 @@ export default function UploadsPage() {
 
         if (platform === "instagram") {
           body.instagram_settings = {
+            ig_type: igType,
             first_comment: igFirstComment || undefined,
           };
         }
@@ -842,11 +843,13 @@ export default function UploadsPage() {
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Post Type</label>
                     <div className="flex gap-2">
-                      {(["reel"] as InstagramType[]).map((type) => (
+                      {(["post", "reel", "story"] as InstagramType[]).map((type) => (
                         <button key={type} onClick={() => setIgType(type)} className={`flex-1 rounded-lg py-2 text-sm capitalize ${igType === type ? "bg-white/10 border border-white/20" : "bg-white/5 border border-white/10"}`}>{type}</button>
                       ))}
                     </div>
-                    <p className="text-xs text-white/30 mt-1.5">Videos are published as Reels via the Instagram API</p>
+                    <p className="text-xs text-white/30 mt-1.5">
+                      {igType === "story" ? "Video will be posted as a Story (24hr, no caption)" : "Video will be published as a Reel"}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">First Comment</label>
