@@ -514,7 +514,7 @@ export default function UploadsPage() {
         {/* Subscribe banner */}
         {planActive === false && (
           <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
-            <span>You need an active subscription to schedule posts.</span>
+            <span>You need an active subscription to upload and schedule posts.</span>
             <Link href="/settings" className="rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-black hover:bg-amber-400 transition-colors">
               Subscribe
             </Link>
@@ -552,7 +552,7 @@ export default function UploadsPage() {
                   <div><p className="font-medium">{file.name}</p><p className="text-sm text-white/40 mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p></div>
                   <div className="flex items-center justify-center gap-3">
                     <button onClick={() => setFile(null)} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors">Remove</button>
-                    <button onClick={doUpload} className="rounded-full bg-white px-6 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors">Upload</button>
+                    <button onClick={doUpload} disabled={planActive === false} className="rounded-full bg-white px-6 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Upload</button>
                   </div>
                 </div>
               ) : (

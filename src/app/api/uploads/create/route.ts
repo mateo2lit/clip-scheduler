@@ -11,6 +11,21 @@ export async function POST(req: Request) {
 
     const { userId, teamId } = result.ctx;
 
+    // Check plan status — block uploads without active plan
+    const { data: team } = await supabaseAdmin
+      .from("teams")
+      .select("plan_status")
+      .eq("id", teamId)
+      .single();
+
+    const status = team?.plan_status;
+    if (status !== "trialing" && status !== "active") {
+      return NextResponse.json(
+        { ok: false, error: "Subscribe to upload videos" },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const bucket = typeof body.bucket === "string" ? body.bucket : null;
     const file_path = typeof body.file_path === "string" ? body.file_path : null;

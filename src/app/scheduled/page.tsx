@@ -99,6 +99,7 @@ export default function ScheduledPage() {
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [canceling, setCanceling] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -159,6 +160,24 @@ export default function ScheduledPage() {
     }
   }
 
+  async function handleCancel(postId: string) {
+    if (!confirm("Cancel this scheduled post?")) return;
+    setCanceling(postId);
+    try {
+      const { error } = await supabase
+        .from("scheduled_posts")
+        .delete()
+        .eq("id", postId);
+
+      if (error) throw error;
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (e: any) {
+      alert(e?.message || "Failed to cancel");
+    } finally {
+      setCanceling(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
@@ -196,12 +215,20 @@ export default function ScheduledPage() {
             </div>
           </div>
 
-          <Link
-            href="/upload"
-            className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
-          >
-            New upload
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/calendar"
+              className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/60 hover:bg-white/10 transition-colors"
+            >
+              Calendar
+            </Link>
+            <Link
+              href="/upload"
+              className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+            >
+              New upload
+            </Link>
+          </div>
         </div>
 
         {/* Posts */}
@@ -268,6 +295,13 @@ export default function ScheduledPage() {
                           Upload failed
                         </p>
                         <button
+                          onClick={() => handleCancel(post.id)}
+                          disabled={canceling === post.id}
+                          className="shrink-0 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        >
+                          {canceling === post.id ? "Removing..." : "Remove"}
+                        </button>
+                        <button
                           onClick={() => handleRetry(post.id)}
                           disabled={retrying === post.id}
                           className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors disabled:opacity-50"
@@ -276,12 +310,21 @@ export default function ScheduledPage() {
                         </button>
                       </div>
                     ) : (
-                      <p className="text-xs text-white/20 mt-1">
-                        {post.description ? (
-                          <span className="text-white/30 line-clamp-1">{post.description} · </span>
-                        ) : null}
-                        {getTimeEstimate(post.provider)}
-                      </p>
+                      <div className="mt-2 flex items-center gap-3">
+                        <p className="text-xs text-white/20 flex-1">
+                          {post.description ? (
+                            <span className="text-white/30 line-clamp-1">{post.description} · </span>
+                          ) : null}
+                          {getTimeEstimate(post.provider)}
+                        </p>
+                        <button
+                          onClick={() => handleCancel(post.id)}
+                          disabled={canceling === post.id}
+                          className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/40 hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-50"
+                        >
+                          {canceling === post.id ? "Canceling..." : "Cancel"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );

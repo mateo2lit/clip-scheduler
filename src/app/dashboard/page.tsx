@@ -151,6 +151,29 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* Calendar link */}
+        <div className="mt-4">
+          <Link
+            href="/calendar"
+            className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-11 w-11 rounded-xl bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/15 transition-colors">
+                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-white/90">Content Calendar</p>
+                <p className="text-sm text-white/40 mt-0.5">See all your posts on a monthly calendar</p>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </Link>
+        </div>
+
         {/* Section label */}
         <div className="mt-10 mb-4">
           <h2 className="text-xs font-semibold text-white/30 uppercase tracking-widest">Overview</h2>
