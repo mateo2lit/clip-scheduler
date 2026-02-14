@@ -50,7 +50,7 @@ async function runWorker(req: Request) {
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at")
+      .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at, instagram_settings")
       .eq("status", "ig_processing")
       .limit(5);
 

@@ -69,11 +69,21 @@ export async function createInstagramContainer(args: CreateContainerArgs): Promi
 
   const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
 
+  // Detect if file is an image based on extension
+  const ext = storagePath.split(".").pop()?.toLowerCase() || "";
+  const isImage = ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(ext);
+
   const containerParams = new URLSearchParams({
     access_token: accessToken,
-    media_type: mediaType,
-    video_url: signedUrl,
   });
+
+  if (isImage && mediaType === "STORIES") {
+    // Image story — no media_type needed, just image_url
+    containerParams.set("image_url", signedUrl);
+  } else {
+    containerParams.set("media_type", mediaType);
+    containerParams.set("video_url", signedUrl);
+  }
 
   // Stories don't support captions
   if (mediaType !== "STORIES" && caption) {
