@@ -152,6 +152,7 @@ async function runWorker(req: Request) {
                 status: "posted",
                 posted_at: new Date().toISOString(),
                 platform_post_id: result.permalink || result.instagramMediaId,
+                platform_media_id: result.instagramMediaId,
                 last_error: null,
               })
               .eq("id", igPost.id);
