@@ -5,7 +5,7 @@ import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
-import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail } from "@/lib/email";
+import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -57,6 +57,51 @@ async function getNotificationInfo(userId: string) {
   }
 }
 
+async function checkAndNotifyGroup(groupId: string, userId: string, postTitle: string) {
+  try {
+    const { data: groupPosts, error } = await supabaseAdmin
+      .from("scheduled_posts")
+      .select("id, provider, status, last_error")
+      .eq("group_id", groupId);
+
+    if (error || !groupPosts || groupPosts.length === 0) return;
+
+    // If any post is still in a non-terminal state, wait for it
+    const stillPending = groupPosts.some(
+      (p: any) => ["scheduled", "posting", "ig_processing"].includes(p.status)
+    );
+    if (stillPending) return;
+
+    const info = await getNotificationInfo(userId);
+    if (!info) return;
+
+    // Build results for summary email
+    const results = groupPosts.map((p: any) => ({
+      platform: p.provider,
+      ok: p.status === "posted",
+      error: p.last_error || undefined,
+    }));
+
+    const anyFailed = results.some((r) => !r.ok);
+
+    if (anyFailed ? info.notifyFailed : info.notifySuccess) {
+      await sendGroupSummaryEmail(info.email, postTitle, results);
+    }
+
+    // Send reconnect emails for any reconnect-type failures
+    for (const p of groupPosts) {
+      if (p.status === "failed" && p.last_error) {
+        const isReconnectError = p.last_error.includes("not connected") || p.last_error.includes("reconnect") || p.last_error.includes("expired");
+        if (isReconnectError && info.notifyReconnect) {
+          await sendReconnectEmail(info.email, p.provider);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("checkAndNotifyGroup error:", e);
+  }
+}
+
 async function runWorker(req: Request) {
   requireWorkerAuth(req);
 
@@ -75,7 +120,7 @@ async function runWorker(req: Request) {
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at, instagram_settings")
+      .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at, instagram_settings, group_id, title")
       .eq("status", "ig_processing")
       .limit(5);
 
@@ -111,12 +156,35 @@ async function runWorker(req: Request) {
               })
               .eq("id", igPost.id);
             igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: result.instagramMediaId });
+
+            // Notify
+            if (igPost.group_id) {
+              checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled").catch(() => {});
+            } else {
+              getNotificationInfo(igPost.user_id).then((info) => {
+                if (info?.notifySuccess) {
+                  sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", ["instagram"]).catch(() => {});
+                }
+              }).catch(() => {});
+            }
           } else if (result.status === "error") {
             await supabaseAdmin
               .from("scheduled_posts")
               .update({ status: "failed", last_error: result.error })
               .eq("id", igPost.id);
             igProcessingResults.push({ id: igPost.id, ok: false, error: result.error });
+
+            // Notify
+            if (igPost.group_id) {
+              checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled").catch(() => {});
+            } else {
+              getNotificationInfo(igPost.user_id).then((info) => {
+                if (!info) return;
+                if (info.notifyFailed) {
+                  sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "instagram", result.error || "Unknown error").catch(() => {});
+                }
+              }).catch(() => {});
+            }
           } else {
             // Still processing — check timeout (10 min)
             const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
@@ -127,6 +195,18 @@ async function runWorker(req: Request) {
                 .update({ status: "failed", last_error: "Instagram processing timed out" })
                 .eq("id", igPost.id);
               igProcessingResults.push({ id: igPost.id, ok: false, error: "Instagram processing timed out" });
+
+              // Notify
+              if (igPost.group_id) {
+                checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled").catch(() => {});
+              } else {
+                getNotificationInfo(igPost.user_id).then((info) => {
+                  if (!info) return;
+                  if (info.notifyFailed) {
+                    sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "instagram", "Instagram processing timed out").catch(() => {});
+                  }
+                }).catch(() => {});
+              }
             }
             // else: do nothing, next cron tick will retry
           }
@@ -136,6 +216,18 @@ async function runWorker(req: Request) {
             .update({ status: "failed", last_error: e?.message || "Unknown error" })
             .eq("id", igPost.id);
           igProcessingResults.push({ id: igPost.id, ok: false, error: e?.message });
+
+          // Notify
+          if (igPost.group_id) {
+            checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled").catch(() => {});
+          } else {
+            getNotificationInfo(igPost.user_id).then((info) => {
+              if (!info) return;
+              if (info.notifyFailed) {
+                sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "instagram", e?.message || "Unknown error").catch(() => {});
+              }
+            }).catch(() => {});
+          }
         }
       }
     }
@@ -146,7 +238,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path,group_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -155,7 +247,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path,group_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -424,11 +516,15 @@ async function runWorker(req: Request) {
         .eq("id", post.id);
 
       // Fire-and-forget email notification
-      getNotificationInfo(post.user_id).then((info) => {
-        if (info?.notifySuccess) {
-          sendPostSuccessEmail(info.email, post.title ?? "Untitled", [provider]).catch(() => {});
-        }
-      }).catch(() => {});
+      if (post.group_id) {
+        checkAndNotifyGroup(post.group_id, post.user_id, post.title ?? "Untitled").catch(() => {});
+      } else {
+        getNotificationInfo(post.user_id).then((info) => {
+          if (info?.notifySuccess) {
+            sendPostSuccessEmail(info.email, post.title ?? "Untitled", [provider]).catch(() => {});
+          }
+        }).catch(() => {});
+      }
 
       const okResult: any = {
         id: post.id,
@@ -451,15 +547,19 @@ async function runWorker(req: Request) {
 
       // Fire-and-forget email notification
       const provider = post.provider || "youtube";
-      const isReconnectError = message.includes("not connected") || message.includes("reconnect") || message.includes("expired");
-      getNotificationInfo(post.user_id).then((info) => {
-        if (!info) return;
-        if (isReconnectError && info.notifyReconnect) {
-          sendReconnectEmail(info.email, provider).catch(() => {});
-        } else if (info.notifyFailed) {
-          sendPostFailedEmail(info.email, post.title ?? "Untitled", provider, message).catch(() => {});
-        }
-      }).catch(() => {});
+      if (post.group_id) {
+        checkAndNotifyGroup(post.group_id, post.user_id, post.title ?? "Untitled").catch(() => {});
+      } else {
+        const isReconnectError = message.includes("not connected") || message.includes("reconnect") || message.includes("expired");
+        getNotificationInfo(post.user_id).then((info) => {
+          if (!info) return;
+          if (isReconnectError && info.notifyReconnect) {
+            sendReconnectEmail(info.email, provider).catch(() => {});
+          } else if (info.notifyFailed) {
+            sendPostFailedEmail(info.email, post.title ?? "Untitled", provider, message).catch(() => {});
+          }
+        }).catch(() => {});
+      }
 
       const badResult: any = { id: post.id, ok: false, error: message };
       if (debugOut) badResult.debug = debugOut;

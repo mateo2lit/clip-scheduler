@@ -38,6 +38,19 @@ async function getSignedDownloadUrl(params: {
   return data.signedUrl;
 }
 
+async function downloadToBuffer(bucket: string, path: string): Promise<Buffer> {
+  const { data, error } = await supabaseAdmin.storage
+    .from(bucket)
+    .download(path);
+
+  if (error || !data) {
+    throw new Error(`Failed to download file: ${error?.message || "unknown error"}`);
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
 export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs): Promise<{
   facebookVideoId: string;
 }> {
@@ -64,20 +77,22 @@ export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs):
   const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
 
   // 2) POST to Facebook Page Videos API with file_url
-  const params = new URLSearchParams({
-    access_token: pageAccessToken,
-    title: title.slice(0, 255),
-    description: (description || "").slice(0, 5000),
-    file_url: signedUrl,
-  });
+  // Use FormData so we can attach thumbnail as binary if needed
+  const form = new FormData();
+  form.append("access_token", pageAccessToken);
+  form.append("title", title.slice(0, 255));
+  form.append("description", (description || "").slice(0, 5000));
+  form.append("file_url", signedUrl);
 
-  // Add thumbnail if provided
+  // Add thumbnail as binary data if provided (Facebook requires image file data, not a URL)
   if (thumbnailBucket && thumbnailPath) {
     try {
-      const thumbUrl = await getSignedDownloadUrl({ bucket: thumbnailBucket, path: thumbnailPath });
-      params.set("thumb", thumbUrl);
+      const thumbBuffer = await downloadToBuffer(thumbnailBucket, thumbnailPath);
+      const ext = thumbnailPath.split(".").pop()?.toLowerCase() || "jpg";
+      const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+      form.append("thumb", new Blob([new Uint8Array(thumbBuffer)], { type: mimeType }), `thumbnail.${ext}`);
     } catch (e: any) {
-      console.error("[Facebook] Thumbnail URL failed, posting without thumbnail:", e?.message);
+      console.error("[Facebook] Thumbnail download failed, posting without thumbnail:", e?.message);
     }
   }
 
@@ -85,8 +100,7 @@ export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs):
     `https://graph.facebook.com/v21.0/${pageId}/videos`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
+      body: form,
     }
   );
 
