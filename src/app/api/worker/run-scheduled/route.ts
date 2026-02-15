@@ -5,6 +5,7 @@ import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
+import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,29 @@ function pickFirstNonEmpty(obj: any, keys: string[]) {
     if (typeof v === "string" && v.trim().length > 0) return { key: k, value: v };
   }
   return { key: null as string | null, value: null as string | null };
+}
+
+async function getNotificationInfo(userId: string) {
+  try {
+    const { data: user } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = user?.user?.email;
+    if (!email) return null;
+
+    const { data: prefs } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("notify_post_success, notify_post_failed, notify_reconnect")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    return {
+      email,
+      notifySuccess: prefs?.notify_post_success ?? true,
+      notifyFailed: prefs?.notify_post_failed ?? true,
+      notifyReconnect: prefs?.notify_reconnect ?? true,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function runWorker(req: Request) {
@@ -399,6 +423,13 @@ async function runWorker(req: Request) {
         })
         .eq("id", post.id);
 
+      // Fire-and-forget email notification
+      getNotificationInfo(post.user_id).then((info) => {
+        if (info?.notifySuccess) {
+          sendPostSuccessEmail(info.email, post.title ?? "Untitled", [provider]).catch(() => {});
+        }
+      }).catch(() => {});
+
       const okResult: any = {
         id: post.id,
         ok: true,
@@ -417,6 +448,18 @@ async function runWorker(req: Request) {
           last_error: message,
         })
         .eq("id", post.id);
+
+      // Fire-and-forget email notification
+      const provider = post.provider || "youtube";
+      const isReconnectError = message.includes("not connected") || message.includes("reconnect") || message.includes("expired");
+      getNotificationInfo(post.user_id).then((info) => {
+        if (!info) return;
+        if (isReconnectError && info.notifyReconnect) {
+          sendReconnectEmail(info.email, provider).catch(() => {});
+        } else if (info.notifyFailed) {
+          sendPostFailedEmail(info.email, post.title ?? "Untitled", provider, message).catch(() => {});
+        }
+      }).catch(() => {});
 
       const badResult: any = { id: post.id, ok: false, error: message };
       if (debugOut) badResult.debug = debugOut;

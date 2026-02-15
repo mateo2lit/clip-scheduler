@@ -13,6 +13,16 @@ type ScheduledPost = {
   status: string;
   created_at: string;
   last_error: string | null;
+  group_id: string | null;
+};
+
+type PostGroup = {
+  groupId: string;
+  title: string | null;
+  description: string | null;
+  scheduled_for: string;
+  posts: ScheduledPost[];
+  groupStatus: "scheduled" | "posting" | "failed" | "partial_failure";
 };
 
 function formatDate(iso: string) {
@@ -55,13 +65,6 @@ function getRelativeTime(iso: string) {
   return formatDate(iso);
 }
 
-function getRelativeColor(iso: string) {
-  const diffMs = new Date(iso).getTime() - Date.now();
-  if (diffMs < 0) return "text-amber-400";
-  if (diffMs < 1000 * 60 * 60) return "text-amber-400";
-  return "text-blue-400";
-}
-
 function providerLabel(provider: string | null) {
   if (!provider) return "Unknown";
   const labels: Record<string, string> = {
@@ -70,28 +73,71 @@ function providerLabel(provider: string | null) {
     instagram: "Instagram",
     x: "X",
     facebook: "Facebook",
+    linkedin: "LinkedIn",
   };
   return labels[provider.toLowerCase()] || provider;
 }
 
-function getTimeEstimate(provider: string | null) {
-  if (provider === "instagram") return "Usually posts within ~3-5 minutes";
-  return "Usually posts within ~1 minute";
+function getStatusBadgeStyle(status: string) {
+  switch (status) {
+    case "posted":
+      return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    case "failed":
+      return "bg-red-500/10 text-red-400 border-red-500/20";
+    case "posting":
+    case "ig_processing":
+      return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+    default:
+      return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+  }
 }
 
-function getStatusDisplay(post: ScheduledPost) {
-  if (post.status === "failed") {
+function computeGroupStatus(posts: ScheduledPost[]): PostGroup["groupStatus"] {
+  const allFailed = posts.every((p) => p.status === "failed");
+  const anyFailed = posts.some((p) => p.status === "failed");
+  const anyPosting = posts.some((p) => p.status === "posting" || p.status === "ig_processing");
+
+  if (allFailed) return "failed";
+  if (anyFailed) return "partial_failure";
+  if (anyPosting) return "posting";
+  return "scheduled";
+}
+
+function groupPosts(posts: ScheduledPost[]): PostGroup[] {
+  const groups = new Map<string, ScheduledPost[]>();
+
+  for (const post of posts) {
+    const key = post.group_id || post.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(post);
+  }
+
+  return Array.from(groups.entries()).map(([groupId, groupPosts]) => ({
+    groupId,
+    title: groupPosts[0].title,
+    description: groupPosts[0].description,
+    scheduled_for: groupPosts[0].scheduled_for,
+    posts: groupPosts,
+    groupStatus: computeGroupStatus(groupPosts),
+  }));
+}
+
+function getGroupStatusDisplay(group: PostGroup) {
+  if (group.groupStatus === "failed") {
     return { text: "Failed", color: "text-red-400", pulse: false };
   }
-  if (post.status === "ig_processing") {
-    return { text: "Processing video\u2026", color: "text-blue-400", pulse: true };
+  if (group.groupStatus === "partial_failure") {
+    const failedPlatforms = group.posts.filter((p) => p.status === "failed").map((p) => providerLabel(p.provider));
+    return { text: `Failed: ${failedPlatforms.join(", ")}`, color: "text-red-400", pulse: false };
   }
-  // scheduled + past due
-  const diffMs = new Date(post.scheduled_for).getTime() - Date.now();
+  if (group.groupStatus === "posting") {
+    return { text: "Posting\u2026", color: "text-amber-400", pulse: true };
+  }
+  const diffMs = new Date(group.scheduled_for).getTime() - Date.now();
   if (diffMs < 0) {
     return { text: "Posting soon\u2026", color: "text-amber-400", pulse: false };
   }
-  return { text: getRelativeTime(post.scheduled_for), color: getRelativeColor(post.scheduled_for), pulse: false };
+  return { text: getRelativeTime(group.scheduled_for), color: "text-blue-400", pulse: false };
 }
 
 export default function ScheduledPage() {
@@ -128,7 +174,7 @@ export default function ScheduledPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, description, provider, scheduled_for, status, created_at, last_error")
+        .select("id, title, description, provider, scheduled_for, status, created_at, last_error, group_id")
         .eq("team_id", teamId)
         .in("status", ["scheduled", "ig_processing", "failed"])
         .order("scheduled_for", { ascending: true });
@@ -140,18 +186,23 @@ export default function ScheduledPage() {
     load();
   }, []);
 
-  async function handleRetry(postId: string) {
-    setRetrying(postId);
-    try {
-      const { error } = await supabase
-        .from("scheduled_posts")
-        .update({ status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() })
-        .eq("id", postId);
+  const groups = groupPosts(posts);
 
-      if (error) throw error;
+  async function handleRetry(groupId: string, postIds: string[]) {
+    setRetrying(groupId);
+    try {
+      for (const postId of postIds) {
+        const { error } = await supabase
+          .from("scheduled_posts")
+          .update({ status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() })
+          .eq("id", postId);
+        if (error) throw error;
+      }
 
       setPosts((prev) =>
-        prev.map((p) => p.id === postId ? { ...p, status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() } : p)
+        prev.map((p) =>
+          postIds.includes(p.id) ? { ...p, status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() } : p
+        )
       );
     } catch (e: any) {
       alert(e?.message || "Failed to retry");
@@ -160,17 +211,18 @@ export default function ScheduledPage() {
     }
   }
 
-  async function handleCancel(postId: string) {
-    if (!confirm("Cancel this scheduled post?")) return;
-    setCanceling(postId);
+  async function handleCancel(groupId: string, postIds: string[]) {
+    if (!confirm(`Cancel ${postIds.length > 1 ? "these scheduled posts" : "this scheduled post"}?`)) return;
+    setCanceling(groupId);
     try {
-      const { error } = await supabase
-        .from("scheduled_posts")
-        .delete()
-        .eq("id", postId);
-
-      if (error) throw error;
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      for (const postId of postIds) {
+        const { error } = await supabase
+          .from("scheduled_posts")
+          .delete()
+          .eq("id", postId);
+        if (error) throw error;
+      }
+      setPosts((prev) => prev.filter((p) => !postIds.includes(p.id)));
     } catch (e: any) {
       alert(e?.message || "Failed to cancel");
     } finally {
@@ -210,7 +262,7 @@ export default function ScheduledPage() {
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Scheduled</h1>
               <p className="text-sm text-white/40">
-                {loading ? "Loading..." : `${posts.length} post${posts.length === 1 ? "" : "s"} queued`}
+                {loading ? "Loading..." : `${groups.length} post${groups.length === 1 ? "" : "s"} queued`}
               </p>
             </div>
           </div>
@@ -245,7 +297,7 @@ export default function ScheduledPage() {
                 </div>
               ))}
             </div>
-          ) : posts.length === 0 ? (
+          ) : groups.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
               <div className="inline-flex rounded-xl p-3 bg-blue-500/10 text-blue-400 mx-auto">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -263,66 +315,80 @@ export default function ScheduledPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-              {posts.map((post) => {
-                const statusInfo = getStatusDisplay(post);
+              {groups.map((group) => {
+                const statusInfo = getGroupStatusDisplay(group);
+                const allPostIds = group.posts.map((p) => p.id);
+                const failedPostIds = group.posts.filter((p) => p.status === "failed").map((p) => p.id);
+                const hasFailed = failedPostIds.length > 0;
+
                 return (
                   <div
-                    key={post.id}
+                    key={group.groupId}
                     className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
                   >
                     <div className="flex items-center gap-4">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-white/90 truncate">
-                          {post.title || "Untitled"}
+                          {group.title || "Untitled"}
                         </p>
                       </div>
 
-                      <span className="shrink-0 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-400 border border-blue-500/20">
-                        {providerLabel(post.provider)}
-                      </span>
+                      <div className="shrink-0 flex items-center gap-1.5">
+                        {group.posts.map((post) => (
+                          <span
+                            key={post.id}
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${getStatusBadgeStyle(post.status)}`}
+                            title={`${providerLabel(post.provider)}: ${post.status}${post.last_error ? ` - ${post.last_error}` : ""}`}
+                          >
+                            {providerLabel(post.provider)}
+                          </span>
+                        ))}
+                      </div>
 
                       <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
-                        {formatDate(post.scheduled_for)}, {formatTime(post.scheduled_for)}
+                        {formatDate(group.scheduled_for)}, {formatTime(group.scheduled_for)}
                       </span>
 
                       <span className={`shrink-0 text-xs font-semibold tabular-nums text-right ${statusInfo.color} ${statusInfo.pulse ? "animate-pulse" : ""}`}>
                         {statusInfo.text}
                       </span>
                     </div>
-                    {post.status === "failed" ? (
+
+                    {hasFailed ? (
                       <div className="mt-2 flex items-center gap-3">
                         <p className="text-xs text-red-400/70 flex-1">
-                          Upload failed
+                          {failedPostIds.length === group.posts.length
+                            ? "Upload failed"
+                            : `Failed on ${group.posts.filter((p) => p.status === "failed").map((p) => providerLabel(p.provider)).join(", ")}`}
                         </p>
                         <button
-                          onClick={() => handleCancel(post.id)}
-                          disabled={canceling === post.id}
+                          onClick={() => handleCancel(group.groupId, allPostIds)}
+                          disabled={canceling === group.groupId}
                           className="shrink-0 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
                         >
-                          {canceling === post.id ? "Removing..." : "Remove"}
+                          {canceling === group.groupId ? "Removing..." : "Remove"}
                         </button>
                         <button
-                          onClick={() => handleRetry(post.id)}
-                          disabled={retrying === post.id}
+                          onClick={() => handleRetry(group.groupId, failedPostIds)}
+                          disabled={retrying === group.groupId}
                           className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors disabled:opacity-50"
                         >
-                          {retrying === post.id ? "Retrying..." : "Retry"}
+                          {retrying === group.groupId ? "Retrying..." : "Retry failed"}
                         </button>
                       </div>
                     ) : (
                       <div className="mt-2 flex items-center gap-3">
                         <p className="text-xs text-white/20 flex-1">
-                          {post.description ? (
-                            <span className="text-white/30 line-clamp-1">{post.description} · </span>
+                          {group.description ? (
+                            <span className="text-white/30 line-clamp-1">{group.description}</span>
                           ) : null}
-                          {getTimeEstimate(post.provider)}
                         </p>
                         <button
-                          onClick={() => handleCancel(post.id)}
-                          disabled={canceling === post.id}
+                          onClick={() => handleCancel(group.groupId, allPostIds)}
+                          disabled={canceling === group.groupId}
                           className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/40 hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-50"
                         >
-                          {canceling === post.id ? "Canceling..." : "Cancel"}
+                          {canceling === group.groupId ? "Canceling..." : "Cancel"}
                         </button>
                       </div>
                     )}

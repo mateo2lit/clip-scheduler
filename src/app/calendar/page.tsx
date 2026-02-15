@@ -10,6 +10,14 @@ type ScheduledPost = {
   provider: string | null;
   scheduled_for: string;
   status: string;
+  group_id: string | null;
+};
+
+type PostGroup = {
+  groupId: string;
+  title: string | null;
+  scheduled_for: string;
+  posts: ScheduledPost[];
 };
 
 const PROVIDER_STYLES: Record<string, { bg: string; text: string; dot: string; label: string }> = {
@@ -17,6 +25,7 @@ const PROVIDER_STYLES: Record<string, { bg: string; text: string; dot: string; l
   tiktok: { bg: "bg-white/10", text: "text-white/70", dot: "bg-white", label: "TikTok" },
   instagram: { bg: "bg-pink-500/15", text: "text-pink-400", dot: "bg-pink-500", label: "Instagram" },
   facebook: { bg: "bg-blue-500/15", text: "text-blue-400", dot: "bg-blue-500", label: "Facebook" },
+  linkedin: { bg: "bg-sky-500/15", text: "text-sky-400", dot: "bg-sky-500", label: "LinkedIn" },
   x: { bg: "bg-white/10", text: "text-white/70", dot: "bg-white", label: "X" },
 };
 
@@ -74,6 +83,23 @@ function getStyle(provider: string | null) {
   return PROVIDER_STYLES[(provider || "").toLowerCase()] || { bg: "bg-white/10", text: "text-white/50", dot: "bg-white/40", label: provider || "Unknown" };
 }
 
+function groupPosts(posts: ScheduledPost[]): PostGroup[] {
+  const groups = new Map<string, ScheduledPost[]>();
+
+  for (const post of posts) {
+    const key = post.group_id || post.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(post);
+  }
+
+  return Array.from(groups.entries()).map(([groupId, groupPosts]) => ({
+    groupId,
+    title: groupPosts[0].title,
+    scheduled_for: groupPosts[0].scheduled_for,
+    posts: groupPosts,
+  }));
+}
+
 export default function CalendarPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,10 +153,9 @@ export default function CalendarPage() {
         return;
       }
 
-      // Only fetch scheduled + posted (no failed)
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, provider, scheduled_for, status")
+        .select("id, title, provider, scheduled_for, status, group_id")
         .eq("team_id", teamId)
         .in("status", ["scheduled", "ig_processing", "posted"])
         .order("scheduled_for", { ascending: true });
@@ -142,13 +167,18 @@ export default function CalendarPage() {
     load();
   }, []);
 
+  const allGroups = groupPosts(posts);
+
+  function getGroupsForDate(date: Date) {
+    return allGroups.filter((g) => isSameDay(new Date(g.scheduled_for), date));
+  }
+
   function getPostsForDate(date: Date) {
     return posts.filter((p) => isSameDay(new Date(p.scheduled_for), date));
   }
 
-  // Selected day posts sorted by time
-  const selectedDayPosts = selectedDate
-    ? getPostsForDate(selectedDate).sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime())
+  const selectedDayGroups = selectedDate
+    ? getGroupsForDate(selectedDate).sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime())
     : [];
 
   return (
@@ -183,7 +213,7 @@ export default function CalendarPage() {
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Calendar</h1>
               <p className="text-sm text-white/40">
-                {loading ? "Loading..." : `${posts.length} post${posts.length === 1 ? "" : "s"}`}
+                {loading ? "Loading..." : `${allGroups.length} post${allGroups.length === 1 ? "" : "s"}`}
               </p>
             </div>
           </div>
@@ -251,6 +281,7 @@ export default function CalendarPage() {
               {/* Day cells */}
               <div className="grid grid-cols-7">
                 {cells.map((cell, i) => {
+                  const dayGroups = getGroupsForDate(cell.date);
                   const dayPosts = getPostsForDate(cell.date);
                   const today = isToday(cell.date);
                   const isSelected = selectedDate && isSameDay(cell.date, selectedDate);
@@ -275,44 +306,46 @@ export default function CalendarPage() {
                         {cell.day}
                       </div>
 
-                      {/* Condensed: show platform dots when there are posts */}
-                      {dayPosts.length > 0 && (
+                      {dayGroups.length > 0 && (
                         <div className="flex flex-wrap gap-1 px-0.5">
-                          {dayPosts.length <= 6 ? (
-                            // Show individual pills for up to 6 posts
-                            dayPosts.map((post) => {
-                              const style = getStyle(post.provider);
-                              return (
-                                <div
-                                  key={post.id}
-                                  className={`rounded px-1 py-px text-[9px] leading-tight truncate max-w-full ${style.bg} ${style.text}`}
-                                  title={`${post.title || "Untitled"} — ${style.label} — ${formatTime(post.scheduled_for)}`}
-                                >
-                                  {post.title || "Untitled"}
-                                </div>
-                              );
-                            })
+                          {dayGroups.length <= 4 ? (
+                            dayGroups.map((group) => (
+                              <div
+                                key={group.groupId}
+                                className="rounded px-1 py-px text-[9px] leading-tight truncate max-w-full bg-white/10 text-white/60 flex items-center gap-0.5"
+                                title={`${group.title || "Untitled"} — ${formatTime(group.scheduled_for)}`}
+                              >
+                                {group.posts.length > 1 && (
+                                  <span className="flex gap-px mr-0.5">
+                                    {group.posts.map((p) => {
+                                      const style = getStyle(p.provider);
+                                      return <span key={p.id} className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />;
+                                    })}
+                                  </span>
+                                )}
+                                {group.posts.length === 1 && (() => {
+                                  const style = getStyle(group.posts[0].provider);
+                                  return <span className={`w-1.5 h-1.5 rounded-full ${style.dot} mr-0.5`} />;
+                                })()}
+                                <span className="truncate">{group.title || "Untitled"}</span>
+                              </div>
+                            ))
                           ) : (
-                            // 7+ posts: show platform dot summary
                             <>
-                              {dayPosts.slice(0, 2).map((post) => {
-                                const style = getStyle(post.provider);
-                                return (
-                                  <div
-                                    key={post.id}
-                                    className={`rounded px-1 py-px text-[9px] leading-tight truncate max-w-full ${style.bg} ${style.text}`}
-                                  >
-                                    {post.title || "Untitled"}
-                                  </div>
-                                );
-                              })}
+                              {dayGroups.slice(0, 2).map((group) => (
+                                <div
+                                  key={group.groupId}
+                                  className="rounded px-1 py-px text-[9px] leading-tight truncate max-w-full bg-white/10 text-white/60"
+                                >
+                                  {group.title || "Untitled"}
+                                </div>
+                              ))}
                               <div className="flex items-center gap-0.5 mt-0.5">
-                                {/* Show unique platform dots */}
                                 {[...new Set(dayPosts.slice(2).map((p) => p.provider))].map((prov) => {
                                   const style = getStyle(prov);
                                   return <div key={prov} className={`w-2 h-2 rounded-full ${style.dot}`} title={style.label} />;
                                 })}
-                                <span className="text-[9px] text-white/30 ml-0.5">+{dayPosts.length - 2}</span>
+                                <span className="text-[9px] text-white/30 ml-0.5">+{dayGroups.length - 2}</span>
                               </div>
                             </>
                           )}
@@ -347,12 +380,12 @@ export default function CalendarPage() {
                   <div className="px-5 py-4 border-b border-white/5">
                     <h3 className="font-semibold">{formatFullDate(selectedDate)}</h3>
                     <p className="text-xs text-white/40 mt-0.5">
-                      {selectedDayPosts.length} post{selectedDayPosts.length !== 1 ? "s" : ""}
+                      {selectedDayGroups.length} post{selectedDayGroups.length !== 1 ? "s" : ""}
                       {isToday(selectedDate) ? " · Today" : ""}
                     </p>
                   </div>
 
-                  {selectedDayPosts.length === 0 ? (
+                  {selectedDayGroups.length === 0 ? (
                     <div className="px-5 py-10 text-center">
                       <p className="text-sm text-white/30">No posts this day</p>
                       <Link
@@ -364,30 +397,34 @@ export default function CalendarPage() {
                     </div>
                   ) : (
                     <div className="divide-y divide-white/5 max-h-[60vh] overflow-y-auto">
-                      {selectedDayPosts.map((post) => {
-                        const style = getStyle(post.provider);
-                        const isPast = post.status === "posted";
-                        return (
-                          <div key={post.id} className="px-5 py-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs text-white/40 tabular-nums w-16 shrink-0">
-                                {formatTime(post.scheduled_for)}
-                              </span>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${style.bg} ${style.text}`}>
-                                {style.label}
-                              </span>
-                              {isPast && (
-                                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
-                                  Posted
-                                </span>
-                              )}
+                      {selectedDayGroups.map((group) => (
+                        <div key={group.groupId} className="px-5 py-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-white/40 tabular-nums w-16 shrink-0">
+                              {formatTime(group.scheduled_for)}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {group.posts.map((post) => {
+                                const style = getStyle(post.provider);
+                                const isPast = post.status === "posted";
+                                return (
+                                  <span
+                                    key={post.id}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                      isPast ? "bg-emerald-500/10 text-emerald-400" : `${style.bg} ${style.text}`
+                                    }`}
+                                  >
+                                    {style.label}
+                                  </span>
+                                );
+                              })}
                             </div>
-                            <p className="text-sm text-white/80 truncate pl-16">
-                              {post.title || "Untitled"}
-                            </p>
                           </div>
-                        );
-                      })}
+                          <p className="text-sm text-white/80 truncate pl-16">
+                            {group.title || "Untitled"}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </>

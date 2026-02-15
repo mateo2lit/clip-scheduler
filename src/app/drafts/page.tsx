@@ -10,6 +10,15 @@ type DraftPost = {
   description: string | null;
   provider: string | null;
   created_at: string;
+  group_id: string | null;
+};
+
+type DraftGroup = {
+  groupId: string;
+  title: string | null;
+  description: string | null;
+  created_at: string;
+  posts: DraftPost[];
 };
 
 function formatDate(iso: string) {
@@ -33,8 +42,27 @@ function providerLabel(provider: string | null) {
     instagram: "Instagram",
     x: "X",
     facebook: "Facebook",
+    linkedin: "LinkedIn",
   };
   return labels[provider.toLowerCase()] || provider;
+}
+
+function groupDrafts(drafts: DraftPost[]): DraftGroup[] {
+  const groups = new Map<string, DraftPost[]>();
+
+  for (const draft of drafts) {
+    const key = draft.group_id || draft.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(draft);
+  }
+
+  return Array.from(groups.entries()).map(([groupId, groupPosts]) => ({
+    groupId,
+    title: groupPosts[0].title,
+    description: groupPosts[0].description,
+    created_at: groupPosts[0].created_at,
+    posts: groupPosts,
+  }));
 }
 
 export default function DraftsPage() {
@@ -69,7 +97,7 @@ export default function DraftsPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, description, provider, created_at")
+        .select("id, title, description, provider, created_at, group_id")
         .eq("team_id", teamId)
         .eq("status", "draft")
         .order("created_at", { ascending: false });
@@ -80,6 +108,8 @@ export default function DraftsPage() {
 
     load();
   }, []);
+
+  const groups = groupDrafts(drafts);
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -113,7 +143,7 @@ export default function DraftsPage() {
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Drafts</h1>
               <p className="text-sm text-white/40">
-                {loading ? "Loading..." : `${drafts.length} draft${drafts.length === 1 ? "" : "s"} saved`}
+                {loading ? "Loading..." : `${groups.length} draft${groups.length === 1 ? "" : "s"} saved`}
               </p>
             </div>
           </div>
@@ -140,7 +170,7 @@ export default function DraftsPage() {
                 </div>
               ))}
             </div>
-          ) : drafts.length === 0 ? (
+          ) : groups.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
               <div className="inline-flex rounded-xl p-3 bg-amber-500/10 text-amber-400 mx-auto">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -158,24 +188,31 @@ export default function DraftsPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-              {drafts.map((draft) => (
+              {groups.map((group) => (
                 <div
-                  key={draft.id}
+                  key={group.groupId}
                   className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-white/90 truncate">
-                        {draft.title || "Untitled draft"}
+                        {group.title || "Untitled draft"}
                       </p>
                     </div>
 
-                    <span className="shrink-0 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/20">
-                      {providerLabel(draft.provider)}
-                    </span>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {group.posts.map((draft) => (
+                        <span
+                          key={draft.id}
+                          className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/20"
+                        >
+                          {providerLabel(draft.provider)}
+                        </span>
+                      ))}
+                    </div>
 
                     <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
-                      {formatDate(draft.created_at)}
+                      {formatDate(group.created_at)}
                     </span>
 
                     <button className="shrink-0 flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
@@ -185,9 +222,9 @@ export default function DraftsPage() {
                       </svg>
                     </button>
                   </div>
-                  {draft.description && (
+                  {group.description && (
                     <p className="text-xs text-white/30 mt-1 line-clamp-1">
-                      {draft.description}
+                      {group.description}
                     </p>
                   )}
                 </div>

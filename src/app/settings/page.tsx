@@ -603,6 +603,59 @@ export default function SettingsPage() {
     }
   }
 
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState({
+    notify_post_success: true,
+    notify_post_failed: true,
+    notify_reconnect: true,
+  });
+  const [notifLoading, setNotifLoading] = useState(true);
+
+  const loadNotifPrefs = useCallback(async () => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/notifications/preferences", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.ok && json.preferences) {
+        setNotifPrefs({
+          notify_post_success: json.preferences.notify_post_success,
+          notify_post_failed: json.preferences.notify_post_failed,
+          notify_reconnect: json.preferences.notify_reconnect,
+        });
+      }
+    } catch {}
+    setNotifLoading(false);
+  }, []);
+
+  async function updateNotifPref(key: string, value: boolean) {
+    const prev = { ...notifPrefs };
+    setNotifPrefs((p) => ({ ...p, [key]: value }));
+
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ [key]: value }),
+      });
+
+      const json = await res.json();
+      if (!json.ok) {
+        setNotifPrefs(prev);
+      }
+    } catch {
+      setNotifPrefs(prev);
+    }
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -612,7 +665,8 @@ export default function SettingsPage() {
     loadConnectedAccounts();
     loadTeamInfo();
     loadPlanInfo();
-  }, [loadTeamInfo, loadPlanInfo]);
+    loadNotifPrefs();
+  }, [loadTeamInfo, loadPlanInfo, loadNotifPrefs]);
 
   const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
 
@@ -1129,24 +1183,62 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Preferences Section */}
+        {/* Notifications Section */}
         <section className="mt-10">
-          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Preferences</h2>
-          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Notifications</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium">Email notifications</div>
-                  <div className="text-sm text-white/40 mt-0.5">Get notified when posts go live</div>
+                  <div className="font-medium">Post uploaded successfully</div>
+                  <div className="text-sm text-white/40 mt-0.5">Get emailed when your post goes live</div>
                 </div>
                 <button
-                  disabled
-                  className="rounded-full bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/40 cursor-not-allowed"
+                  onClick={() => updateNotifPref("notify_post_success", !notifPrefs.notify_post_success)}
+                  disabled={notifLoading}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${notifPrefs.notify_post_success ? "bg-emerald-500" : "bg-white/10"}`}
                 >
-                  Coming soon
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${notifPrefs.notify_post_success ? "translate-x-5" : "translate-x-0"}`} />
                 </button>
               </div>
             </div>
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Post failed to upload</div>
+                  <div className="text-sm text-white/40 mt-0.5">Get emailed when an upload fails</div>
+                </div>
+                <button
+                  onClick={() => updateNotifPref("notify_post_failed", !notifPrefs.notify_post_failed)}
+                  disabled={notifLoading}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${notifPrefs.notify_post_failed ? "bg-emerald-500" : "bg-white/10"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${notifPrefs.notify_post_failed ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            </div>
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Platform needs reconnection</div>
+                  <div className="text-sm text-white/40 mt-0.5">Get emailed when a platform account expires</div>
+                </div>
+                <button
+                  onClick={() => updateNotifPref("notify_reconnect", !notifPrefs.notify_reconnect)}
+                  disabled={notifLoading}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${notifPrefs.notify_reconnect ? "bg-emerald-500" : "bg-white/10"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${notifPrefs.notify_reconnect ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Preferences Section */}
+        <section className="mt-10">
+          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Preferences</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>

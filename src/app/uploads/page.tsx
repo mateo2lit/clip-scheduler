@@ -477,9 +477,11 @@ export default function UploadsPage() {
 
       // Create a separate scheduled post for each selected platform
       const errors: string[] = [];
+      const groupId = crypto.randomUUID();
 
       for (const platform of selectedPlatforms) {
         const body: any = {
+          group_id: groupId,
           upload_id: lastUploadId,
           provider: platform,
           title: title || null,

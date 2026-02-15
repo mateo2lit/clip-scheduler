@@ -13,6 +13,15 @@ type PostedPost = {
   posted_at: string | null;
   platform_post_id: string | null;
   status: string;
+  group_id: string | null;
+};
+
+type PostGroup = {
+  groupId: string;
+  title: string | null;
+  description: string | null;
+  posted_at: string | null;
+  posts: PostedPost[];
 };
 
 function formatDate(iso: string | null) {
@@ -50,6 +59,7 @@ function providerLabel(provider: string | null) {
     instagram: "Instagram",
     x: "X",
     facebook: "Facebook",
+    linkedin: "LinkedIn",
   };
   return labels[provider.toLowerCase()] || provider;
 }
@@ -60,6 +70,24 @@ function getPostUrl(provider: string | null, platformPostId: string | null) {
     return `https://youtube.com/watch?v=${platformPostId}`;
   }
   return null;
+}
+
+function groupPosts(posts: PostedPost[]): PostGroup[] {
+  const groups = new Map<string, PostedPost[]>();
+
+  for (const post of posts) {
+    const key = post.group_id || post.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(post);
+  }
+
+  return Array.from(groups.entries()).map(([groupId, groupPosts]) => ({
+    groupId,
+    title: groupPosts[0].title,
+    description: groupPosts[0].description,
+    posted_at: groupPosts[0].posted_at,
+    posts: groupPosts,
+  }));
 }
 
 export default function PostedPage() {
@@ -94,7 +122,7 @@ export default function PostedPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status")
+        .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status, group_id")
         .eq("team_id", teamId)
         .eq("status", "posted")
         .order("posted_at", { ascending: false });
@@ -105,6 +133,8 @@ export default function PostedPage() {
 
     load();
   }, []);
+
+  const groups = groupPosts(posts);
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -138,7 +168,7 @@ export default function PostedPage() {
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Posted</h1>
               <p className="text-sm text-white/40">
-                {loading ? "Loading..." : `${posts.length} post${posts.length === 1 ? "" : "s"} published`}
+                {loading ? "Loading..." : `${groups.length} post${groups.length === 1 ? "" : "s"} published`}
               </p>
             </div>
           </div>
@@ -165,7 +195,7 @@ export default function PostedPage() {
                 </div>
               ))}
             </div>
-          ) : posts.length === 0 ? (
+          ) : groups.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
               <div className="inline-flex rounded-xl p-3 bg-emerald-500/10 text-emerald-400 mx-auto">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -183,52 +213,64 @@ export default function PostedPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-              {posts.map((post) => {
-                const postUrl = getPostUrl(post.provider, post.platform_post_id);
-                return (
-                  <div
-                    key={post.id}
-                    className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-white/90 truncate">
-                          {post.title || "Untitled"}
-                        </p>
-                      </div>
+              {groups.map((group) => (
+                <div
+                  key={group.groupId}
+                  className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-white/90 truncate">
+                        {group.title || "Untitled"}
+                      </p>
+                    </div>
 
-                      <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
-                        {providerLabel(post.provider)}
-                      </span>
-
-                      <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
-                        {formatDate(post.posted_at)}, {formatTime(post.posted_at)}
-                      </span>
-
-                      {postUrl ? (
-                        <a
-                          href={postUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {group.posts.map((post) => (
+                        <span
+                          key={post.id}
+                          className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20"
                         >
-                          View
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                          </svg>
-                        </a>
-                      ) : (
-                        <span className="shrink-0 text-xs text-white/20">Published</span>
+                          {providerLabel(post.provider)}
+                        </span>
+                      ))}
+                    </div>
+
+                    <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
+                      {formatDate(group.posted_at)}, {formatTime(group.posted_at)}
+                    </span>
+
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {group.posts.map((post) => {
+                        const postUrl = getPostUrl(post.provider, post.platform_post_id);
+                        return postUrl ? (
+                          <a
+                            key={post.id}
+                            href={postUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
+                            title={`View on ${providerLabel(post.provider)}`}
+                          >
+                            View
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                          </a>
+                        ) : null;
+                      })}
+                      {group.posts.every((p) => !getPostUrl(p.provider, p.platform_post_id)) && (
+                        <span className="text-xs text-white/20">Published</span>
                       )}
                     </div>
-                    {post.description && (
-                      <p className="text-xs text-white/30 mt-1 line-clamp-1">
-                        {post.description}
-                      </p>
-                    )}
                   </div>
-                );
-              })}
+                  {group.description && (
+                    <p className="text-xs text-white/30 mt-1 line-clamp-1">
+                      {group.description}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

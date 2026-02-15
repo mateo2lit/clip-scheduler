@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       facebook_settings,
       instagram_settings,
       thumbnail_path,
+      group_id,
     } = body;
 
     const isDraft = requestedStatus === "draft";
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
       privacy_status: privacy_status ?? "private",
       scheduled_for: scheduled_for || null,
       status: isDraft ? "draft" : "scheduled",
+      group_id: group_id || undefined,
     };
 
     if (thumbnail_path) {
