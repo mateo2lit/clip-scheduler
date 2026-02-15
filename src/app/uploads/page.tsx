@@ -148,6 +148,9 @@ export default function UploadsPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["youtube"]);
   const [scheduling, setScheduling] = useState(false);
 
+  // AI suggestions
+  const [aiLoading, setAiLoading] = useState(false);
+
   // Toolbar state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<string>("Smileys");
@@ -348,6 +351,38 @@ export default function UploadsPage() {
     const updated = ytPresets.filter((p) => p.name !== name);
     setYtPresets(updated);
     localStorage.setItem(STORAGE_KEY_YT_PRESETS, JSON.stringify(updated));
+  }
+
+  async function handleAiSuggest() {
+    setAiLoading(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Not logged in");
+
+      const res = await fetch("/api/ai/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title,
+          description,
+          platforms: selectedPlatforms,
+          filename: file?.name || "",
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to get suggestions");
+
+      const s = data.suggestions;
+      if (s.title) setTitle(s.title);
+      if (s.description) setDescription(s.description);
+      if (s.hashtags?.length) setHashtags(s.hashtags);
+    } catch (e: any) {
+      alert(e?.message || "AI suggestion failed");
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   async function doUpload() {
@@ -633,7 +668,20 @@ export default function UploadsPage() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
               {/* Title */}
               <div className="p-5 border-b border-white/5">
-                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="w-full bg-transparent text-lg font-medium text-white placeholder-white/30 outline-none" />
+                <div className="flex items-center gap-3">
+                  <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="flex-1 bg-transparent text-lg font-medium text-white placeholder-white/30 outline-none" />
+                  <button
+                    onClick={handleAiSuggest}
+                    disabled={aiLoading}
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 px-3 py-1.5 text-xs text-purple-300 hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 shrink-0"
+                    title="AI suggestions for title, description, and hashtags"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                    </svg>
+                    {aiLoading ? "Thinking..." : "AI Suggest"}
+                  </button>
+                </div>
               </div>
 
               {/* Description */}
