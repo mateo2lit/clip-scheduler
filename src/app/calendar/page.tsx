@@ -290,64 +290,45 @@ export default function CalendarPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedDate(cell.date)}
-                      className={`min-h-[120px] border-b border-r border-white/5 p-1.5 text-left transition-colors ${
+                      className={`min-h-[120px] border-b border-r border-white/5 p-1.5 text-left transition-colors flex flex-col ${
                         !cell.currentMonth ? "bg-white/[0.01]" : ""
                       } ${i % 7 === 6 ? "border-r-0" : ""} ${
                         isSelected ? "bg-white/[0.06] ring-1 ring-inset ring-blue-500/40" : "hover:bg-white/[0.03]"
                       }`}
                     >
-                      <div className={`text-xs mb-1 ${
+                      <div className={`text-xs shrink-0 ${
                         today
                           ? "inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white font-bold"
                           : cell.currentMonth
-                            ? "text-white/60 pl-1"
-                            : "text-white/20 pl-1"
+                            ? "text-white/60"
+                            : "text-white/20"
                       }`}>
                         {cell.day}
                       </div>
 
                       {dayGroups.length > 0 && (
-                        <div className="flex flex-wrap gap-1 px-0.5">
-                          {dayGroups.length <= 4 ? (
-                            dayGroups.map((group) => (
-                              <div
-                                key={group.groupId}
-                                className="rounded px-1 py-px text-[9px] leading-tight truncate max-w-full bg-white/10 text-white/60 flex items-center gap-0.5"
-                                title={`${group.title || "Untitled"} — ${formatTime(group.scheduled_for)}`}
-                              >
-                                {group.posts.length > 1 && (
-                                  <span className="flex gap-px mr-0.5">
-                                    {group.posts.map((p) => {
-                                      const style = getStyle(p.provider);
-                                      return <span key={p.id} className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />;
-                                    })}
-                                  </span>
-                                )}
-                                {group.posts.length === 1 && (() => {
-                                  const style = getStyle(group.posts[0].provider);
-                                  return <span className={`w-1.5 h-1.5 rounded-full ${style.dot} mr-0.5`} />;
-                                })()}
-                                <span className="truncate">{group.title || "Untitled"}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <>
-                              {dayGroups.slice(0, 2).map((group) => (
-                                <div
-                                  key={group.groupId}
-                                  className="rounded px-1 py-px text-[9px] leading-tight truncate max-w-full bg-white/10 text-white/60"
-                                >
-                                  {group.title || "Untitled"}
-                                </div>
-                              ))}
-                              <div className="flex items-center gap-0.5 mt-0.5">
-                                {[...new Set(dayPosts.slice(2).map((p) => p.provider))].map((prov) => {
-                                  const style = getStyle(prov);
-                                  return <div key={prov} className={`w-2 h-2 rounded-full ${style.dot}`} title={style.label} />;
-                                })}
-                                <span className="text-[9px] text-white/30 ml-0.5">+{dayGroups.length - 2}</span>
-                              </div>
-                            </>
+                        <div className="flex flex-col gap-0.5 mt-1 min-w-0 overflow-hidden">
+                          {(dayGroups.length <= 3 ? dayGroups : dayGroups.slice(0, 2)).map((group) => (
+                            <div
+                              key={group.groupId}
+                              className="rounded px-1 py-px text-[9px] leading-tight truncate bg-white/10 text-white/60 flex items-center gap-0.5"
+                              title={`${group.title || "Untitled"} — ${formatTime(group.scheduled_for)}`}
+                            >
+                              {group.posts.map((p) => {
+                                const style = getStyle(p.provider);
+                                return <span key={p.id} className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />;
+                              })}
+                              <span className="truncate ml-0.5">{group.title || "Untitled"}</span>
+                            </div>
+                          ))}
+                          {dayGroups.length > 3 && (
+                            <div className="flex items-center gap-0.5">
+                              {[...new Set(dayGroups.slice(2).flatMap((g) => g.posts.map((p) => p.provider)))].map((prov) => {
+                                const style = getStyle(prov);
+                                return <div key={prov} className={`w-2 h-2 rounded-full ${style.dot}`} title={style.label} />;
+                              })}
+                              <span className="text-[9px] text-white/30 ml-0.5">+{dayGroups.length - 2}</span>
+                            </div>
                           )}
                         </div>
                       )}
