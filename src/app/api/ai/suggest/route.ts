@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { title, description, platforms, filename, existingHashtags } = body;
+    const { title, description, platforms, filename, existingHashtags, context } = body;
 
     const platformList = (platforms || ["youtube"]).join(", ");
     const existingTags = (existingHashtags || []).join(", ");
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
           content: `You are a social media algorithm expert. Your job is to suggest hashtags that maximize discoverability, reach, and engagement for content creators.
 
 Video info:
+- What it's about: ${context || "(not specified)"}
 - File name: ${filename || "unknown"}
 - Title: ${title || "(none)"}
 - Description: ${description || "(none)"}
