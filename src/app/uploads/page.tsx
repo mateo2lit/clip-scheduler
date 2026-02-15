@@ -390,23 +390,6 @@ export default function UploadsPage() {
       setLastUploadId(out.id);
       setTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
 
-      // Upload thumbnail to storage if one was selected
-      if (thumbnail) {
-        try {
-          const thumbKey = `${pathPrefix}/thumbnails/${Date.now()}-${thumbnail.name}`.replace(/\s+/g, "_");
-          const thumbResult = await supabase.storage.from(BUCKET).upload(thumbKey, thumbnail, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: thumbnail.type || "image/jpeg",
-          });
-          if (!thumbResult.error) {
-            setLastThumbnailPath(thumbKey);
-          }
-        } catch {
-          // Non-fatal — thumbnail upload failure shouldn't block the video
-        }
-      }
-
       setTimeout(() => setStep("details"), 500);
     } catch (e: any) {
       console.error(e);
@@ -427,6 +410,26 @@ export default function UploadsPage() {
 
       const scheduledForIso = scheduleType === "now" ? new Date().toISOString() : toIsoFromDatetimeLocal(scheduledForLocal);
 
+      // Upload thumbnail to storage if one was selected
+      let thumbnailPath = lastThumbnailPath;
+      if (thumbnail && !thumbnailPath) {
+        try {
+          const pathPrefix = teamId || userId;
+          const thumbKey = `${pathPrefix}/thumbnails/${Date.now()}-${thumbnail.name}`.replace(/\s+/g, "_");
+          const thumbResult = await supabase.storage.from(BUCKET).upload(thumbKey, thumbnail, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: thumbnail.type || "image/jpeg",
+          });
+          if (!thumbResult.error) {
+            thumbnailPath = thumbKey;
+            setLastThumbnailPath(thumbKey);
+          }
+        } catch {
+          // Non-fatal
+        }
+      }
+
       // Create a separate scheduled post for each selected platform
       const errors: string[] = [];
 
@@ -442,8 +445,8 @@ export default function UploadsPage() {
           hashtags,
         };
 
-        if (platform === "youtube" && lastThumbnailPath) {
-          body.thumbnail_path = lastThumbnailPath;
+        if (platform === "youtube" && thumbnailPath) {
+          body.thumbnail_path = thumbnailPath;
         }
 
         if (platform === "youtube") {
