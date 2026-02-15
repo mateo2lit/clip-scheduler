@@ -39,9 +39,11 @@ async function getSignedDownloadUrl(params: {
  * Upload a video to LinkedIn using the Video API.
  *
  * Flow:
- * 1. Initialize upload — register the video with LinkedIn
- * 2. Upload binary — PUT the video bytes to LinkedIn's upload URL
- * 3. Create post — publish the video with text
+ * 1. Download video from Supabase
+ * 2. Initialize upload — register the video with LinkedIn (get upload URLs + video URN)
+ * 3. Upload binary parts — PUT each chunk to LinkedIn's upload URLs (collect ETags)
+ * 4. Finalize upload — link all parts together
+ * 5. Create post — publish the video with text
  */
 export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs): Promise<{
   linkedinPostId: string;
@@ -63,7 +65,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
   assertOk(storagePath, "Missing storagePath");
   assertOk(title, "Missing title");
 
-  const headers = {
+  const apiHeaders = {
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",
     "LinkedIn-Version": "202601",
@@ -84,7 +86,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
   // 2) Initialize video upload with actual file size
   const initRes = await fetch("https://api.linkedin.com/rest/videos?action=initializeUpload", {
     method: "POST",
-    headers,
+    headers: apiHeaders,
     body: JSON.stringify({
       initializeUploadRequest: {
         owner: personUrn,
@@ -101,34 +103,66 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
   }
 
   const initData = await initRes.json();
-  const uploadUrl = initData.value?.uploadInstructions?.[0]?.uploadUrl;
+  const uploadInstructions = initData.value?.uploadInstructions;
   const videoUrn = initData.value?.video;
+  const uploadToken = initData.value?.uploadToken ?? "";
 
-  if (!uploadUrl || !videoUrn) {
-    throw new Error(`LinkedIn video init did not return uploadUrl or video URN. Response: ${JSON.stringify(initData)}`);
+  if (!uploadInstructions?.length || !videoUrn) {
+    throw new Error(`LinkedIn video init missing uploadInstructions or video URN. Response: ${JSON.stringify(initData)}`);
   }
 
-  // 3) Upload binary to LinkedIn
-  const uploadRes = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/octet-stream",
-    },
-    body: videoBuffer,
+  // 3) Upload each part and collect ETags
+  const uploadedPartIds: string[] = [];
+
+  for (const instruction of uploadInstructions) {
+    const { uploadUrl, firstByte, lastByte } = instruction;
+    const chunk = videoBuffer.slice(firstByte, lastByte + 1);
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/octet-stream",
+      },
+      body: chunk,
+    });
+
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text().catch(() => "");
+      throw new Error(`LinkedIn video part upload failed: ${uploadRes.status} ${text}`);
+    }
+
+    // Collect ETag from response header
+    const etag = uploadRes.headers.get("etag");
+    if (etag) {
+      // Strip quotes if present
+      uploadedPartIds.push(etag.replace(/"/g, ""));
+    }
+  }
+
+  // 4) Finalize the upload
+  const finalizeRes = await fetch("https://api.linkedin.com/rest/videos?action=finalizeUpload", {
+    method: "POST",
+    headers: apiHeaders,
+    body: JSON.stringify({
+      finalizeUploadRequest: {
+        video: videoUrn,
+        uploadToken,
+        uploadedPartIds,
+      },
+    }),
   });
 
-  if (!uploadRes.ok) {
-    const text = await uploadRes.text();
-    throw new Error(`LinkedIn video upload failed: ${uploadRes.status} ${text}`);
+  if (!finalizeRes.ok) {
+    const text = await finalizeRes.text();
+    throw new Error(`LinkedIn video finalize failed: ${finalizeRes.status} ${text}`);
   }
 
-  // 4) Create a post with the video
+  // 5) Create a post with the video
   const postText = `${title}${description ? `\n\n${description}` : ""}`;
 
   const postRes = await fetch("https://api.linkedin.com/rest/posts", {
     method: "POST",
-    headers,
+    headers: apiHeaders,
     body: JSON.stringify({
       author: personUrn,
       commentary: postText.slice(0, 3000),
