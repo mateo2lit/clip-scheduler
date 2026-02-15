@@ -67,16 +67,28 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",
     "LinkedIn-Version": "202402",
+    "X-Restli-Protocol-Version": "2.0.0",
   };
 
-  // 1) Initialize video upload
+  // 1) Download video from Supabase first (need file size for init)
+  const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
+  const videoRes = await fetch(signedUrl);
+
+  if (!videoRes.ok || !videoRes.body) {
+    throw new Error(`Failed to fetch video from storage: ${videoRes.status}`);
+  }
+
+  const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+  const fileSizeBytes = videoBuffer.byteLength;
+
+  // 2) Initialize video upload with actual file size
   const initRes = await fetch("https://api.linkedin.com/rest/videos?action=initializeUpload", {
     method: "POST",
     headers,
     body: JSON.stringify({
       initializeUploadRequest: {
         owner: personUrn,
-        fileSizeBytes: 0, // Will be filled after we know the size
+        fileSizeBytes,
         uploadCaptions: false,
         uploadThumbnail: false,
       },
@@ -93,19 +105,10 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
   const videoUrn = initData.value?.video;
 
   if (!uploadUrl || !videoUrn) {
-    throw new Error("LinkedIn video init did not return uploadUrl or video URN");
+    throw new Error(`LinkedIn video init did not return uploadUrl or video URN. Response: ${JSON.stringify(initData)}`);
   }
 
-  // 2) Download video from Supabase and upload to LinkedIn
-  const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
-  const videoRes = await fetch(signedUrl);
-
-  if (!videoRes.ok || !videoRes.body) {
-    throw new Error(`Failed to fetch video from storage: ${videoRes.status}`);
-  }
-
-  const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
-
+  // 3) Upload binary to LinkedIn
   const uploadRes = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
@@ -120,7 +123,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     throw new Error(`LinkedIn video upload failed: ${uploadRes.status} ${text}`);
   }
 
-  // 3) Create a post with the video
+  // 4) Create a post with the video
   const postText = `${title}${description ? `\n\n${description}` : ""}`;
 
   const postRes = await fetch("https://api.linkedin.com/rest/posts", {
