@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "x";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "x";
 
 type PlatformConfig = {
   key: ProviderKey;
@@ -62,6 +62,17 @@ const PLATFORMS: PlatformConfig[] = [
     ),
   },
   {
+    key: "linkedin",
+    name: "LinkedIn",
+    description: "Post videos to your LinkedIn profile",
+    available: true,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      </svg>
+    ),
+  },
+  {
     key: "x",
     name: "X (Twitter)",
     description: "Post video clips to X",
@@ -114,6 +125,7 @@ export default function SettingsPage() {
     tiktok: { connected: false },
     instagram: { connected: false },
     facebook: { connected: false },
+    linkedin: { connected: false },
     x: { connected: false },
   });
 
@@ -128,6 +140,7 @@ export default function SettingsPage() {
     if (conn === "tiktok") return { kind: "success" as const, text: "TikTok connected successfully" };
     if (conn === "facebook") return { kind: "success" as const, text: "Facebook connected successfully" };
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
+    if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
     const checkout = query.get("checkout");
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
@@ -146,7 +159,7 @@ export default function SettingsPage() {
       setCreatedAt(user?.created_at ?? null);
 
       if (!token) {
-        setAccounts({ youtube: { connected: false }, tiktok: { connected: false }, instagram: { connected: false }, facebook: { connected: false }, x: { connected: false } });
+        setAccounts({ youtube: { connected: false }, tiktok: { connected: false }, instagram: { connected: false }, facebook: { connected: false }, linkedin: { connected: false }, x: { connected: false } });
         return;
       }
 
@@ -163,6 +176,7 @@ export default function SettingsPage() {
         tiktok: { connected: false },
         instagram: { connected: false },
         facebook: { connected: false },
+        linkedin: { connected: false },
         x: { connected: false },
       };
 
@@ -551,6 +565,57 @@ export default function SettingsPage() {
     }
   }
 
+  async function connectLinkedIn() {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) {
+        alert("Please log in first.");
+        return;
+      }
+
+      const res = await fetch("/api/auth/linkedin/start", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const { json } = await safeReadJson(res);
+      if (!res.ok || !json?.ok || !json?.url) {
+        alert("Failed to start LinkedIn connection. Please try again.");
+        return;
+      }
+
+      window.location.href = json.url;
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Connect failed");
+    }
+  }
+
+  async function disconnectLinkedIn() {
+    if (!confirm("Disconnect LinkedIn? You'll need to reconnect before scheduling uploads.")) {
+      return;
+    }
+
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/platform-accounts?provider=linkedin", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const { json } = await safeReadJson(res);
+      if (res.ok && json?.ok) {
+        setAccounts((prev) => ({ ...prev, linkedin: { connected: false } }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -917,6 +982,14 @@ export default function SettingsPage() {
                               Disconnect
                             </button>
                           )}
+                          {platform.key === "linkedin" && acct.connected && (
+                            <button
+                              onClick={disconnectLinkedIn}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
                           {platform.key === "youtube" ? (
                             <button
                               onClick={connectYouTube}
@@ -941,6 +1014,13 @@ export default function SettingsPage() {
                           ) : platform.key === "instagram" ? (
                             <button
                               onClick={connectInstagram}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            >
+                              {acct.connected ? "Reconnect" : "Connect"}
+                            </button>
+                          ) : platform.key === "linkedin" ? (
+                            <button
+                              onClick={connectLinkedIn}
                               className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
                             >
                               {acct.connected ? "Reconnect" : "Connect"}

@@ -70,6 +70,17 @@ const PLATFORMS: PlatformConfig[] = [
     ),
   },
   {
+    key: "linkedin",
+    name: "LinkedIn",
+    available: true,
+    charLimit: 3000,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      </svg>
+    ),
+  },
+  {
     key: "x",
     name: "X",
     available: false,
@@ -147,6 +158,7 @@ export default function UploadsPage() {
   // Thumbnail
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [lastThumbnailPath, setLastThumbnailPath] = useState<string | null>(null);
 
   // YouTube specific
   const [ytIsShort, setYtIsShort] = useState(false);
@@ -378,6 +390,23 @@ export default function UploadsPage() {
       setLastUploadId(out.id);
       setTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
 
+      // Upload thumbnail to storage if one was selected
+      if (thumbnail) {
+        try {
+          const thumbKey = `${pathPrefix}/thumbnails/${Date.now()}-${thumbnail.name}`.replace(/\s+/g, "_");
+          const thumbResult = await supabase.storage.from(BUCKET).upload(thumbKey, thumbnail, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: thumbnail.type || "image/jpeg",
+          });
+          if (!thumbResult.error) {
+            setLastThumbnailPath(thumbKey);
+          }
+        } catch {
+          // Non-fatal — thumbnail upload failure shouldn't block the video
+        }
+      }
+
       setTimeout(() => setStep("details"), 500);
     } catch (e: any) {
       console.error(e);
@@ -412,6 +441,10 @@ export default function UploadsPage() {
           status: asDraft ? "draft" : "scheduled",
           hashtags,
         };
+
+        if (platform === "youtube" && lastThumbnailPath) {
+          body.thumbnail_path = lastThumbnailPath;
+        }
 
         if (platform === "youtube") {
           body.youtube_settings = {
@@ -482,6 +515,7 @@ export default function UploadsPage() {
     setHashtags([]);
     setThumbnail(null);
     setThumbnailPreview(null);
+    setLastThumbnailPath(null);
     setUploadProgress(0);
   }
 
