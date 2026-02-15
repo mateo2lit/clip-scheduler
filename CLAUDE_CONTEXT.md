@@ -34,7 +34,8 @@ The site is live at clipdash.org.
 - **Next.js API Routes** — all backend logic in `src/app/api/`
 
 ### Deployment
-- **Vercel** — hosting + cron jobs
+- **Vercel** — hosting (Hobby plan)
+- **GitHub Actions** — cron worker (runs every minute) and token refresh
 
 ### Design
 - Dark theme (`bg-[#050505]`), gradient orbs, rounded cards with `border-white/10`, emerald accents for success states
@@ -60,7 +61,7 @@ The site is live at clipdash.org.
 | user_id | uuid | |
 | team_id | uuid | team-scoped |
 | upload_id | uuid | FK → uploads |
-| provider | text | youtube, tiktok, facebook, instagram |
+| provider | text | youtube, tiktok, facebook, instagram, linkedin |
 | title | text | |
 | description | text | |
 | privacy_status | text | private/unlisted/public (YouTube) |
@@ -70,6 +71,7 @@ The site is live at clipdash.org.
 | ig_container_id | text | Instagram container ID (for split upload flow) |
 | ig_container_created_at | timestamptz | When IG container was created (for timeout) |
 | platform_post_id | text | ID from the platform after posting |
+| thumbnail_path | text | Storage path for YouTube thumbnail |
 | last_error | text | error message if failed |
 | posted_at | timestamptz | |
 
@@ -79,7 +81,7 @@ The site is live at clipdash.org.
 | id | uuid | PK |
 | user_id | uuid | |
 | team_id | uuid | unique constraint on (team_id, provider) |
-| provider | text | youtube, tiktok, facebook, instagram |
+| provider | text | youtube, tiktok, facebook, instagram, linkedin |
 | access_token | text | |
 | refresh_token | text | |
 | expiry | timestamptz | |
@@ -158,18 +160,17 @@ The site is live at clipdash.org.
 - Graph API: `graph.instagram.com` v21.0
 - Webhook endpoint ready at `/api/webhooks/instagram` (for future analytics)
 
-### LinkedIn — BACKEND BUILT (needs LinkedIn App + frontend UI)
+### LinkedIn — FULLY WORKING
 - OAuth flow: `/api/auth/linkedin/start` → LinkedIn consent → `/api/auth/linkedin/callback`
 - Scopes: `openid profile w_member_social`
 - Auth helper: `src/lib/linkedin.ts` (token exchange, profile fetch, token refresh)
 - Upload: `src/lib/linkedinUpload.ts` — LinkedIn Video API (initialize upload → PUT binary → create post)
 - Worker support added — posts video with title + description as commentary
-- **TODO:** Create LinkedIn App in LinkedIn Developer Portal, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` env vars
-- **TODO:** Add LinkedIn connect/disconnect button in settings UI
-- **TODO:** Add LinkedIn as a platform option in uploads/scheduler pages
+- LinkedIn App created, env vars set, frontend connect/disconnect in settings, platform option in uploads
+- Uses LinkedIn-Version: 202402 header, personUrn format for posts
 
-### X (Twitter) — NOT STARTED
-- Listed in settings UI as "Coming soon"
+### X (Twitter) — REMOVED
+- Removed from settings and uploads pages due to $100/month API cost for video uploads
 
 ---
 
@@ -194,12 +195,12 @@ The site is live at clipdash.org.
 - **Route:** `/api/worker/run-scheduled` (GET or POST)
 - **Auth:** `WORKER_SECRET` query param (optional locally)
 - **Behavior:** Pulls up to 5 due `scheduled_posts`, claims them (concurrency-safe), uploads to the correct platform based on `provider` field, marks as posted/failed
-- **Cron:** Runs every minute via Vercel cron
+- **Cron:** Runs every minute via GitHub Actions (not Vercel cron — Hobby plan has limitations)
 - **Supports:** YouTube (with optional thumbnail), TikTok, Facebook, Instagram, LinkedIn
 
 ### Token Refresh Worker
 - **Route:** `/api/worker/refresh-tokens` (GET or POST)
-- **Cron:** Runs daily at 3:00 AM UTC via Vercel cron
+- **Cron:** Runs daily at 3:00 AM UTC via GitHub Actions
 - **Behavior:** Finds Facebook/Instagram tokens expiring within 7 days, refreshes them, updates DB
 - Also refreshes Facebook Page access tokens when refreshing the user token
 
@@ -270,6 +271,8 @@ src/
 │       ├── worker/
 │       │   ├── run-scheduled/route.ts      # Cron worker (every minute)
 │       │   └── refresh-tokens/route.ts     # Token refresh worker (daily)
+│       ├── ai/
+│       │   └── suggest/route.ts              # AI hashtag suggestions (Claude Haiku)
 │       ├── uploads/create/route.ts
 │       ├── scheduled-posts/
 │       │   ├── create/route.ts
@@ -357,6 +360,9 @@ STRIPE_TEAM_PRICE_ID
 NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID   # client-side access for checkout button
 NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID      # client-side access for checkout button
 
+# AI Suggestions
+ANTHROPIC_API_KEY              # Claude API key for AI hashtag suggestions
+
 # Worker
 WORKER_SECRET
 CRON_SECRET
@@ -372,33 +378,29 @@ VERCEL_OIDC_TOKEN
 
 ## Current Goals
 
-### In Progress
-1. **Switch Stripe to live mode** — Create live Products/Prices, webhook endpoint, swap env vars in Vercel
-2. **LinkedIn frontend UI** — Backend is built (OAuth + upload + worker). Need: settings connect button, platform option in uploads/scheduler
-3. **YouTube thumbnail frontend** — Backend accepts `thumbnail_path` and sets thumbnails on YouTube. Need: frontend to upload thumbnail to storage and pass path when scheduling
-
 ### Completed
 - Instagram OAuth fully working — posts as Reels, Stories, and image Stories
 - Facebook OAuth + video posting working
-- YouTube OAuth + video posting working (with thumbnail support)
+- YouTube OAuth + video posting working (with thumbnail support on frontend + backend)
 - TikTok OAuth + video posting working
-- LinkedIn backend built — OAuth, upload lib, worker support
-- Stripe integration built and tested — two paid tiers with 7-day free trials, plan gating, webhook handling
+- LinkedIn full stack — OAuth, upload lib, worker, settings connect/disconnect, platform option in uploads
+- Stripe integration built, tested, and switched to live mode
 - Calendar view with platform color coding and day detail panel
 - Upload + scheduling gating (requires active subscription)
 - Cancel button on scheduled posts
 - Facebook webhook endpoint built
 - Token refresh cron job (daily, refreshes FB/IG tokens expiring within 7 days)
 - Data deletion endpoint (for users + Meta app review compliance)
-- Vercel cron config (vercel.json) for both workers
+- AI-powered hashtag suggestions (Claude Haiku) with context prompt and selectable tags
+- X (Twitter) removed from all pages (API too expensive for video)
 
 ### Future
-3. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
-4. **Tag suggestions** — Suggest relevant hashtags based on title/description content, trending tags, or previously used tags
-5. X (Twitter) integration
-6. Analytics dashboard (Instagram webhook endpoint already deployed)
-7. Email notifications
-8. AI caption/description generator
+1. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
+2. Analytics dashboard (Instagram webhook endpoint already deployed)
+3. Email notifications
+4. AI caption/description generator (expand beyond hashtags)
+5. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
+6. **Scheduled post editing** — Allow editing title/description/time before posting
 
 ---
 
@@ -407,18 +409,19 @@ VERCEL_OIDC_TOKEN
 These are small tasks that can be knocked out quickly to improve the product:
 
 - [x] **Add Facebook webhook endpoint** — Built at `/api/webhooks/facebook`
-- [x] **Token refresh cron job** — Built at `/api/worker/refresh-tokens`, runs daily via Vercel cron
+- [x] **Token refresh cron job** — Built at `/api/worker/refresh-tokens`, runs daily via GitHub Actions
 - [ ] **Add error toast notifications** — Replace `alert()` calls in settings page with proper toast UI
 - [x] **Subscription plan enforcement** — Plan gating implemented: scheduling blocked without active plan, team invites blocked on Creator plan
 - [ ] **Add `SITE_URL` env var to Vercel** — The code checks `SITE_URL` first before `NEXT_PUBLIC_SITE_URL`. Setting `SITE_URL=https://clipdash.org` in Vercel avoids relying on the public env var for server-side OAuth redirects
-- [x] **Build full LinkedIn integration** — Backend complete (OAuth + upload + worker). Frontend UI still needed
+- [x] **Build full LinkedIn integration** — Fully complete: backend + frontend (settings + uploads)
 - [ ] **Improve worker error logging** — Add structured logging or Sentry integration for failed uploads to diagnose issues faster
 - [x] **Add a data deletion endpoint** — Built at `/api/account/delete` (DELETE for users, POST for Meta callback)
 - [ ] **Multi-page Facebook support** — Currently auto-selects first Page. Add UI to let users pick which Page to post to if they manage multiple
 - [ ] **Scheduled post editing** — Allow editing title/description/time of scheduled posts before they're posted
-- [ ] **LinkedIn settings UI** — Add connect/disconnect button for LinkedIn in settings page
-- [ ] **LinkedIn platform option in uploads** — Add LinkedIn to platform picker when scheduling posts
-- [ ] **YouTube thumbnail frontend** — Wire up thumbnail picker to upload to storage and pass `thumbnail_path` to API
+- [x] **LinkedIn settings UI** — Connect/disconnect button in settings page
+- [x] **LinkedIn platform option in uploads** — LinkedIn added to platform picker
+- [x] **YouTube thumbnail frontend** — Thumbnail picker uploads to storage, passes `thumbnail_path` when scheduling
+- [x] **AI hashtag suggestions** — Claude Haiku-powered tag suggestions with context prompt and selectable chips
 
 ---
 
@@ -441,6 +444,12 @@ These are small tasks that can be knocked out quickly to improve the product:
   - Webhook at `/api/stripe/webhook` handles: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
   - Plan gating: scheduling posts requires `plan_status` of `trialing` or `active`; team invites require `plan === 'team'`
   - Self-serve billing via Stripe Customer Portal at `/api/stripe/portal`
+- **AI Hashtag Suggestions** use Claude Haiku (`claude-haiku-4-5-20251001`) via `@anthropic-ai/sdk`
+  - User provides optional context ("What's this video about?") for better relevance
+  - Returns 10-15 tags with reasons, mix of high-volume, medium-niche, and long-tail
+  - Platform-specific optimization (YouTube SEO, TikTok FYP, IG explore, LinkedIn feed, Facebook reach)
+  - Tags shown as selectable purple chips — users pick which ones to add
+- **Vercel Hobby plan limitations:** Cannot use `vercel.json` crons on Hobby plan (causes build failures). All cron scheduling done via GitHub Actions workflows instead
 
 ---
 
@@ -488,33 +497,47 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Wider calendar layout with taller day cells and platform legend on side panel
 - `scheduled_posts` now has `instagram_settings` jsonb column with `ig_type` field (post/reel/story)
 
-### Session 3 (2026-02-14) — Backend Sprint
+### Session 3 (2026-02-14) — Full Stack Sprint
 
-#### Completed
+#### Backend (early session)
 - **LinkedIn integration (backend):** OAuth start/callback routes, auth helper lib (`linkedin.ts`), video upload lib (`linkedinUpload.ts`), worker support
 - **YouTube thumbnail upload (backend):** `scheduled-posts/create` API accepts `thumbnail_path`, worker passes it to YouTube upload, `youtubeUpload.ts` sets thumbnail via `youtube.thumbnails.set()` after video upload (gracefully fails if channel not verified)
 - **Facebook webhook endpoint:** `/api/webhooks/facebook` — same pattern as Instagram webhook
 - **Token refresh cron job:** `/api/worker/refresh-tokens` — refreshes Facebook/Instagram tokens expiring within 7 days, runs daily at 3 AM UTC
 - **Data deletion endpoint:** `/api/account/delete` — DELETE for authenticated users (full account wipe), POST for Meta's data deletion callback (signed_request)
-- **Vercel cron config:** Created `vercel.json` with cron schedules for both workers
 
-#### DB Migrations Needed (run in Supabase SQL Editor)
-```sql
-ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS thumbnail_path TEXT;
-```
+#### Frontend (mid session)
+- **LinkedIn settings UI:** Connect/disconnect button in settings page, LinkedIn SVG icon, banner on connect
+- **LinkedIn uploads UI:** Added LinkedIn as selectable platform (3000 char limit)
+- **YouTube thumbnail wiring:** Moved thumbnail upload from `doUpload()` to `handleSchedule()` — fixed bug where thumbnail was always null because user picks it on the details step AFTER video upload
+- **AI hashtag suggestions:** Built `/api/ai/suggest` route using Claude Haiku, "Suggest Tags" button in uploads page, "What's this video about?" context prompt, selectable purple chips with reasons, "Add all" and individual add buttons
 
-#### Env Vars Needed (set in Vercel Dashboard)
-```
-LINKEDIN_CLIENT_ID       # From LinkedIn Developer Portal
-LINKEDIN_CLIENT_SECRET   # From LinkedIn Developer Portal
-```
+#### Fixes & Issues Resolved
+- **TypeScript errors:** Missing `linkedin` in accounts state objects (4 separate instances with different formatting)
+- **YouTube thumbnail not applying:** Was uploading in `doUpload()` but thumbnail selected after on details step — moved to `handleSchedule()`
+- **Vercel deployments failing:** `vercel.json` crons incompatible with Hobby plan — emptied to `{}` since GitHub Actions already handles cron
+- **AI suggestions "not configured" error:** User needed to redeploy Vercel after setting `ANTHROPIC_API_KEY` env var
+
+#### Manual Steps Completed by User
+- Created LinkedIn App in LinkedIn Developer Portal (Privately held org type)
+- Requested "Share on LinkedIn" and "Sign In with LinkedIn using OpenID Connect" products
+- Set `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` in Vercel
+- Set `ANTHROPIC_API_KEY` in Vercel
+- Switched Stripe to live mode
+- Ran DB migration: `ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS thumbnail_path TEXT;`
+
+#### X (Twitter) Removed
+- Removed from settings page (ProviderKey, PLATFORMS array, accounts state)
+- Removed from uploads page (platform picker)
+- Decision: $100/month Twitter API cost for video uploads is not worth it
 
 ### PICK UP HERE NEXT SESSION
 
-- **Switch Stripe to live mode** — create live Products/Prices/Webhook in Stripe Dashboard, update Vercel env vars
-- **LinkedIn frontend UI** — Add connect/disconnect in settings, add as platform option in uploads/scheduler
-- **YouTube thumbnail frontend** — Wire up existing thumbnail picker to upload to storage and pass `thumbnail_path` when scheduling
-- **Create LinkedIn App** in LinkedIn Developer Portal, set env vars
+- **Test LinkedIn end-to-end** — Connect LinkedIn account, schedule a video post, verify it posts correctly
+- **Test Facebook end-to-end** — Upload and post a video to Facebook Page, verify it works
+- **Multi-account YouTube support** — Allow linking multiple YouTube channels
+- **Analytics dashboard** — Use existing webhook endpoints to build insights
+- **AI caption/description generator** — Expand AI beyond hashtags
 
 ### Key Decisions Made
 - NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan
@@ -525,3 +548,6 @@ LINKEDIN_CLIENT_SECRET   # From LinkedIn Developer Portal
 - Plan to add auto-delete of posted videos after 7 days to manage storage
 - Stripe pricing: $9.99/mo Creator (1 member), $19.99/mo Team (up to 5 members), both with 7-day free trials
 - Plan gating blocks both uploads and scheduling (not just scheduling)
+- X (Twitter) removed — $100/month API cost for video is not viable
+- Vercel crons don't work on Hobby plan — use GitHub Actions for all cron jobs
+- AI suggestions use separate Anthropic API billing (not Claude Pro subscription credits)
