@@ -59,10 +59,15 @@ export async function fetchYouTubeComments(
     );
 
     const comments: UnifiedComment[] = [];
+    const perVideoErrors: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled") comments.push(...r.value);
+      else perVideoErrors.push(r.reason?.message || "Unknown video error");
     }
-    return { comments };
+    return {
+      comments,
+      error: perVideoErrors.length > 0 ? `YouTube: ${perVideoErrors[0]}` : undefined,
+    };
   } catch (e: any) {
     return { comments: [], error: `YouTube: ${e?.message || "Unknown error"}` };
   }
@@ -82,7 +87,10 @@ export async function fetchFacebookComments(
 
         const url = `https://graph.facebook.com/v21.0/${postId}/comments?fields=from{id,name},message,created_time,like_count&access_token=${encodeURIComponent(pageAccessToken)}`;
         const res = await fetch(url);
-        if (!res.ok) return [];
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+        }
 
         const json = await res.json();
         const items: any[] = json.data ?? [];
@@ -102,10 +110,15 @@ export async function fetchFacebookComments(
     );
 
     const comments: UnifiedComment[] = [];
+    const perPostErrors: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled") comments.push(...r.value);
+      else perPostErrors.push(r.reason?.message || "Unknown post error");
     }
-    return { comments };
+    return {
+      comments,
+      error: perPostErrors.length > 0 ? `Facebook: ${perPostErrors[0]}` : undefined,
+    };
   } catch (e: any) {
     return { comments: [], error: `Facebook: ${e?.message || "Unknown error"}` };
   }
