@@ -150,6 +150,7 @@ export default function UploadsPage() {
 
   // AI suggestions
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{ tag: string; reason: string }>>([]);
 
   // Toolbar state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -355,6 +356,7 @@ export default function UploadsPage() {
 
   async function handleAiSuggest() {
     setAiLoading(true);
+    setAiSuggestions([]);
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
@@ -368,21 +370,32 @@ export default function UploadsPage() {
           description,
           platforms: selectedPlatforms,
           filename: file?.name || "",
+          existingHashtags: hashtags,
         }),
       });
 
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to get suggestions");
 
-      const s = data.suggestions;
-      if (s.title) setTitle(s.title);
-      if (s.description) setDescription(s.description);
-      if (s.hashtags?.length) setHashtags(s.hashtags);
+      setAiSuggestions(data.hashtags || []);
     } catch (e: any) {
       alert(e?.message || "AI suggestion failed");
     } finally {
       setAiLoading(false);
     }
+  }
+
+  function addSuggestedTag(tag: string) {
+    if (!hashtags.includes(tag)) {
+      setHashtags((prev) => [...prev, tag]);
+    }
+    setAiSuggestions((prev) => prev.filter((s) => s.tag !== tag));
+  }
+
+  function addAllSuggestedTags() {
+    const newTags = aiSuggestions.map((s) => s.tag).filter((t) => !hashtags.includes(t));
+    setHashtags((prev) => [...prev, ...newTags]);
+    setAiSuggestions([]);
   }
 
   async function doUpload() {
@@ -668,20 +681,7 @@ export default function UploadsPage() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
               {/* Title */}
               <div className="p-5 border-b border-white/5">
-                <div className="flex items-center gap-3">
-                  <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="flex-1 bg-transparent text-lg font-medium text-white placeholder-white/30 outline-none" />
-                  <button
-                    onClick={handleAiSuggest}
-                    disabled={aiLoading}
-                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 px-3 py-1.5 text-xs text-purple-300 hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 shrink-0"
-                    title="AI suggestions for title, description, and hashtags"
-                  >
-                    <svg className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
-                    </svg>
-                    {aiLoading ? "Thinking..." : "AI Suggest"}
-                  </button>
-                </div>
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="w-full bg-transparent text-lg font-medium text-white placeholder-white/30 outline-none" />
               </div>
 
               {/* Description */}
@@ -750,7 +750,59 @@ export default function UploadsPage() {
                     className="flex-1 min-w-[120px] bg-transparent text-sm text-white placeholder-white/30 outline-none"
                   />
                 </div>
-                <p className="text-xs text-white/30 mt-2">Press Enter or comma to add a tag</p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-white/30">Press Enter or comma to add a tag</p>
+                  <button
+                    onClick={handleAiSuggest}
+                    disabled={aiLoading}
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 px-3 py-1.5 text-xs text-purple-300 hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                    </svg>
+                    {aiLoading ? "Suggesting..." : "Suggest Tags"}
+                  </button>
+                </div>
+
+                {/* AI Suggestions Panel */}
+                {aiSuggestions.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-purple-500/20 bg-purple-500/[0.05] p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-purple-300">Suggested tags</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={addAllSuggestedTags}
+                          className="text-xs text-purple-300 hover:text-purple-200 transition-colors"
+                        >
+                          Add all
+                        </button>
+                        <button
+                          onClick={() => setAiSuggestions([])}
+                          className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {aiSuggestions.map((s) => (
+                        <button
+                          key={s.tag}
+                          onClick={() => addSuggestedTag(s.tag)}
+                          className="group relative inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 pl-3 pr-2.5 py-1.5 text-sm text-purple-200 hover:bg-purple-500/20 hover:border-purple-500/30 transition-all"
+                          title={s.reason}
+                        >
+                          <span className="text-purple-400/60">#</span>
+                          <span>{s.tag}</span>
+                          <svg className="w-3.5 h-3.5 text-purple-400/40 group-hover:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-white/30 mt-3">Click a tag to add it. Hover for why it was suggested.</p>
+                  </div>
+                )}
               </div>
 
               {/* Thumbnail */}

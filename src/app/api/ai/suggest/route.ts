@@ -21,9 +21,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { title, description, platforms, filename } = body;
+    const { title, description, platforms, filename, existingHashtags } = body;
 
     const platformList = (platforms || ["youtube"]).join(", ");
+    const existingTags = (existingHashtags || []).join(", ");
 
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -31,28 +32,38 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "user",
-          content: `You are a social media expert helping a content creator optimize their video post. Generate suggestions to maximize engagement.
+          content: `You are a social media algorithm expert. Your job is to suggest hashtags that maximize discoverability, reach, and engagement for content creators.
 
-Current info:
+Video info:
 - File name: ${filename || "unknown"}
 - Title: ${title || "(none)"}
 - Description: ${description || "(none)"}
 - Posting to: ${platformList}
+${existingTags ? `- Already using: ${existingTags}` : ""}
 
-Respond with ONLY valid JSON in this exact format (no markdown, no code blocks):
+Respond with ONLY valid JSON (no markdown, no code blocks):
 {
-  "title": "suggested title (catchy, under 100 chars)",
-  "description": "suggested description (engaging, platform-appropriate, 1-3 sentences)",
-  "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+  "hashtags": [
+    {"tag": "tagname", "reason": "brief reason why this helps"},
+    {"tag": "tagname", "reason": "brief reason why this helps"}
+  ]
 }
 
 Rules:
-- If the current title is good, improve it slightly rather than completely changing it
-- Hashtags should be relevant and trending-friendly (no # prefix, just the word)
-- Keep the description concise but engaging
-- Tailor tone for the platforms: YouTube (searchable/descriptive), TikTok (casual/trendy), Instagram (aesthetic/hashtag-heavy), LinkedIn (professional), Facebook (conversational)
-- If posting to multiple platforms, find a tone that works across all of them
-- Return 5-8 hashtags`,
+- Return 10-15 hashtag suggestions (no # prefix, just the word)
+- Do NOT include any tags the creator is already using
+- Mix of strategies:
+  - 3-4 HIGH VOLUME tags (millions of posts, broad reach like "viral", "fyp", "trending")
+  - 4-5 MEDIUM NICHE tags (thousands of posts, targeted audience)
+  - 3-4 SPECIFIC LONG-TAIL tags (less competitive, easier to rank for)
+- Prioritize tags that actually drive algorithm performance on ${platformList}:
+  - YouTube: tags that match search intent and suggested video recommendations
+  - TikTok: FYP-boosting tags, trending sounds/challenges if relevant
+  - Instagram: mix of explore-page tags and community tags
+  - LinkedIn: professional/industry tags that boost feed visibility
+  - Facebook: engagement-driving tags for shares and reach
+- Keep reasons very short (5-10 words max)
+- Tags should be lowercase, no spaces (use camelCase or single words)`,
         },
       ],
     });
@@ -60,12 +71,10 @@ Rules:
     const text =
       message.content[0].type === "text" ? message.content[0].text : "";
 
-    // Parse the JSON response
-    let suggestions;
+    let parsed;
     try {
-      // Strip markdown code blocks if present
       const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      suggestions = JSON.parse(cleaned);
+      parsed = JSON.parse(cleaned);
     } catch {
       return NextResponse.json(
         { ok: false, error: "Failed to parse AI response" },
@@ -73,14 +82,14 @@ Rules:
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      suggestions: {
-        title: suggestions.title || "",
-        description: suggestions.description || "",
-        hashtags: Array.isArray(suggestions.hashtags) ? suggestions.hashtags : [],
-      },
-    });
+    const hashtags = Array.isArray(parsed.hashtags)
+      ? parsed.hashtags.map((h: any) => ({
+          tag: typeof h === "string" ? h : h.tag || "",
+          reason: typeof h === "string" ? "" : h.reason || "",
+        }))
+      : [];
+
+    return NextResponse.json({ ok: true, hashtags });
   } catch (e: any) {
     console.error("[AI Suggest]", e?.message);
     return NextResponse.json(
