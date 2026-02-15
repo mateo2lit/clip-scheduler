@@ -284,7 +284,7 @@ async function runWorker(req: Request) {
           throw new Error("Facebook Page not configured. Please reconnect your Facebook account.");
         }
 
-        const fb = await uploadSupabaseVideoToFacebook({
+        const fbArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
           pageId: acct.page_id,
@@ -293,7 +293,14 @@ async function runWorker(req: Request) {
           storagePath,
           title: post.title ?? "Clip Scheduler Upload",
           description: post.description ?? "",
-        });
+        };
+
+        if (post.thumbnail_path) {
+          fbArgs.thumbnailBucket = bucket;
+          fbArgs.thumbnailPath = post.thumbnail_path;
+        }
+
+        const fb = await uploadSupabaseVideoToFacebook(fbArgs);
         platformPostId = fb.facebookVideoId;
       } else if (provider === "instagram") {
         if (!acct.ig_user_id || !acct.access_token) {
@@ -306,14 +313,21 @@ async function runWorker(req: Request) {
         const mediaType = igType === "story" ? "STORIES" as const : "REELS" as const;
 
         // Create container only — next cron tick will poll and publish
-        const { containerId } = await createInstagramContainer({
+        const igContainerArgs: any = {
           igUserId: acct.ig_user_id,
           accessToken: acct.access_token,
           bucket,
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
           mediaType,
-        });
+        };
+
+        if (post.thumbnail_path) {
+          igContainerArgs.thumbnailBucket = bucket;
+          igContainerArgs.thumbnailPath = post.thumbnail_path;
+        }
+
+        const { containerId } = await createInstagramContainer(igContainerArgs);
 
         await supabaseAdmin
           .from("scheduled_posts")
@@ -332,7 +346,7 @@ async function runWorker(req: Request) {
           throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");
         }
 
-        const li = await uploadSupabaseVideoToLinkedIn({
+        const liArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
           accessToken: acct.access_token,
@@ -341,7 +355,14 @@ async function runWorker(req: Request) {
           storagePath,
           title: post.title ?? "Clip Scheduler Upload",
           description: post.description ?? "",
-        });
+        };
+
+        if (post.thumbnail_path) {
+          liArgs.thumbnailBucket = bucket;
+          liArgs.thumbnailPath = post.thumbnail_path;
+        }
+
+        const li = await uploadSupabaseVideoToLinkedIn(liArgs);
         platformPostId = li.linkedinPostId;
       } else {
         // YouTube (default)

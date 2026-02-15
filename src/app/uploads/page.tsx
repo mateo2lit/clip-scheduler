@@ -490,7 +490,7 @@ export default function UploadsPage() {
           hashtags,
         };
 
-        if (platform === "youtube" && thumbnailPath) {
+        if (["youtube", "facebook", "instagram", "linkedin"].includes(platform) && thumbnailPath) {
           body.thumbnail_path = thumbnailPath;
         }
 

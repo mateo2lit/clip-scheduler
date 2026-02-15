@@ -19,6 +19,8 @@ type CreateContainerArgs = {
   storagePath: string;
   caption: string;
   mediaType?: "REELS" | "STORIES";
+  thumbnailBucket?: string;
+  thumbnailPath?: string;
 };
 
 type CheckAndPublishArgs = {
@@ -60,7 +62,7 @@ async function getSignedDownloadUrl(params: {
 export async function createInstagramContainer(args: CreateContainerArgs): Promise<{
   containerId: string;
 }> {
-  const { igUserId, accessToken, bucket, storagePath, caption, mediaType = "REELS" } = args;
+  const { igUserId, accessToken, bucket, storagePath, caption, mediaType = "REELS", thumbnailBucket, thumbnailPath } = args;
 
   assertOk(igUserId, "Missing igUserId");
   assertOk(accessToken, "Missing accessToken");
@@ -88,6 +90,16 @@ export async function createInstagramContainer(args: CreateContainerArgs): Promi
   // Stories don't support captions
   if (mediaType !== "STORIES" && caption) {
     containerParams.set("caption", caption.slice(0, 2200));
+  }
+
+  // Reels support cover_url for custom thumbnails (Stories do not)
+  if (mediaType === "REELS" && thumbnailBucket && thumbnailPath) {
+    try {
+      const thumbUrl = await getSignedDownloadUrl({ bucket: thumbnailBucket, path: thumbnailPath });
+      containerParams.set("cover_url", thumbUrl);
+    } catch (e: any) {
+      console.error("[Instagram] Thumbnail URL failed, posting without cover:", e?.message);
+    }
   }
 
   const containerRes = await fetch(

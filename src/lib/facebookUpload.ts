@@ -11,6 +11,9 @@ type UploadToFacebookArgs = {
 
   title: string;
   description?: string;
+
+  thumbnailBucket?: string;
+  thumbnailPath?: string;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -47,6 +50,8 @@ export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs):
     storagePath,
     title,
     description,
+    thumbnailBucket,
+    thumbnailPath,
   } = args;
 
   assertOk(pageId, "Missing pageId");
@@ -65,6 +70,16 @@ export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs):
     description: (description || "").slice(0, 5000),
     file_url: signedUrl,
   });
+
+  // Add thumbnail if provided
+  if (thumbnailBucket && thumbnailPath) {
+    try {
+      const thumbUrl = await getSignedDownloadUrl({ bucket: thumbnailBucket, path: thumbnailPath });
+      params.set("thumb", thumbUrl);
+    } catch (e: any) {
+      console.error("[Facebook] Thumbnail URL failed, posting without thumbnail:", e?.message);
+    }
+  }
 
   const res = await fetch(
     `https://graph.facebook.com/v21.0/${pageId}/videos`,

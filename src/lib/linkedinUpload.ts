@@ -11,6 +11,9 @@ type UploadToLinkedInArgs = {
 
   title: string;
   description?: string;
+
+  thumbnailBucket?: string;
+  thumbnailPath?: string;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -57,6 +60,8 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     storagePath,
     title,
     description,
+    thumbnailBucket,
+    thumbnailPath,
   } = args;
 
   assertOk(accessToken, "Missing accessToken");
@@ -83,6 +88,8 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
   const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
   const fileSizeBytes = videoBuffer.byteLength;
 
+  const hasThumbnail = !!(thumbnailBucket && thumbnailPath);
+
   // 2) Initialize video upload with actual file size
   const initRes = await fetch("https://api.linkedin.com/rest/videos?action=initializeUpload", {
     method: "POST",
@@ -92,7 +99,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
         owner: personUrn,
         fileSizeBytes,
         uploadCaptions: false,
-        uploadThumbnail: false,
+        uploadThumbnail: hasThumbnail,
       },
     }),
   });
@@ -157,7 +164,34 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     throw new Error(`LinkedIn video finalize failed: ${finalizeRes.status} ${text}`);
   }
 
-  // 5) Create a post with the video
+  // 5) Upload thumbnail if provided
+  if (hasThumbnail) {
+    const thumbnailUploadUrl = initData.value?.thumbnailUploadUrl;
+    if (thumbnailUploadUrl) {
+      try {
+        const thumbSignedUrl = await getSignedDownloadUrl({ bucket: thumbnailBucket!, path: thumbnailPath! });
+        const thumbRes = await fetch(thumbSignedUrl);
+        if (thumbRes.ok) {
+          const thumbBuffer = Buffer.from(await thumbRes.arrayBuffer());
+          const thumbUploadRes = await fetch(thumbnailUploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "media-type-family": "STILLIMAGE",
+            },
+            body: thumbBuffer,
+          });
+          if (!thumbUploadRes.ok) {
+            console.error("[LinkedIn] Thumbnail upload failed:", thumbUploadRes.status);
+          }
+        }
+      } catch (e: any) {
+        console.error("[LinkedIn] Thumbnail upload error (non-fatal):", e?.message);
+      }
+    }
+  }
+
+  // 6) Create a post with the video
   const postText = `${title}${description ? `\n\n${description}` : ""}`;
 
   const postRes = await fetch("https://api.linkedin.com/rest/posts", {
