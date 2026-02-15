@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "x";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin";
 
 type PlatformConfig = {
   key: ProviderKey;
@@ -73,17 +73,6 @@ const PLATFORMS: PlatformConfig[] = [
     ),
   },
   {
-    key: "x",
-    name: "X (Twitter)",
-    description: "Post video clips to X",
-    available: false,
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-      </svg>
-    ),
-  },
-  {
     key: "facebook",
     name: "Facebook",
     description: "Share videos to your page or profile",
@@ -126,7 +115,6 @@ export default function SettingsPage() {
     instagram: { connected: false },
     facebook: { connected: false },
     linkedin: { connected: false },
-    x: { connected: false },
   });
 
   const query = useMemo(() => {
@@ -159,7 +147,7 @@ export default function SettingsPage() {
       setCreatedAt(user?.created_at ?? null);
 
       if (!token) {
-        setAccounts({ youtube: { connected: false }, tiktok: { connected: false }, instagram: { connected: false }, facebook: { connected: false }, linkedin: { connected: false }, x: { connected: false } });
+        setAccounts({ youtube: { connected: false }, tiktok: { connected: false }, instagram: { connected: false }, facebook: { connected: false }, linkedin: { connected: false } });
         return;
       }
 
@@ -177,7 +165,6 @@ export default function SettingsPage() {
         instagram: { connected: false },
         facebook: { connected: false },
         linkedin: { connected: false },
-        x: { connected: false },
       };
 
       for (const r of rows) {
