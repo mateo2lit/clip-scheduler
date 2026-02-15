@@ -151,11 +151,11 @@ async function runWorker(req: Request) {
               .update({
                 status: "posted",
                 posted_at: new Date().toISOString(),
-                platform_post_id: result.instagramMediaId,
+                platform_post_id: result.permalink || result.instagramMediaId,
                 last_error: null,
               })
               .eq("id", igPost.id);
-            igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: result.instagramMediaId });
+            igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: result.permalink || result.instagramMediaId });
 
             // Notify
             if (igPost.group_id) {

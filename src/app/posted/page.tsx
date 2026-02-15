@@ -69,6 +69,15 @@ function getPostUrl(provider: string | null, platformPostId: string | null) {
   if (provider === "youtube") {
     return `https://youtube.com/watch?v=${platformPostId}`;
   }
+  if (provider === "facebook") {
+    return `https://www.facebook.com/${platformPostId}`;
+  }
+  if (provider === "linkedin") {
+    return `https://www.linkedin.com/feed/update/${platformPostId}`;
+  }
+  if (provider === "instagram" && platformPostId.startsWith("https://")) {
+    return platformPostId;
+  }
   return null;
 }
 

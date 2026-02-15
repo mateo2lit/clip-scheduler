@@ -137,6 +137,7 @@ export async function createInstagramContainer(args: CreateContainerArgs): Promi
 export async function checkAndPublishInstagramContainer(args: CheckAndPublishArgs): Promise<{
   status: "processing" | "posted" | "error";
   instagramMediaId?: string;
+  permalink?: string;
   error?: string;
 }> {
   const { containerId, igUserId, accessToken } = args;
@@ -194,7 +195,21 @@ export async function checkAndPublishInstagramContainer(args: CheckAndPublishArg
     return { status: "error", error: "Instagram publish succeeded but no media ID returned" };
   }
 
-  return { status: "posted", instagramMediaId };
+  // Fetch the permalink so we can link to the post
+  let permalink: string | undefined;
+  try {
+    const plRes = await fetch(
+      `https://graph.instagram.com/v21.0/${instagramMediaId}?fields=permalink&access_token=${encodeURIComponent(accessToken)}`
+    );
+    if (plRes.ok) {
+      const plData = await plRes.json();
+      permalink = plData.permalink || undefined;
+    }
+  } catch {
+    // Non-critical — we still have the media ID
+  }
+
+  return { status: "posted", instagramMediaId, permalink };
 }
 
 /**
