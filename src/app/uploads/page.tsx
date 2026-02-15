@@ -239,6 +239,35 @@ export default function UploadsPage() {
           setPlanActive(json.plan_status === "trialing" || json.plan_status === "active");
         }
       } catch {}
+
+      // Load platform defaults
+      try {
+        const res = await fetch("/api/platform-defaults", {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        const json = await res.json();
+        if (json.ok && json.defaults) {
+          for (const row of json.defaults) {
+            const s = row.settings || {};
+            if (row.platform === "youtube") {
+              if (s.category) setYtCategory(s.category);
+              if (s.visibility) setYtVisibility(s.visibility);
+              if (typeof s.notifySubscribers === "boolean") setYtNotifySubscribers(s.notifySubscribers);
+              if (typeof s.allowComments === "boolean") setYtAllowComments(s.allowComments);
+              if (typeof s.allowEmbedding === "boolean") setYtAllowEmbedding(s.allowEmbedding);
+              if (typeof s.madeForKids === "boolean") setYtMadeForKids(s.madeForKids);
+            } else if (row.platform === "tiktok") {
+              if (s.privacyLevel) setTtPrivacyLevel(s.privacyLevel);
+              if (typeof s.allowComments === "boolean") setTtAllowComments(s.allowComments);
+              if (typeof s.allowDuet === "boolean") setTtAllowDuet(s.allowDuet);
+              if (typeof s.allowStitch === "boolean") setTtAllowStitch(s.allowStitch);
+            } else if (row.platform === "instagram") {
+              if (s.igType) setIgType(s.igType);
+              if (typeof s.firstComment === "string") setIgFirstComment(s.firstComment);
+            }
+          }
+        }
+      } catch {}
     }
     loadSession();
   }, []);

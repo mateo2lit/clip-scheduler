@@ -656,6 +656,63 @@ export default function SettingsPage() {
     }
   }
 
+  // Platform defaults
+  type PlatformDefaultsMap = Record<string, Record<string, any>>;
+  const [platformDefaults, setPlatformDefaults] = useState<PlatformDefaultsMap>({});
+  const [defaultsTab, setDefaultsTab] = useState<"youtube" | "tiktok" | "instagram">("youtube");
+  const [defaultsSaving, setDefaultsSaving] = useState(false);
+  const [defaultsSaved, setDefaultsSaved] = useState(false);
+
+  const loadPlatformDefaults = useCallback(async () => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/platform-defaults", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.ok && json.defaults) {
+        const map: PlatformDefaultsMap = {};
+        for (const row of json.defaults) {
+          map[row.platform] = row.settings || {};
+        }
+        setPlatformDefaults(map);
+      }
+    } catch {}
+  }, []);
+
+  function getDefault(platform: string, key: string, fallback: any) {
+    return platformDefaults[platform]?.[key] ?? fallback;
+  }
+
+  function setDefaultField(platform: string, key: string, value: any) {
+    setPlatformDefaults((prev) => ({
+      ...prev,
+      [platform]: { ...(prev[platform] || {}), [key]: value },
+    }));
+    setDefaultsSaved(false);
+  }
+
+  async function savePlatformDefault(platform: string) {
+    setDefaultsSaving(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      await fetch("/api/platform-defaults", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ platform, settings: platformDefaults[platform] || {} }),
+      });
+      setDefaultsSaved(true);
+      setTimeout(() => setDefaultsSaved(false), 2000);
+    } catch {}
+    setDefaultsSaving(false);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -666,7 +723,8 @@ export default function SettingsPage() {
     loadTeamInfo();
     loadPlanInfo();
     loadNotifPrefs();
-  }, [loadTeamInfo, loadPlanInfo, loadNotifPrefs]);
+    loadPlatformDefaults();
+  }, [loadTeamInfo, loadPlanInfo, loadNotifPrefs, loadPlatformDefaults]);
 
   const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
 
@@ -1235,37 +1293,198 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Preferences Section */}
+        {/* Platform Defaults Section */}
         <section className="mt-10">
-          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Preferences</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-            <div className="p-5">
-              <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Upload Defaults</h2>
+          <p className="text-sm text-white/40 mb-4">Set default settings per platform. These will auto-fill when you create a new upload.</p>
+
+          {/* Platform tabs */}
+          <div className="flex gap-2 mb-4">
+            {(["youtube", "tiktok", "instagram"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setDefaultsTab(p)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  defaultsTab === p
+                    ? "bg-white/10 border border-white/20 text-white"
+                    : "bg-white/[0.03] border border-white/10 text-white/50 hover:text-white/70"
+                }`}
+              >
+                {p === "youtube" ? "YouTube" : p === "tiktok" ? "TikTok" : "Instagram"}
+              </button>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            {/* YouTube defaults */}
+            {defaultsTab === "youtube" && (
+              <div className="space-y-4">
                 <div>
-                  <div className="font-medium">Default privacy</div>
-                  <div className="text-sm text-white/40 mt-0.5">Set default privacy for new uploads</div>
+                  <label className="block text-sm text-white/60 mb-1.5">Category</label>
+                  <select
+                    value={getDefault("youtube", "category", "gaming")}
+                    onChange={(e) => setDefaultField("youtube", "category", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                  >
+                    <option value="gaming" className="bg-neutral-900">Gaming</option>
+                    <option value="entertainment" className="bg-neutral-900">Entertainment</option>
+                    <option value="education" className="bg-neutral-900">Education</option>
+                    <option value="music" className="bg-neutral-900">Music</option>
+                    <option value="sports" className="bg-neutral-900">Sports</option>
+                    <option value="news" className="bg-neutral-900">News & Politics</option>
+                    <option value="howto" className="bg-neutral-900">How-to & Style</option>
+                    <option value="travel" className="bg-neutral-900">Travel & Events</option>
+                    <option value="autos" className="bg-neutral-900">Autos & Vehicles</option>
+                    <option value="pets" className="bg-neutral-900">Pets & Animals</option>
+                    <option value="comedy" className="bg-neutral-900">Comedy</option>
+                    <option value="film" className="bg-neutral-900">Film & Animation</option>
+                    <option value="science" className="bg-neutral-900">Science & Technology</option>
+                    <option value="nonprofit" className="bg-neutral-900">Nonprofits & Activism</option>
+                  </select>
                 </div>
-                <button
-                  disabled
-                  className="rounded-full bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/40 cursor-not-allowed"
-                >
-                  Coming soon
-                </button>
-              </div>
-            </div>
-            <div className="p-5">
-              <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium">Saved presets</div>
-                  <div className="text-sm text-white/40 mt-0.5">Manage your saved upload presets</div>
+                  <label className="block text-sm text-white/60 mb-1.5">Visibility</label>
+                  <select
+                    value={getDefault("youtube", "visibility", "private")}
+                    onChange={(e) => setDefaultField("youtube", "visibility", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                  >
+                    <option value="private" className="bg-neutral-900">Private</option>
+                    <option value="unlisted" className="bg-neutral-900">Unlisted</option>
+                    <option value="public" className="bg-neutral-900">Public</option>
+                  </select>
                 </div>
-                <button
-                  disabled
-                  className="rounded-full bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/40 cursor-not-allowed"
-                >
-                  Coming soon
-                </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Notify subscribers</span>
+                  <button
+                    onClick={() => setDefaultField("youtube", "notifySubscribers", !getDefault("youtube", "notifySubscribers", true))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("youtube", "notifySubscribers", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("youtube", "notifySubscribers", true) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Allow comments</span>
+                  <button
+                    onClick={() => setDefaultField("youtube", "allowComments", !getDefault("youtube", "allowComments", true))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("youtube", "allowComments", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("youtube", "allowComments", true) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Allow embedding</span>
+                  <button
+                    onClick={() => setDefaultField("youtube", "allowEmbedding", !getDefault("youtube", "allowEmbedding", true))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("youtube", "allowEmbedding", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("youtube", "allowEmbedding", true) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Made for kids</span>
+                  <button
+                    onClick={() => setDefaultField("youtube", "madeForKids", !getDefault("youtube", "madeForKids", false))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("youtube", "madeForKids", false) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("youtube", "madeForKids", false) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
               </div>
+            )}
+
+            {/* TikTok defaults */}
+            {defaultsTab === "tiktok" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">Privacy level</label>
+                  <select
+                    value={getDefault("tiktok", "privacyLevel", "SELF_ONLY")}
+                    onChange={(e) => setDefaultField("tiktok", "privacyLevel", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                  >
+                    <option value="SELF_ONLY" className="bg-neutral-900">Private (Self Only)</option>
+                    <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
+                    <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
+                    <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Allow comments</span>
+                  <button
+                    onClick={() => setDefaultField("tiktok", "allowComments", !getDefault("tiktok", "allowComments", true))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowComments", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowComments", true) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Allow duet</span>
+                  <button
+                    onClick={() => setDefaultField("tiktok", "allowDuet", !getDefault("tiktok", "allowDuet", true))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowDuet", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowDuet", true) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Allow stitch</span>
+                  <button
+                    onClick={() => setDefaultField("tiktok", "allowStitch", !getDefault("tiktok", "allowStitch", true))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowStitch", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowStitch", true) ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Instagram defaults */}
+            {defaultsTab === "instagram" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">Default type</label>
+                  <div className="flex gap-2">
+                    {(["post", "reel", "story"] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setDefaultField("instagram", "igType", type)}
+                        className={`flex-1 rounded-lg py-2 text-sm capitalize ${
+                          getDefault("instagram", "igType", "reel") === type
+                            ? "bg-white/10 border border-white/20"
+                            : "bg-white/5 border border-white/10"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">Default first comment</label>
+                  <input
+                    type="text"
+                    value={getDefault("instagram", "firstComment", "")}
+                    onChange={(e) => setDefaultField("instagram", "firstComment", e.target.value)}
+                    placeholder="Auto-posted as first comment..."
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20 placeholder:text-white/30"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Save button */}
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                onClick={() => savePlatformDefault(defaultsTab)}
+                disabled={defaultsSaving}
+                className="rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-sm font-medium hover:bg-white/15 transition-colors disabled:opacity-50"
+              >
+                {defaultsSaving ? "Saving..." : "Save defaults"}
+              </button>
+              {defaultsSaved && (
+                <span className="text-sm text-emerald-400">Saved!</span>
+              )}
             </div>
           </div>
         </section>
