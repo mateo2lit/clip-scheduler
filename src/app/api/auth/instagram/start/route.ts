@@ -18,7 +18,7 @@ async function handler(req: Request) {
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "instagram_business_basic,instagram_business_content_publish,instagram_manage_comments",
+    scope: "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments",
     state: userId,
   });
 
