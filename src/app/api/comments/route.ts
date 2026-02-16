@@ -108,16 +108,7 @@ export async function GET(req: Request) {
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
 
-    // Temporary debug info
-    const debug = {
-      accounts: Array.from(acctMap.keys()),
-      ytPostCount: ytPosts.length,
-      fbPostCount: fbPosts.length,
-      igPostCount: igPosts.length,
-      ytPosts: ytPosts.map((p: any) => ({ id: p.id, platform_post_id: p.platform_post_id })),
-    };
-
-    return NextResponse.json({ ok: true, comments: allComments, errors, debug });
+    return NextResponse.json({ ok: true, comments: allComments, errors });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },
