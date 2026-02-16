@@ -34,27 +34,36 @@ export async function fetchYouTubeComments(
         const videoId = post.platform_post_id;
         if (!videoId) return [];
 
-        const res = await youtube.commentThreads.list({
-          part: ["snippet"],
-          videoId,
-          maxResults: 20,
-        });
+        try {
+          const res = await youtube.commentThreads.list({
+            part: ["snippet"],
+            videoId,
+            maxResults: 20,
+          });
 
-        const items = res.data.items ?? [];
-        return items.map((item): UnifiedComment => {
-          const snippet = item.snippet!.topLevelComment!.snippet!;
-          return {
-            id: item.id ?? `yt-${videoId}-${Math.random()}`,
-            platform: "youtube",
-            postTitle: post.title ?? "Untitled",
-            postId: videoId,
-            authorName: snippet.authorDisplayName ?? "Unknown",
-            authorImageUrl: snippet.authorProfileImageUrl ?? null,
-            text: snippet.textDisplay ?? "",
-            publishedAt: snippet.publishedAt ?? new Date().toISOString(),
-            likeCount: snippet.likeCount ?? 0,
-          };
-        });
+          const items = res.data.items ?? [];
+          return items.map((item): UnifiedComment => {
+            const snippet = item.snippet!.topLevelComment!.snippet!;
+            return {
+              id: item.id ?? `yt-${videoId}-${Math.random()}`,
+              platform: "youtube",
+              postTitle: post.title ?? "Untitled",
+              postId: videoId,
+              authorName: snippet.authorDisplayName ?? "Unknown",
+              authorImageUrl: snippet.authorProfileImageUrl ?? null,
+              text: snippet.textOriginal ?? snippet.textDisplay ?? "",
+              publishedAt: snippet.publishedAt ?? new Date().toISOString(),
+              likeCount: snippet.likeCount ?? 0,
+            };
+          });
+        } catch (e: any) {
+          // Comments disabled on private/unlisted videos — skip silently
+          const msg = e?.message || "";
+          if (msg.includes("disabled comments") || msg.includes("commentsDisabled")) {
+            return [];
+          }
+          throw e;
+        }
       })
     );
 
@@ -64,9 +73,13 @@ export async function fetchYouTubeComments(
       if (r.status === "fulfilled") comments.push(...r.value);
       else perVideoErrors.push(r.reason?.message || "Unknown video error");
     }
+    // Filter out "comments disabled" errors that slipped through
+    const realErrors = perVideoErrors.filter(
+      (e) => !e.includes("disabled comments") && !e.includes("commentsDisabled")
+    );
     return {
       comments,
-      error: perVideoErrors.length > 0 ? `YouTube: ${perVideoErrors[0]}` : undefined,
+      error: realErrors.length > 0 ? `YouTube: ${realErrors[0]}` : undefined,
     };
   } catch (e: any) {
     return { comments: [], error: `YouTube: ${e?.message || "Unknown error"}` };
