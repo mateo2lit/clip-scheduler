@@ -174,6 +174,11 @@ export async function fetchInstagramComments(
           mediaId = permalinkToMediaId.get(post.platform_post_id) ?? null;
         }
 
+        // If platform_post_id is a numeric ID (not a URL), use it directly as the media ID
+        if (!mediaId && post.platform_post_id && !post.platform_post_id.startsWith("https://")) {
+          mediaId = post.platform_post_id;
+        }
+
         if (!mediaId) return [];
 
         const url = `https://graph.instagram.com/v21.0/${mediaId}/comments?fields=id,text,username,timestamp,like_count&access_token=${encodeURIComponent(accessToken)}`;
