@@ -117,7 +117,7 @@ export async function GET(req: Request) {
       igUserId: acctMap.get("instagram")?.ig_user_id ?? null,
     };
 
-    return NextResponse.json({ ok: true, comments: allComments, errors, debug });
+    return NextResponse.json({ ok: true, debug, errors, commentCount: allComments.length, comments: allComments });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },
