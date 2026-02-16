@@ -117,6 +117,96 @@ function toIsoFromDatetimeLocal(value: string) {
   return new Date(value).toISOString();
 }
 
+function splitLocalDateTime(value: string) {
+  const [datePart = "", timePart = "12:00"] = value.split("T");
+  return { datePart, timePart: timePart.slice(0, 5) || "12:00" };
+}
+
+function combineLocalDateTime(datePart: string, timePart: string) {
+  const safeDate = datePart || new Date().toISOString().slice(0, 10);
+  const safeTime = timePart || "12:00";
+  return `${safeDate}T${safeTime}`;
+}
+
+function parseDatePart(datePart: string) {
+  const [rawY, rawM, rawD] = datePart.split("-");
+  const y = Number(rawY);
+  const m = Number(rawM);
+  const d = Number(rawD);
+  if (!y || !m || !d) return new Date();
+  return new Date(y, m - 1, d);
+}
+
+function toDatePart(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function formatScheduleSummary(datePart: string, timePart: string) {
+  const date = parseDatePart(datePart);
+  const timeLabel = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(
+    new Date(`${datePart}T${timePart || "12:00"}`)
+  );
+  const dateLabel = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+  return `${dateLabel} at ${timeLabel}`;
+}
+
+function formatMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(date);
+}
+
+function buildCalendarDays(monthCursor: Date) {
+  const year = monthCursor.getFullYear();
+  const month = monthCursor.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + index);
+    return {
+      key: d.toISOString(),
+      date: d,
+      inCurrentMonth: d.getMonth() === month,
+    };
+  });
+}
+
+function toTimePart(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function getNextHourLocalDateTimeValue() {
+  const d = new Date();
+  if (d.getMinutes() > 0 || d.getSeconds() > 0 || d.getMilliseconds() > 0) {
+    d.setHours(d.getHours() + 1);
+  }
+  d.setMinutes(0, 0, 0);
+  return combineLocalDateTime(toDatePart(d), toTimePart(d));
+}
+
+function formatTimeOptionLabel(timePart: string) {
+  const [rawH = "0", rawM = "0"] = timePart.split(":");
+  const d = new Date();
+  d.setHours(Number(rawH), Number(rawM), 0, 0);
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d);
+}
+
+function buildTimeOptions(stepMinutes = 15) {
+  const options: Array<{ value: string; label: string }> = [];
+  for (let totalMinutes = 0; totalMinutes < 24 * 60; totalMinutes += stepMinutes) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const value = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    options.push({ value, label: formatTimeOptionLabel(value) });
+  }
+  return options;
+}
+
 export default function UploadsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const { teamId } = useTeam();
@@ -184,12 +274,21 @@ export default function UploadsPage() {
 
   // Scheduling
   const defaultWhen = useMemo(() => {
-    const d = new Date(Date.now() + 5 * 60 * 1000);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return getNextHourLocalDateTimeValue();
   }, []);
   const [scheduledForLocal, setScheduledForLocal] = useState(defaultWhen);
   const [scheduleType, setScheduleType] = useState<"now" | "scheduled">("scheduled");
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+  const [showScheduleActions, setShowScheduleActions] = useState(false);
+  const { datePart: scheduledDatePart, timePart: scheduledTimePart } = useMemo(
+    () => splitLocalDateTime(scheduledForLocal),
+    [scheduledForLocal]
+  );
+  const [calendarCursor, setCalendarCursor] = useState(() => {
+    const d = parseDatePart(splitLocalDateTime(defaultWhen).datePart);
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const schedulePickerRef = useRef<HTMLDivElement>(null);
 
   const BUCKET = process.env.NEXT_PUBLIC_UPLOADS_BUCKET || process.env.NEXT_PUBLIC_STORAGE_BUCKET || "clips";
 
@@ -198,6 +297,13 @@ export default function UploadsPage() {
     if (selected.length === 0) return 5000;
     return Math.min(...selected.map((p) => p.charLimit));
   }, [selectedPlatforms]);
+  const timezoneLabel = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "Local timezone", []);
+  const scheduleSummary = useMemo(
+    () => formatScheduleSummary(scheduledDatePart, scheduledTimePart),
+    [scheduledDatePart, scheduledTimePart]
+  );
+  const calendarDays = useMemo(() => buildCalendarDays(calendarCursor), [calendarCursor]);
+  const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
   // Load presets from localStorage
   useEffect(() => {
@@ -221,6 +327,26 @@ export default function UploadsPage() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showEmojiPicker]);
+
+  useEffect(() => {
+    const d = parseDatePart(scheduledDatePart);
+    setCalendarCursor((prev) => {
+      if (prev.getFullYear() === d.getFullYear() && prev.getMonth() === d.getMonth()) return prev;
+      return new Date(d.getFullYear(), d.getMonth(), 1);
+    });
+  }, [scheduledDatePart]);
+
+  useEffect(() => {
+    if (!showSchedulePicker && !showScheduleActions) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (schedulePickerRef.current && !schedulePickerRef.current.contains(e.target as Node)) {
+        setShowSchedulePicker(false);
+        setShowScheduleActions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSchedulePicker, showScheduleActions]);
 
   useEffect(() => {
     async function loadSession() {
@@ -911,13 +1037,202 @@ export default function UploadsPage() {
 
               {/* Scheduling */}
               <div className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 p-1">
-                    <button onClick={() => setScheduleType("now")} className={`rounded-md px-3 py-1.5 text-sm transition-all ${scheduleType === "now" ? "bg-blue-400 text-black" : "text-white/70 hover:text-white"}`}>Now</button>
-                    <button onClick={() => setScheduleType("scheduled")} className={`rounded-md px-3 py-1.5 text-sm transition-all ${scheduleType === "scheduled" ? "bg-blue-400 text-black" : "text-white/70 hover:text-white"}`}>Schedule</button>
+                <div className="space-y-4" ref={schedulePickerRef}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">Publishing</p>
+                      <p className="mt-1 text-sm text-white/65">Set when this post goes live.</p>
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowScheduleActions((v) => !v)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white/85 transition-colors hover:bg-white/[0.08]"
+                      >
+                        <span>{scheduleType === "now" ? "Now" : "Set Date and Time"}</span>
+                        <svg className={`h-4 w-4 text-white/60 transition-transform ${showScheduleActions ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {showScheduleActions && (
+                        <div className="absolute right-0 top-[calc(100%+10px)] z-30 w-72 overflow-hidden rounded-2xl border border-white/12 bg-[#0e1118] shadow-[0_24px_60px_rgba(2,6,23,0.6)]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScheduleType("scheduled");
+                              setShowScheduleActions(false);
+                              setShowSchedulePicker(true);
+                            }}
+                            className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${scheduleType === "scheduled" ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"}`}
+                          >
+                            <span className="mt-1 inline-block h-2 w-2 rounded-full bg-blue-300" />
+                            <span>
+                              <span className="block text-sm font-semibold text-white">Set Date and Time</span>
+                              <span className="mt-0.5 block text-xs text-white/55">Choose a specific time to publish.</span>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScheduleType("now");
+                              setShowScheduleActions(false);
+                              setShowSchedulePicker(false);
+                            }}
+                            className={`flex w-full items-start gap-3 border-t border-white/10 px-4 py-3 text-left transition-colors ${scheduleType === "now" ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"}`}
+                          >
+                            <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-300" />
+                            <span>
+                              <span className="block text-sm font-semibold text-white">Now</span>
+                              <span className="mt-0.5 block text-xs text-white/55">Publish immediately after confirmation.</span>
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {scheduleType === "now" && (
+                    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+                      <p className="text-sm text-emerald-100">This post will publish immediately when you click the main action.</p>
+                    </div>
+                  )}
+
                   {scheduleType === "scheduled" && (
-                    <input type="datetime-local" value={scheduledForLocal} onChange={(e) => setScheduledForLocal(e.target.value)} className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40" />
+                    <div className="space-y-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowSchedulePicker((v) => !v)}
+                        className="group w-full rounded-2xl border border-white/12 bg-gradient-to-r from-[#121722] to-[#0d111a] px-4 py-3 text-left transition-all hover:border-blue-300/35"
+                      >
+                        <span className="block text-[11px] uppercase tracking-[0.2em] text-white/45">Scheduled For</span>
+                        <span className="mt-1 block text-xl font-semibold text-white">{scheduleSummary}</span>
+                        <span className="mt-1 inline-flex items-center gap-2 text-xs text-white/55">
+                          <span>{timezoneLabel}</span>
+                          <span className="h-1 w-1 rounded-full bg-white/35" />
+                          <span>{showSchedulePicker ? "Hide calendar" : "Click to change"}</span>
+                        </span>
+                      </button>
+
+                      {showSchedulePicker && (
+                        <div className="rounded-2xl border border-white/12 bg-[#0d1118]/95 p-4 shadow-[0_28px_60px_rgba(2,6,23,0.7)]">
+                          <div className="grid gap-4 lg:grid-cols-[1.25fr_0.9fr]">
+                            <div>
+                              <div className="mb-3 flex items-center justify-between">
+                                <p className="text-sm font-semibold text-white">{formatMonthLabel(calendarCursor)}</p>
+                                <div className="inline-flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCalendarCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                                    className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                                    aria-label="Previous month"
+                                  >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCalendarCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                                    className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                                    aria-label="Next month"
+                                  >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="mb-2 grid grid-cols-7 gap-1">
+                                {["S", "M", "T", "W", "T", "F", "S"].map((label, idx) => (
+                                  <span key={`${label}-${idx}`} className="py-1 text-center text-[11px] font-medium text-white/40">
+                                    {label}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div className="grid grid-cols-7 gap-1">
+                                {calendarDays.map(({ key, date, inCurrentMonth }) => {
+                                  const dateKey = toDatePart(date);
+                                  const isSelected = dateKey === scheduledDatePart;
+                                  const isToday = dateKey === toDatePart(new Date());
+                                  return (
+                                    <button
+                                      key={key}
+                                      type="button"
+                                      onClick={() => setScheduledForLocal(combineLocalDateTime(dateKey, scheduledTimePart))}
+                                      className={`rounded-lg py-2 text-center text-sm transition-all ${
+                                        isSelected
+                                          ? "bg-blue-500 font-semibold text-white shadow-[0_10px_25px_rgba(59,130,246,0.45)]"
+                                          : inCurrentMonth
+                                            ? "text-white/85 hover:bg-white/10"
+                                            : "text-white/35 hover:bg-white/5"
+                                      } ${!isSelected && isToday ? "ring-1 ring-white/30" : ""}`}
+                                    >
+                                      {date.getDate()}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                              <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/45">Select Time</p>
+                              <div className="mt-3 flex items-center gap-2 rounded-lg border border-blue-300/35 bg-blue-400/[0.14] px-3 py-2 text-blue-100">
+                                <svg className="h-4 w-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-sm font-semibold text-blue-50">{formatTimeOptionLabel(scheduledTimePart)}</span>
+                              </div>
+                              <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-black/20 p-1.5">
+                                {timeOptions.map((option) => {
+                                  const isSelected = option.value === scheduledTimePart;
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => setScheduledForLocal(combineLocalDateTime(scheduledDatePart, option.value))}
+                                      className={`w-full rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+                                        isSelected
+                                          ? "bg-blue-500 text-white"
+                                          : "text-white/75 hover:bg-white/10 hover:text-white"
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <p className="mt-3 text-xs text-white/45">{timezoneLabel}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+                            <button
+                              type="button"
+                              onClick={() => setShowScheduleActions(true)}
+                              className="inline-flex items-center gap-2 text-sm text-white/70 transition-colors hover:text-white"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                              More posting actions
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowSchedulePicker(false)}
+                              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/85 transition-colors hover:bg-white/10"
+                            >
+                              Done
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
