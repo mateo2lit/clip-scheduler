@@ -3,25 +3,34 @@ import Link from "next/link";
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/50 via-transparent to-transparent" />
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-purple-500/[0.06] to-transparent blur-3xl" />
+        <div className="absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white/70 transition-colors mb-8"
+          href="/"
+          className="mb-8 inline-flex items-center gap-1 text-sm text-white/40 transition-colors hover:text-white/70"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back
+          Back to Home
         </Link>
 
-        <h1 className="text-2xl font-medium tracking-tight">Privacy Policy</h1>
-        <p className="text-white/40 mt-1">Last updated: February 2026</p>
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
+          <h1 className="text-3xl font-semibold tracking-tight">Privacy Policy</h1>
+          <p className="mt-2 text-sm text-white/50">Last updated: February 2026</p>
+          <p className="mt-5 text-sm text-white/70 max-w-3xl">
+            This policy explains what Clip Dash collects, why we collect it, and how you can control your data.
+            This is an informational summary and not legal advice.
+          </p>
+        </div>
 
-        <div className="mt-10 space-y-8 text-sm text-white/70 leading-relaxed">
+        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_20px_70px_rgba(2,6,23,0.45)] sm:p-8">
+        <div className="space-y-8 text-sm text-white/70 leading-relaxed">
           <section>
             <h2 className="text-base font-medium text-white mb-3">1. Introduction</h2>
             <p>
@@ -37,7 +46,7 @@ export default function PrivacyPolicyPage() {
                 <strong className="text-white/80">Account Information:</strong> Your email address and password when you create an account, managed through Supabase authentication.
               </li>
               <li>
-                <strong className="text-white/80">Platform Authorization Tokens:</strong> When you connect a social media account (YouTube, TikTok), we store OAuth access tokens and refresh tokens to act on your behalf. We do not store your social media passwords.
+                <strong className="text-white/80">Platform Authorization Tokens:</strong> When you connect social media accounts (YouTube, TikTok, Instagram, Facebook, LinkedIn), we store OAuth access tokens and refresh tokens to act on your behalf. We do not store your social media passwords.
               </li>
               <li>
                 <strong className="text-white/80">Uploaded Content:</strong> Video files you upload for scheduling. These are stored securely and used solely for publishing to your connected platforms.
@@ -46,7 +55,7 @@ export default function PrivacyPolicyPage() {
                 <strong className="text-white/80">Post Metadata:</strong> Titles, descriptions, scheduling times, privacy settings, and platform-specific settings you configure for your posts.
               </li>
               <li>
-                <strong className="text-white/80">Basic Profile Information:</strong> When you connect TikTok, we receive your TikTok open ID to identify your account. When you connect YouTube, we receive your channel information for publishing purposes.
+                <strong className="text-white/80">Basic Profile Information:</strong> We may receive platform identifiers, profile names, channel/page IDs, and avatars needed to show account status and publish content.
               </li>
             </ul>
           </section>
@@ -73,7 +82,11 @@ export default function PrivacyPolicyPage() {
               <li><strong className="text-white/80">TikTok:</strong> To publish videos to your account. Subject to TikTok's Privacy Policy.</li>
               <li><strong className="text-white/80">Facebook (Meta):</strong> To post videos to your Facebook Page. Subject to Meta's Privacy Policy.</li>
               <li><strong className="text-white/80">Instagram (Meta):</strong> To publish Reels to your Instagram account. Subject to Meta's Privacy Policy.</li>
+              <li><strong className="text-white/80">LinkedIn:</strong> To publish videos to your LinkedIn profile. Subject to LinkedIn's Privacy Policy.</li>
               <li><strong className="text-white/80">Supabase:</strong> For authentication and secure data storage.</li>
+              <li><strong className="text-white/80">Stripe:</strong> For billing, subscriptions, and payment processing.</li>
+              <li><strong className="text-white/80">Anthropic:</strong> For AI-powered hashtag suggestion features.</li>
+              <li><strong className="text-white/80">Resend (if enabled):</strong> For transactional email notifications.</li>
             </ul>
             <p className="mt-3">
               We only share data with these platforms as necessary to perform the actions you request (e.g., publishing a video). We transmit your video content directly to the platform's API when a scheduled post is due.
@@ -99,13 +112,20 @@ export default function PrivacyPolicyPage() {
             <p>You can request deletion of your data at any time:</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-white/60">
               <li><strong className="text-white/80">Disconnect a platform:</strong> Go to Settings and click "Disconnect" next to any connected account. This immediately deletes all stored tokens and platform-specific data for that connection.</li>
-              <li><strong className="text-white/80">Delete your account:</strong> Contact us to request full account deletion. We will delete your account, all uploaded videos, scheduled posts, platform tokens, and any other associated data within 30 days.</li>
+              <li><strong className="text-white/80">Delete your account:</strong> Use account deletion controls in the app or contact us to request full account deletion. We will delete account data, uploaded videos, scheduled posts, and stored platform tokens within a reasonable period.</li>
               <li><strong className="text-white/80">Facebook/Instagram data:</strong> When you disconnect Facebook or Instagram, we delete your Page access tokens, Page ID, Instagram user ID, and any stored profile information. You can also remove Clip Dash's access from your Facebook Settings under Apps and Websites.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">8. Your Rights</h2>
+            <h2 className="text-base font-medium text-white mb-3">8. Cookies and Technical Data</h2>
+            <p>
+              We and our infrastructure providers may use cookies or similar technologies for authentication, session management, security, and basic product analytics.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-medium text-white mb-3">9. Your Rights</h2>
             <p>You have the right to:</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-white/60">
               <li>Access the personal data we hold about you</li>
@@ -116,25 +136,26 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">9. Children's Privacy</h2>
+            <h2 className="text-base font-medium text-white mb-3">10. Children's Privacy</h2>
             <p>
               The Service is not intended for children under 13. We do not knowingly collect personal information from children under 13.
             </p>
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">10. Changes to This Policy</h2>
+            <h2 className="text-base font-medium text-white mb-3">11. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. Continued use of the Service after changes constitutes acceptance of the updated policy. We will make reasonable efforts to notify users of significant changes.
             </p>
           </section>
 
           <section>
-            <h2 className="text-base font-medium text-white mb-3">11. Contact</h2>
+            <h2 className="text-base font-medium text-white mb-3">12. Contact</h2>
             <p>
               If you have questions about this Privacy Policy or how your data is handled, please contact us through the Service.
             </p>
           </section>
+        </div>
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5 text-center">
