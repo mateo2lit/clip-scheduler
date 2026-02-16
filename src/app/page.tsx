@@ -69,7 +69,7 @@ export default function Home() {
           </span>
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-          Schedule and publish your videos to YouTube, TikTok, Instagram, and more — all from a single dashboard.
+          Plan, publish, and grow across YouTube, TikTok, Instagram, Facebook, and LinkedIn from one focused creator workspace.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {loaded && (
@@ -111,13 +111,13 @@ export default function Home() {
           <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
           </svg>
-          {/* X */}
-          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-          </svg>
           {/* Facebook */}
           <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+          {/* LinkedIn */}
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
           </svg>
         </div>
       </section>
@@ -137,7 +137,7 @@ export default function Home() {
                 </svg>
               ),
               title: "Multi-Platform Publishing",
-              desc: "Upload once and publish to YouTube, TikTok, Instagram, X, and Facebook simultaneously.",
+              desc: "Schedule once and auto-publish to YouTube, TikTok, Instagram, Facebook, and LinkedIn.",
               color: "blue",
             },
             {
@@ -146,8 +146,8 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
               ),
-              title: "Smart Scheduling",
-              desc: "Schedule posts for optimal engagement times. Set it and forget it — we handle the rest.",
+              title: "AI Tag Suggestions",
+              desc: "Generate platform-aware hashtags in seconds, then pick and apply only the tags you want.",
               color: "purple",
             },
             {
@@ -156,8 +156,8 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
                 </svg>
               ),
-              title: "One Dashboard",
-              desc: "Manage all your content, platforms, and analytics from a single, unified interface.",
+              title: "Unified Comments Inbox",
+              desc: "Read and reply to comments across platforms in one place so engagement never slips through.",
               color: "emerald",
             },
           ].map((f) => (
@@ -187,9 +187,9 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { step: "1", title: "Upload your video", desc: "Drag and drop or select your video file. Add titles, descriptions, and tags." },
-            { step: "2", title: "Choose platforms & schedule", desc: "Pick which platforms to publish to and set your preferred date and time." },
-            { step: "3", title: "We publish automatically", desc: "Sit back — Clip Dash posts your content on schedule, to every platform." },
+            { step: "1", title: "Create once, customize fast", desc: "Upload your video, generate AI tag suggestions, and finalize your caption in minutes." },
+            { step: "2", title: "Schedule across channels", desc: "Select platforms and schedule times with one workflow instead of repeating busywork." },
+            { step: "3", title: "Grow with less manual work", desc: "Posts publish automatically and comments are managed from one unified inbox." },
           ].map((s) => (
             <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5">
@@ -230,11 +230,11 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Smart scheduling
+                AI tag suggestions
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                1 team member (solo)
+                Unified comments inbox
               </li>
             </ul>
             <a
@@ -263,7 +263,7 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Collaborative workflows
+                Shared inbox and workflows
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
@@ -285,10 +285,10 @@ export default function Home() {
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
             {[
-              { value: "5+", label: "Platforms supported" },
-              { value: "10K+", label: "Videos scheduled" },
-              { value: "2K+", label: "Creators" },
-              { value: "99.9%", label: "Uptime" },
+              { value: "5", label: "Publishing platforms" },
+              { value: "1", label: "Unified comments inbox" },
+              { value: "AI", label: "Tag suggestions built in" },
+              { value: "24/7", label: "Automated scheduling" },
             ].map((s) => (
               <div key={s.label}>
                 <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -307,7 +307,7 @@ export default function Home() {
           Ready to grow your audience?
         </h2>
         <p className="mt-4 text-white/40 text-lg max-w-xl mx-auto">
-          Join thousands of creators who save hours every week with Clip Dash.
+          Replace scattered posting tools with one focused workflow built to help creators publish consistently and grow faster.
         </p>
         <div className="mt-8">
           {loaded && (
@@ -349,3 +349,4 @@ export default function Home() {
     </main>
   );
 }
+
