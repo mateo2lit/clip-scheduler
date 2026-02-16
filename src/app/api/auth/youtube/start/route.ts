@@ -58,8 +58,8 @@ async function handler(req: Request) {
     include_granted_scopes: true,
     scope: [
       "https://www.googleapis.com/auth/youtube.upload",
-      // Optional but reduces edge-case permission weirdness in some accounts:
       "https://www.googleapis.com/auth/youtube",
+      "https://www.googleapis.com/auth/youtube.force-ssl",
     ],
     state: userId,
   });
