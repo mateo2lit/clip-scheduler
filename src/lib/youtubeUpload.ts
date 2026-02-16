@@ -16,6 +16,29 @@ type UploadToYouTubeArgs = {
 
   thumbnailBucket?: string;
   thumbnailPath?: string;
+
+  categoryId?: string;
+  madeForKids?: boolean;
+  embeddable?: boolean;
+  notifySubscribers?: boolean;
+  publicStatsViewable?: boolean;
+};
+
+export const CATEGORY_IDS: Record<string, string> = {
+  film: "1",
+  autos: "2",
+  music: "10",
+  pets: "15",
+  sports: "17",
+  travel: "19",
+  gaming: "20",
+  comedy: "23",
+  entertainment: "24",
+  news: "25",
+  howto: "26",
+  education: "27",
+  science: "28",
+  nonprofit: "29",
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -64,6 +87,11 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
     privacyStatus,
     thumbnailBucket,
     thumbnailPath,
+    categoryId,
+    madeForKids,
+    embeddable,
+    notifySubscribers,
+    publicStatsViewable,
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -106,13 +134,18 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
 
   const uploadResp = await youtube.videos.insert({
     part: ["snippet", "status"],
+    notifySubscribers: notifySubscribers ?? true,
     requestBody: {
       snippet: {
         title,
         description: description ?? "",
+        categoryId: categoryId || undefined,
       },
       status: {
         privacyStatus,
+        selfDeclaredMadeForKids: madeForKids ?? false,
+        embeddable: embeddable ?? true,
+        publicStatsViewable: publicStatsViewable ?? true,
       },
     },
     media: {

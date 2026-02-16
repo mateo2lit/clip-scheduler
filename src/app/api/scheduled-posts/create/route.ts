@@ -38,6 +38,7 @@ export async function POST(req: Request) {
       tiktok_settings,
       facebook_settings,
       instagram_settings,
+      youtube_settings,
       thumbnail_path,
       group_id,
     } = body;
@@ -79,6 +80,10 @@ export async function POST(req: Request) {
 
     if (instagram_settings && provider === "instagram") {
       insertRow.instagram_settings = instagram_settings;
+    }
+
+    if (youtube_settings && provider === "youtube") {
+      insertRow.youtube_settings = youtube_settings;
     }
 
     const { data, error } = await supabaseAdmin

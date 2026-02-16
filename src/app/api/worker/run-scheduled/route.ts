@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { uploadSupabaseVideoToYouTube } from "@/lib/youtubeUpload";
+import { uploadSupabaseVideoToYouTube, CATEGORY_IDS } from "@/lib/youtubeUpload";
 import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
@@ -232,7 +232,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path,group_id")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -241,7 +241,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,thumbnail_path,group_id")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -476,6 +476,7 @@ async function runWorker(req: Request) {
         platformPostId = li.linkedinPostId;
       } else {
         // YouTube (default)
+        const yts = (post.youtube_settings ?? {}) as any;
         const ytArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
@@ -487,6 +488,11 @@ async function runWorker(req: Request) {
           privacyStatus: (["private", "unlisted", "public"].includes(post.privacy_status ?? "")
             ? post.privacy_status
             : "private") as any,
+          categoryId: CATEGORY_IDS[yts.category] || undefined,
+          madeForKids: yts.made_for_kids ?? false,
+          embeddable: yts.allow_embedding ?? true,
+          notifySubscribers: yts.notify_subscribers ?? true,
+          publicStatsViewable: yts.public_stats_viewable ?? true,
         };
 
         if (post.thumbnail_path) {

@@ -25,6 +25,7 @@ type YouTubePreset = {
   allowComments: boolean;
   allowEmbedding: boolean;
   madeForKids: boolean;
+  publicStats?: boolean;
 };
 
 type PlatformConfig = {
@@ -163,6 +164,7 @@ export default function UploadsPage() {
   const [ytAllowComments, setYtAllowComments] = useState(true);
   const [ytAllowEmbedding, setYtAllowEmbedding] = useState(true);
   const [ytMadeForKids, setYtMadeForKids] = useState(false);
+  const [ytPublicStats, setYtPublicStats] = useState(true);
 
   // YouTube presets
   const [ytPresets, setYtPresets] = useState<YouTubePreset[]>([]);
@@ -256,6 +258,7 @@ export default function UploadsPage() {
               if (typeof s.allowComments === "boolean") setYtAllowComments(s.allowComments);
               if (typeof s.allowEmbedding === "boolean") setYtAllowEmbedding(s.allowEmbedding);
               if (typeof s.madeForKids === "boolean") setYtMadeForKids(s.madeForKids);
+              if (typeof s.publicStats === "boolean") setYtPublicStats(s.publicStats);
             } else if (row.platform === "tiktok") {
               if (s.privacyLevel) setTtPrivacyLevel(s.privacyLevel);
               if (typeof s.allowComments === "boolean") setTtAllowComments(s.allowComments);
@@ -351,6 +354,7 @@ export default function UploadsPage() {
       allowComments: ytAllowComments,
       allowEmbedding: ytAllowEmbedding,
       madeForKids: ytMadeForKids,
+      publicStats: ytPublicStats,
     };
     const updated = [...ytPresets.filter((p) => p.name !== preset.name), preset];
     setYtPresets(updated);
@@ -366,6 +370,7 @@ export default function UploadsPage() {
     setYtAllowComments(preset.allowComments);
     setYtAllowEmbedding(preset.allowEmbedding);
     setYtMadeForKids(preset.madeForKids);
+    setYtPublicStats(preset.publicStats ?? true);
   }
 
   function deleteYtPreset(name: string) {
@@ -533,6 +538,7 @@ export default function UploadsPage() {
             allow_comments: ytAllowComments,
             allow_embedding: ytAllowEmbedding,
             made_for_kids: ytMadeForKids,
+            public_stats_viewable: ytPublicStats,
           };
         }
 
@@ -983,6 +989,10 @@ export default function UploadsPage() {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={ytMadeForKids} onChange={(e) => setYtMadeForKids(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
                       <span className="text-sm text-white/70">Made for Kids</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={ytPublicStats} onChange={(e) => setYtPublicStats(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                      <span className="text-sm text-white/70">Show Like Count</span>
                     </label>
                   </div>
 
