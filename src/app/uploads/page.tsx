@@ -600,36 +600,46 @@ export default function UploadsPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/50 via-transparent to-transparent" />
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-purple-500/[0.06] to-transparent blur-3xl" />
+        <div className="absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         {/* Header */}
-        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white/70 transition-colors mb-8">
+        <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1 text-sm text-white/40 transition-colors hover:text-white/70">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back to Dashboard
         </Link>
 
-        <div className="flex items-center justify-between">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 font-medium text-blue-300">Uploads</span>
+            <span className={`rounded-full border px-3 py-1 font-medium ${step === "upload" ? "border-blue-400/30 bg-blue-400/10 text-blue-300" : "border-white/10 bg-white/5 text-white/40"}`}>1. Upload</span>
+            <span className={`rounded-full border px-3 py-1 font-medium ${step === "details" ? "border-blue-400/30 bg-blue-400/10 text-blue-300" : "border-white/10 bg-white/5 text-white/40"}`}>2. Configure</span>
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-medium tracking-tight">{step === "upload" ? "Upload Video" : "Create Post"}</h1>
-            <p className="text-white/40 mt-1">{step === "upload" ? "Upload your video to get started" : "Configure your post for each platform"}</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{step === "upload" ? "Upload your next video" : "Configure your post"}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-white/70 sm:text-base">{step === "upload" ? "Drop in your video and move into platform setup in one smooth flow." : "Tune copy, hashtags, media details, and schedule for each connected platform."}</p>
           </div>
           {step === "details" && (
-            <button onClick={resetUpload} className="text-sm text-white/40 hover:text-white/70 transition-colors">
+            <button onClick={resetUpload} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">
               Upload different video
             </button>
           )}
         </div>
+        </div>
 
         {/* Subscribe banner */}
         {planActive === false && (
-          <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
+          <div className="mt-6 flex items-center justify-between rounded-2xl border border-amber-400/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 shadow-[0_10px_30px_rgba(245,158,11,0.16)]">
             <span>You need an active subscription to upload and schedule posts.</span>
-            <Link href="/settings" className="rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-black hover:bg-amber-400 transition-colors">
+            <Link href="/settings" className="rounded-full bg-amber-300 px-3 py-1 text-xs font-semibold text-black transition-colors hover:bg-amber-200">
               Subscribe
             </Link>
           </div>
@@ -637,100 +647,102 @@ export default function UploadsPage() {
 
         {/* Upload Step */}
         {step === "upload" && (
-          <div className="mt-10">
+          <div className="mt-8">
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
-              className={`relative rounded-2xl border-2 border-dashed p-16 text-center transition-all ${dragOver ? "border-white/40 bg-white/5" : file ? "border-emerald-500/30 bg-emerald-500/5" : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"}`}
+              className={`relative rounded-3xl border-2 border-dashed px-6 py-16 text-center shadow-[0_24px_90px_rgba(2,6,23,0.5)] transition-all backdrop-blur-xl ${dragOver ? "border-blue-400/50 bg-blue-400/10" : file ? "border-emerald-300/40 bg-emerald-300/10" : "border-white/15 bg-white/[0.03] hover:border-blue-300/35 hover:bg-white/[0.05]"}`}
             >
               {uploading ? (
                 <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-white/10 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-white/60 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
+                    <svg className="h-8 w-8 animate-pulse text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
-                  <div><p className="font-medium">Uploading...</p><p className="text-sm text-white/40 mt-1">{uploadProgress}%</p></div>
+                  <div><p className="font-medium text-white">Uploading...</p><p className="mt-1 text-sm text-white/70">{uploadProgress}%</p></div>
                   <div className="w-full max-w-xs mx-auto h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-white transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                    <div className="h-full bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
               ) : file ? (
                 <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-300/15">
+                    <svg className="h-8 w-8 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <div><p className="font-medium">{file.name}</p><p className="text-sm text-white/40 mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p></div>
+                  <div><p className="font-medium text-white">{file.name}</p><p className="mt-1 text-sm text-white/70">{(file.size / (1024 * 1024)).toFixed(2)} MB</p></div>
                   <div className="flex items-center justify-center gap-3">
-                    <button onClick={() => setFile(null)} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors">Remove</button>
-                    <button onClick={doUpload} disabled={planActive === false} className="rounded-full bg-white px-6 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Upload</button>
+                    <button onClick={() => setFile(null)} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10">Remove</button>
+                    <button onClick={doUpload} disabled={planActive === false} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-6 py-2 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:cursor-not-allowed disabled:opacity-50">Upload</button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-white/5 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
+                    <svg className="h-8 w-8 text-blue-300/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
-                  <div><p className="font-medium">Drop your video here</p><p className="text-sm text-white/40 mt-1">or click to browse</p></div>
+                  <div><p className="font-medium text-white">Drop your video here</p><p className="mt-1 text-sm text-white/70">or click to browse</p></div>
                   <input type="file" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 </div>
               )}
             </div>
-            <p className="text-center text-xs text-white/30 mt-4">Supported formats: MP4, MOV, AVI, WebM</p>
+            <p className="mt-4 text-center text-xs text-white/40">Supported formats: MP4, MOV, AVI, WebM</p>
           </div>
         )}
 
         {/* Details Step */}
         {step === "details" && (
-          <div className="mt-10 space-y-6">
+          <div className="mt-8 space-y-6">
             {/* Platform Selector */}
-            <div className="flex items-center gap-2 pb-6 border-b border-white/5 flex-wrap">
-              <span className="text-sm text-white/40 mr-2">Post to:</span>
-              {PLATFORMS.map((platform) => (
-                <button
-                  key={platform.key}
-                  onClick={() => platform.available && togglePlatform(platform.key)}
-                  disabled={!platform.available}
-                  className={`relative flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-all ${selectedPlatforms.includes(platform.key) ? "bg-white text-black" : platform.available ? "bg-white/5 text-white/60 hover:bg-white/10" : "bg-white/[0.02] text-white/20 cursor-not-allowed"}`}
-                >
-                  <span className={selectedPlatforms.includes(platform.key) ? "text-black" : ""}>{platform.icon}</span>
-                  <span>{platform.name}</span>
-                  {!platform.available && <span className="text-[10px] text-white/30 ml-1">Soon</span>}
-                </button>
-              ))}
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+              <div className="mb-3 text-sm text-white/70">Post to</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {PLATFORMS.map((platform) => (
+                  <button
+                    key={platform.key}
+                    onClick={() => platform.available && togglePlatform(platform.key)}
+                    disabled={!platform.available}
+                    className={`relative flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-all ${selectedPlatforms.includes(platform.key) ? "border-blue-400/50 bg-blue-400/20 text-blue-200" : platform.available ? "border-white/10 bg-white/5 text-white/70 hover:border-blue-300/30 hover:bg-white/10" : "border-white/5 bg-white/[0.02] text-white/20 cursor-not-allowed"}`}
+                  >
+                    <span>{platform.icon}</span>
+                    <span>{platform.name}</span>
+                    {!platform.available && <span className="ml-1 text-[10px] text-white/20">Soon</span>}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
               {/* Title */}
-              <div className="p-5 border-b border-white/5">
-                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="w-full bg-transparent text-lg font-medium text-white placeholder-white/30 outline-none" />
+              <div className="border-b border-white/10 p-5">
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-lg font-medium text-white placeholder-white/30 outline-none focus:border-blue-300/40 focus:bg-white/10" />
               </div>
 
               {/* Description */}
-              <div className="p-5 border-b border-white/5">
-                <textarea ref={descriptionRef} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What would you like to share?" rows={4} className="w-full bg-transparent text-sm text-white placeholder-white/30 outline-none resize-none" />
+              <div className="border-b border-white/10 p-5">
+                <textarea ref={descriptionRef} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What would you like to share?" rows={4} className="w-full resize-none rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 focus:bg-white/10" />
 
                 {/* Toolbar */}
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
                   <div className="relative" ref={emojiPickerRef}>
-                    <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 rounded-lg transition-colors ${showEmojiPicker ? "bg-white/10 text-white" : "hover:bg-white/5 text-white/40 hover:text-white/70"}`} title="Add emoji">
+                    <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`rounded-lg p-2 transition-colors ${showEmojiPicker ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/10 hover:text-white"}`} title="Add emoji">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
                     {/* Emoji Picker */}
                     {showEmojiPicker && (
-                      <div className="absolute bottom-full left-0 mb-2 w-80 rounded-xl border border-white/10 bg-neutral-900 shadow-xl z-50 overflow-hidden">
+                      <div className="absolute bottom-full left-0 z-50 mb-2 w-80 overflow-hidden rounded-xl border border-white/10 bg-neutral-900/95 shadow-xl backdrop-blur">
                         {/* Category Tabs */}
                         <div className="flex border-b border-white/5">
                           {Object.keys(EMOJI_CATEGORIES).map((cat) => (
-                            <button key={cat} onClick={() => setSelectedEmojiCategory(cat)} className={`flex-1 px-3 py-2 text-xs transition-colors ${selectedEmojiCategory === cat ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}>
+                            <button key={cat} onClick={() => setSelectedEmojiCategory(cat)} className={`flex-1 px-3 py-2 text-xs transition-colors ${selectedEmojiCategory === cat ? "bg-white/10 text-white" : "text-white/40 hover:text-white"}`}>
                               {cat}
                             </button>
                           ))}
@@ -748,19 +760,19 @@ export default function UploadsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="text-xs text-white/30">{description.length} / {maxCharLimit}</div>
+                  <div className="text-xs text-white/40">{description.length} / {maxCharLimit}</div>
                 </div>
               </div>
 
               {/* Hashtags */}
-              <div className="p-5 border-b border-white/5">
-                <label className="block text-xs text-white/40 mb-2">Hashtags</label>
+              <div className="border-b border-white/10 p-5">
+                <label className="mb-2 block text-xs text-white/70">Hashtags</label>
                 <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border border-white/10 bg-white/5 min-h-[44px]" onClick={() => hashtagInputRef.current?.focus()}>
                   {hashtags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-white/10 pl-3 pr-1.5 py-1 text-sm">
-                      <span className="text-white/50">#</span>
+                    <span key={tag} className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-400/15 py-1 pl-3 pr-1.5 text-sm text-blue-200">
+                      <span className="text-blue-400/70">#</span>
                       <span>{tag}</span>
-                      <button onClick={() => removeHashtag(tag)} className="ml-1 p-0.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                      <button onClick={() => removeHashtag(tag)} className="ml-1 rounded-full p-0.5 text-blue-300/70 transition-colors hover:bg-white/10 hover:text-white">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -779,12 +791,12 @@ export default function UploadsPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-white/30">Press Enter or comma to add a tag</p>
+                  <p className="text-xs text-white/40">Press Enter or comma to add a tag</p>
                   {!showAiPrompt && (
                     <button
                       onClick={startAiSuggest}
                       disabled={aiLoading}
-                      className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 px-3 py-1.5 text-xs text-purple-300 hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-gradient-to-r from-blue-400/20 to-purple-400/20 px-3 py-1.5 text-xs text-blue-300 transition-all hover:from-blue-400/30 hover:to-purple-400/30 disabled:opacity-50"
                     >
                       <svg className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
@@ -796,28 +808,28 @@ export default function UploadsPage() {
 
                 {/* AI Context Prompt */}
                 {showAiPrompt && (
-                  <div className="mt-3 rounded-xl border border-purple-500/20 bg-purple-500/[0.05] p-4">
-                    <label className="block text-xs font-medium text-purple-300 mb-2">What's this video about?</label>
+                  <div className="mt-3 rounded-xl border border-blue-400/30 bg-blue-400/[0.08] p-4">
+                    <label className="mb-2 block text-xs font-medium text-blue-300">What's this video about?</label>
                     <input
                       type="text"
                       value={aiContext}
                       onChange={(e) => setAiContext(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && aiContext.trim() && handleAiSuggest()}
                       placeholder="e.g. Warzone gameplay highlights with funny moments"
-                      className="w-full rounded-lg border border-purple-500/20 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-purple-500/40"
+                      className="w-full rounded-lg border border-blue-400/30 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/60"
                       autoFocus
                     />
                     <div className="flex items-center justify-end gap-2 mt-3">
                       <button
                         onClick={() => { setShowAiPrompt(false); setAiContext(""); }}
-                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 hover:bg-white/10 transition-colors"
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleAiSuggest}
                         disabled={!aiContext.trim()}
-                        className="rounded-full bg-gradient-to-r from-purple-500 to-blue-500 px-4 py-1.5 text-xs font-medium text-white hover:from-purple-400 hover:to-blue-400 transition-all disabled:opacity-50"
+                        className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-4 py-1.5 text-xs font-semibold text-black transition-all hover:from-blue-300 hover:to-purple-300 disabled:opacity-50"
                       >
                         Generate Tags
                       </button>
@@ -827,19 +839,19 @@ export default function UploadsPage() {
 
                 {/* AI Suggestions Panel */}
                 {aiSuggestions.length > 0 && (
-                  <div className="mt-3 rounded-xl border border-purple-500/20 bg-purple-500/[0.05] p-4">
+                  <div className="mt-3 rounded-xl border border-blue-400/30 bg-blue-400/[0.08] p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-medium text-purple-300">Suggested tags</span>
+                      <span className="text-xs font-medium text-blue-300">Suggested tags</span>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={addAllSuggestedTags}
-                          className="text-xs text-purple-300 hover:text-purple-200 transition-colors"
+                          className="text-xs text-blue-300 transition-colors hover:text-blue-200"
                         >
                           Add all
                         </button>
                         <button
                           onClick={() => setAiSuggestions([])}
-                          className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                          className="text-xs text-white/40 transition-colors hover:text-white/70"
                         >
                           Dismiss
                         </button>
@@ -850,24 +862,24 @@ export default function UploadsPage() {
                         <button
                           key={s.tag}
                           onClick={() => addSuggestedTag(s.tag)}
-                          className="group relative inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 pl-3 pr-2.5 py-1.5 text-sm text-purple-200 hover:bg-purple-500/20 hover:border-purple-500/30 transition-all"
+                          className="group relative inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-blue-400/15 py-1.5 pl-3 pr-2.5 text-sm text-blue-200 transition-all hover:border-blue-300/40 hover:bg-blue-400/20"
                           title={s.reason}
                         >
-                          <span className="text-purple-400/60">#</span>
+                          <span className="text-blue-400/70">#</span>
                           <span>{s.tag}</span>
-                          <svg className="w-3.5 h-3.5 text-purple-400/40 group-hover:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-3.5 w-3.5 text-blue-300/50 group-hover:text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.5v15m7.5-7.5h-15" />
                           </svg>
                         </button>
                       ))}
                     </div>
-                    <p className="text-[11px] text-white/30 mt-3">Click a tag to add it. Hover for why it was suggested.</p>
+                    <p className="mt-3 text-[11px] text-white/40">Click a tag to add it. Hover for why it was suggested.</p>
                   </div>
                 )}
               </div>
 
               {/* Thumbnail */}
-              <div className="p-5 border-b border-white/5">
+              <div className="border-b border-white/10 p-5">
                 <div className="flex items-start gap-4">
                   <div className="relative w-32 h-20 rounded-lg border border-white/10 bg-white/5 overflow-hidden flex-shrink-0">
                     {thumbnailPreview ? (
@@ -881,9 +893,9 @@ export default function UploadsPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-white/70">Thumbnail</p>
-                    <p className="text-xs text-white/40 mt-0.5">1280x720 recommended</p>
-                    <label className="inline-flex mt-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors cursor-pointer">
+                    <p className="text-sm text-white">Thumbnail</p>
+                    <p className="mt-0.5 text-xs text-white/40">1280x720 recommended</p>
+                    <label className="mt-2 inline-flex cursor-pointer rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10">
                       {thumbnail ? "Change" : "Upload"}
                       <input type="file" accept="image/*" onChange={handleThumbnailChange} className="hidden" />
                     </label>
@@ -894,12 +906,12 @@ export default function UploadsPage() {
               {/* Scheduling */}
               <div className="p-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 p-1 rounded-lg bg-white/5">
-                    <button onClick={() => setScheduleType("now")} className={`px-3 py-1.5 rounded-md text-sm transition-all ${scheduleType === "now" ? "bg-white text-black" : "text-white/60 hover:text-white"}`}>Now</button>
-                    <button onClick={() => setScheduleType("scheduled")} className={`px-3 py-1.5 rounded-md text-sm transition-all ${scheduleType === "scheduled" ? "bg-white text-black" : "text-white/60 hover:text-white"}`}>Schedule</button>
+                  <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 p-1">
+                    <button onClick={() => setScheduleType("now")} className={`rounded-md px-3 py-1.5 text-sm transition-all ${scheduleType === "now" ? "bg-blue-400 text-black" : "text-white/70 hover:text-white"}`}>Now</button>
+                    <button onClick={() => setScheduleType("scheduled")} className={`rounded-md px-3 py-1.5 text-sm transition-all ${scheduleType === "scheduled" ? "bg-blue-400 text-black" : "text-white/70 hover:text-white"}`}>Schedule</button>
                   </div>
                   {scheduleType === "scheduled" && (
-                    <input type="datetime-local" value={scheduledForLocal} onChange={(e) => setScheduledForLocal(e.target.value)} className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20" />
+                    <input type="datetime-local" value={scheduledForLocal} onChange={(e) => setScheduledForLocal(e.target.value)} className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40" />
                   )}
                 </div>
               </div>
@@ -907,26 +919,26 @@ export default function UploadsPage() {
 
             {/* YouTube Settings */}
             {selectedPlatforms.includes("youtube") && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[0.02]">
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-red-500">{PLATFORMS.find(p => p.key === "youtube")?.icon}</div>
                   <span className="font-medium">YouTube Settings</span>
-                  <button onClick={() => setYtIsShort(!ytIsShort)} className={`ml-auto flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-all ${ytIsShort ? "bg-white text-black" : "bg-white/5 text-white/60"}`}>
+                  <button onClick={() => setYtIsShort(!ytIsShort)} className={`ml-auto flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-all ${ytIsShort ? "bg-blue-400 text-black" : "border border-white/10 bg-white/5 text-white/70"}`}>
                     <span className={`w-2 h-2 rounded-full ${ytIsShort ? "bg-black" : "bg-white/40"}`} />Short
                   </button>
                 </div>
 
                 {/* Presets */}
                 {ytPresets.length > 0 && (
-                  <div className="p-4 border-b border-white/5 bg-white/[0.01]">
+                  <div className="border-b border-white/10 bg-white/[0.01] p-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-white/40">Load preset:</span>
                       {ytPresets.map((preset) => (
                         <div key={preset.name} className="flex items-center gap-1">
-                          <button onClick={() => loadYtPreset(preset)} className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/70 hover:bg-white/10 transition-colors">
+                          <button onClick={() => loadYtPreset(preset)} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 transition-colors hover:bg-white/10">
                             {preset.name}
                           </button>
-                          <button onClick={() => deleteYtPreset(preset.name)} className="p-1 rounded-full hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors">
+                          <button onClick={() => deleteYtPreset(preset.name)} className="rounded-full p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -941,13 +953,13 @@ export default function UploadsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs text-white/40 mb-1.5">Category</label>
-                      <select value={ytCategory} onChange={(e) => setYtCategory(e.target.value as YouTubeCategory)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20">
+                      <select value={ytCategory} onChange={(e) => setYtCategory(e.target.value as YouTubeCategory)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
                         {YOUTUBE_CATEGORIES.map((cat) => (<option key={cat.value} value={cat.value} className="bg-neutral-900">{cat.label}</option>))}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs text-white/40 mb-1.5">Visibility</label>
-                      <select value={ytVisibility} onChange={(e) => setYtVisibility(e.target.value as Privacy)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20">
+                      <select value={ytVisibility} onChange={(e) => setYtVisibility(e.target.value as Privacy)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
                         <option value="public" className="bg-neutral-900">Public</option>
                         <option value="unlisted" className="bg-neutral-900">Unlisted</option>
                         <option value="private" className="bg-neutral-900">Private</option>
@@ -975,15 +987,15 @@ export default function UploadsPage() {
                   </div>
 
                   {/* Save Preset */}
-                  <div className="pt-4 border-t border-white/5">
+                  <div className="pt-4 border-t border-white/10">
                     {showSavePreset ? (
                       <div className="flex items-center gap-2">
-                        <input type="text" value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder="Preset name..." className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none" autoFocus />
-                        <button onClick={saveYtPreset} disabled={!newPresetName.trim()} className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:opacity-50 transition-colors">Save</button>
-                        <button onClick={() => { setShowSavePreset(false); setNewPresetName(""); }} className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors">Cancel</button>
+                        <input type="text" value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder="Preset name..." className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" autoFocus />
+                        <button onClick={saveYtPreset} disabled={!newPresetName.trim()} className="rounded-lg bg-blue-400 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-blue-300 disabled:opacity-50">Save</button>
+                        <button onClick={() => { setShowSavePreset(false); setNewPresetName(""); }} className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10">Cancel</button>
                       </div>
                     ) : (
-                      <button onClick={() => setShowSavePreset(true)} className="flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors">
+                      <button onClick={() => setShowSavePreset(true)} className="flex items-center gap-2 text-sm text-white/70 transition-colors hover:text-white">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                         </svg>
@@ -997,15 +1009,15 @@ export default function UploadsPage() {
 
             {/* TikTok Settings */}
             {selectedPlatforms.includes("tiktok") && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[0.02]">
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-white">{PLATFORMS.find(p => p.key === "tiktok")?.icon}</div>
                   <span className="font-medium">TikTok Settings</span>
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Privacy Level</label>
-                    <select value={ttPrivacyLevel} onChange={(e) => setTtPrivacyLevel(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20">
+                    <select value={ttPrivacyLevel} onChange={(e) => setTtPrivacyLevel(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
                       <option value="SELF_ONLY" className="bg-neutral-900">Private (Self Only)</option>
                       <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
                       <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
@@ -1032,8 +1044,8 @@ export default function UploadsPage() {
 
             {/* Instagram Settings */}
             {selectedPlatforms.includes("instagram") && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[0.02]">
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-pink-500">{PLATFORMS.find(p => p.key === "instagram")?.icon}</div>
                   <span className="font-medium">Instagram Settings</span>
                 </div>
@@ -1042,7 +1054,7 @@ export default function UploadsPage() {
                     <label className="block text-xs text-white/40 mb-1.5">Post Type</label>
                     <div className="flex gap-2">
                       {(["post", "reel", "story"] as InstagramType[]).map((type) => (
-                        <button key={type} onClick={() => setIgType(type)} className={`flex-1 rounded-lg py-2 text-sm capitalize ${igType === type ? "bg-white/10 border border-white/20" : "bg-white/5 border border-white/10"}`}>{type}</button>
+                        <button key={type} onClick={() => setIgType(type)} className={`flex-1 rounded-lg py-2 text-sm capitalize ${igType === type ? "border border-blue-300/40 bg-blue-400 text-black" : "border border-white/10 bg-white/5 text-white/70"}`}>{type}</button>
                       ))}
                     </div>
                     <p className="text-xs text-white/30 mt-1.5">
@@ -1051,16 +1063,16 @@ export default function UploadsPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">First Comment</label>
-                    <input type="text" value={igFirstComment} onChange={(e) => setIgFirstComment(e.target.value)} placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none" />
+                    <input type="text" value={igFirstComment} onChange={(e) => setIgFirstComment(e.target.value)} placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                   </div>
                 </div>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-4">
-              <button onClick={() => handleSchedule(true)} disabled={scheduling} className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50">Save as draft</button>
-              <button onClick={() => handleSchedule(false)} disabled={scheduling || selectedPlatforms.length === 0} className="rounded-full bg-white px-8 py-3 text-sm font-medium text-black hover:bg-white/90 transition-colors disabled:opacity-50">
+            <div className="sticky bottom-4 z-20 flex items-center justify-between rounded-2xl border border-white/10 bg-neutral-950/85 p-3 backdrop-blur-xl">
+              <button onClick={() => handleSchedule(true)} disabled={scheduling} className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50">Save as draft</button>
+              <button onClick={() => handleSchedule(false)} disabled={scheduling || selectedPlatforms.length === 0} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-8 py-3 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:opacity-50">
                 {scheduling ? "Scheduling..." : scheduleType === "now" ? "Publish now" : "Schedule"}
               </button>
             </div>
@@ -1070,3 +1082,4 @@ export default function UploadsPage() {
     </div>
   );
 }
+

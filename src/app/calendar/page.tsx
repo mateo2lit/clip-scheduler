@@ -184,10 +184,12 @@ export default function CalendarPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-t from-purple-500/[0.05] to-transparent rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto max-w-[1400px] px-6 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">Settings</Link>
@@ -198,7 +200,7 @@ export default function CalendarPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-[1400px] px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -268,7 +270,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
               {/* Day headers */}
               <div className="grid grid-cols-7 border-b border-white/5">
                 {DAY_NAMES.map((day) => (
@@ -343,7 +345,7 @@ export default function CalendarPage() {
           {/* Day detail panel */}
           <div className="w-80 shrink-0">
             {/* Platform legend */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4 mb-4">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-5 py-4 mb-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
               <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-3">Platforms</h3>
               <div className="flex flex-col gap-2">
                 {Object.entries(PROVIDER_STYLES).map(([key, style]) => (
@@ -355,7 +357,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="sticky top-10 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+            <div className="sticky top-10 rounded-3xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
               {selectedDate ? (
                 <>
                   <div className="px-5 py-4 border-b border-white/5">
@@ -424,3 +426,6 @@ export default function CalendarPage() {
     </main>
   );
 }
+
+
+

@@ -13,6 +13,7 @@ type PlatformConfig = {
   icon: React.ReactNode;
   available: boolean;
 };
+type SettingsTab = "account" | "subscription" | "connected" | "team" | "notifications" | "defaults" | "danger";
 
 async function safeReadJson(res: Response) {
   const ct = res.headers.get("content-type") || "";
@@ -85,6 +86,16 @@ const PLATFORMS: PlatformConfig[] = [
   },
 ];
 
+const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; subtitle: string }> = [
+  { id: "account", label: "Account", subtitle: "Profile and password" },
+  { id: "subscription", label: "Subscription", subtitle: "Plan and billing" },
+  { id: "connected", label: "Connected Accounts", subtitle: "Platform access" },
+  { id: "team", label: "Team", subtitle: "Members and invites" },
+  { id: "notifications", label: "Notifications", subtitle: "Email alerts" },
+  { id: "defaults", label: "Upload Defaults", subtitle: "Platform presets" },
+  { id: "danger", label: "Danger Zone", subtitle: "Sign out and delete" },
+];
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
@@ -121,6 +132,7 @@ export default function SettingsPage() {
     if (typeof window === "undefined") return new URLSearchParams();
     return new URLSearchParams(window.location.search);
   }, []);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("account");
 
   const banner = useMemo(() => {
     const conn = query.get("connected");
@@ -133,6 +145,16 @@ export default function SettingsPage() {
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
     return null;
+  }, [query]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const byQuery = query.get("tab");
+    const byHash = window.location.hash.replace("#", "");
+    const candidate = (byQuery || byHash) as SettingsTab;
+    if (SETTINGS_TABS.some((t) => t.id === candidate)) {
+      setActiveTab(candidate);
+    }
   }, [query]);
 
   async function loadConnectedAccounts() {
@@ -732,10 +754,12 @@ export default function SettingsPage() {
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       {/* Background gradient orbs */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-t from-purple-500/[0.05] to-transparent rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto max-w-3xl px-6 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
           <div className="flex items-center gap-3">
             <span className="text-sm text-white/40">Settings</span>
@@ -746,7 +770,7 @@ export default function SettingsPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-3xl px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
           <Link
@@ -770,10 +794,38 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Account Section */}
-        <section className="mt-10">
+        <div className="mt-8 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="h-fit rounded-3xl border border-white/10 bg-white/[0.03] p-2 shadow-[0_20px_70px_rgba(2,6,23,0.45)] lg:sticky lg:top-8">
+            {SETTINGS_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (typeof window !== "undefined") {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set("tab", tab.id);
+                    window.history.replaceState({}, "", url.toString());
+                  }
+                }}
+                className={`w-full rounded-2xl px-4 py-3 text-left transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-white/10 text-white"
+                    : "text-white/60 hover:bg-white/5 hover:text-white/80"
+                }`}
+              >
+                <div className="text-sm font-medium">{tab.label}</div>
+                <div className="text-xs text-white/40">{tab.subtitle}</div>
+              </button>
+            ))}
+          </aside>
+
+          <div>
+
+        {activeTab === "account" && (
+        <section className="mt-0">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Account</h2>
-          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -831,9 +883,10 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+        )}
 
-        {/* Subscription Section */}
-        <section className="mt-10">
+        {activeTab === "subscription" && (
+        <section className="mt-0">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Subscription</h2>
 
           {/* Past due warning */}
@@ -887,7 +940,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Team */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 flex flex-col">
                 <h3 className="text-lg font-semibold">Team</h3>
                 <div className="mt-2 mb-4">
                   <span className="text-3xl font-bold">$19.99</span>
@@ -920,7 +973,7 @@ export default function SettingsPage() {
 
           {/* Active or trialing plan */}
           {(planStatus === "trialing" || planStatus === "active") && (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="rounded-full bg-emerald-500/10 p-3">
@@ -968,7 +1021,7 @@ export default function SettingsPage() {
 
           {/* Canceled */}
           {planStatus === "canceled" && (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="rounded-full bg-red-500/10 p-3">
@@ -994,9 +1047,10 @@ export default function SettingsPage() {
             </div>
           )}
         </section>
+        )}
 
-        {/* Connected Accounts Section */}
-        <section className="mt-10">
+        {activeTab === "connected" && (
+        <section className="mt-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Connected Accounts</h2>
             <button
@@ -1006,7 +1060,7 @@ export default function SettingsPage() {
               {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
-          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
             {PLATFORMS.map((platform) => {
               const acct = accounts[platform.key];
               return (
@@ -1144,14 +1198,15 @@ export default function SettingsPage() {
             })}
           </div>
         </section>
+        )}
 
-        {/* Team Section */}
-        <section className="mt-10">
+        {activeTab === "team" && (
+        <section className="mt-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Team</h2>
             <span className="text-xs text-white/30">{teamMembers.length + teamInvites.length}/{plan === "team" ? 5 : 1} members</span>
           </div>
-          <div className="rounded-2xl rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
             {/* Members list */}
             {teamMembers.map((member) => (
               <div key={member.userId} className="p-5">
@@ -1240,11 +1295,12 @@ export default function SettingsPage() {
             )}
           </div>
         </section>
+        )}
 
-        {/* Notifications Section */}
-        <section className="mt-10">
+        {activeTab === "notifications" && (
+        <section className="mt-0">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Notifications</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -1292,9 +1348,10 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+        )}
 
-        {/* Platform Defaults Section */}
-        <section className="mt-10">
+        {activeTab === "defaults" && (
+        <section className="mt-0">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Upload Defaults</h2>
           <p className="text-sm text-white/40 mb-4">Set default settings per platform. These will auto-fill when you create a new upload.</p>
 
@@ -1315,7 +1372,7 @@ export default function SettingsPage() {
             ))}
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-5">
             {/* YouTube defaults */}
             {defaultsTab === "youtube" && (
               <div className="space-y-4">
@@ -1488,11 +1545,12 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+        )}
 
-        {/* Danger Zone */}
-        <section className="mt-10">
+        {activeTab === "danger" && (
+        <section className="mt-0">
           <h2 className="text-sm font-medium text-red-400/60 uppercase tracking-wider mb-4">Danger Zone</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -1523,6 +1581,10 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+        )}
+
+          </div>
+        </div>
 
         {/* Footer */}
         <div className="mt-16 pt-8 border-t border-white/5 text-center">
@@ -1534,3 +1596,8 @@ export default function SettingsPage() {
     </main>
   );
 }
+
+
+
+
+

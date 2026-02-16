@@ -87,10 +87,11 @@ export default function DashboardPage() {
       {/* Background gradient orbs */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-t from-purple-500/[0.05] to-transparent rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="text-lg font-semibold tracking-tight">Clip Dash</Link>
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">
@@ -103,7 +104,7 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-5xl px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-4">
           {[
@@ -114,7 +115,7 @@ export default function DashboardPage() {
           ].map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4"
+              className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4"
             >
               <p className="text-xs text-white/40 uppercase tracking-wider">{stat.label}</p>
               <p className={`text-3xl font-bold mt-1.5 tabular-nums ${stat.color}`}>
@@ -132,7 +133,7 @@ export default function DashboardPage() {
         <div className="mt-6">
           <Link
             href="/upload"
-            className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-white/[0.06] flex items-center justify-center group-hover:bg-white/[0.10] transition-colors">
@@ -155,7 +156,7 @@ export default function DashboardPage() {
         <div className="mt-4">
           <Link
             href="/calendar"
-            className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/15 transition-colors">
@@ -178,7 +179,7 @@ export default function DashboardPage() {
         <div className="mt-4">
           <Link
             href="/comments"
-            className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/15 transition-colors">
@@ -207,7 +208,7 @@ export default function DashboardPage() {
           {/* Scheduled */}
           <Link
             href="/scheduled"
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="flex items-center justify-between">
               <div className="inline-flex rounded-xl p-3 bg-blue-500/10 text-blue-400">
@@ -238,7 +239,7 @@ export default function DashboardPage() {
           {/* Posted */}
           <Link
             href="/posted"
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="flex items-center justify-between">
               <div className="inline-flex rounded-xl p-3 bg-emerald-500/10 text-emerald-400">
@@ -269,7 +270,7 @@ export default function DashboardPage() {
           {/* Drafts */}
           <Link
             href="/drafts"
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            className="group rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="flex items-center justify-between">
               <div className="inline-flex rounded-xl p-3 bg-amber-500/10 text-amber-400">
@@ -301,3 +302,6 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+
+

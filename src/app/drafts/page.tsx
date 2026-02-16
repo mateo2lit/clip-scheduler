@@ -110,128 +110,138 @@ export default function DraftsPage() {
   }, []);
 
   const groups = groupDrafts(drafts);
+  const platformCount = new Set(groups.flatMap((g) => g.posts.map((p) => p.provider || "none"))).size;
+  const withDescription = groups.filter((g) => !!g.description).length;
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
+    <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
+      <div className="pointer-events-none absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-purple-500/[0.06] to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
 
-      {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <Link href="/dashboard" className="text-lg font-semibold tracking-tight transition-colors hover:text-white/80">Clip Dash</Link>
           <div className="flex items-center gap-3">
-            <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">Settings</Link>
-            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[11px] font-semibold">
+            <Link href="/settings" className="text-sm text-white/40 transition-colors hover:text-white/70">Settings</Link>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-[11px] font-semibold">
               {sessionEmail ? sessionEmail[0].toUpperCase() : "?"}
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-5xl px-6 pt-10 pb-16">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
+      <div className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-10">
+        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
+          <div className="mb-5 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 font-medium text-amber-300">Drafts</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-medium text-white/60">Workspace</span>
+          </div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <Link href="/dashboard" className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white/70">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Saved Drafts</h1>
+                <p className="mt-2 text-sm text-white/70 sm:text-base">
+                  {loading ? "Loading drafts..." : `${groups.length} draft${groups.length === 1 ? "" : "s"} ready to finish and schedule.`}
+                </p>
+              </div>
+            </div>
+            <Link href="/upload" className="w-fit rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/90">
+              New upload
             </Link>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">Drafts</h1>
-              <p className="text-sm text-white/40">
-                {loading ? "Loading..." : `${groups.length} draft${groups.length === 1 ? "" : "s"} saved`}
-              </p>
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-white/40">Drafts</p>
+              <p className="mt-1 text-2xl font-semibold text-white">{loading ? "..." : groups.length}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-white/40">Platforms</p>
+              <p className="mt-1 text-2xl font-semibold text-blue-300">{loading ? "..." : platformCount}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-white/40">With Description</p>
+              <p className="mt-1 text-2xl font-semibold text-amber-300">{loading ? "..." : withDescription}</p>
             </div>
           </div>
+        </section>
 
-          <Link
-            href="/upload"
-            className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
-          >
-            New upload
-          </Link>
-        </div>
-
-        {/* Drafts */}
-        <div className="mt-8">
+        <section className="mt-8">
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02]">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="px-5 py-4 border-t border-white/5 first:border-t-0">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="border-t border-white/5 px-5 py-4 first:border-t-0">
                   <div className="flex items-center gap-4">
-                    <div className="h-4 w-32 rounded bg-white/[0.06] animate-pulse" />
-                    <div className="h-4 w-16 rounded bg-white/[0.06] animate-pulse" />
-                    <div className="ml-auto h-4 w-20 rounded bg-white/[0.06] animate-pulse" />
+                    <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
+                    <div className="h-4 w-16 animate-pulse rounded bg-white/[0.06]" />
+                    <div className="ml-auto h-4 w-20 animate-pulse rounded bg-white/[0.06]" />
                   </div>
                 </div>
               ))}
             </div>
           ) : groups.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
-              <div className="inline-flex rounded-xl p-3 bg-amber-500/10 text-amber-400 mx-auto">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-16 text-center shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
+              <div className="mx-auto inline-flex rounded-xl bg-amber-500/10 p-3 text-amber-300">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                 </svg>
               </div>
-              <p className="font-semibold text-white/90 mt-4">No drafts</p>
-              <p className="text-sm text-white/40 mt-1">Upload a video and save it as a draft to finish later.</p>
-              <Link
-                href="/upload"
-                className="inline-flex mt-5 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
-              >
+              <p className="mt-4 font-semibold text-white">No drafts</p>
+              <p className="mt-1 text-sm text-white/50">Save a draft during scheduling to come back and finish later.</p>
+              <Link href="/upload" className="mt-5 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-white/90">
                 Upload a video
               </Link>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
-              {groups.map((group) => (
-                <div
-                  key={group.groupId}
-                  className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white/90 truncate">
-                        {group.title || "Untitled draft"}
-                      </p>
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
+              <div className="hidden grid-cols-12 gap-3 border-b border-white/10 px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-white/40 md:grid">
+                <div className="col-span-5">Title</div>
+                <div className="col-span-3">Platforms</div>
+                <div className="col-span-2">Saved</div>
+                <div className="col-span-2 text-right">Action</div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {groups.map((group) => (
+                  <div key={group.groupId} className="px-5 py-4 transition-colors hover:bg-white/[0.04]">
+                    <div className="grid items-center gap-3 md:grid-cols-12">
+                      <div className="min-w-0 md:col-span-5">
+                        <p className="truncate font-medium text-white">{group.title || "Untitled draft"}</p>
+                        {group.description ? <p className="mt-1 line-clamp-1 text-xs text-white/40">{group.description}</p> : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 md:col-span-3">
+                        {group.posts.map((draft) => (
+                          <span
+                            key={draft.id}
+                            className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-300"
+                          >
+                            {providerLabel(draft.provider)}
+                          </span>
+                        ))}
+                      </div>
+
+                      <span className="text-xs tabular-nums text-white/40 md:col-span-2">{formatDate(group.created_at)}</span>
+
+                      <div className="md:col-span-2 md:text-right">
+                        <button className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60 transition-all hover:bg-white/10 hover:text-white">
+                          Edit
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      {group.posts.map((draft) => (
-                        <span
-                          key={draft.id}
-                          className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/20"
-                        >
-                          {providerLabel(draft.provider)}
-                        </span>
-                      ))}
-                    </div>
-
-                    <span className="shrink-0 text-xs text-white/30 tabular-nums hidden sm:block">
-                      {formatDate(group.created_at)}
-                    </span>
-
-                    <button className="shrink-0 flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
-                      Edit
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                      </svg>
-                    </button>
                   </div>
-                  {group.description && (
-                    <p className="text-xs text-white/30 mt-1 line-clamp-1">
-                      {group.description}
-                    </p>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </main>
   );
