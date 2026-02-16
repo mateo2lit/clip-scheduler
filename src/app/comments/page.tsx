@@ -51,6 +51,12 @@ export default function CommentsPage() {
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [filter, setFilter] = useState<PlatformFilter>("all");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replySuccess, setReplySuccess] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -63,6 +69,7 @@ export default function CommentsPage() {
       setSessionEmail(auth.session.user.email ?? null);
 
       const token = auth.session.access_token;
+      setAuthToken(token);
 
       // Verify team membership
       let teamOk = false;
@@ -95,6 +102,34 @@ export default function CommentsPage() {
 
     load();
   }, []);
+
+  async function sendReply(platform: string, commentId: string) {
+    if (!replyText.trim() || !authToken) return;
+    setReplySending(true);
+    setReplyError(null);
+    try {
+      const res = await fetch("/api/comments/reply", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ platform, commentId, text: replyText.trim() }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Reply failed");
+      setReplySuccess(commentId);
+      setReplyText("");
+      setTimeout(() => {
+        setReplySuccess(null);
+        setReplyingTo(null);
+      }, 1500);
+    } catch (e: any) {
+      setReplyError(e?.message || "Reply failed");
+    } finally {
+      setReplySending(false);
+    }
+  }
 
   const filtered = filter === "all" ? comments : comments.filter((c) => c.platform === filter);
 
@@ -264,7 +299,67 @@ export default function CommentsPage() {
                               {comment.likeCount}
                             </span>
                           )}
+                          <button
+                            onClick={() => {
+                              setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                              setReplyText("");
+                              setReplyError(null);
+                            }}
+                            className="text-xs text-white/30 hover:text-white/60 transition-colors"
+                          >
+                            Reply
+                          </button>
                         </div>
+
+                        {/* Inline reply form */}
+                        {replyingTo === comment.id && (
+                          <div className="mt-3 flex flex-col gap-2">
+                            {replySuccess === comment.id ? (
+                              <div className="flex items-center gap-1.5 text-xs text-green-400">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                                Reply sent
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        sendReply(comment.platform, comment.id);
+                                      }
+                                    }}
+                                    placeholder="Write a reply..."
+                                    disabled={replySending}
+                                    className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 disabled:opacity-50"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => sendReply(comment.platform, comment.id)}
+                                    disabled={replySending || !replyText.trim()}
+                                    className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors flex items-center gap-1.5"
+                                  >
+                                    {replySending ? (
+                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                      </svg>
+                                    ) : null}
+                                    Send
+                                  </button>
+                                </div>
+                                {replyError && (
+                                  <p className="text-xs text-red-400">{replyError}</p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
