@@ -1,7 +1,7 @@
 // src/app/api/platform-accounts/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getTeamContext, requireOwner } from "@/lib/teamAuth";
+import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
@@ -37,8 +37,8 @@ export async function DELETE(req: Request) {
 
     const { teamId, role } = result.ctx;
 
-    // Only owners can disconnect platforms
-    const ownerCheck = requireOwner(role);
+    // Only owners and admins can disconnect platforms
+    const ownerCheck = requireOwnerOrAdmin(role);
     if (ownerCheck) return ownerCheck;
 
     const url = new URL(req.url);

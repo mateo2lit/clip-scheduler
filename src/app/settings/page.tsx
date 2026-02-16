@@ -105,7 +105,7 @@ export default function SettingsPage() {
   // Team state
   type TeamMember = { userId: string; email: string | null; role: string; joinedAt: string };
   type TeamInvite = { id: string; email: string; status: string; created_at: string };
-  const [teamRole, setTeamRole] = useState<"owner" | "member" | null>(null);
+  const [teamRole, setTeamRole] = useState<"owner" | "member" | "admin" | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamInvites, setTeamInvites] = useState<TeamInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -362,6 +362,28 @@ export default function SettingsPage() {
       const res = await fetch(`/api/team/invite?inviteId=${inviteId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) loadTeamInfo();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleRoleToggle(targetUserId: string, currentRole: string) {
+    const newRole = currentRole === "admin" ? "member" : "admin";
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/team/role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId: targetUserId, role: newRole }),
       });
 
       if (res.ok) loadTeamInfo();
@@ -1101,7 +1123,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {teamRole === "owner" && (
+                      {(teamRole === "owner" || teamRole === "admin") && (
                         <>
                           {platform.key === "youtube" && acct.connected && (
                             <button
@@ -1217,18 +1239,33 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <div className="font-medium text-white/90">{member.email ?? "Unknown"}</div>
-                      <div className="text-xs text-white/40 mt-0.5">
-                        {member.role === "owner" ? "Owner" : "Member"} &middot; Joined {new Date(member.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      <div className="text-xs text-white/40 mt-0.5 flex items-center gap-1.5">
+                        <span>{member.role === "owner" ? "Owner" : member.role === "admin" ? "Admin" : "Member"}</span>
+                        {member.role === "admin" && (
+                          <span className="rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-400 border border-blue-500/20">
+                            Admin
+                          </span>
+                        )}
+                        <span>&middot;</span>
+                        <span>Joined {new Date(member.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
                       </div>
                     </div>
                   </div>
                   {teamRole === "owner" && member.role !== "owner" && (
-                    <button
-                      onClick={() => handleRemoveMember(member.userId)}
-                      className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleRoleToggle(member.userId, member.role)}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 hover:bg-white/10 transition-colors"
+                      >
+                        {member.role === "admin" ? "Demote to Member" : "Promote to Admin"}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveMember(member.userId)}
+                        className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInstagramAuthConfig } from "@/lib/instagram";
-import { getTeamContext, requireOwner } from "@/lib/teamAuth";
+import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ async function handler(req: Request) {
   if (!result.ok) return result.error;
 
   const { userId, role } = result.ctx;
-  const ownerCheck = requireOwner(role);
+  const ownerCheck = requireOwnerOrAdmin(role);
   if (ownerCheck) return ownerCheck;
 
   const { appId, redirectUri } = getInstagramAuthConfig();

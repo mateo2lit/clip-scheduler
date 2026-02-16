@@ -1,6 +1,6 @@
 # ClipDash (clipdash.org) — Project Context for Claude
 
-**Last updated:** 2026-02-14
+**Last updated:** 2026-02-16
 
 ## Instructions for Claude
 
@@ -110,7 +110,7 @@ The site is live at clipdash.org.
 |--------|------|-------|
 | user_id | uuid | |
 | team_id | uuid | |
-| role | text | owner / member |
+| role | text | owner / member / admin |
 | joined_at | timestamptz | |
 
 ### `team_invites`
@@ -220,7 +220,7 @@ The site is live at clipdash.org.
 5. Callback route exchanges code for tokens, upserts `platform_accounts`
 6. Redirects to `/settings?connected={provider}`
 
-All OAuth flows are team-scoped — only team owners can connect/disconnect accounts.
+All OAuth flows are team-scoped — team **owners and admins** can connect/disconnect accounts. Only owners can manage billing, invites, and role assignments.
 
 **Important Instagram note:** Instagram Business Login uses a separate Instagram App ID (not the Facebook App ID). The OAuth authorize endpoint is `www.instagram.com`, not `api.instagram.com`. The token exchange endpoint remains `api.instagram.com/oauth/access_token`.
 
@@ -285,6 +285,7 @@ src/
 │       ├── team/
 │       │   ├── me/route.ts
 │       │   ├── invite/route.ts
+│       │   ├── role/route.ts               # Update member role (admin/member)
 │       │   └── plan/route.ts               # Get team plan status
 │       ├── ping/route.ts
 │       ├── version/route.ts
@@ -395,12 +396,13 @@ VERCEL_OIDC_TOKEN
 - X (Twitter) removed from all pages (API too expensive for video)
 
 ### Future
-1. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
-2. Analytics dashboard (Instagram webhook endpoint already deployed)
-3. Email notifications
-4. AI caption/description generator (expand beyond hashtags)
-5. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
-6. **Scheduled post editing** — Allow editing title/description/time before posting
+1. **Multi-team support** — Allow users to belong to multiple teams with a team switcher. Editors can manage uploads across multiple creators. Teams get custom names. See "PICK UP HERE" for full design notes.
+2. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
+3. Analytics dashboard (Instagram webhook endpoint already deployed)
+4. Email notifications
+5. AI caption/description generator (expand beyond hashtags)
+6. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
+7. **Scheduled post editing** — Allow editing title/description/time before posting
 
 ---
 
@@ -428,7 +430,7 @@ These are small tasks that can be knocked out quickly to improve the product:
 ## Architecture Notes
 
 - All platform accounts are **team-scoped** (keyed on `team_id + provider`)
-- Only team **owners** can connect/disconnect platform accounts
+- Team **owners and admins** can connect/disconnect platform accounts; only owners can manage billing/invites/roles
 - The worker uses **concurrency-safe claiming** (atomic status update + row count check)
 - Video files are stored in Supabase Storage and accessed via **signed URLs** for platform uploads
 - Facebook uses **Page Access Tokens** (not user tokens) for posting
@@ -531,10 +533,37 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Removed from uploads page (platform picker)
 - Decision: $100/month Twitter API cost for video uploads is not worth it
 
+### Session 4 (2026-02-16) — Admin Role + Stripe Live Mode
+
+#### Admin Role System
+- Added "admin" role to `team_members` (migration: `20260216_admin_role.sql`)
+- New `requireOwnerOrAdmin()` helper in `teamAuth.ts`
+- All platform connect/disconnect routes now allow admin (11 route files updated)
+- New `/api/team/role` POST endpoint — owner can promote/demote members between admin and member
+- Settings page: admin badge on admin members, promote/demote buttons for owner, connect/disconnect visible for admins
+- Owner-only routes unchanged: `team/invite`, `stripe/checkout`, `stripe/portal`
+
+#### Stripe Live Mode Migration
+- Switched from test mode to live mode
+- Cleared stale test-mode `stripe_customer_id` from teams table
+- Created live mode products/prices in Stripe Dashboard
+- Updated Vercel env vars: `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID`, `NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID` to live mode values
+- Configured Stripe Customer Portal in live mode
+- Cleaned up orphaned team for duplicate owner
+
 ### PICK UP HERE NEXT SESSION
 
-- **Test LinkedIn end-to-end** — Connect LinkedIn account, schedule a video post, verify it posts correctly
-- **Test Facebook end-to-end** — Upload and post a video to Facebook Page, verify it works
+- **Fix team plan display** — Verify team plan/subscription status displays correctly after live mode migration
+- **Multi-team support** — Allow users to belong to multiple teams (editor workflow):
+  - Users can be members of multiple teams simultaneously
+  - Add team switcher UI (dropdown/selector) so users can switch active team context
+  - Add team name field to teams table + UI to name teams (e.g., "[Creator]'s Team")
+  - Add "Name" field in account settings so team names can use the owner's name
+  - `getTeamContext()` currently picks the most recent team — needs to use a selected/active team instead
+  - Use case: editors who manage uploads for multiple creators switch between teams
+  - Use case: an editor purchases their own plan and manages multiple client teams
+  - DB changes: likely need an `active_team_id` on users or a client-side team selection mechanism
+  - Must update all team-scoped queries (uploads, scheduled posts, platform accounts) to use the selected team
 - **Multi-account YouTube support** — Allow linking multiple YouTube channels
 - **Analytics dashboard** — Use existing webhook endpoints to build insights
 - **AI caption/description generator** — Expand AI beyond hashtags

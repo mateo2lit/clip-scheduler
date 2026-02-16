@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTikTokAuthConfig } from "@/lib/tiktok";
-import { requireOwner } from "@/lib/teamAuth";
+import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
     }
 
-    const ownerCheckResult = requireOwner(membership.role);
+    const ownerCheckResult = requireOwnerOrAdmin(membership.role);
     if (ownerCheckResult) return ownerCheckResult;
 
     const teamId = membership.team_id;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/teamAuth";
+import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 
 export const runtime = "nodejs";
 
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
     }
 
-    const ownerCheck = requireOwner(membership.role);
+    const ownerCheck = requireOwnerOrAdmin(membership.role);
     if (ownerCheck) return ownerCheck;
 
     const teamId = membership.team_id;

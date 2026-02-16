@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 type TeamContext = {
   userId: string;
   teamId: string;
-  role: "owner" | "member";
+  role: "owner" | "member" | "admin";
 };
 
 type TeamContextResult =
@@ -66,7 +66,7 @@ export async function getTeamContext(req: Request): Promise<TeamContextResult> {
     ctx: {
       userId,
       teamId: membership.team_id,
-      role: membership.role as "owner" | "member",
+      role: membership.role as "owner" | "member" | "admin",
     },
   };
 }
@@ -75,6 +75,16 @@ export function requireOwner(role: string): NextResponse | null {
   if (role !== "owner") {
     return NextResponse.json(
       { ok: false, error: "Only the team owner can perform this action" },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+export function requireOwnerOrAdmin(role: string): NextResponse | null {
+  if (role !== "owner" && role !== "admin") {
+    return NextResponse.json(
+      { ok: false, error: "Only owners and admins can perform this action" },
       { status: 403 }
     );
   }
