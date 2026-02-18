@@ -763,11 +763,19 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    loadConnectedAccounts();
-    loadTeamInfo();
-    loadPlanInfo();
-    loadNotifPrefs();
-    loadPlatformDefaults();
+    async function init() {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) {
+        window.location.href = "/login";
+        return;
+      }
+      loadConnectedAccounts();
+      loadTeamInfo();
+      loadPlanInfo();
+      loadNotifPrefs();
+      loadPlatformDefaults();
+    }
+    init();
   }, [loadTeamInfo, loadPlanInfo, loadNotifPrefs, loadPlatformDefaults]);
 
   const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
