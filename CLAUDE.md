@@ -33,12 +33,14 @@ src/
       uploads/      — Upload creation
       scheduled-posts/ — CRUD for scheduled posts
       comments/     — Comment fetching and replies
+      analytics/    — Platform metrics aggregation (views, likes, comments)
       ai/           — Hashtag suggestions
       platform-accounts/ — Connected account management
       platform-defaults/ — Per-platform upload default settings
       notifications/ — Email notification preferences
       account/      — Account deletion (also Meta data deletion callback)
-    dashboard/    — Post count overview
+    dashboard/    — Post count overview + links to analytics/comments
+    analytics/    — Per-video performance metrics with platform filtering
     uploads/      — Main upload + scheduling UI
     scheduled/    — Upcoming posts list
     posted/       — Completed posts
@@ -58,6 +60,7 @@ src/
     linkedinUpload.ts  — LinkedIn upload logic
     email.ts           — Transactional email templates via Resend
     commentFetchers.ts — YouTube/Facebook/Instagram comment fetching
+    metricsFetchers.ts — YouTube/Facebook/Instagram metrics (views, likes, comments)
     tiktok.ts          — TikTok OAuth helpers
     facebook.ts        — Facebook OAuth helpers
     instagram.ts       — Instagram OAuth helpers
