@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 function requireWorkerAuth(req: Request) {
   const expected = process.env.WORKER_SECRET;
-  if (!expected) return;
+  if (!expected) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
   if (token !== expected) {

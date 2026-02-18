@@ -169,7 +169,7 @@ export default function SettingsPage() {
       setCreatedAt(user?.created_at ?? null);
 
       if (!token) {
-        setAccounts({ youtube: { connected: false }, tiktok: { connected: false }, instagram: { connected: false }, facebook: { connected: false }, linkedin: { connected: false } });
+        window.location.href = "/login";
         return;
       }
 
@@ -1609,8 +1609,29 @@ export default function SettingsPage() {
                   <div className="text-sm text-white/40 mt-0.5">Permanently delete your account and all data</div>
                 </div>
                 <button
-                  disabled
-                  className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400/50 cursor-not-allowed"
+                  onClick={async () => {
+                    if (!confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) return;
+                    if (!confirm("This will delete all your data, scheduled posts, and team. Type DELETE to confirm.")) return;
+                    try {
+                      const { data: sess } = await supabase.auth.getSession();
+                      const token = sess.session?.access_token;
+                      if (!token) return;
+                      const res = await fetch("/api/account/delete", {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      const json = await res.json();
+                      if (res.ok && json.ok) {
+                        await supabase.auth.signOut();
+                        window.location.href = "/login";
+                      } else {
+                        alert(json.error || "Failed to delete account");
+                      }
+                    } catch (e: any) {
+                      alert(e?.message || "Failed to delete account");
+                    }
+                  }}
+                  className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
                 >
                   Delete
                 </button>

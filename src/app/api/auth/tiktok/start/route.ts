@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTikTokAuthConfig } from "@/lib/tiktok";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { generateOAuthState } from "@/lib/oauthState";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -36,8 +37,8 @@ async function handler(req: Request) {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-  // Encode userId and code_verifier in state so callback can use both
-  const state = `${userId}:${codeVerifier}`;
+  // Encode signed state token and code_verifier so callback can use both
+  const state = `${generateOAuthState(userId)}:${codeVerifier}`;
 
   const params = new URLSearchParams({
     client_key: clientKey,

@@ -13,8 +13,7 @@ const MAX_BATCH = 5;
 
 function requireWorkerAuth(req: Request) {
   const expected = process.env.WORKER_SECRET;
-  // Allow locally if not set
-  if (!expected) return;
+  if (!expected) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
   if (token !== expected) {

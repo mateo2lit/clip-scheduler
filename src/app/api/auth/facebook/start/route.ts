@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getFacebookAuthConfig } from "@/lib/facebook";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { generateOAuthState } from "@/lib/oauthState";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ async function handler(req: Request) {
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "pages_manage_posts,pages_read_engagement,pages_read_user_content,pages_show_list,pages_manage_engagement",
-    state: userId,
+    state: generateOAuthState(userId),
   });
 
   const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;

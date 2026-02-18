@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getLinkedInAuthConfig } from "@/lib/linkedin";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { generateOAuthState } from "@/lib/oauthState";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,7 @@ async function handler(req: Request) {
     client_id: clientId,
     redirect_uri: redirectUri,
     scope: "openid profile w_member_social",
-    state: userId,
+    state: generateOAuthState(userId),
   });
 
   const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;

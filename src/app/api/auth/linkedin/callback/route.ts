@@ -6,6 +6,7 @@ import {
   getLinkedInProfile,
 } from "@/lib/linkedin";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { verifyOAuthState } from "@/lib/oauthState";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
 
     const code = url.searchParams.get("code");
-    const userId = url.searchParams.get("state");
+    const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
 
     if (errorParam) {
@@ -38,9 +39,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
     }
 
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: "Missing state (user id)" }, { status: 400 });
+    if (!state) {
+      return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
     }
+
+    const userId = verifyOAuthState(state);
 
     // Look up team membership and verify owner role
     const { data: membership } = await supabaseAdmin

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { generateOAuthState } from "@/lib/oauthState";
 
 export const runtime = "nodejs";
 
@@ -61,7 +62,7 @@ async function handler(req: Request) {
       "https://www.googleapis.com/auth/youtube",
       "https://www.googleapis.com/auth/youtube.force-ssl",
     ],
-    state: userId,
+    state: generateOAuthState(userId),
   });
 
   // ✅ Return JSON because your Settings page expects it

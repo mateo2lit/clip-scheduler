@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInstagramAuthConfig } from "@/lib/instagram";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { generateOAuthState } from "@/lib/oauthState";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,7 @@ async function handler(req: Request) {
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments",
-    state: userId,
+    state: generateOAuthState(userId),
   });
 
   const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTikTokAuthConfig } from "@/lib/tiktok";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { verifyOAuthState } from "@/lib/oauthState";
 
 export const runtime = "nodejs";
 
@@ -38,11 +39,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
     }
 
-    // State format: "userId:codeVerifier"
-    const [userId, codeVerifier] = state.split(":");
-    if (!userId || !codeVerifier) {
+    // State format: "signedToken:codeVerifier"
+    const lastColon = state.lastIndexOf(":");
+    if (lastColon === -1) {
       return NextResponse.json({ ok: false, error: "Invalid state" }, { status: 400 });
     }
+    const signedToken = state.slice(0, lastColon);
+    const codeVerifier = state.slice(lastColon + 1);
+    if (!signedToken || !codeVerifier) {
+      return NextResponse.json({ ok: false, error: "Invalid state" }, { status: 400 });
+    }
+    const userId = verifyOAuthState(signedToken);
 
     // Look up team membership and verify owner role
     const { data: membership } = await supabaseAdmin
