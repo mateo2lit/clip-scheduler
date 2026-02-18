@@ -12,11 +12,12 @@ type UploadToTikTokArgs = {
   storagePath: string;
 
   title: string;
-  description?: string;
   privacyLevel?: string;
   allowComments?: boolean;
   allowDuet?: boolean;
   allowStitch?: boolean;
+  brandOrganicToggle?: boolean;
+  brandContentToggle?: boolean;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -66,11 +67,12 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     bucket,
     storagePath,
     title,
-    description,
     privacyLevel = "SELF_ONLY",
-    allowComments = true,
-    allowDuet = true,
-    allowStitch = true,
+    allowComments = false,
+    allowDuet = false,
+    allowStitch = false,
+    brandOrganicToggle = false,
+    brandContentToggle = false,
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -113,12 +115,13 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
       },
       body: JSON.stringify({
         post_info: {
-          title: title.slice(0, 150),
-          description: (description || "").slice(0, 2200),
+          title: title.slice(0, 2200),
           privacy_level: privacyLevel,
           disable_comment: !allowComments,
           disable_duet: !allowDuet,
           disable_stitch: !allowStitch,
+          brand_organic_toggle: brandOrganicToggle,
+          brand_content_toggle: brandContentToggle,
         },
         source_info: {
           source: "FILE_UPLOAD",

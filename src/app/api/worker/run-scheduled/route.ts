@@ -381,11 +381,12 @@ async function runWorker(req: Request) {
           bucket,
           storagePath,
           title: post.title ?? "Clip Scheduler Upload",
-          description: post.description ?? "",
           privacyLevel: ttSettings.privacy_level || "SELF_ONLY",
-          allowComments: ttSettings.allow_comments ?? true,
-          allowDuet: ttSettings.allow_duet ?? true,
-          allowStitch: ttSettings.allow_stitch ?? true,
+          allowComments: ttSettings.allow_comments ?? false,
+          allowDuet: ttSettings.allow_duet ?? false,
+          allowStitch: ttSettings.allow_stitch ?? false,
+          brandOrganicToggle: ttSettings.brand_organic_toggle ?? false,
+          brandContentToggle: ttSettings.brand_content_toggle ?? false,
         });
         platformPostId = tt.publishId;
       } else if (provider === "facebook") {

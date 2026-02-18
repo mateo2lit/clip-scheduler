@@ -1493,41 +1493,43 @@ export default function SettingsPage() {
                 <div>
                   <label className="block text-sm text-white/60 mb-1.5">Privacy level</label>
                   <select
-                    value={getDefault("tiktok", "privacyLevel", "SELF_ONLY")}
+                    value={getDefault("tiktok", "privacyLevel", "")}
                     onChange={(e) => setDefaultField("tiktok", "privacyLevel", e.target.value)}
                     className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
                   >
+                    <option value="" className="bg-neutral-900">No default (user must select)</option>
                     <option value="SELF_ONLY" className="bg-neutral-900">Private (Self Only)</option>
                     <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
                     <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
                     <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
                   </select>
+                  <p className="text-xs text-white/30 mt-1">Privacy options shown on upload page are based on your TikTok account settings.</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Allow comments</span>
                   <button
-                    onClick={() => setDefaultField("tiktok", "allowComments", !getDefault("tiktok", "allowComments", true))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowComments", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                    onClick={() => setDefaultField("tiktok", "allowComments", !getDefault("tiktok", "allowComments", false))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowComments", false) ? "bg-emerald-500" : "bg-white/10"}`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowComments", true) ? "translate-x-5" : "translate-x-0"}`} />
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowComments", false) ? "translate-x-5" : "translate-x-0"}`} />
                   </button>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Allow duet</span>
                   <button
-                    onClick={() => setDefaultField("tiktok", "allowDuet", !getDefault("tiktok", "allowDuet", true))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowDuet", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                    onClick={() => setDefaultField("tiktok", "allowDuet", !getDefault("tiktok", "allowDuet", false))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowDuet", false) ? "bg-emerald-500" : "bg-white/10"}`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowDuet", true) ? "translate-x-5" : "translate-x-0"}`} />
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowDuet", false) ? "translate-x-5" : "translate-x-0"}`} />
                   </button>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Allow stitch</span>
                   <button
-                    onClick={() => setDefaultField("tiktok", "allowStitch", !getDefault("tiktok", "allowStitch", true))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowStitch", true) ? "bg-emerald-500" : "bg-white/10"}`}
+                    onClick={() => setDefaultField("tiktok", "allowStitch", !getDefault("tiktok", "allowStitch", false))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("tiktok", "allowStitch", false) ? "bg-emerald-500" : "bg-white/10"}`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowStitch", true) ? "translate-x-5" : "translate-x-0"}`} />
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("tiktok", "allowStitch", false) ? "translate-x-5" : "translate-x-0"}`} />
                   </button>
                 </div>
               </div>

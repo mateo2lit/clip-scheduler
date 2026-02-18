@@ -262,10 +262,26 @@ export default function UploadsPage() {
   const [newPresetName, setNewPresetName] = useState("");
 
   // TikTok specific
-  const [ttPrivacyLevel, setTtPrivacyLevel] = useState("SELF_ONLY");
-  const [ttAllowComments, setTtAllowComments] = useState(true);
-  const [ttAllowDuet, setTtAllowDuet] = useState(true);
-  const [ttAllowStitch, setTtAllowStitch] = useState(true);
+  const [ttPrivacyLevel, setTtPrivacyLevel] = useState("");
+  const [ttAllowComments, setTtAllowComments] = useState(false);
+  const [ttAllowDuet, setTtAllowDuet] = useState(false);
+  const [ttAllowStitch, setTtAllowStitch] = useState(false);
+
+  // TikTok creator info
+  type TtCreatorInfo = {
+    nickname: string | null;
+    privacy_level_options: string[];
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+    max_video_post_duration_sec: number;
+  };
+  const [ttCreatorInfo, setTtCreatorInfo] = useState<TtCreatorInfo | null>(null);
+  const [ttCreatorLoading, setTtCreatorLoading] = useState(false);
+  const [ttCreatorError, setTtCreatorError] = useState<string | null>(null);
+  const [ttCommercialToggle, setTtCommercialToggle] = useState(false);
+  const [ttBrandOrganic, setTtBrandOrganic] = useState(false);
+  const [ttBrandContent, setTtBrandContent] = useState(false);
 
   // Instagram specific
   const [igType, setIgType] = useState<InstagramType>("reel");
@@ -390,6 +406,8 @@ export default function UploadsPage() {
               if (typeof s.allowComments === "boolean") setTtAllowComments(s.allowComments);
               if (typeof s.allowDuet === "boolean") setTtAllowDuet(s.allowDuet);
               if (typeof s.allowStitch === "boolean") setTtAllowStitch(s.allowStitch);
+              // Reset creator info cache so it re-fetches with any new defaults
+              setTtCreatorInfo(null);
             } else if (row.platform === "instagram") {
               if (s.igType) setIgType(s.igType);
               if (typeof s.firstComment === "string") setIgFirstComment(s.firstComment);
@@ -400,6 +418,58 @@ export default function UploadsPage() {
     }
     loadSession();
   }, []);
+
+  // Fetch TikTok creator info when TikTok is selected
+  useEffect(() => {
+    if (!selectedPlatforms.includes("tiktok") || ttCreatorInfo) return;
+    let cancelled = false;
+
+    async function fetchCreatorInfo() {
+      setTtCreatorLoading(true);
+      setTtCreatorError(null);
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) return;
+
+        const res = await fetch("/api/tiktok/creator-info", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (cancelled) return;
+
+        if (!json.ok) {
+          setTtCreatorError(json.error || "Failed to load TikTok creator info");
+          return;
+        }
+
+        setTtCreatorInfo(json.creator_info);
+      } catch (e: any) {
+        if (!cancelled) setTtCreatorError(e?.message || "Failed to load TikTok creator info");
+      } finally {
+        if (!cancelled) setTtCreatorLoading(false);
+      }
+    }
+
+    fetchCreatorInfo();
+    return () => { cancelled = true; };
+  }, [selectedPlatforms, ttCreatorInfo]);
+
+  // Enforce branded content constraint: if branded content selected, SELF_ONLY not allowed
+  useEffect(() => {
+    if (ttBrandContent && ttPrivacyLevel === "SELF_ONLY") {
+      setTtPrivacyLevel("");
+    }
+  }, [ttBrandContent, ttPrivacyLevel]);
+
+  // Compute TikTok validation
+  const ttValidationError = useMemo(() => {
+    if (!selectedPlatforms.includes("tiktok")) return null;
+    if (ttCreatorError) return ttCreatorError;
+    if (!ttPrivacyLevel) return "Please select a privacy level for TikTok";
+    if (ttCommercialToggle && !ttBrandOrganic && !ttBrandContent) return "Please select at least one commercial content type";
+    return null;
+  }, [selectedPlatforms, ttCreatorError, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent]);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -674,6 +744,8 @@ export default function UploadsPage() {
             allow_comments: ttAllowComments,
             allow_duet: ttAllowDuet,
             allow_stitch: ttAllowStitch,
+            brand_organic_toggle: ttBrandOrganic,
+            brand_content_toggle: ttBrandContent,
           };
         }
 
@@ -1338,30 +1410,152 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-white">{PLATFORMS.find(p => p.key === "tiktok")?.icon}</div>
                   <span className="font-medium">TikTok Settings</span>
+                  {ttCreatorLoading && <span className="ml-auto text-xs text-white/40">Loading creator info...</span>}
+                  {ttCreatorInfo?.nickname && (
+                    <span className="ml-auto text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo.nickname}</span></span>
+                  )}
                 </div>
+
+                {ttCreatorError && (
+                  <div className="mx-5 mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {ttCreatorError}
+                  </div>
+                )}
+
                 <div className="p-5 space-y-4">
+                  {/* Privacy Level — dynamic from creator info */}
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Privacy Level</label>
-                    <select value={ttPrivacyLevel} onChange={(e) => setTtPrivacyLevel(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
-                      <option value="SELF_ONLY" className="bg-neutral-900">Private (Self Only)</option>
-                      <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
-                      <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
-                      <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
+                    <select
+                      value={ttPrivacyLevel}
+                      onChange={(e) => setTtPrivacyLevel(e.target.value)}
+                      className={`w-full rounded-lg border px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40 ${!ttPrivacyLevel ? "border-amber-500/30 bg-amber-500/5" : "border-white/10 bg-white/5"}`}
+                    >
+                      <option value="" className="bg-neutral-900">Select privacy level...</option>
+                      {ttCreatorInfo ? (
+                        ttCreatorInfo.privacy_level_options
+                          .filter((opt) => !(ttBrandContent && opt === "SELF_ONLY"))
+                          .map((opt) => (
+                            <option key={opt} value={opt} className="bg-neutral-900">
+                              {opt === "SELF_ONLY" ? "Private (Self Only)" : opt === "MUTUAL_FOLLOW_FRIENDS" ? "Friends" : opt === "FOLLOWER_OF_CREATOR" ? "Followers" : opt === "PUBLIC_TO_EVERYONE" ? "Public" : opt}
+                            </option>
+                          ))
+                      ) : (
+                        <>
+                          <option value="SELF_ONLY" className="bg-neutral-900">Private (Self Only)</option>
+                          <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
+                          <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
+                          <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
+                        </>
+                      )}
                     </select>
+                    {!ttPrivacyLevel && <p className="text-xs text-amber-400/70 mt-1">Required: select a privacy level</p>}
                   </div>
+
+                  {/* Interaction toggles */}
                   <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={ttAllowComments} onChange={(e) => setTtAllowComments(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                    <label className={`flex items-center gap-2 ${ttCreatorInfo?.comment_disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
+                      <input
+                        type="checkbox"
+                        checked={ttAllowComments}
+                        onChange={(e) => setTtAllowComments(e.target.checked)}
+                        disabled={ttCreatorInfo?.comment_disabled}
+                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white"
+                      />
                       <span className="text-sm text-white/70">Allow Comments</span>
+                      {ttCreatorInfo?.comment_disabled && <span className="text-[10px] text-white/30">(disabled by creator)</span>}
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={ttAllowDuet} onChange={(e) => setTtAllowDuet(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                    <label className={`flex items-center gap-2 ${ttCreatorInfo?.duet_disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
+                      <input
+                        type="checkbox"
+                        checked={ttAllowDuet}
+                        onChange={(e) => setTtAllowDuet(e.target.checked)}
+                        disabled={ttCreatorInfo?.duet_disabled}
+                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white"
+                      />
                       <span className="text-sm text-white/70">Allow Duet</span>
+                      {ttCreatorInfo?.duet_disabled && <span className="text-[10px] text-white/30">(disabled by creator)</span>}
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={ttAllowStitch} onChange={(e) => setTtAllowStitch(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                    <label className={`flex items-center gap-2 ${ttCreatorInfo?.stitch_disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
+                      <input
+                        type="checkbox"
+                        checked={ttAllowStitch}
+                        onChange={(e) => setTtAllowStitch(e.target.checked)}
+                        disabled={ttCreatorInfo?.stitch_disabled}
+                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white"
+                      />
                       <span className="text-sm text-white/70">Allow Stitch</span>
+                      {ttCreatorInfo?.stitch_disabled && <span className="text-[10px] text-white/30">(disabled by creator)</span>}
                     </label>
+                  </div>
+
+                  {/* Commercial content disclosure */}
+                  <div className="pt-4 border-t border-white/10 space-y-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div>
+                        <p className="text-sm text-white/80">Disclose commercial content</p>
+                        <p className="text-xs text-white/40 mt-0.5">Turn on if this content promotes goods or services</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !ttCommercialToggle;
+                          setTtCommercialToggle(next);
+                          if (!next) { setTtBrandOrganic(false); setTtBrandContent(false); }
+                        }}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${ttCommercialToggle ? "bg-blue-500" : "bg-white/10"}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttCommercialToggle ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </label>
+
+                    {ttCommercialToggle && (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={ttBrandOrganic}
+                            onChange={(e) => setTtBrandOrganic(e.target.checked)}
+                            className="w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400"
+                          />
+                          <div>
+                            <p className="text-sm text-white/80">Your Brand</p>
+                            <p className="text-xs text-white/40">You are promoting yourself or your own business</p>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={ttBrandContent}
+                            onChange={(e) => setTtBrandContent(e.target.checked)}
+                            className="w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400"
+                          />
+                          <div>
+                            <p className="text-sm text-white/80">Branded Content</p>
+                            <p className="text-xs text-white/40">You are promoting another brand or a third party</p>
+                          </div>
+                        </label>
+                        {!ttBrandOrganic && !ttBrandContent && (
+                          <p className="text-xs text-amber-400/70">Select at least one option above to continue</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Compliance text */}
+                  <div className="pt-4 border-t border-white/10 space-y-2">
+                    <p className="text-xs text-white/40">
+                      By posting, you agree to TikTok&apos;s{" "}
+                      <a href="https://www.tiktok.com/legal/music-usage-confirmation" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">Music Usage Confirmation</a>
+                      {ttBrandContent && (
+                        <>
+                          {" "}and{" "}
+                          <a href="https://www.tiktok.com/legal/branded-content-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">Branded Content Policy</a>
+                        </>
+                      )}
+                      .
+                    </p>
+                    <p className="text-xs text-white/30">Content may take several minutes to appear on your TikTok profile.</p>
                   </div>
                 </div>
               </div>
@@ -1397,7 +1591,7 @@ export default function UploadsPage() {
             {/* Action Buttons */}
             <div className="sticky bottom-4 z-20 flex items-center justify-between rounded-2xl border border-white/10 bg-neutral-950/85 p-3 backdrop-blur-xl">
               <button onClick={() => handleSchedule(true)} disabled={scheduling} className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50">Save as draft</button>
-              <button onClick={() => handleSchedule(false)} disabled={scheduling || selectedPlatforms.length === 0} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-8 py-3 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:opacity-50">
+              <button onClick={() => handleSchedule(false)} disabled={scheduling || selectedPlatforms.length === 0 || !!ttValidationError} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-8 py-3 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:opacity-50">
                 {scheduling ? "Scheduling..." : scheduleType === "now" ? "Publish now" : "Schedule"}
               </button>
             </div>

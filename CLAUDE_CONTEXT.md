@@ -1,6 +1,6 @@
 # ClipDash (clipdash.org) — Project Context for Claude
 
-**Last updated:** 2026-02-16
+**Last updated:** 2026-02-18
 
 ## Instructions for Claude
 
@@ -65,7 +65,7 @@ The site is live at clipdash.org.
 | title | text | |
 | description | text | |
 | privacy_status | text | private/unlisted/public (YouTube) |
-| tiktok_settings | jsonb | privacy_level, allow_comments, etc. |
+| tiktok_settings | jsonb | privacy_level, allow_comments, allow_duet, allow_stitch, brand_organic_toggle, brand_content_toggle |
 | scheduled_for | timestamptz | when to post |
 | status | text | scheduled / posting / posted / failed / ig_processing |
 | ig_container_id | text | Instagram container ID (for split upload flow) |
@@ -131,10 +131,20 @@ The site is live at clipdash.org.
 - Upload: `src/lib/youtubeUpload.ts` — uses refresh_token to get access_token, uploads via YouTube Data API v3
 - Supports privacy_status: private/unlisted/public
 
-### TikTok — FULLY WORKING
+### TikTok — FULLY WORKING (UX compliance updated)
 - OAuth flow: `/api/auth/tiktok/start` → TikTok consent → `/api/auth/tiktok/callback`
 - Upload: `src/lib/tiktokUpload.ts` — uses TikTok Content Posting API
-- Supports tiktok_settings (privacy_level, allow_comments, allow_duet, allow_stitch)
+- Creator info API: `/api/tiktok/creator-info` — fetches nickname, privacy options, interaction flags
+- Supports tiktok_settings: privacy_level, allow_comments, allow_duet, allow_stitch, brand_organic_toggle, brand_content_toggle
+- **UX compliance (TikTok Required Points 1-5):**
+  - Creator nickname shown in TikTok settings card header
+  - Privacy options populated dynamically from creator_info (not hardcoded)
+  - Comment/duet/stitch default OFF, greyed out if creator disabled them
+  - Commercial content disclosure toggle with "Your Brand" / "Branded Content" checkboxes
+  - Branded content disables SELF_ONLY privacy option
+  - Compliance text: Music Usage Confirmation + conditional Branded Content Policy
+  - Processing notice: "Content may take several minutes to appear"
+  - Validation blocks scheduling if privacy not selected or commercial toggle incomplete
 
 ### Facebook — CONNECTED, needs upload testing
 - OAuth flow: `/api/auth/facebook/start` → Facebook Login → `/api/auth/facebook/callback`
@@ -273,6 +283,8 @@ src/
 │       │   └── refresh-tokens/route.ts     # Token refresh worker (daily)
 │       ├── ai/
 │       │   └── suggest/route.ts              # AI hashtag suggestions (Claude Haiku)
+│       ├── tiktok/
+│       │   └── creator-info/route.ts      # TikTok creator info (privacy options, nickname)
 │       ├── uploads/create/route.ts
 │       ├── scheduled-posts/
 │       │   ├── create/route.ts
@@ -394,15 +406,16 @@ VERCEL_OIDC_TOKEN
 - Data deletion endpoint (for users + Meta app review compliance)
 - AI-powered hashtag suggestions (Claude Haiku) with context prompt and selectable tags
 - X (Twitter) removed from all pages (API too expensive for video)
+- TikTok UX compliance for Direct Post API (creator info, dynamic privacy, commercial disclosure, compliance text)
 
-### Future
-1. **Multi-team support** — Allow users to belong to multiple teams with a team switcher. Editors can manage uploads across multiple creators. Teams get custom names. See "PICK UP HERE" for full design notes.
-2. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
-3. Analytics dashboard (Instagram webhook endpoint already deployed)
-4. Email notifications
-5. AI caption/description generator (expand beyond hashtags)
-6. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
-7. **Scheduled post editing** — Allow editing title/description/time before posting
+### Future (Post-Launch)
+1. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
+2. Analytics dashboard (Instagram webhook endpoint already deployed)
+3. Email notifications
+4. AI caption/description generator (expand beyond hashtags)
+5. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
+6. **Scheduled post editing** — Allow editing title/description/time before posting
+7. **Multi-team support** — Scrapped for initial launch (keep product simple). May revisit later for editor workflows.
 
 ---
 
@@ -551,25 +564,146 @@ These are small tasks that can be knocked out quickly to improve the product:
 - Configured Stripe Customer Portal in live mode
 - Cleaned up orphaned team for duplicate owner
 
+### Session 5 (2026-02-17) — Multi-Team Scrapped + Launch Audit
+
+#### Multi-Team Feature — SCRAPPED
+- Implemented full multi-team support (team switcher, create team, rename team, `x-team-id` header, localStorage persistence)
+- User decided to scrap it: "I want to ship a simple product" — multi-team adds complexity and billing issues (subscriptions are per-team)
+- All changes reverted via `git checkout`, new API routes deleted
+- Test team deleted from database
+- Decision: keep single-team model for launch; revisit multi-team post-launch if needed
+
+#### Launch Readiness Audit
+- Full security + frontend + config audit performed
+- Findings documented in "LAUNCH CHECKLIST" section below
+
+---
+
+## LAUNCH CHECKLIST — Must Complete Before Thursday Launch
+
+### CRITICAL (blocks launch)
+
+1. **Delete debug/test routes**
+   - `src/app/api/debug/force-scheduled/route.ts` — has hardcoded userId, bypasses auth
+   - `src/app/api/youtube/test-upload/route.ts` — test upload endpoint
+   - Delete these files entirely
+
+2. **Fix OAuth CSRF vulnerability**
+   - All OAuth start routes use `state=userId` (raw user ID) — attacker can forge this
+   - Fix: generate a random token, store in a short-lived DB/cache table mapping `token → userId`, pass token as `state`, validate in callback
+   - Or: use HMAC — `state = userId + "." + HMAC(userId, OAUTH_STATE_SECRET)`, verify in callback
+   - Affected files: all `/api/auth/*/start/route.ts` and `/api/auth/*/callback/route.ts`
+
+3. **Fix worker auth bypass**
+   - `src/app/api/worker/run-scheduled/route.ts` line: `if (!expected) return;` — if `WORKER_SECRET` env var is unset, auth check is silently skipped
+   - Fix: if `WORKER_SECRET` is not set, return 500 error instead of silently skipping
+   - Same issue in `refresh-tokens/route.ts`
+
+4. **TikTok Content Posting API approval**
+   - TikTok `video.publish` scope requires app review approval
+   - Must apply at TikTok Developer Portal → App Review → Content Posting API
+   - Without this, TikTok uploads will fail for any user
+   - YouTube also needs Google API approval (user is waiting on this)
+
+5. **Verify Vercel cron / GitHub Actions are running**
+   - The worker (`run-scheduled`) and token refresh (`refresh-tokens`) need to run on schedule
+   - Confirm GitHub Actions workflows are enabled and running correctly
+   - Without this, scheduled posts will never publish
+
+### HIGH PRIORITY (should fix before launch)
+
+6. **Move webhook verify tokens to env vars only**
+   - `src/app/api/webhooks/facebook/route.ts` and `instagram/route.ts` have hardcoded fallback tokens (`clipdash_fb_webhook_2026`, `clipdash_ig_webhook_2026`)
+   - Remove hardcoded fallbacks — require env vars in production
+
+7. **Add security headers**
+   - `next.config.mjs` has no security headers
+   - Add: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-XSS-Protection: 1; mode=block`
+
+8. **Settings page auth guard**
+   - Settings page fetches data client-side but doesn't redirect unauthenticated users
+   - Add auth check on mount — redirect to `/login` if no session
+
+9. **Enable "Delete Account" button**
+   - Settings page has a disabled "Delete Account" button but Terms of Service references it
+   - Either enable it (the API endpoint `/api/account/delete` already works) or remove from Terms
+
+### MEDIUM PRIORITY (fix soon after launch)
+
+10. **Add rate limiting to auth endpoints**
+    - Login, signup, OAuth start routes have no rate limiting
+    - Consider Vercel Edge Middleware or `upstash/ratelimit`
+
+11. **Add error toast notifications**
+    - Replace `alert()` calls in settings page with proper toast UI
+
+12. **Facebook end-to-end upload test**
+    - Facebook is marked "needs upload testing" — verify video posts work in production
+
+13. **Add `SITE_URL` env var to Vercel**
+    - Set `SITE_URL=https://clipdash.org` to avoid relying on `NEXT_PUBLIC_SITE_URL` for server-side OAuth redirects
+
+14. **Worker error logging**
+    - Add structured logging or Sentry for failed uploads to diagnose production issues
+
+---
+
+### Session 6 (2026-02-18) — TikTok UX Compliance
+
+#### TikTok Direct Post API — UX Compliance (Required Points 1-5)
+TikTok rejected the app review because the UX didn't meet their Required UX Implementation guidelines. All 5 points addressed:
+
+**New file: `src/app/api/tiktok/creator-info/route.ts`**
+- Calls TikTok's `/v2/post/publish/creator_info/query/` endpoint
+- Returns: creator nickname, available privacy_level_options, comment/duet/stitch disabled flags, max video duration
+- Auth via `getTeamContext(req)`, refreshes access token if needed
+
+**Backend changes (`src/lib/tiktokUpload.ts`):**
+- Added `brandOrganicToggle` and `brandContentToggle` to upload args and `post_info`
+- Fixed `title.slice(0, 150)` → `title.slice(0, 2200)` (TikTok allows 2200 chars)
+- Removed `description` from `post_info` (TikTok API has no separate description field)
+- Changed defaults: `allowComments/Duet/Stitch` now default to `false`
+
+**Worker changes (`src/app/api/worker/run-scheduled/route.ts`):**
+- Passes `brandOrganicToggle` and `brandContentToggle` from `tiktok_settings`
+- Removed `description` param from TikTok upload call
+- Changed fallback defaults to `false` for comments/duet/stitch
+
+**Frontend changes (`src/app/uploads/page.tsx`):**
+- Point 1 (Creator info): Shows TikTok nickname in settings card header
+- Point 2 (Privacy options): Dropdown populated from creator_info `privacy_level_options`, not hardcoded
+- Point 3 (Interaction defaults): Comment/duet/stitch default OFF, greyed out if creator disabled
+- Point 4 (Commercial disclosure): Toggle + "Your Brand" / "Branded Content" checkboxes; branded content disables SELF_ONLY privacy
+- Point 5 (Compliance text): Music Usage Confirmation link, conditional Branded Content Policy link, processing notice
+- Validation: blocks scheduling if privacy not selected or commercial toggle on with no checkbox selected
+- `tiktok_settings` payload now includes `brand_organic_toggle` and `brand_content_toggle`
+
+**Settings page changes (`src/app/settings/page.tsx`):**
+- TikTok defaults updated: privacy fallback `""` (user must select), comments/duet/stitch fallback `false`
+- Added "No default (user must select)" option for privacy dropdown
+- Added note about dynamic privacy options
+
+---
+
 ### PICK UP HERE NEXT SESSION
 
-- **Fix team plan display** — Verify team plan/subscription status displays correctly after live mode migration
-- **Multi-team support** — Allow users to belong to multiple teams (editor workflow):
-  - Users can be members of multiple teams simultaneously
-  - Add team switcher UI (dropdown/selector) so users can switch active team context
-  - Add team name field to teams table + UI to name teams (e.g., "[Creator]'s Team")
-  - Add "Name" field in account settings so team names can use the owner's name
-  - `getTeamContext()` currently picks the most recent team — needs to use a selected/active team instead
-  - Use case: editors who manage uploads for multiple creators switch between teams
-  - Use case: an editor purchases their own plan and manages multiple client teams
-  - DB changes: likely need an `active_team_id` on users or a client-side team selection mechanism
-  - Must update all team-scoped queries (uploads, scheduled posts, platform accounts) to use the selected team
-- **Multi-account YouTube support** — Allow linking multiple YouTube channels
-- **Analytics dashboard** — Use existing webhook endpoints to build insights
-- **AI caption/description generator** — Expand AI beyond hashtags
+**Launch target: Thursday night (2026-02-20), pending YouTube API approval**
+
+Priority order:
+1. Re-submit TikTok app for Content Posting API review (UX compliance now implemented)
+2. Delete debug routes (5 min)
+3. Fix OAuth CSRF — use HMAC-signed state param (30 min)
+4. Fix worker auth bypass (5 min)
+5. Add security headers to `next.config.mjs` (10 min)
+6. Remove hardcoded webhook tokens (5 min)
+7. Add settings page auth guard (10 min)
+8. Enable Delete Account button (15 min)
+9. Verify GitHub Actions crons are running (manual check)
+10. Test full end-to-end flow: signup → subscribe → upload → schedule → auto-post
 
 ### Key Decisions Made
 - NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan
+- **Multi-team SCRAPPED** — keeping single-team model for simplicity at launch
 - Instagram API only supports Business/Creator accounts for posting (no personal accounts)
 - Instagram "Post" option actually uploads as a Reel (Instagram converts all video to Reels) — gives users the feeling of choice
 - Instagram Stories: uses STORIES media_type, supports both video and images, no captions
@@ -580,3 +714,4 @@ These are small tasks that can be knocked out quickly to improve the product:
 - X (Twitter) removed — $100/month API cost for video is not viable
 - Vercel crons don't work on Hobby plan — use GitHub Actions for all cron jobs
 - AI suggestions use separate Anthropic API billing (not Claude Pro subscription credits)
+- TikTok Content Posting API requires app review approval (`video.publish` scope)
