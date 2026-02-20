@@ -7,6 +7,11 @@ import {
   fetchInstagramMetrics,
   type UnifiedMetric,
 } from "@/lib/metricsFetchers";
+import {
+  fetchRecentYouTubePosts,
+  fetchRecentFacebookPosts,
+  fetchRecentInstagramPosts,
+} from "@/lib/recentPlatformPosts";
 
 export const runtime = "nodejs";
 
@@ -20,7 +25,7 @@ export async function GET(req: Request) {
     // Load platform accounts for this team
     const { data: accounts } = await supabaseAdmin
       .from("platform_accounts")
-      .select("provider, refresh_token, access_token, page_access_token, ig_user_id")
+      .select("provider, refresh_token, access_token, page_id, page_access_token, ig_user_id")
       .eq("team_id", teamId)
       .in("provider", ["youtube", "facebook", "instagram"]);
 
@@ -29,48 +34,39 @@ export async function GET(req: Request) {
       acctMap.set(a.provider, a);
     }
 
-    // Fetch posted posts per platform
-    const [ytPosts, fbPosts, igPosts] = await Promise.all([
-      acctMap.has("youtube")
-        ? supabaseAdmin
-            .from("scheduled_posts")
-            .select("id, title, platform_post_id, posted_at")
-            .eq("team_id", teamId)
-            .eq("provider", "youtube")
-            .eq("status", "posted")
-            .not("platform_post_id", "is", null)
-            .order("posted_at", { ascending: false })
-            .limit(50)
-            .then((r) => r.data ?? [])
-        : Promise.resolve([]),
-      acctMap.has("facebook")
-        ? supabaseAdmin
-            .from("scheduled_posts")
-            .select("id, title, platform_post_id, posted_at")
-            .eq("team_id", teamId)
-            .eq("provider", "facebook")
-            .eq("status", "posted")
-            .not("platform_post_id", "is", null)
-            .order("posted_at", { ascending: false })
-            .limit(50)
-            .then((r) => r.data ?? [])
-        : Promise.resolve([]),
-      acctMap.has("instagram")
-        ? supabaseAdmin
-            .from("scheduled_posts")
-            .select("id, title, platform_post_id, platform_media_id, posted_at")
-            .eq("team_id", teamId)
-            .eq("provider", "instagram")
-            .eq("status", "posted")
-            .not("platform_post_id", "is", null)
-            .order("posted_at", { ascending: false })
-            .limit(50)
-            .then((r) => r.data ?? [])
-        : Promise.resolve([]),
+    // Fetch recent platform posts live (no DB post storage)
+    const [ytRecent, fbRecent, igRecent] = await Promise.all([
+      acctMap.has("youtube") && acctMap.get("youtube")?.refresh_token
+        ? fetchRecentYouTubePosts({
+            refreshToken: acctMap.get("youtube").refresh_token,
+            maxResults: 50,
+          })
+        : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
+      acctMap.has("facebook") && acctMap.get("facebook")?.page_id && acctMap.get("facebook")?.page_access_token
+        ? fetchRecentFacebookPosts({
+            pageId: acctMap.get("facebook").page_id,
+            pageAccessToken: acctMap.get("facebook").page_access_token,
+            maxResults: 50,
+          })
+        : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
+      acctMap.has("instagram") && acctMap.get("instagram")?.ig_user_id && acctMap.get("instagram")?.access_token
+        ? fetchRecentInstagramPosts({
+            igUserId: acctMap.get("instagram").ig_user_id,
+            accessToken: acctMap.get("instagram").access_token,
+            maxResults: 50,
+          })
+        : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
     ]);
+
+    const ytPosts = ytRecent.posts;
+    const fbPosts = fbRecent.posts;
+    const igPosts = igRecent.posts;
 
     // Fetch metrics from all platforms in parallel
     const errors: string[] = [];
+    if (ytRecent.error) errors.push(ytRecent.error);
+    if (fbRecent.error) errors.push(fbRecent.error);
+    if (igRecent.error) errors.push(igRecent.error);
 
     const [ytResult, fbResult, igResult] = await Promise.allSettled([
       ytPosts.length > 0 && acctMap.has("youtube")
