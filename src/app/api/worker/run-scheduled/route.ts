@@ -16,7 +16,10 @@ function requireWorkerAuth(req: Request) {
   if (!expected) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
-  if (token !== expected) {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+  const provided = bearer || token || "";
+  if (provided !== expected) {
     throw new Error("Unauthorized worker request");
   }
 }

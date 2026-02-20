@@ -52,6 +52,15 @@ function parseYouTubeVideoId(input: string | null | undefined): string | null {
   return null;
 }
 
+function isIgnorableYouTubeCommentsError(message: string): boolean {
+  const msg = (message || "").toLowerCase();
+  return (
+    msg.includes("disabled comments") ||
+    msg.includes("commentsdisabled") ||
+    (msg.includes("videoid") && msg.includes("could not be found"))
+  );
+}
+
 // ── YouTube ─────────────────────────────────────────────────────────
 
 export async function fetchYouTubeComments(
@@ -92,12 +101,7 @@ export async function fetchYouTubeComments(
         } catch (e: any) {
           // Comments disabled on private/unlisted videos — skip silently
           const msg = e?.message || "";
-          if (
-            msg.includes("disabled comments") ||
-            msg.includes("commentsDisabled") ||
-            msg.includes("videoId parameter could not be found") ||
-            msg.includes("The video identified by the videoId parameter could not be found")
-          ) {
+          if (isIgnorableYouTubeCommentsError(msg)) {
             return [];
           }
           throw e;
@@ -112,13 +116,7 @@ export async function fetchYouTubeComments(
       else perVideoErrors.push(r.reason?.message || "Unknown video error");
     }
     // Filter out "comments disabled" errors that slipped through
-    const realErrors = perVideoErrors.filter(
-      (e) =>
-        !e.includes("disabled comments") &&
-        !e.includes("commentsDisabled") &&
-        !e.includes("videoId parameter could not be found") &&
-        !e.includes("The video identified by the videoId parameter could not be found")
-    );
+    const realErrors = perVideoErrors.filter((e) => !isIgnorableYouTubeCommentsError(e));
     return {
       comments,
       error: realErrors.length > 0 ? `YouTube: ${realErrors[0]}` : undefined,
