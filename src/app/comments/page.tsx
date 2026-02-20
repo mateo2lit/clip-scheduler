@@ -20,6 +20,7 @@ type Comment = {
 };
 
 type PlatformFilter = "all" | "youtube" | "facebook" | "instagram";
+type SortMode = "priority" | "recent";
 
 const platformLabels: Record<string, string> = {
   youtube: "YouTube",
@@ -48,6 +49,19 @@ function relativeTime(iso: string) {
   }
 }
 
+function isLikelyQuestion(text: string): boolean {
+  const t = (text || "").toLowerCase();
+  if (t.includes("?")) return true;
+  return /(^|\s)(how|what|when|where|why|who|which|can|could|should|do|does|did|is|are|will)\b/.test(t);
+}
+
+function priorityScore(comment: Comment): number {
+  const questionBoost = isLikelyQuestion(comment.text) ? 1000 : 0;
+  const likesBoost = Math.min(comment.likeCount, 100) * 5;
+  const recencyBoost = Math.floor(new Date(comment.publishedAt).getTime() / 60000) * 0.001;
+  return questionBoost + likesBoost + recencyBoost;
+}
+
 export default function CommentsPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -60,6 +74,7 @@ export default function CommentsPage() {
   const [replySuccess, setReplySuccess] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("priority");
 
   useEffect(() => {
     async function load() {
@@ -134,7 +149,16 @@ export default function CommentsPage() {
     }
   }
 
-  const filtered = filter === "all" ? comments : comments.filter((c) => c.platform === filter);
+  const filtered = (filter === "all" ? comments : comments.filter((c) => c.platform === filter))
+    .slice()
+    .sort((a, b) => {
+      if (sortMode === "recent") {
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      }
+      const scoreDiff = priorityScore(b) - priorityScore(a);
+      if (scoreDiff !== 0) return scoreDiff;
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+    });
 
   const reconnectErrors = errors.filter((e) => e.toLowerCase().includes("reconnect"));
   const otherErrors = errors.filter((e) => !e.toLowerCase().includes("reconnect"));
@@ -225,6 +249,22 @@ export default function CommentsPage() {
           ))}
         </div>
 
+        <div className="mt-3 flex items-center gap-2">
+          {(["priority", "recent"] as SortMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setSortMode(mode)}
+              className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                sortMode === mode
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+              }`}
+            >
+              {mode === "priority" ? "Priority (questions first)" : "Most recent"}
+            </button>
+          ))}
+        </div>
+
         {/* Comments list */}
         <div className="mt-6">
           {loading ? (
@@ -301,16 +341,6 @@ export default function CommentsPage() {
                               </svg>
                               {comment.likeCount}
                             </span>
-                          )}
-                          {comment.postUrl && (
-                            <a
-                              href={comment.postUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-white/60 hover:text-white/85 hover:bg-white/[0.08] hover:border-white/20 transition-all"
-                            >
-                              View post
-                            </a>
                           )}
                           {comment.commentUrl && (
                             <a
