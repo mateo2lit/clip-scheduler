@@ -275,6 +275,7 @@ export default function UploadsPage() {
     duet_disabled: boolean;
     stitch_disabled: boolean;
     max_video_post_duration_sec: number;
+    can_post: boolean;
   };
   const [ttCreatorInfo, setTtCreatorInfo] = useState<TtCreatorInfo | null>(null);
   const [ttCreatorLoading, setTtCreatorLoading] = useState(false);
@@ -282,6 +283,10 @@ export default function UploadsPage() {
   const [ttCommercialToggle, setTtCommercialToggle] = useState(false);
   const [ttBrandOrganic, setTtBrandOrganic] = useState(false);
   const [ttBrandContent, setTtBrandContent] = useState(false);
+  const [ttConsentChecked, setTtConsentChecked] = useState(false);
+
+  // Video duration (seconds), read client-side when file is selected
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
 
   // Instagram specific
   const [igType, setIgType] = useState<InstagramType>("reel");
@@ -462,14 +467,33 @@ export default function UploadsPage() {
     }
   }, [ttBrandContent, ttPrivacyLevel]);
 
+  // Read video duration from file metadata
+  useEffect(() => {
+    if (!file) { setVideoDuration(null); return; }
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    video.onloadedmetadata = () => {
+      setVideoDuration(video.duration);
+      URL.revokeObjectURL(url);
+    };
+    video.onerror = () => URL.revokeObjectURL(url);
+  }, [file]);
+
   // Compute TikTok validation
   const ttValidationError = useMemo(() => {
     if (!selectedPlatforms.includes("tiktok")) return null;
     if (ttCreatorError) return ttCreatorError;
+    if (ttCreatorInfo && !ttCreatorInfo.can_post) return "Your TikTok account is not currently eligible to post. Please try again later.";
     if (!ttPrivacyLevel) return "Please select a privacy level for TikTok";
     if (ttCommercialToggle && !ttBrandOrganic && !ttBrandContent) return "Please select at least one commercial content type";
+    if (ttCreatorInfo && ttCreatorInfo.max_video_post_duration_sec > 0 && videoDuration !== null && videoDuration > ttCreatorInfo.max_video_post_duration_sec) {
+      return `Video exceeds TikTok's maximum duration of ${ttCreatorInfo.max_video_post_duration_sec}s for your account (video is ${Math.round(videoDuration)}s).`;
+    }
+    if (!ttConsentChecked) return "Please confirm your content rights for TikTok before scheduling";
     return null;
-  }, [selectedPlatforms, ttCreatorError, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent]);
+  }, [selectedPlatforms, ttCreatorError, ttCreatorInfo, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked]);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -1542,8 +1566,35 @@ export default function UploadsPage() {
                     )}
                   </div>
 
+                  {/* can_post warning */}
+                  {ttCreatorInfo && !ttCreatorInfo.can_post && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                      <p className="text-sm text-amber-300">Your TikTok account is not currently eligible to post. Please try again later.</p>
+                    </div>
+                  )}
+
+                  {/* Duration warning */}
+                  {ttCreatorInfo && ttCreatorInfo.max_video_post_duration_sec > 0 && videoDuration !== null && videoDuration > ttCreatorInfo.max_video_post_duration_sec && (
+                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+                      <p className="text-sm text-red-300">Video is {Math.round(videoDuration)}s — exceeds your TikTok account&apos;s maximum of {ttCreatorInfo.max_video_post_duration_sec}s.</p>
+                    </div>
+                  )}
+
+                  {/* Explicit consent */}
+                  <div className="pt-4 border-t border-white/10">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={ttConsentChecked}
+                        onChange={(e) => setTtConsentChecked(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-white shrink-0"
+                      />
+                      <span className="text-sm text-white/70">I confirm I am the creator or authorized rights holder of this content and consent to it being posted on TikTok on my behalf.</span>
+                    </label>
+                  </div>
+
                   {/* Compliance text */}
-                  <div className="pt-4 border-t border-white/10 space-y-2">
+                  <div className="space-y-2">
                     <p className="text-xs text-white/40">
                       By posting, you agree to TikTok&apos;s{" "}
                       <a href="https://www.tiktok.com/legal/music-usage-confirmation" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">Music Usage Confirmation</a>

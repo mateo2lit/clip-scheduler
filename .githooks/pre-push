@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -e
+
+# Allow explicit bypass when needed.
+if [ "${SKIP_SUPABASE_DB_PUSH:-0}" = "1" ]; then
+  echo "[pre-push] SKIP_SUPABASE_DB_PUSH=1, skipping supabase db push."
+  exit 0
+fi
+
+echo "[pre-push] Running Supabase migrations (supabase db push --yes)..."
+
+if ! command -v npx >/dev/null 2>&1; then
+  echo "[pre-push] npx not found. Install Node.js/npm to auto-apply migrations."
+  exit 1
+fi
+
+# Push pending migrations to linked Supabase project before git push.
+npx supabase db push --yes
+
+echo "[pre-push] Supabase migrations are up to date."

@@ -19,6 +19,39 @@ type PostInfo = {
   platform_media_id?: string | null;
 };
 
+function parseYouTubeVideoId(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const candidate = url.pathname.split("/").filter(Boolean)[0] ?? "";
+      return /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+    }
+
+    if (host.endsWith("youtube.com")) {
+      const v = url.searchParams.get("v");
+      if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
+
+      const segments = url.pathname.split("/").filter(Boolean);
+      const hasPathId =
+        segments.length >= 2 &&
+        (segments[0] === "shorts" || segments[0] === "embed" || segments[0] === "live");
+      if (hasPathId && /^[A-Za-z0-9_-]{11}$/.test(segments[1])) return segments[1];
+    }
+  } catch {
+    // Not a URL, fall through.
+  }
+
+  return null;
+}
+
 // ── YouTube ─────────────────────────────────────────────────────────
 
 export async function fetchYouTubeComments(
@@ -31,7 +64,7 @@ export async function fetchYouTubeComments(
 
     const results = await Promise.allSettled(
       posts.map(async (post) => {
-        const videoId = post.platform_post_id;
+        const videoId = parseYouTubeVideoId(post.platform_post_id);
         if (!videoId) return [];
 
         try {
@@ -59,7 +92,12 @@ export async function fetchYouTubeComments(
         } catch (e: any) {
           // Comments disabled on private/unlisted videos — skip silently
           const msg = e?.message || "";
-          if (msg.includes("disabled comments") || msg.includes("commentsDisabled")) {
+          if (
+            msg.includes("disabled comments") ||
+            msg.includes("commentsDisabled") ||
+            msg.includes("videoId parameter could not be found") ||
+            msg.includes("The video identified by the videoId parameter could not be found")
+          ) {
             return [];
           }
           throw e;
@@ -75,7 +113,11 @@ export async function fetchYouTubeComments(
     }
     // Filter out "comments disabled" errors that slipped through
     const realErrors = perVideoErrors.filter(
-      (e) => !e.includes("disabled comments") && !e.includes("commentsDisabled")
+      (e) =>
+        !e.includes("disabled comments") &&
+        !e.includes("commentsDisabled") &&
+        !e.includes("videoId parameter could not be found") &&
+        !e.includes("The video identified by the videoId parameter could not be found")
     );
     return {
       comments,

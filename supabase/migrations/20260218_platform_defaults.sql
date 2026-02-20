@@ -1,5 +1,5 @@
 -- Platform default settings per user+platform
-create table platform_defaults (
+create table if not exists platform_defaults (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   team_id uuid,
@@ -11,6 +11,17 @@ create table platform_defaults (
 
 alter table platform_defaults enable row level security;
 
-create policy "Users manage own defaults"
-  on platform_defaults for all
-  using (auth.uid() = user_id);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'platform_defaults'
+      and policyname = 'Users manage own defaults'
+  ) then
+    create policy "Users manage own defaults"
+      on platform_defaults for all
+      using (auth.uid() = user_id);
+  end if;
+end $$;

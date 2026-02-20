@@ -220,5 +220,5 @@ package.json specifies `"node": "20.x"` but system is running Node 24. Vercel li
 - [ ] Verify Facebook/Instagram/LinkedIn OAuth redirect URIs include production domain
 - [ ] Verify Supabase storage bucket `clips` exists with correct policies
 - [ ] Test full upload -> schedule -> auto-publish flow on production
-- [ ] Verify YouTube API approval status (you mentioned waiting on this)
+- [x] Verify YouTube API approval status (approved Feb 19, 2026)
 - [ ] Check that NEXT_PUBLIC_SITE_URL is set to production domain in Vercel

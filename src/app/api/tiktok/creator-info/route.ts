@@ -88,6 +88,7 @@ export async function GET(req: Request) {
       duet_disabled: info.duet_disabled ?? false,
       stitch_disabled: info.stitch_disabled ?? false,
       max_video_post_duration_sec: info.max_video_post_duration_sec ?? 0,
+      can_post: info.can_post ?? true,
     },
   });
 }

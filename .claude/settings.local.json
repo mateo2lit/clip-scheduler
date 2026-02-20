@@ -30,7 +30,27 @@
       "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Retry custom domain deploy\")",
       "Bash(git -C \"C:\\\\Users\\\\dbher\\\\clip-scheduler\" commit --allow-empty -m \"Trigger deploy after disabling deployment protection\")",
       "Bash(xargs:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:www.instagram.com)",
+      "WebFetch(domain:developers.facebook.com)",
+      "WebFetch(domain:clipdash.org)",
+      "Bash(npx ts-node:*)",
+      "Bash(curl:*)",
+      "Bash(git rm:*)",
+      "Bash(npm install:*)",
+      "Bash(gh run:*)",
+      "Bash(npm ls:*)",
+      "Bash(psql:*)",
+      "Bash(node -e \"\nconst { Client } = require\\(''pg''\\);\nconst c = new Client\\({ connectionString: ''postgresql://neondb_owner:npg_xFGdAPk6Yr4g@ep-solitary-lab-aht4pouc-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require'' }\\);\nc.connect\\(\\).then\\(\\(\\) => c.query\\(''SELECT column_name FROM information_schema.columns WHERE table_name = \\\\''scheduled_posts\\\\'' ORDER BY ordinal_position''\\)\\).then\\(r => { console.log\\(r.rows.map\\(r=>r.column_name\\).join\\('', ''\\)\\); c.end\\(\\); }\\).catch\\(e => { console.error\\(e.message\\); c.end\\(\\); }\\);\n\")",
+      "Bash(grep:*)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(node -e:*)",
+      "Bash(SUPABASE_URL=\"https://bfmemlxzssedsuwlsjzv.supabase.co\" SUPABASE_SERVICE_ROLE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmbWVtbHh6c3NlZHN1d2xzanp2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDExNDAxOCwiZXhwIjoyMDc5NjkwMDE4fQ.gZvD96LyOA_oL7pI9ONuclZwFNYNp66g353vLU2wuSE\" node:*)",
+      "Bash(npm run build:*)",
+      "Bash(git status:*)"
     ]
   }
 }

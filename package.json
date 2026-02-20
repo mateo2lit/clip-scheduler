@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup:hooks": "powershell -ExecutionPolicy Bypass -File scripts/setup-git-hooks.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
