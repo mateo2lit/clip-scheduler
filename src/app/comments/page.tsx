@@ -6,9 +6,12 @@ import { supabase } from "@/app/login/supabaseClient";
 
 type Comment = {
   id: string;
+  replyId?: string;
   platform: "youtube" | "facebook" | "instagram";
   postTitle: string;
   postId: string;
+  postUrl?: string;
+  commentUrl?: string;
   authorName: string;
   authorImageUrl: string | null;
   text: string;
@@ -255,7 +258,7 @@ export default function CommentsPage() {
               {filtered.map((comment) => {
                 const colors = platformColors[comment.platform];
                 return (
-                  <div key={comment.id} className="px-5 py-4 hover:bg-white/[0.02] transition-colors">
+                  <div key={comment.id} className="px-4 py-3 hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-start gap-3">
                       {/* Avatar */}
                       {comment.authorImageUrl ? (
@@ -283,12 +286,12 @@ export default function CommentsPage() {
                           </span>
                         </div>
 
-                        <p className="text-sm text-white/70 mt-1 whitespace-pre-line break-words">
+                        <p className="text-sm text-white/70 mt-0.5 whitespace-pre-line break-words">
                           {comment.text}
                         </p>
 
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="text-xs text-white/30">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="text-xs text-white/30 truncate max-w-[280px]" title={comment.postTitle}>
                             on &quot;{comment.postTitle}&quot;
                           </span>
                           {comment.likeCount > 0 && (
@@ -298,6 +301,26 @@ export default function CommentsPage() {
                               </svg>
                               {comment.likeCount}
                             </span>
+                          )}
+                          {comment.postUrl && (
+                            <a
+                              href={comment.postUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-white/60 hover:text-white/85 hover:bg-white/[0.08] hover:border-white/20 transition-all"
+                            >
+                              View post
+                            </a>
+                          )}
+                          {comment.commentUrl && (
+                            <a
+                              href={comment.commentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-white/60 hover:text-white/85 hover:bg-white/[0.08] hover:border-white/20 transition-all"
+                            >
+                              View comment
+                            </a>
                           )}
                           <button
                             onClick={() => {
@@ -334,7 +357,7 @@ export default function CommentsPage() {
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" && !e.shiftKey) {
                                         e.preventDefault();
-                                        sendReply(comment.platform, comment.id);
+                                        sendReply(comment.platform, comment.replyId ?? comment.id);
                                       }
                                     }}
                                     placeholder="Write a reply..."
@@ -343,7 +366,7 @@ export default function CommentsPage() {
                                     autoFocus
                                   />
                                   <button
-                                    onClick={() => sendReply(comment.platform, comment.id)}
+                                    onClick={() => sendReply(comment.platform, comment.replyId ?? comment.id)}
                                     disabled={replySending || !replyText.trim()}
                                     className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors flex items-center gap-1.5"
                                   >

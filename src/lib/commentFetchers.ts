@@ -2,9 +2,12 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export type UnifiedComment = {
   id: string;
+  replyId?: string;
   platform: "youtube" | "facebook" | "instagram";
   postTitle: string;
   postId: string;
+  postUrl?: string;
+  commentUrl?: string;
   authorName: string;
   authorImageUrl: string | null;
   text: string;
@@ -86,11 +89,19 @@ export async function fetchYouTubeComments(
           const items = res.data.items ?? [];
           return items.map((item): UnifiedComment => {
             const snippet = item.snippet!.topLevelComment!.snippet!;
+            const topLevelCommentId = item.snippet?.topLevelComment?.id ?? item.id ?? "";
+            const postUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            const commentUrl = topLevelCommentId
+              ? `${postUrl}&lc=${encodeURIComponent(topLevelCommentId)}`
+              : undefined;
             return {
               id: item.id ?? `yt-${videoId}-${Math.random()}`,
+              replyId: topLevelCommentId || undefined,
               platform: "youtube",
               postTitle: post.title ?? "Untitled",
               postId: videoId,
+              postUrl,
+              commentUrl,
               authorName: snippet.authorDisplayName ?? "Unknown",
               authorImageUrl: snippet.authorProfileImageUrl ?? null,
               text: snippet.textOriginal ?? snippet.textDisplay ?? "",
@@ -148,17 +159,28 @@ export async function fetchFacebookComments(
         const json = await res.json();
         const items: any[] = json.data ?? [];
 
-        return items.map((item): UnifiedComment => ({
-          id: item.id ?? `fb-${postId}-${Math.random()}`,
-          platform: "facebook",
-          postTitle: post.title ?? "Untitled",
-          postId: postId,
-          authorName: item.from?.name ?? "Unknown",
-          authorImageUrl: null,
-          text: item.message ?? "",
-          publishedAt: item.created_time ?? new Date().toISOString(),
-          likeCount: item.like_count ?? 0,
-        }));
+        return items.map((item): UnifiedComment => {
+          const postParts = postId.split("_");
+          const postPath =
+            postParts.length >= 2 ? `${postParts[0]}/posts/${postParts[1]}` : postId;
+          const postUrl = `https://www.facebook.com/${postPath}`;
+          const commentUrl = item.id ? `${postUrl}?comment_id=${encodeURIComponent(item.id)}` : undefined;
+
+          return {
+            id: item.id ?? `fb-${postId}-${Math.random()}`,
+            replyId: item.id ?? undefined,
+            platform: "facebook",
+            postTitle: post.title ?? "Untitled",
+            postId: postId,
+            postUrl,
+            commentUrl,
+            authorName: item.from?.name ?? "Unknown",
+            authorImageUrl: null,
+            text: item.message ?? "",
+            publishedAt: item.created_time ?? new Date().toISOString(),
+            likeCount: item.like_count ?? 0,
+          };
+        });
       })
     );
 
@@ -239,9 +261,11 @@ export async function fetchInstagramComments(
 
         return items.map((item): UnifiedComment => ({
           id: item.id ?? `ig-${mediaId}-${Math.random()}`,
+          replyId: item.id ?? undefined,
           platform: "instagram",
           postTitle: post.title ?? "Untitled",
           postId: post.platform_post_id ?? mediaId!,
+          postUrl: post.platform_post_id?.startsWith("https://") ? post.platform_post_id : undefined,
           authorName: item.username ?? "Unknown",
           authorImageUrl: null,
           text: item.text ?? "",
