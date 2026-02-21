@@ -16,6 +16,7 @@ type Metric = {
 
 type Totals = { views: number; likes: number; comments: number };
 type PlatformFilter = "all" | "youtube" | "facebook" | "instagram";
+type RangeFilter = "24h" | "1w" | "1m" | "1y";
 
 const platformLabels: Record<string, string> = {
   youtube: "YouTube",
@@ -50,11 +51,13 @@ function PlatformIcon({ platform }: { platform: string }) {
 
 export default function AnalyticsPage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [totals, setTotals] = useState<Totals>({ views: 0, likes: 0, comments: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<PlatformFilter>("all");
+  const [range, setRange] = useState<RangeFilter>("1w");
 
   useEffect(() => {
     let cancelled = false;
@@ -68,10 +71,23 @@ export default function AnalyticsPage() {
 
       if (cancelled) return;
       setSessionEmail(auth.session.user.email ?? null);
+      setAuthToken(auth.session.access_token);
+    }
 
+    boot();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!authToken) return;
+
+    async function loadMetrics() {
+      setLoading(true);
+      setError(null);
       try {
-        const res = await fetch("/api/analytics/metrics", {
-          headers: { Authorization: `Bearer ${auth.session.access_token}` },
+        const res = await fetch(`/api/analytics/metrics?range=${encodeURIComponent(range)}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
         });
         const json = await res.json();
         if (cancelled) return;
@@ -84,14 +100,14 @@ export default function AnalyticsPage() {
         }
       } catch {
         if (!cancelled) setError("Failed to load metrics");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      if (!cancelled) setLoading(false);
     }
 
-    boot();
+    loadMetrics();
     return () => { cancelled = true; };
-  }, []);
+  }, [authToken, range]);
 
   const filtered = filter === "all" ? metrics : metrics.filter((m) => m.platform === filter);
 
@@ -168,6 +184,22 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Platform filter tabs */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {(["24h", "1w", "1m", "1y"] as RangeFilter[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                range === r
+                  ? "bg-blue-500/20 text-blue-200 border border-blue-400/30"
+                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border border-white/10"
+              }`}
+            >
+              {r === "24h" ? "24 Hours" : r === "1w" ? "1 Week" : r === "1m" ? "1 Month" : "1 Year"}
+            </button>
+          ))}
+        </div>
+
         <div className="flex gap-2 mb-6">
           {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
             <button

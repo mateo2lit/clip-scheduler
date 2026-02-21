@@ -34,26 +34,48 @@ export async function GET(req: Request) {
       acctMap.set(a.provider, a);
     }
 
+    const url = new URL(req.url);
+    const range = (url.searchParams.get("range") || "1w").toLowerCase();
+    const now = Date.now();
+    const rangeMs: Record<string, number> = {
+      "24h": 24 * 60 * 60 * 1000,
+      "1w": 7 * 24 * 60 * 60 * 1000,
+      "1m": 30 * 24 * 60 * 60 * 1000,
+      "1y": 365 * 24 * 60 * 60 * 1000,
+    };
+    const windowMs = rangeMs[range] ?? rangeMs["1w"];
+    const sinceIso = new Date(now - windowMs).toISOString();
+    const maxResultsByRange: Record<string, number> = {
+      "24h": 25,
+      "1w": 50,
+      "1m": 100,
+      "1y": 200,
+    };
+    const maxResults = maxResultsByRange[range] ?? 50;
+
     // Fetch recent platform posts live (no DB post storage)
     const [ytRecent, fbRecent, igRecent] = await Promise.all([
       acctMap.has("youtube") && acctMap.get("youtube")?.refresh_token
         ? fetchRecentYouTubePosts({
             refreshToken: acctMap.get("youtube").refresh_token,
-            maxResults: 50,
+            maxResults,
+            sinceIso,
           })
         : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
       acctMap.has("facebook") && acctMap.get("facebook")?.page_id && acctMap.get("facebook")?.page_access_token
         ? fetchRecentFacebookPosts({
             pageId: acctMap.get("facebook").page_id,
             pageAccessToken: acctMap.get("facebook").page_access_token,
-            maxResults: 50,
+            maxResults,
+            sinceIso,
           })
         : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
       acctMap.has("instagram") && acctMap.get("instagram")?.ig_user_id && acctMap.get("instagram")?.access_token
         ? fetchRecentInstagramPosts({
             igUserId: acctMap.get("instagram").ig_user_id,
             accessToken: acctMap.get("instagram").access_token,
-            maxResults: 50,
+            maxResults,
+            sinceIso,
           })
         : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
     ]);
@@ -102,7 +124,7 @@ export async function GET(req: Request) {
       comments: allMetrics.reduce((sum, m) => sum + m.comments, 0),
     };
 
-    return NextResponse.json({ ok: true, errors, metrics: allMetrics, totals });
+    return NextResponse.json({ ok: true, errors, range, metrics: allMetrics, totals });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },

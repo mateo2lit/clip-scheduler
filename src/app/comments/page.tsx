@@ -12,6 +12,7 @@ type Comment = {
   postId: string;
   postUrl?: string;
   commentUrl?: string;
+  postThumbnailUrl?: string | null;
   authorName: string;
   authorImageUrl: string | null;
   text: string;
@@ -55,11 +56,50 @@ function isLikelyQuestion(text: string): boolean {
   return /(^|\s)(how|what|when|where|why|who|which|can|could|should|do|does|did|is|are|will)\b/.test(t);
 }
 
+function hasContentRequestSignal(text: string): boolean {
+  const t = (text || "").toLowerCase();
+  return (
+    /(^|\s)(please|plz|pls)\b/.test(t) ||
+    t.includes("part 2") ||
+    t.includes("next video") ||
+    t.includes("make a video") ||
+    t.includes("do a video") ||
+    t.includes("tutorial") ||
+    t.includes("can you make") ||
+    t.includes("you should make") ||
+    t.includes("video idea") ||
+    t.includes("cover ") ||
+    t.includes("explain ")
+  );
+}
+
+function hasFeedbackSignal(text: string): boolean {
+  const t = (text || "").toLowerCase();
+  return (
+    t.includes("you should") ||
+    t.includes("would be better") ||
+    t.includes("improve") ||
+    t.includes("feedback") ||
+    t.includes("suggest")
+  );
+}
+
 function priorityScore(comment: Comment): number {
-  const questionBoost = isLikelyQuestion(comment.text) ? 1000 : 0;
-  const likesBoost = Math.min(comment.likeCount, 100) * 5;
+  const text = comment.text || "";
+  const questionBoost = isLikelyQuestion(text) ? 600 : 0;
+  const requestBoost = hasContentRequestSignal(text) ? 900 : 0;
+  const feedbackBoost = hasFeedbackSignal(text) ? 350 : 0;
+
+  // Prioritize comments with some substance over one-word reactions.
+  const lengthBoost = Math.min(Math.floor(text.trim().length / 40), 6) * 40;
+
+  // Engagement matters for deciding what content to respond to publicly.
+  const likesBoost = Math.min(comment.likeCount, 150) * 8;
+
+  // Mild recency tie-breaker.
   const recencyBoost = Math.floor(new Date(comment.publishedAt).getTime() / 60000) * 0.001;
-  return questionBoost + likesBoost + recencyBoost;
+
+  return requestBoost + questionBoost + feedbackBoost + lengthBoost + likesBoost + recencyBoost;
 }
 
 export default function CommentsPage() {
@@ -260,7 +300,7 @@ export default function CommentsPage() {
                   : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
               }`}
             >
-              {mode === "priority" ? "Priority (questions first)" : "Most recent"}
+              {mode === "priority" ? "Priority" : "Most recent"}
             </button>
           ))}
         </div>
@@ -415,6 +455,26 @@ export default function CommentsPage() {
                               </>
                             )}
                           </div>
+                        )}
+                      </div>
+
+                      <div className="shrink-0 hidden sm:block">
+                        {comment.postThumbnailUrl ? (
+                          <a
+                            href={comment.commentUrl || comment.postUrl || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                            title="Open comment"
+                          >
+                            <img
+                              src={comment.postThumbnailUrl}
+                              alt={comment.postTitle || "Post thumbnail"}
+                              className="h-12 w-20 rounded-md object-cover border border-white/10"
+                            />
+                          </a>
+                        ) : (
+                          <div className="h-12 w-20 rounded-md border border-white/10 bg-white/[0.03]" />
                         )}
                       </div>
                     </div>

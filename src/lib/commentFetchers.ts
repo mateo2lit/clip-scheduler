@@ -8,6 +8,7 @@ export type UnifiedComment = {
   postId: string;
   postUrl?: string;
   commentUrl?: string;
+  postThumbnailUrl?: string | null;
   authorName: string;
   authorImageUrl: string | null;
   text: string;
@@ -20,6 +21,7 @@ type PostInfo = {
   title: string | null;
   platform_post_id: string | null;
   platform_media_id?: string | null;
+  thumbnail_url?: string | null;
 };
 
 function parseYouTubeVideoId(input: string | null | undefined): string | null {
@@ -102,6 +104,7 @@ export async function fetchYouTubeComments(
               postId: videoId,
               postUrl,
               commentUrl,
+              postThumbnailUrl: post.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
               authorName: snippet.authorDisplayName ?? "Unknown",
               authorImageUrl: snippet.authorProfileImageUrl ?? null,
               text: snippet.textOriginal ?? snippet.textDisplay ?? "",
@@ -174,6 +177,7 @@ export async function fetchFacebookComments(
             postId: postId,
             postUrl,
             commentUrl,
+            postThumbnailUrl: post.thumbnail_url ?? null,
             authorName: item.from?.name ?? "Unknown",
             authorImageUrl: null,
             text: item.message ?? "",
@@ -266,6 +270,7 @@ export async function fetchInstagramComments(
           postTitle: post.title ?? "Untitled",
           postId: post.platform_post_id ?? mediaId!,
           postUrl: post.platform_post_id?.startsWith("https://") ? post.platform_post_id : undefined,
+          postThumbnailUrl: post.thumbnail_url ?? null,
           authorName: item.username ?? "Unknown",
           authorImageUrl: null,
           text: item.text ?? "",

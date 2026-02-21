@@ -6,6 +6,7 @@ export type RecentPost = {
   platform_post_id: string | null;
   platform_media_id?: string | null;
   posted_at: string | null;
+  thumbnail_url?: string | null;
 };
 
 function isAfterSince(dateIso: string | null | undefined, sinceIso?: string): boolean {
@@ -43,6 +44,11 @@ export async function fetchRecentYouTubePosts(params: {
         title: item.snippet?.title ?? "Untitled",
         platform_post_id: videoId,
         posted_at: publishedAt,
+        thumbnail_url:
+          item.snippet?.thumbnails?.medium?.url ||
+          item.snippet?.thumbnails?.high?.url ||
+          item.snippet?.thumbnails?.default?.url ||
+          null,
       });
     }
 
@@ -59,7 +65,7 @@ export async function fetchRecentFacebookPosts(params: {
   sinceIso?: string;
 }): Promise<{ posts: RecentPost[]; error?: string }> {
   try {
-    const url = `https://graph.facebook.com/v21.0/${params.pageId}/posts?fields=id,message,created_time&limit=${Math.min(
+    const url = `https://graph.facebook.com/v21.0/${params.pageId}/posts?fields=id,message,created_time,full_picture&limit=${Math.min(
       Math.max(params.maxResults, 1),
       50
     )}&access_token=${encodeURIComponent(params.pageAccessToken)}`;
@@ -83,6 +89,7 @@ export async function fetchRecentFacebookPosts(params: {
         title: item.message?.slice(0, 120) ?? "Facebook post",
         platform_post_id: item.id ?? null,
         posted_at: createdAt,
+        thumbnail_url: item.full_picture ?? null,
       });
     }
 
@@ -99,7 +106,7 @@ export async function fetchRecentInstagramPosts(params: {
   sinceIso?: string;
 }): Promise<{ posts: RecentPost[]; error?: string }> {
   try {
-    const url = `https://graph.instagram.com/v21.0/${params.igUserId}/media?fields=id,caption,timestamp,permalink&limit=${Math.min(
+    const url = `https://graph.instagram.com/v21.0/${params.igUserId}/media?fields=id,caption,timestamp,permalink,media_type,media_url,thumbnail_url&limit=${Math.min(
       Math.max(params.maxResults, 1),
       50
     )}&access_token=${encodeURIComponent(params.accessToken)}`;
@@ -124,6 +131,7 @@ export async function fetchRecentInstagramPosts(params: {
         platform_post_id: item.permalink || item.id || null,
         platform_media_id: item.id ?? null,
         posted_at: createdAt,
+        thumbnail_url: item.thumbnail_url || item.media_url || null,
       });
     }
 
