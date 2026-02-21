@@ -21,7 +21,8 @@ type Comment = {
 };
 
 type PlatformFilter = "all" | "youtube" | "facebook" | "instagram";
-type SortMode = "priority" | "recent";
+type SortMode = "priority" | "recent" | "oldest";
+type ReadFilter = "unread" | "read" | "all";
 
 const platformLabels: Record<string, string> = {
   youtube: "YouTube",
@@ -115,6 +116,21 @@ export default function CommentsPage() {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("priority");
+  const [readFilter, setReadFilter] = useState<ReadFilter>("unread");
+  const [readCommentIds, setReadCommentIds] = useState<Record<string, true>>({});
+
+  const isRead = (commentId: string) => Boolean(readCommentIds[commentId]);
+
+  const toggleRead = (commentId: string) => {
+    setReadCommentIds((prev) => {
+      if (prev[commentId]) {
+        const next = { ...prev };
+        delete next[commentId];
+        return next;
+      }
+      return { ...prev, [commentId]: true };
+    });
+  };
 
   useEffect(() => {
     async function load() {
@@ -161,6 +177,39 @@ export default function CommentsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      const raw = window.localStorage.getItem(`clipdash:read-comments:${sessionEmail}`);
+      if (!raw) {
+        setReadCommentIds({});
+        return;
+      }
+      const ids = JSON.parse(raw);
+      if (!Array.isArray(ids)) {
+        setReadCommentIds({});
+        return;
+      }
+      const next: Record<string, true> = {};
+      for (const id of ids) {
+        if (typeof id === "string" && id.length > 0) next[id] = true;
+      }
+      setReadCommentIds(next);
+    } catch {
+      setReadCommentIds({});
+    }
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      window.localStorage.setItem(
+        `clipdash:read-comments:${sessionEmail}`,
+        JSON.stringify(Object.keys(readCommentIds))
+      );
+    } catch {}
+  }, [sessionEmail, readCommentIds]);
+
   async function sendReply(platform: string, commentId: string) {
     if (!replyText.trim() || !authToken) return;
     setReplySending(true);
@@ -189,11 +238,26 @@ export default function CommentsPage() {
     }
   }
 
-  const filtered = (filter === "all" ? comments : comments.filter((c) => c.platform === filter))
+  const platformScoped = filter === "all" ? comments : comments.filter((c) => c.platform === filter);
+  const readCounts = {
+    all: platformScoped.length,
+    read: platformScoped.filter((c) => isRead(c.id)).length,
+    unread: platformScoped.filter((c) => !isRead(c.id)).length,
+  };
+
+  const filtered = platformScoped
+    .filter((c) => {
+      if (readFilter === "all") return true;
+      if (readFilter === "read") return isRead(c.id);
+      return !isRead(c.id);
+    })
     .slice()
     .sort((a, b) => {
       if (sortMode === "recent") {
         return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      }
+      if (sortMode === "oldest") {
+        return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime();
       }
       const scoreDiff = priorityScore(b) - priorityScore(a);
       if (scoreDiff !== 0) return scoreDiff;
@@ -272,41 +336,64 @@ export default function CommentsPage() {
           </div>
         ))}
 
-        {/* Platform filter */}
-        <div className="mt-6 flex items-center gap-2">
-          {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => setFilter(p)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-all ${
-                filter === p
-                  ? "bg-white/10 border-white/20 text-white"
-                  : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
-              }`}
-            >
-              {p === "all" ? "All" : platformLabels[p]}
-            </button>
-          ))}
-        </div>
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-4">
+          <aside className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4 h-fit">
+            <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Platforms</p>
+            <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
+              {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setFilter(p)}
+                  className={`rounded-full lg:rounded-lg px-4 py-1.5 lg:py-2 text-sm font-medium border transition-all text-left ${
+                    filter === p
+                      ? "bg-white/10 border-white/20 text-white"
+                      : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  {p === "all" ? "All" : platformLabels[p]}
+                </button>
+              ))}
+            </div>
+          </aside>
 
-        <div className="mt-3 flex items-center gap-2">
-          {(["priority", "recent"] as SortMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setSortMode(mode)}
-              className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
-                sortMode === mode
-                  ? "bg-white/10 border-white/20 text-white"
-                  : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
-              }`}
-            >
-              {mode === "priority" ? "Priority" : "Most recent"}
-            </button>
-          ))}
-        </div>
+          <section>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {(["priority", "recent", "oldest"] as SortMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setSortMode(mode)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                      sortMode === mode
+                        ? "bg-white/12 border-white/20 text-white"
+                        : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    {mode === "priority" ? "Priority" : mode === "recent" ? "Newest first" : "Oldest first"}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {(["unread", "read", "all"] as ReadFilter[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setReadFilter(mode)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                      readFilter === mode
+                        ? "bg-white/12 border-white/20 text-white"
+                        : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    {mode === "unread" ? "Unread" : mode === "read" ? "Read" : "All"} (
+                    {mode === "unread" ? readCounts.unread : mode === "read" ? readCounts.read : readCounts.all})
+                  </button>
+                ))}
+              </div>
+            </div>
 
         {/* Comments list */}
-        <div className="mt-6">
+        <div className="mt-4">
           {loading ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02]">
               {[...Array(4)].map((_, i) => (
@@ -334,12 +421,13 @@ export default function CommentsPage() {
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] divide-y divide-white/5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
               {filtered.map((comment) => {
                 const colors = platformColors[comment.platform];
                 return (
-                  <div key={comment.id} className="px-4 py-3 hover:bg-white/[0.02] transition-colors">
-                    <div className="flex items-start gap-3">
+                  <div key={comment.id} className="px-5 py-4 hover:bg-white/[0.02] transition-colors">
+                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem] gap-4 items-start">
+                      <div className="flex items-start gap-3">
                       {/* Avatar */}
                       {comment.authorImageUrl ? (
                         <img
@@ -353,7 +441,7 @@ export default function CommentsPage() {
                         </div>
                       )}
 
-                      <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-white/90">
                             {comment.authorName}
@@ -361,19 +449,21 @@ export default function CommentsPage() {
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${colors.badge}`}>
                             {platformLabels[comment.platform]}
                           </span>
+                          {isRead(comment.id) && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium border border-emerald-500/25 bg-emerald-500/10 text-emerald-300">
+                              Read
+                            </span>
+                          )}
                           <span className="text-xs text-white/30">
                             {relativeTime(comment.publishedAt)}
                           </span>
                         </div>
 
-                        <p className="text-sm text-white/70 mt-0.5 whitespace-pre-line break-words">
+                        <p className="text-base leading-relaxed text-white/80 mt-1 whitespace-pre-line break-words">
                           {comment.text}
                         </p>
 
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span className="text-xs text-white/30 truncate max-w-[280px]" title={comment.postTitle}>
-                            on &quot;{comment.postTitle}&quot;
-                          </span>
+                          <div className="mt-3 pt-2 border-t border-white/5 flex items-center gap-2 flex-wrap">
                           {comment.likeCount > 0 && (
                             <span className="flex items-center gap-1 text-xs text-white/30">
                               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -387,7 +477,7 @@ export default function CommentsPage() {
                               href={comment.commentUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-white/60 hover:text-white/85 hover:bg-white/[0.08] hover:border-white/20 transition-all"
+                              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all"
                             >
                               View comment
                             </a>
@@ -398,12 +488,22 @@ export default function CommentsPage() {
                               setReplyText("");
                               setReplyError(null);
                             }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.08] hover:border-white/20 transition-all"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                             </svg>
                             Reply
+                          </button>
+                          <button
+                            onClick={() => toggleRead(comment.id)}
+                            className={`inline-flex items-center gap-1 rounded-lg border px-3.5 py-1.5 text-sm font-medium transition-all ${
+                              isRead(comment.id)
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                                : "border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/20"
+                            }`}
+                          >
+                            {isRead(comment.id) ? "Mark unread" : "Mark as read"}
                           </button>
                         </div>
 
@@ -456,26 +556,30 @@ export default function CommentsPage() {
                             )}
                           </div>
                         )}
+                        </div>
                       </div>
 
-                      <div className="shrink-0 hidden sm:block">
-                        {comment.postThumbnailUrl ? (
-                          <a
-                            href={comment.commentUrl || comment.postUrl || "#"}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block"
-                            title="Open comment"
-                          >
+                      <div className="shrink-0 w-36 justify-self-start sm:justify-self-end">
+                        <a
+                          href={comment.commentUrl || comment.postUrl || "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block rounded-xl border border-white/10 bg-white/[0.02] p-2.5 hover:bg-white/[0.04] transition-colors"
+                          title="Open comment"
+                        >
+                          {comment.postThumbnailUrl ? (
                             <img
                               src={comment.postThumbnailUrl}
                               alt={comment.postTitle || "Post thumbnail"}
-                              className="h-12 w-20 rounded-md object-cover border border-white/10"
+                              className="h-20 w-full rounded-md object-cover border border-white/10"
                             />
-                          </a>
-                        ) : (
-                          <div className="h-12 w-20 rounded-md border border-white/10 bg-white/[0.03]" />
-                        )}
+                          ) : (
+                            <div className="h-20 w-full rounded-md border border-white/10 bg-white/[0.03]" />
+                          )}
+                          <p className="mt-2.5 text-[11px] leading-tight text-white/65 line-clamp-2">
+                            {comment.postTitle || "Untitled"}
+                          </p>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -483,6 +587,8 @@ export default function CommentsPage() {
               })}
             </div>
           )}
+        </div>
+          </section>
         </div>
       </div>
     </main>
