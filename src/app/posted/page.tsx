@@ -188,7 +188,7 @@ function PostThumbnail({ group }: { group: PostGroup }) {
   const [idx, setIdx] = useState(0);
   const src = candidates[idx] ?? null;
 
-  if (!src || hasPrivateYouTube) {
+  if (!src) {
     if (hasYouTube || hasPrivateYouTube) {
       return (
         <div className="h-10 w-16 rounded-md border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] shrink-0 flex items-center justify-center">
