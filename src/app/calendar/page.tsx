@@ -38,22 +38,20 @@ const MONTH_NAMES = [
 function getMonthDays(year: number, month: number) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-  const cells: { day: number; currentMonth: boolean; date: Date }[] = [];
+  const cells: Array<{ day: number; date: Date } | null> = [];
 
-  for (let i = firstDay - 1; i >= 0; i--) {
-    const day = daysInPrevMonth - i;
-    cells.push({ day, currentMonth: false, date: new Date(year, month - 1, day) });
+  for (let i = 0; i < firstDay; i++) {
+    cells.push(null);
   }
 
   for (let day = 1; day <= daysInMonth; day++) {
-    cells.push({ day, currentMonth: true, date: new Date(year, month, day) });
+    cells.push({ day, date: new Date(year, month, day) });
   }
 
-  const remaining = 42 - cells.length;
-  for (let day = 1; day <= remaining; day++) {
-    cells.push({ day, currentMonth: false, date: new Date(year, month + 1, day) });
+  const trailing = (7 - (cells.length % 7)) % 7;
+  for (let i = 0; i < trailing; i++) {
+    cells.push(null);
   }
 
   return cells;
@@ -99,6 +97,8 @@ function groupPosts(posts: ScheduledPost[]): PostGroup[] {
     posts: groupPosts,
   }));
 }
+
+const MAX_GROUPS_VISIBLE_PER_DAY = 6;
 
 export default function CalendarPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
@@ -200,7 +200,7 @@ export default function CalendarPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-7xl px-6 pt-10 pb-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -236,7 +236,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex gap-6">
+        <div className="flex gap-5">
           {/* Calendar grid */}
           <div className="flex-1 min-w-0">
             {/* Month navigation */}
@@ -274,7 +274,7 @@ export default function CalendarPage() {
               {/* Day headers */}
               <div className="grid grid-cols-7 border-b border-white/5">
                 {DAY_NAMES.map((day) => (
-                  <div key={day} className="px-2 py-2.5 text-center text-xs font-medium text-white/40 uppercase tracking-wider">
+                  <div key={day} className="px-2 py-3 text-center text-[11px] font-medium text-white/40 uppercase tracking-wider">
                     {day}
                   </div>
                 ))}
@@ -283,8 +283,16 @@ export default function CalendarPage() {
               {/* Day cells */}
               <div className="grid grid-cols-7">
                 {cells.map((cell, i) => {
+                  if (!cell) {
+                    return (
+                      <div
+                        key={i}
+                        className={`min-h-[150px] border-b border-r border-white/5 bg-transparent ${i % 7 === 6 ? "border-r-0" : ""}`}
+                      />
+                    );
+                  }
+
                   const dayGroups = getGroupsForDate(cell.date);
-                  const dayPosts = getPostsForDate(cell.date);
                   const today = isToday(cell.date);
                   const isSelected = selectedDate && isSameDay(cell.date, selectedDate);
 
@@ -292,25 +300,27 @@ export default function CalendarPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedDate(cell.date)}
-                      className={`min-h-[120px] border-b border-r border-white/5 p-1.5 text-left transition-colors flex flex-col ${
-                        !cell.currentMonth ? "bg-white/[0.01]" : ""
-                      } ${i % 7 === 6 ? "border-r-0" : ""} ${
-                        isSelected ? "bg-white/[0.06] ring-1 ring-inset ring-blue-500/40" : "hover:bg-white/[0.03]"
+                      className={`min-h-[150px] border-b border-r border-white/5 p-2 text-left transition-colors flex flex-col ${
+                        i % 7 === 6 ? "border-r-0" : ""
+                      } ${
+                        isSelected
+                          ? "bg-blue-500/12 ring-2 ring-inset ring-blue-400/70 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.35)]"
+                          : "hover:bg-white/[0.03]"
                       }`}
                     >
                       <div className={`text-xs shrink-0 ${
                         today
                           ? "inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white font-bold"
-                          : cell.currentMonth
-                            ? "text-white/60"
-                            : "text-white/20"
+                          : "text-white/60"
                       }`}>
                         {cell.day}
                       </div>
 
                       {dayGroups.length > 0 && (
                         <div className="flex flex-col gap-0.5 mt-1 min-w-0 overflow-hidden">
-                          {(dayGroups.length <= 3 ? dayGroups : dayGroups.slice(0, 2)).map((group) => (
+                          {(dayGroups.length <= MAX_GROUPS_VISIBLE_PER_DAY
+                            ? dayGroups
+                            : dayGroups.slice(0, MAX_GROUPS_VISIBLE_PER_DAY)).map((group) => (
                             <div
                               key={group.groupId}
                               className="rounded px-1 py-px text-[9px] leading-tight truncate bg-white/10 text-white/60 flex items-center gap-0.5"
@@ -323,13 +333,13 @@ export default function CalendarPage() {
                               <span className="truncate ml-0.5">{group.title || "Untitled"}</span>
                             </div>
                           ))}
-                          {dayGroups.length > 3 && (
+                          {dayGroups.length > MAX_GROUPS_VISIBLE_PER_DAY && (
                             <div className="flex items-center gap-0.5">
-                              {[...new Set(dayGroups.slice(2).flatMap((g) => g.posts.map((p) => p.provider)))].map((prov) => {
+                              {[...new Set(dayGroups.slice(MAX_GROUPS_VISIBLE_PER_DAY).flatMap((g) => g.posts.map((p) => p.provider)))].map((prov) => {
                                 const style = getStyle(prov);
                                 return <div key={prov} className={`w-2 h-2 rounded-full ${style.dot}`} title={style.label} />;
                               })}
-                              <span className="text-[9px] text-white/30 ml-0.5">+{dayGroups.length - 2}</span>
+                              <span className="text-[9px] text-white/30 ml-0.5">+{dayGroups.length - MAX_GROUPS_VISIBLE_PER_DAY}</span>
                             </div>
                           )}
                         </div>
@@ -343,12 +353,14 @@ export default function CalendarPage() {
           </div>
 
           {/* Day detail panel */}
-          <div className="w-80 shrink-0">
+          <div className="w-72 shrink-0">
             {/* Platform legend */}
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-5 py-4 mb-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
               <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-3">Platforms</h3>
               <div className="flex flex-col gap-2">
-                {Object.entries(PROVIDER_STYLES).map(([key, style]) => (
+                {Object.entries(PROVIDER_STYLES)
+                  .filter(([key]) => key !== "x")
+                  .map(([key, style]) => (
                   <div key={key} className="flex items-center gap-2">
                     <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
                     <span className="text-sm text-white/60">{style.label}</span>

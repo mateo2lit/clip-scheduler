@@ -115,8 +115,8 @@ export default function CommentsPage() {
   const [replySuccess, setReplySuccess] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>("priority");
-  const [readFilter, setReadFilter] = useState<ReadFilter>("unread");
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
+  const [readFilter, setReadFilter] = useState<ReadFilter>("all");
   const [readCommentIds, setReadCommentIds] = useState<Record<string, true>>({});
 
   const isRead = (commentId: string) => Boolean(readCommentIds[commentId]);
@@ -337,49 +337,34 @@ export default function CommentsPage() {
         ))}
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-4">
-          <aside className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4 h-fit">
-            <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Platforms</p>
-            <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
-              {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setFilter(p)}
-                  className={`rounded-full lg:rounded-lg px-4 py-1.5 lg:py-2 text-sm font-medium border transition-all text-left ${
-                    filter === p
-                      ? "bg-white/10 border-white/20 text-white"
-                      : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
-                  }`}
-                >
-                  {p === "all" ? "All" : platformLabels[p]}
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <section>
+          <aside className="space-y-3 h-fit">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {(["priority", "recent", "oldest"] as SortMode[]).map((mode) => (
+              <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Platforms</p>
+              <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
+                {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
                   <button
-                    key={mode}
-                    onClick={() => setSortMode(mode)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
-                      sortMode === mode
-                        ? "bg-white/12 border-white/20 text-white"
+                    key={p}
+                    onClick={() => setFilter(p)}
+                    className={`rounded-full lg:rounded-lg px-4 py-1.5 lg:py-2 text-sm font-medium border transition-all text-left ${
+                      filter === p
+                        ? "bg-white/10 border-white/20 text-white"
                         : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
                     }`}
                   >
-                    {mode === "priority" ? "Priority" : mode === "recent" ? "Newest first" : "Oldest first"}
+                    {p === "all" ? "All" : platformLabels[p]}
                   </button>
                 ))}
               </div>
+            </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {(["unread", "read", "all"] as ReadFilter[]).map((mode) => (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+              <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Read Status</p>
+              <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
+                {(["all", "unread", "read"] as ReadFilter[]).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setReadFilter(mode)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                    className={`rounded-full lg:rounded-lg px-4 py-1.5 lg:py-2 text-sm font-medium border transition-all text-left ${
                       readFilter === mode
                         ? "bg-white/12 border-white/20 text-white"
                         : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
@@ -389,6 +374,24 @@ export default function CommentsPage() {
                     {mode === "unread" ? readCounts.unread : mode === "read" ? readCounts.read : readCounts.all})
                   </button>
                 ))}
+              </div>
+            </div>
+          </aside>
+
+          <section>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Sort</span>
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium border border-white/15 bg-[#0b0b0b] text-white/90 focus:outline-none focus:border-white/30"
+                  aria-label="Sort comments"
+                >
+                  <option value="recent">Newest first</option>
+                  <option value="priority">Priority</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
               </div>
             </div>
 
@@ -449,14 +452,24 @@ export default function CommentsPage() {
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${colors.badge}`}>
                             {platformLabels[comment.platform]}
                           </span>
-                          {isRead(comment.id) && (
-                            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium border border-emerald-500/25 bg-emerald-500/10 text-emerald-300">
-                              Read
-                            </span>
-                          )}
                           <span className="text-xs text-white/30">
                             {relativeTime(comment.publishedAt)}
                           </span>
+                          <button
+                            onClick={() => toggleRead(comment.id)}
+                            className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${
+                              isRead(comment.id)
+                                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
+                                : "border-white/15 bg-white/[0.03] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                isRead(comment.id) ? "bg-emerald-300" : "bg-white/35"
+                              }`}
+                            />
+                            {isRead(comment.id) ? "Read" : "Mark read"}
+                          </button>
                         </div>
 
                         <p className="text-base leading-relaxed text-white/80 mt-1 whitespace-pre-line break-words">
@@ -494,16 +507,6 @@ export default function CommentsPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                             </svg>
                             Reply
-                          </button>
-                          <button
-                            onClick={() => toggleRead(comment.id)}
-                            className={`inline-flex items-center gap-1 rounded-lg border px-3.5 py-1.5 text-sm font-medium transition-all ${
-                              isRead(comment.id)
-                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                                : "border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/20"
-                            }`}
-                          >
-                            {isRead(comment.id) ? "Mark unread" : "Mark as read"}
                           </button>
                         </div>
 
