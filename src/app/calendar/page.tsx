@@ -11,6 +11,7 @@ type ScheduledPost = {
   scheduled_for: string;
   status: string;
   group_id: string | null;
+  thumbnail_path?: string | null;
 };
 
 type PostGroup = {
@@ -81,6 +82,22 @@ function getStyle(provider: string | null) {
   return PROVIDER_STYLES[(provider || "").toLowerCase()] || { bg: "bg-white/10", text: "text-white/50", dot: "bg-white/40", label: provider || "Unknown" };
 }
 
+function PlatformIcon({ provider }: { provider: string | null }) {
+  const p = (provider || "").toLowerCase();
+  if (p === "youtube") {
+    return (
+      <svg className="w-3.5 h-3.5 text-red-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 30 30 0 0 0 0 12c0 2 .2 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.3-1.9.5-3.8.5-5.8s-.2-3.9-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z" />
+      </svg>
+    );
+  }
+  if (p === "facebook") return <span className="text-blue-400 text-[11px] font-bold">f</span>;
+  if (p === "instagram") return <span className="text-pink-400 text-[11px] font-bold">ig</span>;
+  if (p === "linkedin") return <span className="text-sky-400 text-[11px] font-bold">in</span>;
+  if (p === "tiktok") return <span className="text-white/80 text-[11px] font-bold">tt</span>;
+  return <span className="text-white/60 text-[10px] font-bold">?</span>;
+}
+
 function groupPosts(posts: ScheduledPost[]): PostGroup[] {
   const groups = new Map<string, ScheduledPost[]>();
 
@@ -105,6 +122,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [platformFilter, setPlatformFilter] = useState<string>("all");
 
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -120,12 +138,6 @@ export default function CalendarPage() {
   function nextMonth() {
     if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
     else setViewMonth(viewMonth + 1);
-  }
-
-  function goToday() {
-    const today = new Date();
-    setViewYear(today.getFullYear());
-    setViewMonth(today.getMonth());
   }
 
   useEffect(() => {
@@ -155,7 +167,7 @@ export default function CalendarPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, provider, scheduled_for, status, group_id")
+        .select("id, title, provider, scheduled_for, status, group_id, thumbnail_path")
         .eq("team_id", teamId)
         .in("status", ["scheduled", "ig_processing", "posted"])
         .order("scheduled_for", { ascending: true });
@@ -168,9 +180,14 @@ export default function CalendarPage() {
   }, []);
 
   const allGroups = groupPosts(posts);
+  const filteredGroups = allGroups.filter((g) => {
+    if (platformFilter === "all") return true;
+    return g.posts.some((p) => (p.provider || "").toLowerCase() === platformFilter);
+  });
+  const selectablePlatforms = Object.entries(PROVIDER_STYLES).filter(([key]) => key !== "x");
 
   function getGroupsForDate(date: Date) {
-    return allGroups.filter((g) => isSameDay(new Date(g.scheduled_for), date));
+    return filteredGroups.filter((g) => isSameDay(new Date(g.scheduled_for), date));
   }
 
   function getPostsForDate(date: Date) {
@@ -200,10 +217,10 @@ export default function CalendarPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-[1500px] px-6 pt-10 pb-16">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
             <Link
               href="/dashboard"
               className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
@@ -215,12 +232,36 @@ export default function CalendarPage() {
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Calendar</h1>
               <p className="text-sm text-white/40">
-                {loading ? "Loading..." : `${allGroups.length} post${allGroups.length === 1 ? "" : "s"}`}
+                {loading ? "Loading..." : `${filteredGroups.length} post${filteredGroups.length === 1 ? "" : "s"}`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={prevMonth}
+              className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
+              aria-label="Previous month"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <h2 className="text-2xl font-bold whitespace-nowrap min-w-[220px] text-center">
+              {MONTH_NAMES[viewMonth]} {viewYear}
+            </h2>
+            <button
+              onClick={nextMonth}
+              className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
+              aria-label="Next month"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
             <Link
               href="/scheduled"
               className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/60 hover:bg-white/10 transition-colors"
@@ -236,41 +277,11 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex gap-5">
+        <div className="flex gap-4">
           {/* Calendar grid */}
           <div className="flex-1 min-w-0">
-            {/* Month navigation */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">
-                {MONTH_NAMES[viewMonth]} {viewYear}
-              </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goToday}
-                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
-                >
-                  Today
-                </button>
-                <button
-                  onClick={prevMonth}
-                  className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                  </svg>
-                </button>
-                <button
-                  onClick={nextMonth}
-                  className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
+            <div className="relative">
+              <div className="relative rounded-3xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
               {/* Day headers */}
               <div className="grid grid-cols-7 border-b border-white/5">
                 {DAY_NAMES.map((day) => (
@@ -287,7 +298,7 @@ export default function CalendarPage() {
                     return (
                       <div
                         key={i}
-                        className={`min-h-[150px] border-b border-r border-white/5 bg-transparent ${i % 7 === 6 ? "border-r-0" : ""}`}
+                        className={`min-h-[160px] border-b border-r border-white/5 bg-transparent ${i % 7 === 6 ? "border-r-0" : ""}`}
                       />
                     );
                   }
@@ -300,7 +311,7 @@ export default function CalendarPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedDate(cell.date)}
-                      className={`min-h-[150px] border-b border-r border-white/5 p-2 text-left transition-colors flex flex-col ${
+                      className={`min-h-[160px] border-b border-r border-white/5 p-2 text-left transition-colors flex flex-col ${
                         i % 7 === 6 ? "border-r-0" : ""
                       } ${
                         isSelected
@@ -349,22 +360,36 @@ export default function CalendarPage() {
                 })}
               </div>
             </div>
+            </div>
 
           </div>
 
           {/* Day detail panel */}
-          <div className="w-72 shrink-0">
+          <div className="w-64 shrink-0">
             {/* Platform legend */}
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-5 py-4 mb-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
               <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-3">Platforms</h3>
               <div className="flex flex-col gap-2">
-                {Object.entries(PROVIDER_STYLES)
-                  .filter(([key]) => key !== "x")
-                  .map(([key, style]) => (
-                  <div key={key} className="flex items-center gap-2">
+                <button
+                  onClick={() => setPlatformFilter("all")}
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors ${
+                    platformFilter === "all" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/60" />
+                  <span className="text-sm">All platforms</span>
+                </button>
+                {selectablePlatforms.map(([key, style]) => (
+                  <button
+                    key={key}
+                    onClick={() => setPlatformFilter(key)}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors ${
+                      platformFilter === key ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/[0.05]"
+                    }`}
+                  >
                     <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
-                    <span className="text-sm text-white/60">{style.label}</span>
-                  </div>
+                    <span className="text-sm">{style.label}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -391,33 +416,32 @@ export default function CalendarPage() {
                       </Link>
                     </div>
                   ) : (
-                    <div className="divide-y divide-white/5 max-h-[60vh] overflow-y-auto">
+                    <div className="divide-y divide-white/5 max-h-[56vh] overflow-y-auto">
                       {selectedDayGroups.map((group) => (
                         <div key={group.groupId} className="px-5 py-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-white/40 tabular-nums w-16 shrink-0">
-                              {formatTime(group.scheduled_for)}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              {group.posts.map((post) => {
-                                const style = getStyle(post.provider);
-                                const isPast = post.status === "posted";
-                                return (
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm text-white/85 truncate">
+                                  {group.title || "Untitled"}
+                                </p>
+                                <span className="text-xs text-white/40 tabular-nums shrink-0">
+                                  {formatTime(group.scheduled_for)}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                {group.posts.map((post) => (
                                   <span
                                     key={post.id}
-                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                      isPast ? "bg-emerald-500/10 text-emerald-400" : `${style.bg} ${style.text}`
-                                    }`}
+                                    className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-white/10 bg-white/[0.04]"
+                                    title={getStyle(post.provider).label}
                                   >
-                                    {style.label}
+                                    <PlatformIcon provider={post.provider} />
                                   </span>
-                                );
-                              })}
+                                ))}
+                              </div>
                             </div>
                           </div>
-                          <p className="text-sm text-white/80 truncate pl-16">
-                            {group.title || "Untitled"}
-                          </p>
                         </div>
                       ))}
                     </div>
