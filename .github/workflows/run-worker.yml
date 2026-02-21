@@ -11,5 +11,7 @@ jobs:
     steps:
       - name: Call worker endpoint
         run: |
-          curl -X POST "${{ secrets.WORKER_URL }}" \
+          curl --fail-with-body --show-error --silent \
+            --retry 3 --retry-delay 2 --retry-connrefused \
+            -X POST "${{ secrets.WORKER_URL }}" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
