@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import GlobalSpotlight from "@/components/GlobalSpotlight";
 
 export const metadata: Metadata = {
   title: "Clip Scheduler",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <GlobalSpotlight>{children}</GlobalSpotlight>
+      </body>
     </html>
   );
 }
