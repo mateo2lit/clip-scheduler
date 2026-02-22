@@ -103,6 +103,44 @@ RESEND_API_KEY (expected by email.ts)
 
 ---
 
+# Development Workflow
+
+## Core Principles
+- **Simplicity First:** Make every change as simple as possible. Touch minimal code.
+- **No Laziness:** Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact:** Changes should only touch what's necessary. Avoid introducing bugs in unrelated areas.
+
+## Planning
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).
+- If something goes sideways mid-task, STOP and re-plan — don't keep pushing blindly.
+- Write a clear spec or checklist upfront in `tasks/todo.md` before implementing.
+- Check in on the plan before starting implementation; mark items complete as you go.
+- Add a brief review/result summary to `tasks/todo.md` when done.
+
+## Verification
+- Never mark a task complete without proving it works (run the dev server, check the relevant API route, verify UI behavior).
+- For worker/cron changes: verify the job processes posts correctly end-to-end.
+- For auth/OAuth changes: verify the full connect → callback → token-storage flow.
+- For Stripe changes: use Stripe CLI to replay webhooks and confirm handler behavior.
+- Ask yourself: "Would a staff engineer approve this?" before calling it done.
+
+## Bug Fixing
+- When given a bug report, just fix it — don't ask for step-by-step guidance.
+- Locate the relevant logs, error output, or failing behavior, then resolve the root cause.
+- Don't patch over symptoms; find why it broke.
+
+## Code Quality
+- For non-trivial changes, pause and ask: "Is there a more elegant way to do this?"
+- If a fix feels hacky, step back and implement the clean solution.
+- Skip this reflection for simple, obvious one-liners — don't over-engineer.
+- Challenge your own implementation before presenting it.
+
+## Lessons
+- After any correction from the user, update `tasks/lessons.md` with the pattern and the rule that prevents the same mistake.
+- Review `tasks/lessons.md` at the start of each session for this project.
+
+---
+
 # Launch Readiness Plan — Thursday Night
 
 ## CRITICAL (Must fix before launch)
