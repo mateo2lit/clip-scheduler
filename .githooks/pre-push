@@ -1,9 +1,15 @@
 #!/usr/bin/env sh
 set -e
 
-# Allow explicit bypass when needed.
+# Allow explicit bypass via env var.
 if [ "${SKIP_SUPABASE_DB_PUSH:-0}" = "1" ]; then
   echo "[pre-push] SKIP_SUPABASE_DB_PUSH=1, skipping supabase db push."
+  exit 0
+fi
+
+# Allow permanent bypass via git config (git config --local supabase.skipDbPush true).
+if [ "$(git config --local --get supabase.skipDbPush 2>/dev/null)" = "true" ]; then
+  echo "[pre-push] supabase.skipDbPush=true, skipping supabase db push."
   exit 0
 fi
 
