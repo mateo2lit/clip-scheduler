@@ -5,6 +5,8 @@ import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 
 type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin";
+const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
+const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
 type PlatformConfig = {
   key: ProviderKey;
@@ -654,6 +656,16 @@ export default function SettingsPage() {
     notify_reconnect: true,
   });
   const [notifLoading, setNotifLoading] = useState(true);
+  const [hoverSpotlightEnabled, setHoverSpotlightEnabled] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setHoverSpotlightEnabled(window.localStorage.getItem(SPOTLIGHT_DISABLED_KEY) !== "1");
+    } catch {
+      setHoverSpotlightEnabled(true);
+    }
+  }, []);
 
   const loadNotifPrefs = useCallback(async () => {
     try {
@@ -698,6 +710,20 @@ export default function SettingsPage() {
     } catch {
       setNotifPrefs(prev);
     }
+  }
+
+  function updateHoverSpotlightPref(value: boolean) {
+    setHoverSpotlightEnabled(value);
+    if (typeof window === "undefined") return;
+
+    try {
+      if (value) {
+        window.localStorage.removeItem(SPOTLIGHT_DISABLED_KEY);
+      } else {
+        window.localStorage.setItem(SPOTLIGHT_DISABLED_KEY, "1");
+      }
+      window.dispatchEvent(new Event(SPOTLIGHT_PREF_EVENT));
+    } catch {}
   }
 
   // Platform defaults
@@ -1348,6 +1374,20 @@ export default function SettingsPage() {
         <section className="mt-0">
           <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Notifications</h2>
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Background hover spotlight</div>
+                  <div className="text-sm text-white/40 mt-0.5">Light up the dark background as your mouse moves</div>
+                </div>
+                <button
+                  onClick={() => updateHoverSpotlightPref(!hoverSpotlightEnabled)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${hoverSpotlightEnabled ? "bg-emerald-500" : "bg-white/10"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${hoverSpotlightEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            </div>
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <div>
