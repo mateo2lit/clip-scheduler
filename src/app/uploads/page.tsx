@@ -212,6 +212,12 @@ export default function UploadsPage() {
   const { teamId } = useTeam();
   const [step, setStep] = useState<Step>("upload");
 
+  // Draft editing
+  const [draftEditGroupId, setDraftEditGroupId] = useState<string | null>(null);
+
+  // Connected platform accounts (for showing "posting as" info)
+  const [platformAccounts, setPlatformAccounts] = useState<Record<string, { profileName: string | null; avatarUrl: string | null }>>({});
+
   // Upload state
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -389,6 +395,21 @@ export default function UploadsPage() {
         }
       } catch {}
 
+      // Load connected platform accounts
+      try {
+        const paRes = await fetch("/api/platform-accounts", {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        const paJson = await paRes.json();
+        if (paJson.ok) {
+          const accts: Record<string, { profileName: string | null; avatarUrl: string | null }> = {};
+          for (const row of paJson.data || []) {
+            if (row.provider) accts[row.provider] = { profileName: row.profile_name || null, avatarUrl: row.avatar_url || null };
+          }
+          setPlatformAccounts(accts);
+        }
+      } catch {}
+
       // Load platform defaults
       try {
         const res = await fetch("/api/platform-defaults", {
@@ -420,6 +441,64 @@ export default function UploadsPage() {
           }
         }
       } catch {}
+
+      // Load draft for editing if ?draft=GROUP_ID is in the URL
+      const draftGroupId = new URLSearchParams(window.location.search).get("draft");
+      if (draftGroupId) {
+        try {
+          const { data: draftPosts } = await supabase
+            .from("scheduled_posts")
+            .select("id, upload_id, title, description, provider, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id")
+            .eq("status", "draft")
+            .or(`group_id.eq.${draftGroupId},id.eq.${draftGroupId}`);
+
+          if (draftPosts && draftPosts.length > 0) {
+            const first = draftPosts[0];
+            setTitle(first.title || "");
+            setDescription(first.description || "");
+            setLastUploadId(first.upload_id);
+            setSelectedPlatforms(draftPosts.map((p: any) => p.provider).filter(Boolean));
+            if (first.thumbnail_path) setLastThumbnailPath(first.thumbnail_path);
+            if (first.scheduled_for) {
+              const d = new Date(first.scheduled_for);
+              const localISO = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+              setScheduledForLocal(localISO);
+            }
+
+            const ytPost = draftPosts.find((p: any) => p.provider === "youtube");
+            if (ytPost?.youtube_settings) {
+              const s = ytPost.youtube_settings;
+              if (s.is_short !== undefined) setYtIsShort(s.is_short);
+              if (s.category) setYtCategory(s.category);
+              if (s.notify_subscribers !== undefined) setYtNotifySubscribers(s.notify_subscribers);
+              if (s.allow_comments !== undefined) setYtAllowComments(s.allow_comments);
+              if (s.allow_embedding !== undefined) setYtAllowEmbedding(s.allow_embedding);
+              if (s.made_for_kids !== undefined) setYtMadeForKids(s.made_for_kids);
+              if (s.public_stats_viewable !== undefined) setYtPublicStats(s.public_stats_viewable);
+            }
+            if (ytPost?.privacy_status) setYtVisibility(ytPost.privacy_status);
+
+            const ttPost = draftPosts.find((p: any) => p.provider === "tiktok");
+            if (ttPost?.tiktok_settings) {
+              const s = ttPost.tiktok_settings;
+              if (s.privacy_level) setTtPrivacyLevel(s.privacy_level);
+              if (s.allow_comments !== undefined) setTtAllowComments(s.allow_comments);
+              if (s.allow_duet !== undefined) setTtAllowDuet(s.allow_duet);
+              if (s.allow_stitch !== undefined) setTtAllowStitch(s.allow_stitch);
+            }
+
+            const igPost = draftPosts.find((p: any) => p.provider === "instagram");
+            if (igPost?.instagram_settings) {
+              const s = igPost.instagram_settings;
+              if (s.ig_type) setIgType(s.ig_type);
+              if (s.first_comment !== undefined) setIgFirstComment(s.first_comment);
+            }
+
+            setDraftEditGroupId(draftGroupId);
+            setStep("details");
+          }
+        } catch {}
+      }
     }
     loadSession();
   }, []);
@@ -729,6 +808,14 @@ export default function UploadsPage() {
         }
       }
 
+      // Delete old draft posts if we're editing an existing draft
+      if (draftEditGroupId) {
+        await fetch(`/api/scheduled-posts?groupId=${encodeURIComponent(draftEditGroupId)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
       // Create a separate scheduled post for each selected platform
       const errors: string[] = [];
       const groupId = crypto.randomUUID();
@@ -824,6 +911,7 @@ export default function UploadsPage() {
     setThumbnailPreview(null);
     setLastThumbnailPath(null);
     setUploadProgress(0);
+    setDraftEditGroupId(null);
   }
 
   return (
@@ -852,8 +940,8 @@ export default function UploadsPage() {
 
           <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{step === "upload" ? "Upload your next video" : "Configure your post"}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/70 sm:text-base">{step === "upload" ? "Drop in your video and move into platform setup in one smooth flow." : "Tune copy, hashtags, media details, and schedule for each connected platform."}</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{step === "upload" ? "Upload your next video" : draftEditGroupId ? "Edit draft" : "Configure your post"}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-white/70 sm:text-base">{step === "upload" ? "Drop in your video and move into platform setup in one smooth flow." : draftEditGroupId ? "Update your draft settings and schedule or save it again." : "Tune copy, hashtags, media details, and schedule for each connected platform."}</p>
           </div>
           {step === "details" && (
             <button onClick={resetUpload} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">
@@ -943,6 +1031,23 @@ export default function UploadsPage() {
                   </button>
                 ))}
               </div>
+              {/* Account info for selected platforms */}
+              {selectedPlatforms.some((p) => platformAccounts[p]?.profileName) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedPlatforms.map((p) => {
+                    const acct = platformAccounts[p];
+                    if (!acct?.profileName) return null;
+                    const platform = PLATFORMS.find((pl) => pl.key === p);
+                    return (
+                      <div key={p} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/50">
+                        {acct.avatarUrl && <img src={acct.avatarUrl} alt="" className="h-4 w-4 rounded-full object-cover" />}
+                        <span className="text-white/40">{platform?.name}:</span>
+                        <span className="text-white/80 font-medium">{acct.profileName}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Main Content Area */}
@@ -1340,6 +1445,14 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-red-500">{PLATFORMS.find(p => p.key === "youtube")?.icon}</div>
                   <span className="font-medium">YouTube Settings</span>
+                  {platformAccounts.youtube?.profileName && (
+                    <div className="flex items-center gap-1.5 ml-2">
+                      {platformAccounts.youtube.avatarUrl && (
+                        <img src={platformAccounts.youtube.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                      )}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.youtube.profileName}</span></span>
+                    </div>
+                  )}
                   <button onClick={() => setYtIsShort(!ytIsShort)} className={`ml-auto flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-all ${ytIsShort ? "bg-blue-400 text-black" : "border border-white/10 bg-white/5 text-white/70"}`}>
                     <span className={`w-2 h-2 rounded-full ${ytIsShort ? "bg-black" : "bg-white/40"}`} />Short
                   </button>
@@ -1435,8 +1548,13 @@ export default function UploadsPage() {
                   <div className="text-white">{PLATFORMS.find(p => p.key === "tiktok")?.icon}</div>
                   <span className="font-medium">TikTok Settings</span>
                   {ttCreatorLoading && <span className="ml-auto text-xs text-white/40">Loading creator info...</span>}
-                  {ttCreatorInfo?.nickname && (
-                    <span className="ml-auto text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo.nickname}</span></span>
+                  {(ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName) && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.tiktok?.avatarUrl && (
+                        <img src={platformAccounts.tiktok.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                      )}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName}</span></span>
+                    </div>
                   )}
                 </div>
 
@@ -1618,6 +1736,14 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-pink-500">{PLATFORMS.find(p => p.key === "instagram")?.icon}</div>
                   <span className="font-medium">Instagram Settings</span>
+                  {platformAccounts.instagram?.profileName && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.instagram.avatarUrl && (
+                        <img src={platformAccounts.instagram.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                      )}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.instagram.profileName}</span></span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-5 space-y-4">
                   <div>

@@ -1125,6 +1125,8 @@ export default function SettingsPage() {
                         </div>
                         {acct.connected && acct.profileName ? (
                           <div className="text-sm text-white/50 mt-0.5">{acct.profileName}</div>
+                        ) : acct.connected ? (
+                          <div className="text-sm text-white/30 mt-0.5 italic">Reconnect to load account name</div>
                         ) : (
                           <div className="text-sm text-white/40 mt-0.5">{platform.description}</div>
                         )}

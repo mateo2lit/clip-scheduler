@@ -69,6 +69,9 @@ export default function DraftsPage() {
   const [drafts, setDrafts] = useState<DraftPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -80,11 +83,12 @@ export default function DraftsPage() {
 
       setSessionEmail(auth.session.user.email ?? null);
 
-      const token = auth.session.access_token;
+      const accessToken = auth.session.access_token;
+      setToken(accessToken);
       let teamId: string | null = null;
       try {
         const res = await fetch("/api/team/me", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
         const json = await res.json();
         if (json.ok) teamId = json.teamId;
@@ -108,6 +112,30 @@ export default function DraftsPage() {
 
     load();
   }, []);
+
+  async function handleDelete(groupId: string) {
+    setConfirmDelete(null);
+    setDeletingIds((prev) => new Set(prev).add(groupId));
+    try {
+      const res = await fetch(`/api/scheduled-posts?groupId=${encodeURIComponent(groupId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setDrafts((prev) => prev.filter((d) => {
+          const key = d.group_id || d.id;
+          return key !== groupId;
+        }));
+      }
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(groupId);
+        return next;
+      });
+    }
+  }
 
   const groups = groupDrafts(drafts);
   const platformCount = new Set(groups.flatMap((g) => g.posts.map((p) => p.provider || "none"))).size;
@@ -203,7 +231,7 @@ export default function DraftsPage() {
                 <div className="col-span-5">Title</div>
                 <div className="col-span-3">Platforms</div>
                 <div className="col-span-2">Saved</div>
-                <div className="col-span-2 text-right">Action</div>
+                <div className="col-span-2 text-right">Actions</div>
               </div>
               <div className="divide-y divide-white/5">
                 {groups.map((group) => (
@@ -227,13 +255,44 @@ export default function DraftsPage() {
 
                       <span className="text-xs tabular-nums text-white/40 md:col-span-2">{formatDate(group.created_at)}</span>
 
-                      <div className="md:col-span-2 md:text-right">
-                        <button className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60 transition-all hover:bg-white/10 hover:text-white">
+                      <div className="flex items-center gap-2 md:col-span-2 md:justify-end">
+                        <Link
+                          href={`/uploads?draft=${encodeURIComponent(group.groupId)}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60 transition-all hover:bg-white/10 hover:text-white"
+                        >
                           Edit
                           <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                           </svg>
-                        </button>
+                        </Link>
+                        {confirmDelete === group.groupId ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(group.groupId)}
+                              disabled={deletingIds.has(group.groupId)}
+                              className="inline-flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/15 px-3 py-1 text-xs font-medium text-red-400 transition-all hover:bg-red-500/25 disabled:opacity-50"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(null)}
+                              className="text-xs text-white/30 transition-colors hover:text-white/60"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDelete(group.groupId)}
+                            disabled={deletingIds.has(group.groupId)}
+                            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 p-1.5 text-white/40 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                            title="Delete draft"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
