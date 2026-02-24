@@ -160,9 +160,66 @@ export default function ScheduledPage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  const teamIdRef = useRef<string | null>(null);
+  // Maps post id → status so we can detect both completions and new failures
+  const knownStatusRef = useRef<Map<string, string>>(new Map());
+  const initializedRef = useRef(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(msg: string, type: "success" | "error" = "success") {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ msg, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 5000);
+  }
+
+  async function fetchPosts() {
+    if (!teamIdRef.current) return;
+    const { data } = await supabase
+      .from("scheduled_posts")
+      .select("id, title, description, provider, scheduled_for, status, created_at, last_error, group_id, thumbnail_path")
+      .eq("team_id", teamIdRef.current)
+      .in("status", ["scheduled", "posting", "ig_processing", "failed"])
+      .order("scheduled_for", { ascending: true });
+
+    const newPosts = data ?? [];
+    const newStatusMap = new Map(newPosts.map((p) => [p.id, p.status]));
+
+    if (initializedRef.current) {
+      // Posts that left the active list entirely → published
+      const completedCount = [...knownStatusRef.current.keys()].filter(
+        (id) => !newStatusMap.has(id)
+      ).length;
+      if (completedCount > 0) {
+        showToast(
+          `${completedCount} post${completedCount > 1 ? "s" : ""} published successfully!`,
+          "success"
+        );
+      }
+
+      // Posts that transitioned to "failed" since the last poll
+      const newlyFailed = newPosts.filter(
+        (p) => p.status === "failed" && knownStatusRef.current.get(p.id) !== "failed"
+      );
+      if (newlyFailed.length > 0) {
+        showToast(
+          `${newlyFailed.length} post${newlyFailed.length > 1 ? "s" : ""} failed to publish`,
+          "error"
+        );
+      }
+    }
+
+    initializedRef.current = true;
+    knownStatusRef.current = newStatusMap;
+    setPosts(newPosts);
+  }
 
   useEffect(() => {
-    async function load() {
+    let cancelled = false;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    async function init() {
       const { data: auth } = await supabase.auth.getSession();
       if (!auth.session) {
         window.location.href = "/login";
@@ -172,32 +229,36 @@ export default function ScheduledPage() {
       setSessionEmail(auth.session.user.email ?? null);
 
       const token = auth.session.access_token;
-      let teamId: string | null = null;
       try {
         const res = await fetch("/api/team/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const json = await res.json();
-        if (json.ok) teamId = json.teamId;
+        if (json.ok) teamIdRef.current = json.teamId;
       } catch {}
 
-      if (!teamId) {
+      if (!teamIdRef.current || cancelled) {
         setLoading(false);
         return;
       }
 
-      const { data } = await supabase
-        .from("scheduled_posts")
-        .select("id, title, description, provider, scheduled_for, status, created_at, last_error, group_id, thumbnail_path")
-        .eq("team_id", teamId)
-        .in("status", ["scheduled", "ig_processing", "failed"])
-        .order("scheduled_for", { ascending: true });
-
-      setPosts(data ?? []);
-      setLoading(false);
+      await fetchPosts();
+      if (!cancelled) {
+        setLoading(false);
+        // Poll every 5 s to catch completions; skip when tab is hidden
+        pollInterval = setInterval(() => {
+          if (!cancelled && document.visibilityState === "visible") fetchPosts();
+        }, 5000);
+      }
     }
 
-    load();
+    init();
+
+    return () => {
+      cancelled = true;
+      if (pollInterval) clearInterval(pollInterval);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const groups = groupPosts(posts);
@@ -236,7 +297,12 @@ export default function ScheduledPage() {
           .eq("id", postId);
         if (error) throw error;
       }
-      setPosts((prev) => prev.filter((p) => !postIds.includes(p.id)));
+      setPosts((prev) => {
+        const updated = prev.filter((p) => !postIds.includes(p.id));
+        // Keep knownStatusRef in sync so cancelled posts don't fire a "published" toast
+        knownStatusRef.current = new Map(updated.map((p) => [p.id, p.status]));
+        return updated;
+      });
     } catch (e: any) {
       alert(e?.message || "Failed to cancel");
     } finally {
@@ -430,6 +496,28 @@ export default function ScheduledPage() {
           )}
         </section>
       </div>
+
+      {/* Live update toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl backdrop-blur-xl transition-all ${
+            toast.type === "error"
+              ? "border-red-500/30 bg-red-500/10 text-red-300"
+              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+          }`}
+        >
+          {toast.type === "error" ? (
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          )}
+          {toast.msg}
+        </div>
+      )}
     </main>
   );
 }
