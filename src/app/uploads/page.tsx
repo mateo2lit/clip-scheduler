@@ -428,11 +428,9 @@ export default function UploadsPage() {
               if (typeof s.madeForKids === "boolean") setYtMadeForKids(s.madeForKids);
               if (typeof s.publicStats === "boolean") setYtPublicStats(s.publicStats);
             } else if (row.platform === "tiktok") {
-              if (s.privacyLevel) setTtPrivacyLevel(s.privacyLevel);
-              if (typeof s.allowComments === "boolean") setTtAllowComments(s.allowComments);
-              if (typeof s.allowDuet === "boolean") setTtAllowDuet(s.allowDuet);
-              if (typeof s.allowStitch === "boolean") setTtAllowStitch(s.allowStitch);
-              // Reset creator info cache so it re-fetches with any new defaults
+              // TikTok privacy, comments, duet, and stitch settings must be chosen
+              // manually on each upload per TikTok UX requirements — never pre-fill.
+              // Reset creator info cache so it re-fetches fresh.
               setTtCreatorInfo(null);
             } else if (row.platform === "instagram") {
               if (s.igType) setIgType(s.igType);
@@ -912,6 +910,17 @@ export default function UploadsPage() {
     setLastThumbnailPath(null);
     setUploadProgress(0);
     setDraftEditGroupId(null);
+    // Reset all TikTok state — privacy, consent, and interaction toggles must
+    // be chosen fresh on every upload per TikTok's UX requirements.
+    setTtPrivacyLevel("");
+    setTtConsentChecked(false);
+    setTtAllowComments(false);
+    setTtAllowDuet(false);
+    setTtAllowStitch(false);
+    setTtCommercialToggle(false);
+    setTtBrandOrganic(false);
+    setTtBrandContent(false);
+    setTtCreatorInfo(null);
   }
 
   return (
