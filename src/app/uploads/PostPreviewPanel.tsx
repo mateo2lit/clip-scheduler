@@ -39,7 +39,7 @@ function Avatar({ name, avatarUrl, size = "md" }: { name: string | null; avatarU
   const sizes = { sm: "w-7 h-7 text-[11px]", md: "w-9 h-9 text-sm", lg: "w-11 h-11 text-base" };
   const initial = (name || "Y")[0].toUpperCase();
   if (avatarUrl)
-    return <img src={avatarUrl} alt="" className={`${sizes[size]} rounded-full object-cover shrink-0`} />;
+    return <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className={`${sizes[size]} rounded-full object-cover shrink-0`} />;
   return (
     <div className={`${sizes[size]} rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center font-semibold text-white shrink-0`}>
       {initial}

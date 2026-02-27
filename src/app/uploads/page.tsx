@@ -1068,7 +1068,7 @@ export default function UploadsPage() {
                     const platform = PLATFORMS.find((pl) => pl.key === p);
                     return (
                       <div key={p} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/50">
-                        {acct.avatarUrl && <img src={acct.avatarUrl} alt="" className="h-4 w-4 rounded-full object-cover" />}
+                        {acct.avatarUrl && <img src={acct.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-4 w-4 rounded-full object-cover" />}
                         <span className="text-white/40">{platform?.name}:</span>
                         <span className="text-white/80 font-medium">{acct.profileName}</span>
                       </div>
@@ -1476,7 +1476,7 @@ export default function UploadsPage() {
                   {platformAccounts.youtube?.profileName && (
                     <div className="flex items-center gap-1.5 ml-2">
                       {platformAccounts.youtube.avatarUrl && (
-                        <img src={platformAccounts.youtube.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                        <img src={platformAccounts.youtube.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.youtube.profileName}</span></span>
                     </div>
@@ -1579,7 +1579,7 @@ export default function UploadsPage() {
                   {(ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName) && (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.tiktok?.avatarUrl && (
-                        <img src={platformAccounts.tiktok.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                        <img src={platformAccounts.tiktok.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName}</span></span>
                     </div>
@@ -1800,7 +1800,7 @@ export default function UploadsPage() {
                   {platformAccounts.instagram?.profileName && (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.instagram.avatarUrl && (
-                        <img src={platformAccounts.instagram.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                        <img src={platformAccounts.instagram.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.instagram.profileName}</span></span>
                     </div>
