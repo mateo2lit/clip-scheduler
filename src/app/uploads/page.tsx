@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import { useTeam } from "@/lib/useTeam";
 import Link from "next/link";
+import PostPreviewPanel from "./PostPreviewPanel";
 
 const EMOJI_CATEGORIES = {
   "Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😎", "🤩"],
@@ -290,6 +291,11 @@ export default function UploadsPage() {
   const [ttBrandOrganic, setTtBrandOrganic] = useState(false);
   const [ttBrandContent, setTtBrandContent] = useState(false);
   const [ttConsentChecked, setTtConsentChecked] = useState(false);
+  const [ttContentRightsChecked, setTtContentRightsChecked] = useState(false);
+  const [ttAigcDisclosure, setTtAigcDisclosure] = useState(false);
+
+  // Object URL for the in-browser video preview
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
 
   // Video duration (seconds), read client-side when file is selected
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
@@ -558,6 +564,14 @@ export default function UploadsPage() {
     video.onerror = () => URL.revokeObjectURL(url);
   }, [file]);
 
+  // Object URL for the live post preview panel
+  useEffect(() => {
+    if (!file) { setVideoPreviewUrl(null); return; }
+    const url = URL.createObjectURL(file);
+    setVideoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
   // Compute TikTok validation
   const ttValidationError = useMemo(() => {
     if (!selectedPlatforms.includes("tiktok")) return null;
@@ -568,9 +582,10 @@ export default function UploadsPage() {
     if (ttCreatorInfo && ttCreatorInfo.max_video_post_duration_sec > 0 && videoDuration !== null && videoDuration > ttCreatorInfo.max_video_post_duration_sec) {
       return `Video exceeds TikTok's maximum duration of ${ttCreatorInfo.max_video_post_duration_sec}s for your account (video is ${Math.round(videoDuration)}s).`;
     }
-    if (!ttConsentChecked) return "Please confirm your content rights for TikTok before scheduling";
+    if (!ttConsentChecked) return "Agree to TikTok's Music Usage Confirmation to continue";
+    if (!ttContentRightsChecked) return "Confirm your content rights to continue";
     return null;
-  }, [selectedPlatforms, ttCreatorError, ttCreatorInfo, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked]);
+  }, [selectedPlatforms, ttCreatorError, ttCreatorInfo, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked, ttContentRightsChecked]);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -855,6 +870,7 @@ export default function UploadsPage() {
             allow_stitch: ttAllowStitch,
             brand_organic_toggle: ttBrandOrganic,
             brand_content_toggle: ttBrandContent,
+            aigc_disclosure: ttAigcDisclosure,
           };
         }
 
@@ -914,6 +930,8 @@ export default function UploadsPage() {
     // be chosen fresh on every upload per TikTok's UX requirements.
     setTtPrivacyLevel("");
     setTtConsentChecked(false);
+    setTtContentRightsChecked(false);
+    setTtAigcDisclosure(false);
     setTtAllowComments(false);
     setTtAllowDuet(false);
     setTtAllowStitch(false);
@@ -1022,7 +1040,8 @@ export default function UploadsPage() {
 
         {/* Details Step */}
         {step === "details" && (
-          <div className="mt-8 space-y-6">
+          <div className="mt-8 grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 items-start">
+          <div className="space-y-6">
             {/* Platform Selector */}
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
               <div className="mb-3 text-sm text-white/70">Post to</div>
@@ -1662,34 +1681,56 @@ export default function UploadsPage() {
 
                     {ttCommercialToggle && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex items-start gap-3 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={ttBrandOrganic}
                             onChange={(e) => setTtBrandOrganic(e.target.checked)}
-                            className="w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400"
+                            className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400 shrink-0"
                           />
                           <div>
                             <p className="text-sm text-white/80">Your Brand</p>
                             <p className="text-xs text-white/40">You are promoting yourself or your own business</p>
+                            <p className="text-xs text-blue-400/70 mt-0.5">Your post will be labeled &quot;Promotional content&quot;</p>
                           </div>
                         </label>
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex items-start gap-3 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={ttBrandContent}
                             onChange={(e) => setTtBrandContent(e.target.checked)}
-                            className="w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400"
+                            className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400 shrink-0"
                           />
                           <div>
                             <p className="text-sm text-white/80">Branded Content</p>
-                            <p className="text-xs text-white/40">You are promoting another brand or a third party</p>
+                            <p className="text-xs text-white/40">You are promoting another brand or a third party (paid partnership)</p>
+                            <p className="text-xs text-blue-400/70 mt-0.5">Your post will be labeled &quot;Paid partnership&quot;</p>
                           </div>
                         </label>
                         {!ttBrandOrganic && !ttBrandContent && (
                           <p className="text-xs text-amber-400/70">Select at least one option above to continue</p>
                         )}
                       </div>
+                    )}
+                  </div>
+
+                  {/* AI-generated content disclosure */}
+                  <div className="pt-4 border-t border-white/10">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div>
+                        <p className="text-sm text-white/80">AI-generated content</p>
+                        <p className="text-xs text-white/40 mt-0.5">This video was created or significantly assisted by AI tools</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTtAigcDisclosure((v) => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAigcDisclosure ? "bg-blue-500" : "bg-white/10"}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAigcDisclosure ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </label>
+                    {ttAigcDisclosure && (
+                      <p className="text-xs text-blue-400/70 mt-2">TikTok will label this post as AI-generated content.</p>
                     )}
                   </div>
 
@@ -1707,8 +1748,9 @@ export default function UploadsPage() {
                     </div>
                   )}
 
-                  {/* Explicit consent */}
-                  <div className="pt-4 border-t border-white/10">
+                  {/* Consent checkboxes — required before scheduling */}
+                  <div className="pt-4 border-t border-white/10 space-y-3">
+                    {/* Checkbox 1: TikTok's required Music Usage Confirmation (exact wording) */}
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1716,25 +1758,35 @@ export default function UploadsPage() {
                         onChange={(e) => setTtConsentChecked(e.target.checked)}
                         className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-white shrink-0"
                       />
-                      <span className="text-sm text-white/70">I confirm I am the creator or authorized rights holder of this content and consent to it being posted on TikTok on my behalf.</span>
+                      <span className="text-sm text-white/75">
+                        By posting, I agree to TikTok&apos;s{" "}
+                        <a href="https://www.tiktok.com/legal/music-usage-confirmation" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Music Usage Confirmation</a>
+                        {ttBrandContent && (
+                          <>{" "}and{" "}
+                            <a href="https://www.tiktok.com/legal/branded-content-policy" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Branded Content Policy</a>
+                          </>
+                        )}.
+                      </span>
+                    </label>
+
+                    {/* Checkbox 2: Content rights confirmation */}
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={ttContentRightsChecked}
+                        onChange={(e) => setTtContentRightsChecked(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-white shrink-0"
+                      />
+                      <span className="text-sm text-white/75">
+                        I confirm I am the creator or authorized rights holder of this content and consent to it being published on TikTok on my behalf.
+                      </span>
                     </label>
                   </div>
 
-                  {/* Compliance text */}
-                  <div className="space-y-2">
-                    <p className="text-xs text-white/40">
-                      By posting, you agree to TikTok&apos;s{" "}
-                      <a href="https://www.tiktok.com/legal/music-usage-confirmation" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">Music Usage Confirmation</a>
-                      {ttBrandContent && (
-                        <>
-                          {" "}and{" "}
-                          <a href="https://www.tiktok.com/legal/branded-content-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">Branded Content Policy</a>
-                        </>
-                      )}
-                      .
-                    </p>
-                    <p className="text-xs text-white/30">Content may take several minutes to appear on your TikTok profile.</p>
-                  </div>
+                  {/* Processing notice */}
+                  <p className="text-xs text-white/30 pt-1">
+                    Content may take a few minutes to appear on your TikTok profile after publishing.
+                  </p>
                 </div>
               </div>
             )}
@@ -1781,6 +1833,21 @@ export default function UploadsPage() {
                 {scheduling ? "Scheduling..." : scheduleType === "now" ? "Publish now" : "Schedule"}
               </button>
             </div>
+          </div>
+
+          {/* Right column — live post preview panel */}
+          <div className="hidden xl:block sticky top-6 self-start">
+            <PostPreviewPanel
+              selectedPlatforms={selectedPlatforms}
+              title={title}
+              description={description}
+              hashtags={hashtags}
+              videoPreviewUrl={videoPreviewUrl}
+              thumbnailPreview={thumbnailPreview}
+              platformAccounts={platformAccounts}
+              ttNickname={ttCreatorInfo?.nickname || null}
+            />
+          </div>
           </div>
         )}
       </div>
