@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext, requireOwner } from "@/lib/teamAuth";
+import { sendTeamInviteEmail, sendTeamJoinedEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -26,13 +27,19 @@ export async function POST(req: Request) {
     // Check team plan — only Team plan can invite members
     const { data: teamData } = await supabaseAdmin
       .from("teams")
-      .select("plan")
+      .select("plan, name")
       .eq("id", teamId)
       .single();
 
     if (teamData?.plan !== "team") {
       return jsonError("Upgrade to Team plan to invite members", 403);
     }
+
+    const teamName = teamData.name || "ClipDash Team";
+
+    // Get inviter's email for display in the invite email
+    const { data: inviterData } = await supabaseAdmin.auth.admin.getUserById(result.ctx.userId);
+    const inviterEmail = inviterData?.user?.email || "Your teammate";
 
     const body = await req.json().catch(() => ({}));
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -126,6 +133,8 @@ export async function POST(req: Request) {
         }
       }
 
+      await sendTeamJoinedEmail(email, inviterEmail, teamName);
+
       return NextResponse.json({
         ok: true,
         message: "User added to team",
@@ -143,6 +152,8 @@ export async function POST(req: Request) {
     if (inviteErr) {
       return jsonError(inviteErr.message, 500);
     }
+
+    await sendTeamInviteEmail(email, inviterEmail, teamName);
 
     return NextResponse.json({
       ok: true,

@@ -136,6 +136,78 @@ export async function sendGroupSummaryEmail(
   }
 }
 
+export async function sendTeamInviteEmail(
+  to: string,
+  inviterName: string,
+  teamName: string
+) {
+  if (!resend) return;
+
+  const signupUrl = `${APP_URL}/login?invite=1&email=${encodeURIComponent(to)}`;
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `${inviterName} invited you to join ${teamName} on ClipDash`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+          <h2 style="color: #111; margin: 0 0 16px;">You've been invited to ClipDash</h2>
+          <p style="color: #333; line-height: 1.6; margin: 0 0 16px;">
+            <strong>${inviterName}</strong> has invited you to join their team <strong>${teamName}</strong> on ClipDash — a tool for scheduling and publishing videos across YouTube, TikTok, Instagram, Facebook, and LinkedIn.
+          </p>
+          <p style="color: #333; line-height: 1.6; margin: 0 0 24px;">
+            Create your free account to accept the invitation. You'll be added to the team automatically when you sign up with this email address.
+          </p>
+          <a href="${signupUrl}" style="display: inline-block; background: #111; color: #fff; padding: 12px 28px; border-radius: 999px; text-decoration: none; font-size: 14px; font-weight: 500;">
+            Accept Invitation
+          </a>
+          <p style="color: #999; font-size: 12px; margin-top: 32px;">
+            If you weren't expecting this invitation, you can ignore this email.<br/>Sent from ClipDash
+          </p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error("Failed to send team invite email:", e);
+  }
+}
+
+export async function sendTeamJoinedEmail(
+  to: string,
+  inviterName: string,
+  teamName: string
+) {
+  if (!resend) return;
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `${inviterName} added you to ${teamName} on ClipDash`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+          <h2 style="color: #10b981; margin: 0 0 16px;">You've been added to a team</h2>
+          <p style="color: #333; line-height: 1.6; margin: 0 0 16px;">
+            <strong>${inviterName}</strong> has added you to the team <strong>${teamName}</strong> on ClipDash.
+          </p>
+          <p style="color: #333; line-height: 1.6; margin: 0 0 24px;">
+            Log in to start collaborating.
+          </p>
+          <a href="${APP_URL}/dashboard" style="display: inline-block; background: #111; color: #fff; padding: 12px 28px; border-radius: 999px; text-decoration: none; font-size: 14px; font-weight: 500;">
+            Go to ClipDash
+          </a>
+          <p style="color: #999; font-size: 12px; margin-top: 32px;">
+            Sent from ClipDash
+          </p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error("Failed to send team joined email:", e);
+  }
+}
+
 export async function sendReconnectEmail(
   to: string,
   platform: string
