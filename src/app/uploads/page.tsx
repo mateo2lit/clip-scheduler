@@ -93,6 +93,28 @@ const PLATFORMS: PlatformConfig[] = [
       </svg>
     ),
   },
+  {
+    key: "threads",
+    name: "Threads",
+    available: true,
+    charLimit: 500,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.05-4.073 1.364-7.298 3.905-9.58C7.628.302 10.594-.06 12.186 0c2.64.065 4.955.942 6.681 2.534.94.861 1.696 1.957 2.25 3.258l-2.145.9c-.427-1.012-1.03-1.881-1.793-2.582-1.33-1.218-3.15-1.872-5.053-1.915-1.275-.032-3.6.239-5.392 1.913C4.899 5.69 3.884 8.26 3.84 11.998c.038 3.733 1.053 6.3 3.014 7.847 1.782 1.374 4.107 1.662 5.367 1.682 1.254-.005 3.424-.237 5.25-1.624.926-.71 1.63-1.63 2.09-2.73-1.208-.226-2.457-.285-3.73-.147-2.02.217-3.717-.185-5.04-1.196-.959-.728-1.505-1.833-1.514-2.949-.013-1.208.496-2.372 1.389-3.191 1.083-.994 2.67-1.487 4.712-1.487a11.91 11.91 0 0 1 1.96.164c-.143-.49-.38-.882-.714-1.165-.522-.442-1.329-.667-2.396-.667l-.118.001c-.899.01-2.094.317-2.823 1.218l-1.617-1.38C9.5 7.067 11.083 6.5 12.72 6.5l.156-.001c1.597-.007 2.936.388 3.88 1.168.99.815 1.534 2.016 1.617 3.578.1 1.828-.265 3.382-1.086 4.624-.821 1.241-2.071 2.097-3.617 2.475a10.6 10.6 0 0 1-2.52.296c-2.01-.003-3.41-.55-4.165-1.636-.48-.687-.636-1.504-.49-2.413.215-1.326 1.1-2.477 2.482-3.235 1.028-.565 2.2-.808 3.468-.72.447.03.883.084 1.303.161-.12-.857-.477-1.423-.979-1.694-.545-.292-1.245-.355-1.78-.16-.617.224-1.126.747-1.516 1.555l-1.972-.906c.568-1.24 1.46-2.154 2.643-2.72 1.002-.476 2.123-.616 3.237-.405 1.4.267 2.483 1.038 3.13 2.233.551 1.014.787 2.285.696 3.78a11.72 11.72 0 0 1-.1.99c-.11.762-.286 1.46-.52 2.083 1.58.048 3.121.386 4.573.996-.015.14-.03.278-.046.414-.257 2.155-1.023 3.932-2.278 5.282C17.236 22.803 14.85 23.975 12.186 24z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "bluesky",
+    name: "Bluesky",
+    available: true,
+    charLimit: 300,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 600 530" fill="currentColor">
+        <path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.106 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/>
+      </svg>
+    ),
+  },
 ];
 
 const YOUTUBE_CATEGORIES: { value: YouTubeCategory; label: string }[] = [
@@ -217,7 +239,15 @@ export default function UploadsPage() {
   const [draftEditGroupId, setDraftEditGroupId] = useState<string | null>(null);
 
   // Connected platform accounts (for showing "posting as" info)
-  const [platformAccounts, setPlatformAccounts] = useState<Record<string, { profileName: string | null; avatarUrl: string | null }>>({});
+  const [platformAccounts, setPlatformAccounts] = useState<Record<string, { profileName: string | null; avatarUrl: string | null }>>({
+    youtube: { profileName: null, avatarUrl: null },
+    tiktok: { profileName: null, avatarUrl: null },
+    instagram: { profileName: null, avatarUrl: null },
+    facebook: { profileName: null, avatarUrl: null },
+    linkedin: { profileName: null, avatarUrl: null },
+    threads: { profileName: null, avatarUrl: null },
+    bluesky: { profileName: null, avatarUrl: null },
+  });
 
   // Upload state
   const [file, setFile] = useState<File | null>(null);
@@ -294,6 +324,24 @@ export default function UploadsPage() {
   const [ttContentRightsChecked, setTtContentRightsChecked] = useState(false);
   const [ttAigcDisclosure, setTtAigcDisclosure] = useState(false);
 
+  // Per-platform caption overrides
+  const [platformTitleOverrides, setPlatformTitleOverrides] = useState<Record<string, string>>({});
+  const [platformDescOverrides, setPlatformDescOverrides] = useState<Record<string, string>>({});
+  const [openCaptionOverride, setOpenCaptionOverride] = useState<string | null>(null);
+
+  // Post templates (localStorage)
+  const TEMPLATES_KEY = "clipdash_post_templates";
+  type PostTemplate = { id: string; name: string; title: string; description: string; hashtags: string[]; platforms: string[] };
+  const [templates, setTemplates] = useState<PostTemplate[]>([]);
+  const [showTemplatesMenu, setShowTemplatesMenu] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
+  const templatesMenuRef = useRef<HTMLDivElement>(null);
+
+  // Queue state
+  const [queuePreview, setQueuePreview] = useState<string | null>(null);
+
   // Object URL for the in-browser video preview
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
 
@@ -346,6 +394,12 @@ export default function UploadsPage() {
         setYtPresets(JSON.parse(saved));
       } catch {}
     }
+    const savedTemplates = localStorage.getItem(TEMPLATES_KEY);
+    if (savedTemplates) {
+      try {
+        setTemplates(JSON.parse(savedTemplates));
+      } catch {}
+    }
   }, []);
 
   // Close emoji picker when clicking outside
@@ -360,6 +414,19 @@ export default function UploadsPage() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showEmojiPicker]);
+
+  // Close templates menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (templatesMenuRef.current && !templatesMenuRef.current.contains(e.target as Node)) {
+        setShowTemplatesMenu(false);
+      }
+    }
+    if (showTemplatesMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showTemplatesMenu]);
 
   useEffect(() => {
     const d = parseDatePart(scheduledDatePart);
@@ -850,6 +917,10 @@ export default function UploadsPage() {
           body.thumbnail_path = thumbnailPath;
         }
 
+        // Apply per-platform caption overrides
+        if (platformTitleOverrides[platform]) body.title = platformTitleOverrides[platform];
+        if (platformDescOverrides[platform]) body.description = platformDescOverrides[platform];
+
         if (platform === "youtube") {
           body.youtube_settings = {
             is_short: ytIsShort,
@@ -859,6 +930,8 @@ export default function UploadsPage() {
             allow_embedding: ytAllowEmbedding,
             made_for_kids: ytMadeForKids,
             public_stats_viewable: ytPublicStats,
+            title_override: platformTitleOverrides.youtube || undefined,
+            description_override: platformDescOverrides.youtube || undefined,
           };
         }
 
@@ -871,17 +944,45 @@ export default function UploadsPage() {
             brand_organic_toggle: ttBrandOrganic,
             brand_content_toggle: ttBrandContent,
             aigc_disclosure: ttAigcDisclosure,
+            title_override: platformTitleOverrides.tiktok || undefined,
+            description_override: platformDescOverrides.tiktok || undefined,
           };
         }
 
         if (platform === "facebook") {
-          body.facebook_settings = {};
+          body.facebook_settings = {
+            title_override: platformTitleOverrides.facebook || undefined,
+            description_override: platformDescOverrides.facebook || undefined,
+          };
         }
 
         if (platform === "instagram") {
           body.instagram_settings = {
             ig_type: igType,
             first_comment: igFirstComment || undefined,
+            title_override: platformTitleOverrides.instagram || undefined,
+            description_override: platformDescOverrides.instagram || undefined,
+          };
+        }
+
+        if (platform === "linkedin") {
+          body.linkedin_settings = {
+            title_override: platformTitleOverrides.linkedin || undefined,
+            description_override: platformDescOverrides.linkedin || undefined,
+          };
+        }
+
+        if (platform === "threads") {
+          body.threads_settings = {
+            title_override: platformTitleOverrides.threads || undefined,
+            description_override: platformDescOverrides.threads || undefined,
+          };
+        }
+
+        if (platform === "bluesky") {
+          body.bluesky_settings = {
+            title_override: platformTitleOverrides.bluesky || undefined,
+            description_override: platformDescOverrides.bluesky || undefined,
           };
         }
 
@@ -914,6 +1015,72 @@ export default function UploadsPage() {
     }
   }
 
+  function computeNextQueueSlot(posts: Array<{ status: string; scheduled_for?: string | null }>): Date {
+    const future = posts.filter((p) => p.status === "scheduled" && p.scheduled_for);
+    if (future.length === 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      return d;
+    }
+    const latest = new Date(Math.max(...future.map((p) => new Date(p.scheduled_for!).getTime())));
+    latest.setTime(latest.getTime() + 24 * 60 * 60 * 1000);
+    return latest;
+  }
+
+  async function handleSelectQueue() {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/scheduled-posts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => null);
+      const posts = json?.data || [];
+      const slot = computeNextQueueSlot(posts);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const local = `${slot.getFullYear()}-${pad(slot.getMonth() + 1)}-${pad(slot.getDate())}T${pad(slot.getHours())}:${pad(slot.getMinutes())}`;
+      setScheduledForLocal(local);
+      setScheduleType("scheduled");
+      setShowScheduleActions(false);
+      setShowSchedulePicker(false);
+      const preview = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(slot);
+      setQueuePreview(preview);
+    } catch {}
+  }
+
+  function loadTemplate(t: PostTemplate) {
+    setTitle(t.title);
+    setDescription(t.description);
+    setHashtags(t.hashtags);
+    setSelectedPlatforms(t.platforms.filter((p) => PLATFORMS.some((pl) => pl.key === p)));
+    setShowTemplatesMenu(false);
+  }
+
+  function saveCurrentTemplate(name: string) {
+    const newTemplate: PostTemplate = {
+      id: crypto.randomUUID(),
+      name,
+      title,
+      description,
+      hashtags,
+      platforms: selectedPlatforms,
+    };
+    const updated = [...templates, newTemplate];
+    setTemplates(updated);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    setShowSaveTemplateName(false);
+    setNewTemplateName("");
+    setShowTemplatesMenu(false);
+  }
+
+  function deleteTemplate(id: string) {
+    const updated = templates.filter((t) => t.id !== id);
+    setTemplates(updated);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+  }
+
   function resetUpload() {
     setStep("upload");
     setFile(null);
@@ -926,6 +1093,10 @@ export default function UploadsPage() {
     setLastThumbnailPath(null);
     setUploadProgress(0);
     setDraftEditGroupId(null);
+    setPlatformTitleOverrides({});
+    setPlatformDescOverrides({});
+    setOpenCaptionOverride(null);
+    setQueuePreview(null);
     // Reset all TikTok state — privacy, consent, and interaction toggles must
     // be chosen fresh on every upload per TikTok's UX requirements.
     setTtPrivacyLevel("");
@@ -1080,6 +1251,75 @@ export default function UploadsPage() {
 
             {/* Main Content Area */}
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+              {/* Templates */}
+              <div className="border-b border-white/10 px-5 py-3 flex items-center gap-2">
+                <div className="relative" ref={templatesMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowTemplatesMenu((v) => !v); setShowSaveTemplateName(false); }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white/70 hover:bg-white/[0.07] transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Templates
+                    <svg className={`w-3.5 h-3.5 text-white/40 transition-transform ${showTemplatesMenu ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showTemplatesMenu && (
+                    <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-72 overflow-hidden rounded-2xl border border-white/12 bg-[#0e1118] shadow-[0_24px_60px_rgba(2,6,23,0.6)]">
+                      {templates.length === 0 && (
+                        <p className="px-4 py-3 text-xs text-white/40">No saved templates yet.</p>
+                      )}
+                      {templates.map((t) => (
+                        <div key={t.id} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0 hover:bg-white/[0.05]">
+                          <button onClick={() => loadTemplate(t)} className="flex-1 text-left text-sm text-white/80 hover:text-white">
+                            {t.name}
+                          </button>
+                          <button onClick={() => deleteTemplate(t.id)} className="shrink-0 rounded p-1 text-white/30 hover:bg-white/10 hover:text-red-400">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <div className="border-t border-white/10">
+                        {showSaveTemplateName ? (
+                          <div className="flex items-center gap-2 p-3">
+                            <input
+                              type="text"
+                              value={newTemplateName}
+                              onChange={(e) => setNewTemplateName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim()) saveCurrentTemplate(newTemplateName.trim()); }}
+                              placeholder="Template name..."
+                              autoFocus
+                              className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                            />
+                            <button
+                              onClick={() => { if (newTemplateName.trim()) saveCurrentTemplate(newTemplateName.trim()); }}
+                              disabled={!newTemplateName.trim()}
+                              className="rounded-lg bg-blue-400 px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50"
+                            >Save</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowSaveTemplateName(true)}
+                            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-white/60 hover:bg-white/[0.05] hover:text-white"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Save current as template...
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Title */}
               <div className="border-b border-white/10 p-5">
                 <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title for your video" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-lg font-medium text-white placeholder-white/30 outline-none focus:border-blue-300/40 focus:bg-white/10" />
@@ -1278,7 +1518,7 @@ export default function UploadsPage() {
                         onClick={() => setShowScheduleActions((v) => !v)}
                         className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white/85 transition-colors hover:bg-white/[0.08]"
                       >
-                        <span>{scheduleType === "now" ? "Now" : "Set Date and Time"}</span>
+                        <span>{queuePreview ? "Add to Queue" : scheduleType === "now" ? "Now" : "Set Date and Time"}</span>
                         <svg className={`h-4 w-4 text-white/60 transition-transform ${showScheduleActions ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
@@ -1292,8 +1532,9 @@ export default function UploadsPage() {
                               setScheduleType("scheduled");
                               setShowScheduleActions(false);
                               setShowSchedulePicker(true);
+                              setQueuePreview(null);
                             }}
-                            className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${scheduleType === "scheduled" ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"}`}
+                            className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${scheduleType === "scheduled" && !queuePreview ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"}`}
                           >
                             <span className="mt-1 inline-block h-2 w-2 rounded-full bg-blue-300" />
                             <span>
@@ -1307,6 +1548,7 @@ export default function UploadsPage() {
                               setScheduleType("now");
                               setShowScheduleActions(false);
                               setShowSchedulePicker(false);
+                              setQueuePreview(null);
                             }}
                             className={`flex w-full items-start gap-3 border-t border-white/10 px-4 py-3 text-left transition-colors ${scheduleType === "now" ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"}`}
                           >
@@ -1316,14 +1558,31 @@ export default function UploadsPage() {
                               <span className="mt-0.5 block text-xs text-white/55">Publish immediately after confirmation.</span>
                             </span>
                           </button>
+                          <button
+                            type="button"
+                            onClick={handleSelectQueue}
+                            className={`flex w-full items-start gap-3 border-t border-white/10 px-4 py-3 text-left transition-colors ${queuePreview ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"}`}
+                          >
+                            <span className="mt-1 inline-block h-2 w-2 rounded-full bg-purple-300" />
+                            <span>
+                              <span className="block text-sm font-semibold text-white">Add to Queue</span>
+                              <span className="mt-0.5 block text-xs text-white/55">Schedule after your last queued post.</span>
+                            </span>
+                          </button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {scheduleType === "now" && (
+                  {scheduleType === "now" && !queuePreview && (
                     <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
                       <p className="text-sm text-emerald-100">This post will publish immediately when you click the main action.</p>
+                    </div>
+                  )}
+
+                  {queuePreview && (
+                    <div className="rounded-2xl border border-purple-300/20 bg-purple-400/[0.06] p-4">
+                      <p className="text-sm text-purple-100">Will be queued for: <span className="font-semibold">{queuePreview}</span></p>
                     </div>
                   )}
 
@@ -1546,6 +1805,20 @@ export default function UploadsPage() {
                       <input type="checkbox" checked={ytPublicStats} onChange={(e) => setYtPublicStats(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
                       <span className="text-sm text-white/70">Show Like Count</span>
                     </label>
+                  </div>
+
+                  {/* Per-platform caption override */}
+                  <div className="pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "youtube" ? null : "youtube")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                      <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "youtube" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      Customize caption for YouTube
+                    </button>
+                    {openCaptionOverride === "youtube" && (
+                      <div className="mt-3 space-y-2">
+                        <input type="text" value={platformTitleOverrides.youtube || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, youtube: e.target.value }))} placeholder="Title (optional — uses global title)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                        <textarea value={platformDescOverrides.youtube || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, youtube: e.target.value }))} placeholder="Description (optional — uses global description)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Save Preset */}
@@ -1787,6 +2060,20 @@ export default function UploadsPage() {
                   <p className="text-xs text-white/30 pt-1">
                     Content may take a few minutes to appear on your TikTok profile after publishing.
                   </p>
+
+                  {/* Per-platform caption override */}
+                  <div className="pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "tiktok" ? null : "tiktok")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                      <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "tiktok" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      Customize caption for TikTok
+                    </button>
+                    {openCaptionOverride === "tiktok" && (
+                      <div className="mt-3 space-y-2">
+                        <input type="text" value={platformTitleOverrides.tiktok || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, tiktok: e.target.value }))} placeholder="Title (optional — uses global title)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                        <textarea value={platformDescOverrides.tiktok || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, tiktok: e.target.value }))} placeholder="Description (optional — uses global description)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1822,6 +2109,134 @@ export default function UploadsPage() {
                     <label className="block text-xs text-white/40 mb-1.5">First Comment</label>
                     <input type="text" value={igFirstComment} onChange={(e) => setIgFirstComment(e.target.value)} placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                   </div>
+
+                  {/* Per-platform caption override */}
+                  <div className="pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "instagram" ? null : "instagram")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                      <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "instagram" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      Customize caption for Instagram
+                    </button>
+                    {openCaptionOverride === "instagram" && (
+                      <div className="mt-3 space-y-2">
+                        <input type="text" value={platformTitleOverrides.instagram || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, instagram: e.target.value }))} placeholder="Title (optional — uses global title)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                        <textarea value={platformDescOverrides.instagram || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, instagram: e.target.value }))} placeholder="Description (optional — uses global description)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Facebook caption override */}
+            {selectedPlatforms.includes("facebook") && (
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-blue-500">{PLATFORMS.find(p => p.key === "facebook")?.icon}</div>
+                  <span className="font-medium">Facebook Settings</span>
+                  {platformAccounts.facebook?.profileName && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.facebook.avatarUrl && <img src={platformAccounts.facebook.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.facebook.profileName}</span></span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "facebook" ? null : "facebook")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                    <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "facebook" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    Customize caption for Facebook
+                  </button>
+                  {openCaptionOverride === "facebook" && (
+                    <div className="mt-3 space-y-2">
+                      <input type="text" value={platformTitleOverrides.facebook || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, facebook: e.target.value }))} placeholder="Title (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <textarea value={platformDescOverrides.facebook || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, facebook: e.target.value }))} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* LinkedIn caption override */}
+            {selectedPlatforms.includes("linkedin") && (
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-blue-400">{PLATFORMS.find(p => p.key === "linkedin")?.icon}</div>
+                  <span className="font-medium">LinkedIn Settings</span>
+                  {platformAccounts.linkedin?.profileName && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.linkedin.avatarUrl && <img src={platformAccounts.linkedin.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.linkedin.profileName}</span></span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "linkedin" ? null : "linkedin")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                    <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "linkedin" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    Customize caption for LinkedIn
+                  </button>
+                  {openCaptionOverride === "linkedin" && (
+                    <div className="mt-3 space-y-2">
+                      <input type="text" value={platformTitleOverrides.linkedin || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, linkedin: e.target.value }))} placeholder="Title (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <textarea value={platformDescOverrides.linkedin || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, linkedin: e.target.value }))} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Threads Settings */}
+            {selectedPlatforms.includes("threads") && (
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-white/80">{PLATFORMS.find(p => p.key === "threads")?.icon}</div>
+                  <span className="font-medium">Threads Settings</span>
+                  {platformAccounts.threads?.profileName && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.threads.avatarUrl && <img src={platformAccounts.threads.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.threads.profileName}</span></span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <p className="text-xs text-white/40 mb-3">Video will be posted as a Threads video post. Async publishing — takes 1–5 minutes.</p>
+                  <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "threads" ? null : "threads")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                    <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "threads" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    Customize caption for Threads
+                  </button>
+                  {openCaptionOverride === "threads" && (
+                    <div className="mt-3 space-y-2">
+                      <input type="text" value={platformTitleOverrides.threads || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, threads: e.target.value }))} placeholder="Title (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <textarea value={platformDescOverrides.threads || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, threads: e.target.value }))} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Bluesky Settings */}
+            {selectedPlatforms.includes("bluesky") && (
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-sky-400">{PLATFORMS.find(p => p.key === "bluesky")?.icon}</div>
+                  <span className="font-medium">Bluesky Settings</span>
+                  {platformAccounts.bluesky?.profileName && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.bluesky.avatarUrl && <img src={platformAccounts.bluesky.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.bluesky.profileName}</span></span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <p className="text-xs text-white/40 mb-3">Video will be posted as a Bluesky video post. Caption is limited to 300 characters.</p>
+                  <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "bluesky" ? null : "bluesky")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                    <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "bluesky" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    Customize caption for Bluesky
+                  </button>
+                  {openCaptionOverride === "bluesky" && (
+                    <div className="mt-3 space-y-2">
+                      <textarea value={platformDescOverrides.bluesky || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, bluesky: e.target.value }))} placeholder="Caption (optional, max 300 chars)" rows={3} maxLength={300} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <p className="text-xs text-white/30 text-right">{(platformDescOverrides.bluesky || "").length}/300</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

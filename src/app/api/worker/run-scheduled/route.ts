@@ -5,6 +5,8 @@ import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
+import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/threadsUpload";
+import { uploadToBluesky } from "@/lib/blueskyUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -117,35 +119,51 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
-  // ── Process ig_processing posts first ──────────────────────────────
+  // ── Process ig_processing posts first (Instagram + Threads) ─────────
   const igProcessingResults: any[] = [];
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
       .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at, instagram_settings, group_id, title")
       .eq("status", "ig_processing")
+      .in("provider", ["instagram", "threads"])
       .limit(5);
 
     if (!igErr && igPosts && igPosts.length > 0) {
       for (const igPost of igPosts) {
         try {
-          // Load platform account for access_token and ig_user_id
+          const isThreads = igPost.provider === "threads";
+
+          // Load platform account for this provider
           const { data: acct } = await supabaseAdmin
             .from("platform_accounts")
             .select("id, access_token, ig_user_id")
             .eq("team_id", igPost.team_id)
-            .eq("provider", "instagram")
+            .eq("provider", isThreads ? "threads" : "instagram")
             .maybeSingle();
 
           if (!acct?.access_token || !acct?.ig_user_id || !igPost.ig_container_id) {
-            throw new Error("Missing Instagram account or container ID");
+            throw new Error(`Missing ${isThreads ? "Threads" : "Instagram"} account or container ID`);
           }
 
-          const result = await checkAndPublishInstagramContainer({
-            containerId: igPost.ig_container_id,
-            igUserId: acct.ig_user_id,
-            accessToken: acct.access_token,
-          });
+          // Check + publish via provider-specific function
+          let result: { status: "processing" | "posted" | "error"; mediaId?: string; error?: string };
+
+          if (isThreads) {
+            const r = await checkAndPublishThreadsContainer({
+              containerId: igPost.ig_container_id,
+              threadsUserId: acct.ig_user_id,
+              accessToken: acct.access_token,
+            });
+            result = { status: r.status, mediaId: r.threadsMediaId, error: r.error };
+          } else {
+            const r = await checkAndPublishInstagramContainer({
+              containerId: igPost.ig_container_id,
+              igUserId: acct.ig_user_id,
+              accessToken: acct.access_token,
+            });
+            result = { status: r.status, mediaId: r.instagramMediaId || r.permalink, error: r.error };
+          }
 
           if (result.status === "posted") {
             await supabaseAdmin
@@ -153,12 +171,12 @@ async function runWorker(req: Request) {
               .update({
                 status: "posted",
                 posted_at: new Date().toISOString(),
-                platform_post_id: result.permalink || result.instagramMediaId,
-                platform_media_id: result.instagramMediaId,
+                platform_post_id: result.mediaId || null,
+                platform_media_id: result.mediaId || null,
                 last_error: null,
               })
               .eq("id", igPost.id);
-            igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: result.permalink || result.instagramMediaId });
+            igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: result.mediaId });
 
             // Notify
             if (igPost.group_id) {
@@ -166,7 +184,7 @@ async function runWorker(req: Request) {
             } else {
               const info = await getNotificationInfo(igPost.user_id);
               if (info?.notifySuccess) {
-                await sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", ["instagram"]);
+                await sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", [igPost.provider || "instagram"]);
               }
             }
           } else if (result.status === "error") {
@@ -182,7 +200,7 @@ async function runWorker(req: Request) {
             } else {
               const info = await getNotificationInfo(igPost.user_id);
               if (info?.notifyFailed) {
-                await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "instagram", result.error || "Unknown error");
+                await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", igPost.provider || "instagram", result.error || "Unknown error");
               }
             }
           } else {
@@ -190,11 +208,12 @@ async function runWorker(req: Request) {
             const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
             const tenMinAgo = Date.now() - 10 * 60 * 1000;
             if (createdAt < tenMinAgo) {
+              const timeoutMsg = `${igPost.provider === "threads" ? "Threads" : "Instagram"} processing timed out`;
               await supabaseAdmin
                 .from("scheduled_posts")
-                .update({ status: "failed", last_error: "Instagram processing timed out" })
+                .update({ status: "failed", last_error: timeoutMsg })
                 .eq("id", igPost.id);
-              igProcessingResults.push({ id: igPost.id, ok: false, error: "Instagram processing timed out" });
+              igProcessingResults.push({ id: igPost.id, ok: false, error: timeoutMsg });
 
               // Notify
               if (igPost.group_id) {
@@ -202,7 +221,7 @@ async function runWorker(req: Request) {
               } else {
                 const info = await getNotificationInfo(igPost.user_id);
                 if (info?.notifyFailed) {
-                  await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "instagram", "Instagram processing timed out");
+                  await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", igPost.provider || "instagram", timeoutMsg);
                 }
               }
             }
@@ -221,7 +240,7 @@ async function runWorker(req: Request) {
           } else {
             const info = await getNotificationInfo(igPost.user_id);
             if (info?.notifyFailed) {
-              await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "instagram", e?.message || "Unknown error");
+              await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", igPost.provider || "instagram", e?.message || "Unknown error");
             }
           }
         }
@@ -454,6 +473,46 @@ async function runWorker(req: Request) {
 
         results.push({ id: post.id, ok: true, igProcessing: true, containerId });
         continue; // Skip the "mark posted" step below
+      } else if (provider === "threads") {
+        if (!acct.access_token || !acct.ig_user_id) {
+          throw new Error("Threads account not configured. Please reconnect your Threads account.");
+        }
+
+        const { containerId } = await createThreadsContainer({
+          threadsUserId: acct.ig_user_id,
+          accessToken: acct.access_token,
+          bucket,
+          storagePath,
+          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+        });
+
+        await supabaseAdmin
+          .from("scheduled_posts")
+          .update({
+            status: "ig_processing",
+            ig_container_id: containerId,
+            ig_container_created_at: new Date().toISOString(),
+            last_error: null,
+          })
+          .eq("id", post.id);
+
+        results.push({ id: post.id, ok: true, igProcessing: true, containerId });
+        continue; // Skip mark-posted step
+      } else if (provider === "bluesky") {
+        if (!acct.access_token || !acct.platform_user_id) {
+          throw new Error("Bluesky account not configured. Please reconnect your Bluesky account.");
+        }
+
+        const bskyResult = await uploadToBluesky({
+          did: acct.platform_user_id,
+          handle: acct.platform_user_id,
+          accessJwt: acct.access_token,
+          refreshJwt: acct.refresh_token || acct.access_token,
+          bucket,
+          storagePath,
+          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+        });
+        platformPostId = bskyResult.uri;
       } else if (provider === "linkedin") {
         if (!acct.access_token || !acct.platform_user_id) {
           throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");

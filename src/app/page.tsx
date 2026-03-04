@@ -3,6 +3,81 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./login/supabaseClient";
 
+const FAQ_ITEMS = [
+  {
+    q: "Why switch from Buffer or Hootsuite?",
+    a: "Clip Dash is built specifically for video creators. It supports large video uploads, platform-specific settings (like TikTok privacy levels and Instagram Reels), and an AI hashtag engine — none of which Buffer or Hootsuite handle well for video content.",
+  },
+  {
+    q: "What platforms do you support?",
+    a: "YouTube, TikTok, Instagram, Facebook, and LinkedIn. Threads and Bluesky are coming soon.",
+  },
+  {
+    q: "How many social accounts can I connect?",
+    a: "You can connect one account per platform. The Creator plan covers a single workspace, and the Team plan adds up to 5 collaborators sharing the same connected accounts.",
+  },
+  {
+    q: "What types of content can I post?",
+    a: "Video content only — including YouTube videos and Shorts, TikTok clips, Instagram Reels and Stories, Facebook video posts, and LinkedIn video posts.",
+  },
+  {
+    q: "Will my posts get less reach using this app?",
+    a: "No. Clip Dash publishes through each platform's official API, which is the same method native apps and major scheduling tools use. There is no known reach penalty for API-published posts.",
+  },
+  {
+    q: "Do I need to share my social media passwords?",
+    a: "Never. All connections use OAuth, so you authenticate directly with each platform and we only receive a secure access token. Your passwords stay private.",
+  },
+  {
+    q: "How many posts can I schedule per month?",
+    a: "Unlimited on both plans. There are no posting caps.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. Cancel from Settings → Subscription at any time. You keep access until the end of your current billing period.",
+  },
+  {
+    q: "Can I get a refund?",
+    a: "We offer refunds within 7 days of your first charge if you haven't published any posts. Reach out to support and we'll sort it out.",
+  },
+  {
+    q: "I have another question",
+    a: "Email us at support@clipdash.org and we'll get back to you within one business day.",
+  },
+];
+
+function FaqAccordion() {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <section className="relative z-10 mx-auto max-w-3xl px-6 py-20">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Frequently asked questions</h2>
+        <p className="mt-4 text-white/40 text-lg">Everything you need to know before getting started.</p>
+      </div>
+      <div className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+        {FAQ_ITEMS.map((item, i) => (
+          <div key={i}>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-white/[0.03]"
+              onClick={() => setOpen(open === i ? null : i)}
+              aria-expanded={open === i}
+            >
+              <span className="text-base font-medium text-white/90">{item.q}</span>
+              <span className="shrink-0 text-lg text-white/40 leading-none">{open === i ? "−" : "+"}</span>
+            </button>
+            {open === i && (
+              <div className="px-6 pb-5 text-sm text-white/55 leading-relaxed border-t border-white/5">
+                <p className="pt-4">{item.a}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -301,6 +376,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <FaqAccordion />
+
       {/* Final CTA */}
       <section className="relative z-10 mx-auto max-w-4xl px-6 py-20 text-center">
         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -339,6 +417,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-6 text-sm text-white/40">
               <a href="/dashboard" className="hover:text-white/70 transition-colors">Dashboard</a>
+              <a href="/platforms" className="hover:text-white/70 transition-colors">Platforms</a>
               <a href="/terms" className="hover:text-white/70 transition-colors">Terms</a>
               <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy</a>
               <a href="#pricing" className="hover:text-white/70 transition-colors">Pricing</a>

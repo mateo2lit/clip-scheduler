@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
 const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
@@ -86,6 +86,28 @@ const PLATFORMS: PlatformConfig[] = [
       </svg>
     ),
   },
+  {
+    key: "threads" as ProviderKey,
+    name: "Threads",
+    description: "Post videos to your Threads account (Meta Graph API)",
+    available: true,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.05-4.073 1.364-7.298 3.905-9.58C7.628.302 10.594-.06 12.186 0c2.64.065 4.955.942 6.681 2.534.94.861 1.696 1.957 2.25 3.258l-2.145.9c-.427-1.012-1.03-1.881-1.793-2.582-1.33-1.218-3.15-1.872-5.053-1.915-1.275-.032-3.6.239-5.392 1.913C4.899 5.69 3.884 8.26 3.84 11.998c.038 3.733 1.053 6.3 3.014 7.847 1.782 1.374 4.107 1.662 5.367 1.682 1.254-.005 3.424-.237 5.25-1.624.926-.71 1.63-1.63 2.09-2.73-1.208-.226-2.457-.285-3.73-.147-2.02.217-3.717-.185-5.04-1.196-.959-.728-1.505-1.833-1.514-2.949-.013-1.208.496-2.372 1.389-3.191 1.083-.994 2.67-1.487 4.712-1.487a11.91 11.91 0 0 1 1.96.164c-.143-.49-.38-.882-.714-1.165-.522-.442-1.329-.667-2.396-.667l-.118.001c-.899.01-2.094.317-2.823 1.218l-1.617-1.38C9.5 7.067 11.083 6.5 12.72 6.5l.156-.001c1.597-.007 2.936.388 3.88 1.168.99.815 1.534 2.016 1.617 3.578.1 1.828-.265 3.382-1.086 4.624-.821 1.241-2.071 2.097-3.617 2.475a10.6 10.6 0 0 1-2.52.296c-2.01-.003-3.41-.55-4.165-1.636-.48-.687-.636-1.504-.49-2.413.215-1.326 1.1-2.477 2.482-3.235 1.028-.565 2.2-.808 3.468-.72.447.03.883.084 1.303.161-.12-.857-.477-1.423-.979-1.694-.545-.292-1.245-.355-1.78-.16-.617.224-1.126.747-1.516 1.555l-1.972-.906c.568-1.24 1.46-2.154 2.643-2.72 1.002-.476 2.123-.616 3.237-.405 1.4.267 2.483 1.038 3.13 2.233.551 1.014.787 2.285.696 3.78a11.72 11.72 0 0 1-.1.99c-.11.762-.286 1.46-.52 2.083 1.58.048 3.121.386 4.573.996-.015.14-.03.278-.046.414-.257 2.155-1.023 3.932-2.278 5.282C17.236 22.803 14.85 23.975 12.186 24z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "bluesky" as ProviderKey,
+    name: "Bluesky",
+    description: "Post videos to your Bluesky account (AT Protocol)",
+    available: true,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 600 530" fill="currentColor">
+        <path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.106 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/>
+      </svg>
+    ),
+  },
 ];
 
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; subtitle: string }> = [
@@ -128,6 +150,8 @@ export default function SettingsPage() {
     instagram: { connected: false },
     facebook: { connected: false },
     linkedin: { connected: false },
+    threads: { connected: false },
+    bluesky: { connected: false },
   });
 
   const query = useMemo(() => {
@@ -143,6 +167,7 @@ export default function SettingsPage() {
     if (conn === "facebook") return { kind: "success" as const, text: "Facebook connected successfully" };
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
+    if (conn === "threads") return { kind: "success" as const, text: "Threads connected successfully" };
     const checkout = query.get("checkout");
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
@@ -189,6 +214,8 @@ export default function SettingsPage() {
         instagram: { connected: false },
         facebook: { connected: false },
         linkedin: { connected: false },
+        threads: { connected: false },
+        bluesky: { connected: false },
       };
 
       for (const r of rows) {
@@ -647,6 +674,68 @@ export default function SettingsPage() {
     } catch (e) {
       console.error(e);
     }
+  }
+
+  async function connectThreads() {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) { alert("Please log in first."); return; }
+      const res = await fetch("/api/auth/threads/start", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const { json } = await safeReadJson(res);
+      if (!res.ok || !json?.ok || !json?.url) { alert("Failed to start Threads connection. Please try again."); return; }
+      window.location.href = json.url;
+    } catch (e: any) { alert(e?.message || "Connect failed"); }
+  }
+
+  async function disconnectThreads() {
+    if (!confirm("Disconnect Threads?")) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/platform-accounts?provider=threads", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const { json } = await safeReadJson(res);
+      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, threads: { connected: false } }));
+    } catch (e) { console.error(e); }
+  }
+
+  const [blueskyHandle, setBlueskyHandle] = useState("");
+  const [blueskyPassword, setBlueskyPassword] = useState("");
+  const [blueskyConnecting, setBlueskyConnecting] = useState(false);
+  const [blueskyError, setBlueskyError] = useState<string | null>(null);
+
+  async function connectBluesky() {
+    if (!blueskyHandle.trim() || !blueskyPassword.trim()) { setBlueskyError("Handle and app password are required."); return; }
+    setBlueskyConnecting(true);
+    setBlueskyError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) { setBlueskyError("Not logged in."); return; }
+      const res = await fetch("/api/auth/bluesky/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ handle: blueskyHandle.trim(), appPassword: blueskyPassword.trim() }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) { setBlueskyError(json?.error || "Connection failed"); return; }
+      setBlueskyHandle(""); setBlueskyPassword("");
+      loadConnectedAccounts();
+    } catch (e: any) { setBlueskyError(e?.message || "Connection failed"); }
+    finally { setBlueskyConnecting(false); }
+  }
+
+  async function disconnectBluesky() {
+    if (!confirm("Disconnect Bluesky?")) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/platform-accounts?provider=bluesky", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const { json } = await safeReadJson(res);
+      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, bluesky: { connected: false } }));
+    } catch (e) { console.error(e); }
   }
 
   // Notification preferences
@@ -1202,6 +1291,22 @@ export default function SettingsPage() {
                               Disconnect
                             </button>
                           )}
+                          {platform.key === "threads" && acct.connected && (
+                            <button
+                              onClick={disconnectThreads}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
+                          {platform.key === "bluesky" && acct.connected && (
+                            <button
+                              onClick={disconnectBluesky}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
                           {platform.key === "youtube" ? (
                             <button
                               onClick={connectYouTube}
@@ -1237,6 +1342,15 @@ export default function SettingsPage() {
                             >
                               {acct.connected ? "Reconnect" : "Connect"}
                             </button>
+                          ) : platform.key === "threads" ? (
+                            <button
+                              onClick={connectThreads}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            >
+                              {acct.connected ? "Reconnect" : "Connect"}
+                            </button>
+                          ) : platform.key === "bluesky" && !acct.connected ? (
+                            null
                           ) : (
                             <button
                               disabled
@@ -1252,6 +1366,40 @@ export default function SettingsPage() {
                       )}
                     </div>
                   </div>
+                  {platform.key === "bluesky" && !acct.connected && (teamRole === "owner" || teamRole === "admin") && (
+                    <div className="mt-4 space-y-3 pt-4 border-t border-white/5">
+                      <p className="text-xs text-white/40">
+                        Create an app password at{" "}
+                        <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" className="text-white/60 underline">
+                          bsky.app → Settings → App Passwords
+                        </a>
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          placeholder="@you.bsky.social"
+                          value={blueskyHandle}
+                          onChange={(e) => setBlueskyHandle(e.target.value)}
+                          className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                        />
+                        <input
+                          type="password"
+                          placeholder="xxxx-xxxx-xxxx-xxxx"
+                          value={blueskyPassword}
+                          onChange={(e) => setBlueskyPassword(e.target.value)}
+                          className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                        />
+                        <button
+                          onClick={connectBluesky}
+                          disabled={blueskyConnecting}
+                          className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {blueskyConnecting ? "Connecting…" : "Connect Bluesky"}
+                        </button>
+                      </div>
+                      {blueskyError && <p className="text-xs text-red-400">{blueskyError}</p>}
+                    </div>
+                  )}
                 </div>
               );
             })}

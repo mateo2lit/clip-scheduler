@@ -75,6 +75,8 @@ function providerLabel(provider: string | null) {
     x: "X",
     facebook: "Facebook",
     linkedin: "LinkedIn",
+    threads: "Threads",
+    bluesky: "Bluesky",
   };
   return labels[provider.toLowerCase()] || provider;
 }
@@ -95,6 +97,12 @@ function ProviderIcon({ provider, className = "w-5 h-5" }: { provider: string | 
   }
   if (p === "linkedin") {
     return <svg className={`${className} text-blue-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z" /></svg>;
+  }
+  if (p === "threads") {
+    return <svg className={`${className} text-white/70`} viewBox="0 0 192 192" fill="currentColor"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.738-8.699 14.753-10.548 21.347-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 6.997 4.67 16.01 6.96 25.379 6.455 12.369-.675 22.047-5.399 28.763-14.041 5.138-6.659 8.373-15.274 9.792-26.074 5.87 3.545 10.216 8.219 12.605 13.982 4.125 9.913 4.357 26.185-8.501 39.063-11.26 11.275-24.817 16.16-45.286 16.307-22.71-.164-39.904-7.489-51.106-21.779C35.928 138.529 30.2 120.9 29.95 98.5c.25-22.401 5.978-40.03 17.02-54.373C58.172 29.836 75.368 22.511 98.076 22.348c22.906.165 40.413 7.531 52.056 21.894 5.668 6.975 9.921 15.717 12.579 25.848l16.152-4.528c-3.29-12.703-8.806-23.758-16.43-32.811C147.386 14.963 125.72 5.18 98.163 5h-.383C70.56 5.18 49.137 14.99 34.393 29.979 20.97 44.12 14.036 64.1 13.786 98.5c.25 34.4 7.184 54.381 20.607 68.521C49.137 182.01 70.56 191.82 97.78 192h.383c24.761-.17 42.251-6.653 56.653-21.079 18.763-18.79 18.168-42.29 12.003-56.723-4.387-10.541-12.904-19.236-25.282-24.21zm-46.941 49.658c-10.426.583-21.24-4.098-21.783-14.082-.407-7.647 5.44-16.17 23.029-17.16 2.016-.115 3.995-.172 5.942-.172 6.377 0 12.358.616 17.771 1.8-2.02 25.214-14.959 28.946-24.959 29.614z"/></svg>;
+  }
+  if (p === "bluesky") {
+    return <svg className={`${className} text-sky-400`} viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg>;
   }
   return <span className="text-xs text-white/40">{providerLabel(provider)}</span>;
 }
@@ -161,6 +169,9 @@ export default function ScheduledPage() {
   const [retrying, setRetrying] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editFields, setEditFields] = useState({ title: "", description: "", scheduledFor: "" });
+  const [editSaving, setEditSaving] = useState(false);
 
   const teamIdRef = useRef<string | null>(null);
   // Maps post id → status so we can detect both completions and new failures
@@ -310,6 +321,50 @@ export default function ScheduledPage() {
     }
   }
 
+  function handleStartEdit(group: PostGroup) {
+    const d = new Date(group.scheduled_for);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setEditFields({ title: group.title || "", description: group.description || "", scheduledFor: local });
+    setEditingGroupId(group.groupId);
+  }
+
+  async function handleSaveEdit(group: PostGroup) {
+    setEditSaving(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Not logged in");
+
+      const scheduledForIso = editFields.scheduledFor ? new Date(editFields.scheduledFor).toISOString() : undefined;
+
+      for (const post of group.posts) {
+        if (post.status !== "scheduled") continue;
+        const res = await fetch(`/api/scheduled-posts/${post.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            title: editFields.title || null,
+            description: editFields.description || null,
+            scheduled_for: scheduledForIso,
+          }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => null);
+          throw new Error(j?.error || "Failed to update");
+        }
+      }
+
+      await fetchPosts();
+      setEditingGroupId(null);
+      showToast("Post updated", "success");
+    } catch (e: any) {
+      showToast(e?.message || "Update failed", "error");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   const failedGroups = groups.filter((g) => g.groupStatus === "failed" || g.groupStatus === "partial_failure").length;
   const platformCount = new Set(groups.flatMap((g) => g.posts.map((p) => p.provider || "unknown"))).size;
 
@@ -421,8 +476,59 @@ export default function ScheduledPage() {
                   const failedPostIds = group.posts.filter((p) => p.status === "failed").map((p) => p.id);
                   const hasFailed = failedPostIds.length > 0;
 
+                  const isEditing = editingGroupId === group.groupId;
+
                   return (
                     <div key={group.groupId} className="px-5 py-4 transition-colors hover:bg-white/[0.04]">
+                      {isEditing && (
+                        <div className="mb-4 rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 space-y-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-blue-300/70">Edit Post</p>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Title</label>
+                            <input
+                              type="text"
+                              value={editFields.title}
+                              onChange={(e) => setEditFields((f) => ({ ...f, title: e.target.value }))}
+                              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-500/40 focus:outline-none"
+                              placeholder="Post title"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Description</label>
+                            <textarea
+                              value={editFields.description}
+                              onChange={(e) => setEditFields((f) => ({ ...f, description: e.target.value }))}
+                              rows={3}
+                              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-500/40 focus:outline-none resize-none"
+                              placeholder="Post description"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Schedule Time</label>
+                            <input
+                              type="datetime-local"
+                              value={editFields.scheduledFor}
+                              onChange={(e) => setEditFields((f) => ({ ...f, scheduledFor: e.target.value }))}
+                              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white focus:border-blue-500/40 focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => handleSaveEdit(group)}
+                              disabled={editSaving}
+                              className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-white/90 disabled:opacity-50 transition-colors"
+                            >
+                              {editSaving ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              onClick={() => setEditingGroupId(null)}
+                              className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid items-center gap-3 md:grid-cols-12">
                         <div className="min-w-0 md:col-span-5">
                           <div className="flex items-center gap-3 min-w-0">
@@ -470,6 +576,17 @@ export default function ScheduledPage() {
                         </div>
 
                         <div className="flex items-center justify-start gap-2 md:col-span-1 md:justify-end">
+                          {group.groupStatus === "scheduled" && !isEditing && (
+                            <button
+                              onClick={() => handleStartEdit(group)}
+                              title="Edit post"
+                              className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          )}
                           <button
                             onClick={() => handleCancel(group.groupId, allPostIds)}
                             disabled={canceling === group.groupId}
