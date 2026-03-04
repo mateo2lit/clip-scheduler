@@ -32,9 +32,9 @@ The site is live at clipdash.org.
 - **Supabase** — Auth (email login), Storage (video files), Postgres database
 - **Neon Postgres** — additional serverless Postgres connection (`@neondatabase/serverless`, `pg`)
 - **Next.js API Routes** — all backend logic in `src/app/api/`
-
+ - GITRHUB ACTIONS FOR CRON JOB WORKER
 ### Deployment
-- **Vercel** — hosting (Hobby plan)
+- **Vercel** — hosting (Hobby plan) + **DNS** (clipdash.org nameservers point to Vercel, DNS records managed in Vercel Dashboard → Domains → clipdash.org)
 - **GitHub Actions** — cron worker (runs every minute) and token refresh
 
 ### Design
@@ -407,15 +407,23 @@ VERCEL_OIDC_TOKEN
 - AI-powered hashtag suggestions (Claude Haiku) with context prompt and selectable tags
 - X (Twitter) removed from all pages (API too expensive for video)
 - TikTok UX compliance for Direct Post API (creator info, dynamic privacy, commercial disclosure, compliance text)
+- TikTok overcompliance overhaul (AIGC toggle, dual consent checkboxes, exact Music Usage Confirmation wording, post labels on commercial options, no defaults)
+- Platform preview panel (Buffer-style) — live TikTok/YouTube/Instagram/Facebook/LinkedIn previews on uploads page
+- Scheduled page auto-refresh with toast notifications (5s polling, detects published + failed)
+- Avatar images fixed across all pages (referrerPolicy="no-referrer" for CDN hotlink protection)
+- Team invite emails via Resend (sendTeamInviteEmail + sendTeamJoinedEmail)
+- Resend domain verified — clipdash.org DNS records added in Vercel, emails now live
 
-### Future (Post-Launch)
-1. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
-2. Analytics dashboard (Instagram webhook endpoint already deployed)
-3. Email notifications
-4. AI caption/description generator (expand beyond hashtags)
-5. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
-6. **Scheduled post editing** — Allow editing title/description/time before posting
-7. **Multi-team support** — Scrapped for initial launch (keep product simple). May revisit later for editor workflows.
+### Future (Post-Launch) — Priority Order
+1. **Per-platform caption customization** — Biggest feature gap vs competitors. Let users write different title/description/hashtags per platform on the same upload (e.g. different tone for TikTok vs LinkedIn). Requires: per-platform overrides stored in `scheduled_posts` or a new `post_platform_overrides` table, UI in uploads page details step with platform-specific caption fields.
+2. **Inline scheduled post editing** — Edit title/description/scheduled time of a post after scheduling without cancelling and re-uploading. UI: edit button on scheduled page opens inline form or modal. Requires: PATCH endpoint for `scheduled_posts`, update title/description/scheduled_for, only allowed while status=scheduled.
+3. **Threads integration** — Already Meta-approved, free API, low effort. Growing platform, good marketing angle.
+4. **Bluesky integration** — Free API, developer/creator community migrating from X, strong signal to market.
+5. **Multi-account YouTube support** — Let users link multiple YouTube channels and pick which one to post to when scheduling. Requires: relax `(team_id, provider)` unique constraint on `platform_accounts`, add `platform_account_id` column to `scheduled_posts`, account picker UI on upload page, update worker to load credentials by `platform_account_id` instead of `team_id + provider`
+6. Analytics dashboard (Instagram webhook endpoint already deployed)
+7. AI caption/description generator (expand beyond hashtags)
+8. **Multi-page Facebook support** — Let users pick which Page to post to if they manage multiple
+9. **Multi-team support** — Scrapped for initial launch (keep product simple). May revisit later for editor workflows.
 
 ---
 
@@ -432,7 +440,7 @@ These are small tasks that can be knocked out quickly to improve the product:
 - [ ] **Improve worker error logging** — Add structured logging or Sentry integration for failed uploads to diagnose issues faster
 - [x] **Add a data deletion endpoint** — Built at `/api/account/delete` (DELETE for users, POST for Meta callback)
 - [ ] **Multi-page Facebook support** — Currently auto-selects first Page. Add UI to let users pick which Page to post to if they manage multiple
-- [ ] **Scheduled post editing** — Allow editing title/description/time of scheduled posts before they're posted
+- [ ] **Scheduled post editing** — Allow editing title/description/time of scheduled posts before they're posted (PATCH /api/scheduled-posts/:id, inline form on scheduled page, status=scheduled only)
 - [x] **LinkedIn settings UI** — Connect/disconnect button in settings page
 - [x] **LinkedIn platform option in uploads** — LinkedIn added to platform picker
 - [x] **YouTube thumbnail frontend** — Thumbnail picker uploads to storage, passes `thumbnail_path` when scheduling
@@ -700,6 +708,118 @@ Priority order:
 8. Enable Delete Account button (15 min)
 9. Verify GitHub Actions crons are running (manual check)
 10. Test full end-to-end flow: signup → subscribe → upload → schedule → auto-post
+
+---
+
+### Session 7 (2026-02-27 to 2026-03-04) — TikTok Overcompliance + Preview Panel + Bug Fixes
+
+#### TikTok Overcompliance (second resubmission)
+TikTok rejected app review again (ref: 20260224032952) citing Content Sharing Developer Guidelines. Full overcompliance overhaul:
+
+**`src/app/uploads/page.tsx`:**
+- Added `ttAigcDisclosure` state — "This video contains AI-generated content" toggle
+- Added `ttContentRightsChecked` state — second required consent checkbox
+- Both `ttConsentChecked` AND `ttContentRightsChecked` must be checked to enable scheduling
+- Validation messages: "Agree to TikTok's Music Usage Confirmation to continue" / "Confirm your content rights to continue"
+- Commercial content sub-options now show post labels: "Your post will be labeled 'Promotional content'" / "Your post will be labeled 'Paid partnership'"
+- Privacy has no default — user must pick on every upload (removed from platform defaults loading)
+- All TikTok state (privacy, consent, AIGC, commercial, interaction toggles) fully reset in `resetUpload()`
+- `tiktok_settings` payload includes `aigc_disclosure: ttAigcDisclosure`
+- Music Usage Confirmation uses TikTok's exact required wording with link; conditionally adds Branded Content Policy link when branded content selected
+- Details step layout changed to two-column grid: `xl:grid-cols-[1fr_400px]` — left=settings, right=preview panel
+
+**`src/lib/tiktokUpload.ts`:**
+- `aigcDisclosure` field added to args (stored in DB only, not sent to API until TikTok documents exact field name)
+
+**`src/app/settings/page.tsx`:**
+- TikTok defaults section: removed privacy dropdown, comments/duet/stitch toggles
+- Replaced with info message explaining TikTok requires manual selection per upload per platform policy
+
+#### Platform Preview Panel (Buffer-style)
+**New file: `src/app/uploads/PostPreviewPanel.tsx`**
+- Shows live preview of how post will look on each selected platform
+- Platform tab bar at top switches between active preview
+- "LIVE" pulsing badge in header when title/description changes
+- Sub-previews: TikTokPreview (9:16 FYP-style, actual `<video>` playback), YouTubePreview (16:9 card), InstagramPreview (9:16 Reels-style), FacebookPreview (post card), LinkedInPreview (post card)
+- Avatar component with gradient fallback when no avatar URL
+- `videoPreviewUrl` created via `URL.createObjectURL(file)` in uploads page, revoked on cleanup
+- Hidden below `xl` breakpoint, sticky on large screens
+
+#### Scheduled Page Auto-Refresh
+**`src/app/scheduled/page.tsx`:**
+- 5-second polling interval (skips when tab not visible)
+- `knownStatusRef` (Map<id,status>) detects: posts leaving list (published → green toast) and status changes to "failed" (red toast)
+- `handleCancel` syncs `knownStatusRef` to prevent false published toasts
+- Added `"posting"` to query filter
+- Toast UI: fixed bottom-right, 5s auto-dismiss
+- Fixed missing `useRef` import (caused Vercel build failure — commit 4bbff7e)
+
+#### Avatar Images Fix
+All platform avatar `<img>` tags across the app now have `referrerPolicy="no-referrer"` to prevent CDN hotlink protection from blocking TikTok/Instagram/Facebook avatar URLs.
+- `src/app/settings/page.tsx` — connected accounts badge
+- `src/app/uploads/PostPreviewPanel.tsx` — Avatar component
+- `src/app/uploads/page.tsx` — platform chip, YouTube/TikTok/Instagram account headers
+
+#### Team Invite Emails
+**`src/lib/email.ts`:**
+- Added `sendTeamInviteEmail()` — sends signup invite with accept link to users who don't have an account yet
+- Added `sendTeamJoinedEmail()` — sends "you've been added" notification to existing users added directly
+
+**`src/app/api/team/invite/route.ts`:**
+- Now fetches team name and inviter email
+- Calls `sendTeamInviteEmail` for new users (pending invite path)
+- Calls `sendTeamJoinedEmail` for existing users (direct add path)
+
+#### Resend / Email DNS Fix
+- `clipdash.org` domain DNS is managed in **Vercel Dashboard** (not Namecheap — domain uses Vercel nameservers)
+- Added 3 Resend DNS records in Vercel → Domains → clipdash.org:
+  - TXT `resend._domainkey` — DKIM verification
+  - MX `send` → amazonses.com — SPF sending
+  - TXT `send` — SPF record
+- All 3 records now verified in Resend — emails are live and sending
+- TTL: 60 seconds (Vercel default)
+- `FROM_EMAIL`: `notifications@clipdash.org`
+- `RESEND_API_KEY` must be set in Vercel env vars
+
+#### TikTok Resubmission
+- Submitted second resubmission with demo video covering: OAuth flow, upload page TikTok settings, privacy/interaction defaults, commercial labels, AIGC toggle, dual consent checkboxes, schedule blocked without consent
+- Answered application questions: org description, daily user estimate (<100), API data fields stored
+
+---
+
+## Competitor Analysis — Post Bridge (post-bridge.com)
+
+Analyzed March 2026. Bootstrapped to $11K MRR by early 2025. Direct competitor in the cross-platform video scheduling space.
+
+### Their pricing
+- Starter: $7.50/mo (5 accounts) — undercuts Clip Dash entry price
+- Creator: $15/mo (15 accounts)
+- Pro: $22.50/mo (unlimited accounts)
+- All plans: unlimited posts, no artificial throttling
+
+### Features they have that Clip Dash does not
+- **Per-platform caption customization** — different copy/hashtags per platform per post (biggest gap)
+- **Viral video templates** — pre-built templates with engagement guidance
+- **Carousel post support** — multi-image posts
+- **Trending audio auto-add for TikTok carousels**
+- **9 platforms** — also supports Bluesky, Threads, Pinterest
+- **Inline scheduled post editing** — edit before it goes live
+
+### Where Clip Dash is stronger
+- Per-video analytics with platform filtering (Post Bridge analytics are surface-level)
+- Proper team model with roles (owner/admin/member), invites, billing — Post Bridge team collab is basic
+- Cron worker with retry logic, status tracking, failure emails — Post Bridge reliability unknown
+- Post success/failure email notifications — Post Bridge has none
+- TikTok platform-specific compliance (privacy, commercial disclosure, AIGC, Music Usage Confirmation)
+
+### Platform notes
+- X (Twitter) API now $200/mo for Basic tier — removed from Clip Dash, correct decision
+- Twitch/Kick APIs only clip FROM streams, cannot upload external video — not relevant for Clip Dash
+- Twitch Stories has no public API, Partners/Affiliates only via mobile app
+- Threads: free API, already Meta-approved, easy addition
+- Bluesky: free API, growing creator migration from X
+
+---
 
 ### Key Decisions Made
 - NOT upgrading Vercel to Pro ($20/mo) — splitting the worker instead to stay on Hobby plan
