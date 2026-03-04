@@ -1876,16 +1876,27 @@ export default function UploadsPage() {
                     >
                       <option value="" className="bg-neutral-900">Select privacy level...</option>
                       {ttCreatorInfo ? (
-                        ttCreatorInfo.privacy_level_options
-                          .filter((opt) => !(ttBrandContent && opt === "SELF_ONLY"))
-                          .map((opt) => (
-                            <option key={opt} value={opt} className="bg-neutral-900">
-                              {opt === "SELF_ONLY" ? "Private (Self Only)" : opt === "MUTUAL_FOLLOW_FRIENDS" ? "Friends" : opt === "FOLLOWER_OF_CREATOR" ? "Followers" : opt === "PUBLIC_TO_EVERYONE" ? "Public" : opt}
-                            </option>
-                          ))
+                        ttCreatorInfo.privacy_level_options.map((opt) => (
+                          <option
+                            key={opt}
+                            value={opt}
+                            disabled={ttBrandContent && opt === "SELF_ONLY"}
+                            title={ttBrandContent && opt === "SELF_ONLY" ? "Branded content visibility cannot be set to private" : undefined}
+                            className="bg-neutral-900 disabled:text-white/30"
+                          >
+                            {opt === "SELF_ONLY"
+                              ? `Private (Self Only)${ttBrandContent ? " — unavailable for branded content" : ""}`
+                              : opt === "MUTUAL_FOLLOW_FRIENDS" ? "Friends"
+                              : opt === "FOLLOWER_OF_CREATOR" ? "Followers"
+                              : opt === "PUBLIC_TO_EVERYONE" ? "Public"
+                              : opt}
+                          </option>
+                        ))
                       ) : (
                         <>
-                          <option value="SELF_ONLY" className="bg-neutral-900">Private (Self Only)</option>
+                          <option value="SELF_ONLY" disabled={ttBrandContent} className="bg-neutral-900">
+                            {`Private (Self Only)${ttBrandContent ? " — unavailable for branded content" : ""}`}
+                          </option>
                           <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
                           <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
                           <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
@@ -1893,6 +1904,7 @@ export default function UploadsPage() {
                       )}
                     </select>
                     {!ttPrivacyLevel && <p className="text-xs text-amber-400/70 mt-1">Required: select a privacy level</p>}
+                    {ttBrandContent && <p className="text-xs text-amber-400/70 mt-1">Branded content cannot be set to &quot;Private (Self Only)&quot;</p>}
                   </div>
 
                   {/* Interaction toggles */}
