@@ -905,7 +905,7 @@ export default function SettingsPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
+          <Link href="/" className="text-lg font-semibold tracking-tight hover:text-white/80 transition-colors">Clip Dash</Link>
           <div className="flex items-center gap-3">
             <span className="text-sm text-white/40">Settings</span>
             <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[11px] font-semibold">

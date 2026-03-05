@@ -128,7 +128,7 @@ export default function AnalyticsPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="text-lg font-semibold tracking-tight">Clip Dash</Link>
+          <Link href="/" className="text-lg font-semibold tracking-tight">Clip Dash</Link>
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">
               Settings
