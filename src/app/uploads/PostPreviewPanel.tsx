@@ -19,6 +19,8 @@ const PLATFORM_LABELS: Record<string, string> = {
   instagram: "Instagram",
   facebook: "Facebook",
   linkedin: "LinkedIn",
+  threads: "Threads",
+  bluesky: "Bluesky",
 };
 
 function PlatformIcon({ platform, className = "w-4 h-4" }: { platform: string; className?: string }) {
@@ -32,6 +34,10 @@ function PlatformIcon({ platform, className = "w-4 h-4" }: { platform: string; c
     return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>;
   if (platform === "linkedin")
     return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>;
+  if (platform === "threads")
+    return <svg className={className} viewBox="0 0 192 192" fill="currentColor"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.738-8.699 14.753-10.548 21.347-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 6.997 4.67 16.01 6.96 25.379 6.455 12.369-.675 22.047-5.399 28.763-14.041 5.138-6.659 8.373-15.274 9.792-26.074 5.87 3.545 10.216 8.219 12.605 13.982 4.125 9.913 4.357 26.185-8.501 39.063-11.26 11.275-24.817 16.16-45.286 16.307-22.71-.164-39.904-7.489-51.106-21.779C35.928 138.529 30.2 120.9 29.95 98.5c.25-22.401 5.978-40.03 17.02-54.373C58.172 29.836 75.368 22.511 98.076 22.348c22.906.165 40.413 7.531 52.056 21.894 5.668 6.975 9.921 15.717 12.579 25.848l16.152-4.528c-3.29-12.703-8.806-23.758-16.43-32.811C147.386 14.963 125.72 5.18 98.163 5h-.383C70.56 5.18 49.137 14.99 34.393 29.979 20.97 44.12 14.036 64.1 13.786 98.5c.25 34.4 7.184 54.381 20.607 68.521C49.137 182.01 70.56 191.82 97.78 192h.383c24.761-.17 42.251-6.653 56.653-21.079 18.763-18.79 18.168-42.29 12.003-56.723-4.387-10.541-12.904-19.236-25.282-24.21zm-46.941 49.658c-10.426.583-21.24-4.098-21.783-14.082-.407-7.647 5.44-16.17 23.029-17.16 2.016-.115 3.995-.172 5.942-.172 6.377 0 12.358.616 17.771 1.8-2.02 25.214-14.959 28.946-24.959 29.614z" /></svg>;
+  if (platform === "bluesky")
+    return <svg className={className} viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z" /></svg>;
   return null;
 }
 
@@ -353,6 +359,146 @@ function LinkedInPreview({ title, description, thumbnailPreview, videoPreviewUrl
   );
 }
 
+// ── Threads Post Preview ──────────────────────────────────────────────────────
+function ThreadsPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl }: {
+  title: string; description: string; hashtags: string[];
+  videoPreviewUrl: string | null; thumbnailPreview: string | null;
+  profileName: string | null; avatarUrl: string | null;
+}) {
+  const handle = profileName ? `@${profileName.replace(/^@/, "")}` : "@yourhandle";
+  const caption = (description || title || "Your caption will appear here…").slice(0, 120);
+  const tags = hashtags.slice(0, 3).map((t) => `#${t}`).join(" ");
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#101010]">
+      <div className="flex items-start gap-2.5 p-3 pb-2">
+        <div className="flex flex-col items-center gap-1">
+          <Avatar name={profileName} avatarUrl={avatarUrl} size="md" />
+          <div className="w-px flex-1 bg-white/10" style={{ minHeight: 24 }} />
+        </div>
+        <div className="flex-1 min-w-0 pb-1">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-white">{handle}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/35">now</span>
+              <svg className="h-4 w-4 text-white/30" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+              </svg>
+            </div>
+          </div>
+          {caption && <p className="mt-1 text-sm text-white/80 line-clamp-3 leading-snug">{caption}</p>}
+          {tags && <p className="mt-0.5 text-xs text-blue-400/80">{tags}</p>}
+          {(videoPreviewUrl || thumbnailPreview) && (
+            <div className="relative mt-2 overflow-hidden rounded-xl bg-black" style={{ aspectRatio: "16/9" }}>
+              {videoPreviewUrl ? (
+                <video src={videoPreviewUrl} className="h-full w-full object-cover" muted />
+              ) : (
+                <img src={thumbnailPreview!} alt="" className="h-full w-full object-cover" />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+                  <svg className="ml-0.5 h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                </div>
+              </div>
+            </div>
+          )}
+          {!videoPreviewUrl && !thumbnailPreview && (
+            <div className="mt-2 flex h-24 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03]">
+              <svg className="h-8 w-8 text-white/15" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-4">
+            {[
+              { d: "M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 9 11.25 9 11.25s9-6.375 9-11.25z" },
+              { d: "M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" },
+              { d: "M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" },
+              { d: "M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" },
+            ].map(({ d }, i) => (
+              <svg key={i} className="h-5 w-5 text-white/35" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+              </svg>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="px-3 pb-2.5">
+        <span className="text-xs text-white/25">0 likes</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Bluesky Post Preview ──────────────────────────────────────────────────────
+function BlueskyPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl }: {
+  title: string; description: string; hashtags: string[];
+  videoPreviewUrl: string | null; thumbnailPreview: string | null;
+  profileName: string | null; avatarUrl: string | null;
+}) {
+  const displayName = profileName ? profileName.replace(/^@/, "").split(".")[0] : "yourhandle";
+  const handle = profileName ? `@${profileName.replace(/^@/, "")}` : "@yourhandle.bsky.social";
+  const caption = (description || title || "Your caption will appear here…").slice(0, 300);
+  const tags = hashtags.slice(0, 3).map((t) => `#${t}`).join(" ");
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0d1117]">
+      <div className="flex gap-2.5 p-3 pb-2">
+        <Avatar name={profileName} avatarUrl={avatarUrl} size="md" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-bold text-white leading-tight">{displayName}</span>
+            <span className="text-xs text-white/40">{handle}</span>
+            <span className="text-xs text-white/25">· now</span>
+          </div>
+          {caption && <p className="mt-1 text-sm text-white/80 line-clamp-4 leading-snug">{caption}</p>}
+          {tags && <p className="mt-0.5 text-xs text-[#0085ff]">{tags}</p>}
+          {(videoPreviewUrl || thumbnailPreview) && (
+            <div className="relative mt-2 overflow-hidden rounded-xl border border-white/8 bg-black" style={{ aspectRatio: "16/9" }}>
+              {videoPreviewUrl ? (
+                <video src={videoPreviewUrl} className="h-full w-full object-cover" muted />
+              ) : (
+                <img src={thumbnailPreview!} alt="" className="h-full w-full object-cover" />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+                  <svg className="ml-0.5 h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                </div>
+              </div>
+            </div>
+          )}
+          {!videoPreviewUrl && !thumbnailPreview && (
+            <div className="mt-2 flex h-24 items-center justify-center rounded-xl border border-white/8 bg-white/[0.02]">
+              <svg className="h-8 w-8 text-white/15" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            </div>
+          )}
+          <div className="mt-2.5 flex items-center gap-5">
+            <div className="flex items-center gap-1.5 text-white/35">
+              <svg className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+              </svg>
+              <span className="text-xs">0</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-white/35">
+              <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
+              </svg>
+              <span className="text-xs">0</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-white/35">
+              <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 9 11.25 9 11.25s9-6.375 9-11.25z" />
+              </svg>
+              <span className="text-xs">0</span>
+            </div>
+            <svg className="ml-auto text-white/25" style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Panel ────────────────────────────────────────────────────────────────
 export default function PostPreviewPanel({
   selectedPlatforms,
@@ -460,6 +606,22 @@ export default function PostPreviewPanel({
                 thumbnailPreview={thumbnailPreview} videoPreviewUrl={videoPreviewUrl}
                 profileName={accts.linkedin?.profileName || null}
                 avatarUrl={accts.linkedin?.avatarUrl || null}
+              />
+            )}
+            {activePlatform === "threads" && (
+              <ThreadsPreview
+                title={title} description={description} hashtags={hashtags}
+                videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
+                profileName={accts.threads?.profileName || null}
+                avatarUrl={accts.threads?.avatarUrl || null}
+              />
+            )}
+            {activePlatform === "bluesky" && (
+              <BlueskyPreview
+                title={title} description={description} hashtags={hashtags}
+                videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
+                profileName={accts.bluesky?.profileName || null}
+                avatarUrl={accts.bluesky?.avatarUrl || null}
               />
             )}
           </div>

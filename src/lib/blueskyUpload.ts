@@ -14,6 +14,7 @@ const BSKY_SERVICE = "https://bsky.social";
 
 async function getSession(handle: string, appPassword: string): Promise<{
   did: string;
+  handle: string;
   accessJwt: string;
   refreshJwt: string;
 }> {
@@ -31,7 +32,7 @@ async function getSession(handle: string, appPassword: string): Promise<{
   const data = await res.json();
   if (data.error) throw new Error(`Bluesky login error: ${data.message || data.error}`);
 
-  return { did: data.did, accessJwt: data.accessJwt, refreshJwt: data.refreshJwt };
+  return { did: data.did, handle: data.handle, accessJwt: data.accessJwt, refreshJwt: data.refreshJwt };
 }
 
 export { getSession as blueskyLogin };

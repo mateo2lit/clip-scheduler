@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         access_token: session.accessJwt,
         refresh_token: session.refreshJwt,
         platform_user_id: session.did,
-        profile_name: handle.replace(/^@/, ""),
+        profile_name: session.handle || handle.replace(/^@/, ""),
         avatar_url: null,
         updated_at: new Date().toISOString(),
       },
