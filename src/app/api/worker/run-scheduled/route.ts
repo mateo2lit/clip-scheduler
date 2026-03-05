@@ -512,6 +512,21 @@ async function runWorker(req: Request) {
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
         });
+
+        if (
+          bskyResult.accessJwt !== acct.access_token ||
+          bskyResult.refreshJwt !== (acct.refresh_token || acct.access_token)
+        ) {
+          await supabaseAdmin
+            .from("platform_accounts")
+            .update({
+              access_token: bskyResult.accessJwt,
+              refresh_token: bskyResult.refreshJwt,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", acct.id);
+        }
+
         platformPostId = bskyResult.uri;
       } else if (provider === "linkedin") {
         if (!acct.access_token || !acct.platform_user_id) {
