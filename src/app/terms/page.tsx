@@ -44,7 +44,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-base font-medium text-white mb-3">2. Description of Service</h2>
               <p>
-                Clip Dash is a video scheduling and publishing platform that allows content creators and teams to upload video content and schedule it for automatic publication across connected social media platforms, including YouTube, TikTok, Instagram (Business/Creator accounts only), Facebook, LinkedIn, Threads, and Bluesky. The Service acts as an authorized intermediary, publishing content on your behalf using the access credentials you explicitly grant.
+                Clip Dash is a video scheduling and publishing platform that allows content creators and teams to upload video content and schedule it for automatic publication across connected social media platforms, including YouTube, TikTok, Instagram (Business/Creator accounts only), Facebook, LinkedIn, and Bluesky. The Service acts as an authorized intermediary, publishing content on your behalf using the access credentials you explicitly grant.
               </p>
               <p className="mt-2">
                 The Service includes features for team collaboration, post scheduling, content templates, analytics viewing, comment management, and AI-assisted caption suggestions.
@@ -118,7 +118,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-base font-medium text-white mb-3">7. Third-Party Platforms</h2>
               <p>
-                Clip Dash integrates with YouTube, TikTok, Instagram, Facebook, LinkedIn, Threads, Bluesky, and other platforms. Your use of these platforms is independently subject to their own terms of service, community guidelines, and privacy policies. Clip Dash is not affiliated with, endorsed by, or responsible for any third-party platform.
+                Clip Dash integrates with YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and other platforms. Your use of these platforms is independently subject to their own terms of service, community guidelines, and privacy policies. Clip Dash is not affiliated with, endorsed by, or responsible for any third-party platform.
               </p>
               <p className="mt-2">
                 Publishing through Clip Dash does not exempt you from complying with each platform&apos;s rules. If a platform rejects, removes, or takes action on your content, that is between you and the platform. We are not liable for platform decisions regarding your content.
@@ -137,7 +137,7 @@ export default function TermsOfServicePage() {
                 You are solely responsible for reviewing your content before scheduling. Once a post is published by the Service, we cannot retract it from the destination platform — only you can delete it directly on that platform.
               </p>
               <p className="mt-2">
-                Some platforms (Instagram, Threads) use an asynchronous publishing process that may take several minutes to complete after the scheduled time. We do not guarantee exact publication times.
+                Some platforms (Instagram) use an asynchronous publishing process that may take several minutes to complete after the scheduled time. We do not guarantee exact publication times.
               </p>
             </section>
 

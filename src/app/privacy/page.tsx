@@ -47,7 +47,7 @@ export default function PrivacyPolicyPage() {
                   <strong className="text-white/80">Account Information:</strong> Your email address and hashed password when you register. Managed through Supabase authentication.
                 </li>
                 <li>
-                  <strong className="text-white/80">Platform Authorization Tokens:</strong> When you connect social media accounts (YouTube, TikTok, Instagram, Facebook, LinkedIn, Threads, Bluesky), we store OAuth access tokens, refresh tokens, and platform-specific identifiers (user IDs, page IDs, DID handles) to act on your behalf. We do not store your social media passwords.
+                  <strong className="text-white/80">Platform Authorization Tokens:</strong> When you connect social media accounts (YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky), we store OAuth access tokens, refresh tokens, and platform-specific identifiers (user IDs, page IDs, DID handles) to act on your behalf. We do not store your social media passwords.
                 </li>
                 <li>
                   <strong className="text-white/80">Uploaded Content:</strong> Video files and thumbnail images you upload for scheduling. Stored in Supabase Storage and used solely to publish to your connected platforms.
@@ -127,7 +127,6 @@ export default function PrivacyPolicyPage() {
                 <li><strong className="text-white/80">Facebook (Meta Platforms, Inc.):</strong> Video publishing to Facebook Pages via Meta Graph API. Governed by <a href="https://www.meta.com/privacy/policy/" target="_blank" rel="noopener noreferrer" className="text-white/80 underline">Meta Privacy Policy</a>.</li>
                 <li><strong className="text-white/80">Instagram (Meta Platforms, Inc.):</strong> Reel/Story publishing via Instagram Graph API (Business and Creator accounts only). Governed by Meta Privacy Policy.</li>
                 <li><strong className="text-white/80">LinkedIn (LinkedIn Corporation):</strong> Video publishing to LinkedIn profiles via LinkedIn API. Governed by <a href="https://www.linkedin.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-white/80 underline">LinkedIn Privacy Policy</a>.</li>
-                <li><strong className="text-white/80">Threads (Meta Platforms, Inc.):</strong> Video publishing via Threads API. Governed by Meta Privacy Policy.</li>
                 <li><strong className="text-white/80">Bluesky (Bluesky PBLLC):</strong> Video publishing via AT Protocol to bsky.social. Governed by <a href="https://bsky.social/about/support/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-white/80 underline">Bluesky Privacy Policy</a>. App passwords are stored server-side and never exposed to the browser.</li>
                 <li><strong className="text-white/80">Supabase (Supabase Inc.):</strong> Database, authentication, and file storage infrastructure. Data stored in Supabase-managed PostgreSQL and object storage.</li>
                 <li><strong className="text-white/80">Vercel Inc.:</strong> Cloud hosting and serverless function execution. May process request logs and IP addresses.</li>

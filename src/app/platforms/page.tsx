@@ -77,21 +77,6 @@ const PLATFORMS = [
     ),
   },
   {
-    key: "threads",
-    name: "Threads",
-    color: "text-white/80",
-    bg: "bg-white/5",
-    border: "border-white/15",
-    tagline: "Text & Video",
-    stat: "320M+ active users and growing fast",
-    description: "Publish videos to Threads — Meta's fast-growing social platform. Reach your Instagram audience with less competition and strong organic reach.",
-    icon: (
-      <svg className="w-8 h-8" viewBox="0 0 192 192" fill="currentColor">
-        <path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.738-8.699 14.753-10.548 21.347-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 6.997 4.67 16.01 6.96 25.379 6.455 12.369-.675 22.047-5.399 28.763-14.041 5.138-6.659 8.373-15.274 9.792-26.074 5.87 3.545 10.216 8.219 12.605 13.982 4.125 9.913 4.357 26.185-8.501 39.063-11.26 11.275-24.817 16.16-45.286 16.307-22.71-.164-39.904-7.489-51.106-21.779C35.928 138.529 30.2 120.9 29.95 98.5c.25-22.401 5.978-40.03 17.02-54.373C58.172 29.836 75.368 22.511 98.076 22.348c22.906.165 40.413 7.531 52.056 21.894 5.668 6.975 9.921 15.717 12.579 25.848l16.152-4.528c-3.29-12.703-8.806-23.758-16.43-32.811C147.386 14.963 125.72 5.18 98.163 5h-.383C70.56 5.18 49.137 14.99 34.393 29.979 20.97 44.12 14.036 64.1 13.786 98.5c.25 34.4 7.184 54.381 20.607 68.521C49.137 182.01 70.56 191.82 97.78 192h.383c24.761-.17 42.251-6.653 56.653-21.079 18.763-18.79 18.168-42.29 12.003-56.723-4.387-10.541-12.904-19.236-25.282-24.21zm-46.941 49.658c-10.426.583-21.24-4.098-21.783-14.082-.407-7.647 5.44-16.17 23.029-17.16 2.016-.115 3.995-.172 5.942-.172 6.377 0 12.358.616 17.771 1.8-2.02 25.214-14.959 28.946-24.959 29.614z" />
-      </svg>
-    ),
-  },
-  {
     key: "bluesky",
     name: "Bluesky",
     color: "text-sky-400",
@@ -128,7 +113,7 @@ export default function PlatformsPage() {
         <div className="text-center mb-16">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Supported Platforms</h1>
           <p className="mt-5 text-lg text-white/50 max-w-2xl mx-auto">
-            Upload once and publish to all seven platforms simultaneously. Every platform gets its own native settings so your content looks exactly right, everywhere.
+            Upload once and publish to all six platforms simultaneously. Every platform gets its own native settings so your content looks exactly right, everywhere.
           </p>
         </div>
 
