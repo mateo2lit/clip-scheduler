@@ -12,6 +12,11 @@ type UploadToBlueskyArgs = {
 
 const BSKY_SERVICE = "https://bsky.social";
 
+function hasExpiredTokenSignal(status: number, text: string) {
+  const body = String(text || "");
+  return status === 401 || /ExpiredToken/i.test(body) || /token has expired/i.test(body);
+}
+
 async function refreshSession(refreshJwt: string): Promise<{
   did: string;
   handle: string;
@@ -69,6 +74,15 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   let currentAccessJwt = accessJwt;
   let currentRefreshJwt = refreshJwt;
 
+  // Always refresh first so scheduled posts don't depend on a short-lived access token.
+  try {
+    const refreshed = await refreshSession(currentRefreshJwt);
+    currentAccessJwt = refreshed.accessJwt;
+    currentRefreshJwt = refreshed.refreshJwt;
+  } catch {
+    // If refresh fails we still try with the stored access token once below.
+  }
+
   // Download video from Supabase Storage
   const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
     .from(bucket)
@@ -94,7 +108,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   let uploadRes = await uploadBlob();
   if (!uploadRes.ok) {
     const text = await uploadRes.text();
-    const shouldRefresh = uploadRes.status === 401 || text.includes("ExpiredToken");
+    const shouldRefresh = hasExpiredTokenSignal(uploadRes.status, text);
     if (!shouldRefresh) {
       throw new Error(`Bluesky blob upload failed: ${uploadRes.status} ${text}`);
     }
@@ -144,7 +158,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   let createRes = await createRecord();
   if (!createRes.ok) {
     const text = await createRes.text();
-    const shouldRefresh = createRes.status === 401 || text.includes("ExpiredToken");
+    const shouldRefresh = hasExpiredTokenSignal(createRes.status, text);
     if (!shouldRefresh) {
       throw new Error(`Bluesky post creation failed: ${createRes.status} ${text}`);
     }
