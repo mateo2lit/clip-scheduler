@@ -17,6 +17,11 @@ function hasExpiredTokenSignal(status: number, text: string) {
   return status === 401 || /ExpiredToken/i.test(body) || /token has expired/i.test(body);
 }
 
+type SessionState = {
+  accessJwt: string;
+  refreshJwt: string;
+};
+
 async function refreshSession(refreshJwt: string): Promise<{
   did: string;
   handle: string;
@@ -71,16 +76,43 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   refreshJwt: string;
 }> {
   const { did, accessJwt, refreshJwt, bucket, storagePath, caption } = args;
-  let currentAccessJwt = accessJwt;
-  let currentRefreshJwt = refreshJwt;
+  const session: SessionState = { accessJwt, refreshJwt };
 
   // Always refresh first so scheduled posts don't depend on a short-lived access token.
   try {
-    const refreshed = await refreshSession(currentRefreshJwt);
-    currentAccessJwt = refreshed.accessJwt;
-    currentRefreshJwt = refreshed.refreshJwt;
+    const refreshed = await refreshSession(session.refreshJwt);
+    session.accessJwt = refreshed.accessJwt;
+    session.refreshJwt = refreshed.refreshJwt;
   } catch {
     // If refresh fails we still try with the stored access token once below.
+  }
+
+  async function callWithRefresh(
+    requestFactory: (jwt: string) => Promise<Response>,
+    failurePrefix: string
+  ): Promise<Response> {
+    let refreshAttempts = 0;
+    let res = await requestFactory(session.accessJwt);
+
+    while (!res.ok) {
+      const text = await res.text();
+      if (!hasExpiredTokenSignal(res.status, text)) {
+        throw new Error(`${failurePrefix}: ${res.status} ${text}`);
+      }
+
+      if (refreshAttempts >= 2) {
+        throw new Error(`${failurePrefix}: ${res.status} ${text}`);
+      }
+
+      const refreshed = await refreshSession(session.refreshJwt);
+      session.accessJwt = refreshed.accessJwt;
+      session.refreshJwt = refreshed.refreshJwt;
+      refreshAttempts += 1;
+
+      res = await requestFactory(session.accessJwt);
+    }
+
+    return res;
   }
 
   // Download video from Supabase Storage
@@ -94,35 +126,16 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
 
   const videoBuffer = Buffer.from(await fileData.arrayBuffer());
 
-  const uploadBlob = async () =>
+  const uploadBlob = (jwt: string) =>
     fetch(`${BSKY_SERVICE}/xrpc/com.atproto.repo.uploadBlob`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${currentAccessJwt}`,
+        Authorization: `Bearer ${jwt}`,
         "Content-Type": "video/mp4",
       },
       body: videoBuffer,
     });
-
-  // Upload blob to Bluesky (retry once after refresh on ExpiredToken)
-  let uploadRes = await uploadBlob();
-  if (!uploadRes.ok) {
-    const text = await uploadRes.text();
-    const shouldRefresh = hasExpiredTokenSignal(uploadRes.status, text);
-    if (!shouldRefresh) {
-      throw new Error(`Bluesky blob upload failed: ${uploadRes.status} ${text}`);
-    }
-
-    const refreshed = await refreshSession(currentRefreshJwt);
-    currentAccessJwt = refreshed.accessJwt;
-    currentRefreshJwt = refreshed.refreshJwt;
-
-    uploadRes = await uploadBlob();
-    if (!uploadRes.ok) {
-      const retryText = await uploadRes.text();
-      throw new Error(`Bluesky blob upload failed: ${uploadRes.status} ${retryText}`);
-    }
-  }
+  const uploadRes = await callWithRefresh(uploadBlob, "Bluesky blob upload failed");
 
   const uploadData = await uploadRes.json();
   if (uploadData.error) throw new Error(`Bluesky upload error: ${uploadData.message || uploadData.error}`);
@@ -141,11 +154,11 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     },
   };
 
-  const createRecord = async () =>
+  const createRecord = (jwt: string) =>
     fetch(`${BSKY_SERVICE}/xrpc/com.atproto.repo.createRecord`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${currentAccessJwt}`,
+        Authorization: `Bearer ${jwt}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -154,25 +167,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
         record,
       }),
     });
-
-  let createRes = await createRecord();
-  if (!createRes.ok) {
-    const text = await createRes.text();
-    const shouldRefresh = hasExpiredTokenSignal(createRes.status, text);
-    if (!shouldRefresh) {
-      throw new Error(`Bluesky post creation failed: ${createRes.status} ${text}`);
-    }
-
-    const refreshed = await refreshSession(currentRefreshJwt);
-    currentAccessJwt = refreshed.accessJwt;
-    currentRefreshJwt = refreshed.refreshJwt;
-
-    createRes = await createRecord();
-    if (!createRes.ok) {
-      const retryText = await createRes.text();
-      throw new Error(`Bluesky post creation failed: ${createRes.status} ${retryText}`);
-    }
-  }
+  const createRes = await callWithRefresh(createRecord, "Bluesky post creation failed");
 
   const createData = await createRes.json();
   if (createData.error) throw new Error(`Bluesky post error: ${createData.message || createData.error}`);
@@ -180,7 +175,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   return {
     uri: createData.uri,
     cid: createData.cid,
-    accessJwt: currentAccessJwt,
-    refreshJwt: currentRefreshJwt,
+    accessJwt: session.accessJwt,
+    refreshJwt: session.refreshJwt,
   };
 }
