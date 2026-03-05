@@ -22,13 +22,13 @@ type SessionState = {
   refreshJwt: string;
 };
 
-async function refreshSession(refreshJwt: string): Promise<{
+async function refreshSession(serviceUrl: string, refreshJwt: string): Promise<{
   did: string;
   handle: string;
   accessJwt: string;
   refreshJwt: string;
 }> {
-  const res = await fetch(`${BSKY_SERVICE}/xrpc/com.atproto.server.refreshSession`, {
+  const res = await fetch(`${serviceUrl}/xrpc/com.atproto.server.refreshSession`, {
     method: "POST",
     headers: { Authorization: `Bearer ${refreshJwt}` },
   });
@@ -42,6 +42,48 @@ async function refreshSession(refreshJwt: string): Promise<{
   if (data.error) throw new Error(`Bluesky token refresh error: ${data.message || data.error}`);
 
   return { did: data.did, handle: data.handle, accessJwt: data.accessJwt, refreshJwt: data.refreshJwt };
+}
+
+function parsePdsFromDidDoc(doc: any): string | null {
+  const services = Array.isArray(doc?.service) ? doc.service : [];
+  for (const svc of services) {
+    const type = String(svc?.type || "");
+    const id = String(svc?.id || "");
+    const endpoint = String(svc?.serviceEndpoint || "").trim();
+    if (!endpoint) continue;
+    if (type === "AtprotoPersonalDataServer" || id.includes("atproto_pds")) {
+      return endpoint.replace(/\/+$/, "");
+    }
+  }
+  return null;
+}
+
+async function resolvePdsServiceUrl(did: string): Promise<string> {
+  try {
+    if (did.startsWith("did:plc:")) {
+      const res = await fetch(`https://plc.directory/${encodeURIComponent(did)}`);
+      if (res.ok) {
+        const doc = await res.json();
+        const parsed = parsePdsFromDidDoc(doc);
+        if (parsed) return parsed;
+      }
+    }
+
+    if (did.startsWith("did:web:")) {
+      const webId = did.slice("did:web:".length).replace(/:/g, "/");
+      const didJsonUrl = `https://${webId}/.well-known/did.json`;
+      const res = await fetch(didJsonUrl);
+      if (res.ok) {
+        const doc = await res.json();
+        const parsed = parsePdsFromDidDoc(doc);
+        if (parsed) return parsed;
+      }
+    }
+  } catch {
+    // Fallback below.
+  }
+
+  return BSKY_SERVICE;
 }
 
 async function getSession(handle: string, appPassword: string): Promise<{
@@ -77,10 +119,11 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
 }> {
   const { did, accessJwt, refreshJwt, bucket, storagePath, caption } = args;
   const session: SessionState = { accessJwt, refreshJwt };
+  const serviceUrl = await resolvePdsServiceUrl(did);
 
   // Always refresh first so scheduled posts don't depend on a short-lived access token.
   try {
-    const refreshed = await refreshSession(session.refreshJwt);
+    const refreshed = await refreshSession(serviceUrl, session.refreshJwt);
     session.accessJwt = refreshed.accessJwt;
     session.refreshJwt = refreshed.refreshJwt;
   } catch {
@@ -104,7 +147,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
         throw new Error(`${failurePrefix}: ${res.status} ${text}`);
       }
 
-      const refreshed = await refreshSession(session.refreshJwt);
+      const refreshed = await refreshSession(serviceUrl, session.refreshJwt);
       session.accessJwt = refreshed.accessJwt;
       session.refreshJwt = refreshed.refreshJwt;
       refreshAttempts += 1;
@@ -127,7 +170,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   const videoBuffer = Buffer.from(await fileData.arrayBuffer());
 
   const uploadBlob = (jwt: string) =>
-    fetch(`${BSKY_SERVICE}/xrpc/com.atproto.repo.uploadBlob`, {
+    fetch(`${serviceUrl}/xrpc/com.atproto.repo.uploadBlob`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -155,7 +198,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   };
 
   const createRecord = (jwt: string) =>
-    fetch(`${BSKY_SERVICE}/xrpc/com.atproto.repo.createRecord`, {
+    fetch(`${serviceUrl}/xrpc/com.atproto.repo.createRecord`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${jwt}`,
