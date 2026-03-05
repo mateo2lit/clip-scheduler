@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import { useTeam } from "@/lib/useTeam";
+import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 
@@ -263,6 +264,11 @@ export default function UploadsPage() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["youtube"]);
+  const threadsEnabled = isThreadsEnabledForUserIdClient(userId);
+  const enabledPlatforms = useMemo(
+    () => PLATFORMS.filter((p) => p.key !== "threads" || threadsEnabled),
+    [threadsEnabled]
+  );
   const [scheduling, setScheduling] = useState(false);
 
   // AI suggestions
@@ -374,10 +380,10 @@ export default function UploadsPage() {
   const BUCKET = process.env.NEXT_PUBLIC_UPLOADS_BUCKET || process.env.NEXT_PUBLIC_STORAGE_BUCKET || "clips";
 
   const maxCharLimit = useMemo(() => {
-    const selected = PLATFORMS.filter((p) => selectedPlatforms.includes(p.key));
+    const selected = enabledPlatforms.filter((p) => selectedPlatforms.includes(p.key));
     if (selected.length === 0) return 5000;
     return Math.min(...selected.map((p) => p.charLimit));
-  }, [selectedPlatforms]);
+  }, [selectedPlatforms, enabledPlatforms]);
   const timezoneLabel = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "Local timezone", []);
   const scheduleSummary = useMemo(
     () => formatScheduleSummary(scheduledDatePart, scheduledTimePart),
@@ -528,7 +534,11 @@ export default function UploadsPage() {
             setTitle(first.title || "");
             setDescription(first.description || "");
             setLastUploadId(first.upload_id);
-            setSelectedPlatforms(draftPosts.map((p: any) => p.provider).filter(Boolean));
+            setSelectedPlatforms(
+              draftPosts
+                .map((p: any) => p.provider)
+                .filter((p: string) => Boolean(p) && (p !== "threads" || threadsEnabled))
+            );
             if (first.thumbnail_path) setLastThumbnailPath(first.thumbnail_path);
             if (first.scheduled_for) {
               const d = new Date(first.scheduled_for);
@@ -573,6 +583,11 @@ export default function UploadsPage() {
     }
     loadSession();
   }, []);
+
+  useEffect(() => {
+    if (threadsEnabled) return;
+    setSelectedPlatforms((prev) => prev.filter((p) => p !== "threads"));
+  }, [threadsEnabled]);
 
   // Fetch TikTok creator info when TikTok is selected
   useEffect(() => {
@@ -899,8 +914,9 @@ export default function UploadsPage() {
       // Create a separate scheduled post for each selected platform
       const errors: string[] = [];
       const groupId = crypto.randomUUID();
+      const platformsToSchedule = selectedPlatforms.filter((p) => p !== "threads" || threadsEnabled);
 
-      for (const platform of selectedPlatforms) {
+      for (const platform of platformsToSchedule) {
         const body: any = {
           group_id: groupId,
           upload_id: lastUploadId,
@@ -998,7 +1014,7 @@ export default function UploadsPage() {
         }
       }
 
-      if (errors.length === selectedPlatforms.length) {
+      if (errors.length === platformsToSchedule.length) {
         throw new Error(errors.join("\n"));
       }
 
@@ -1054,7 +1070,11 @@ export default function UploadsPage() {
     setTitle(t.title);
     setDescription(t.description);
     setHashtags(t.hashtags);
-    setSelectedPlatforms(t.platforms.filter((p) => PLATFORMS.some((pl) => pl.key === p)));
+    setSelectedPlatforms(
+      t.platforms.filter(
+        (p) => enabledPlatforms.some((pl) => pl.key === p) && (p !== "threads" || threadsEnabled)
+      )
+    );
     setShowTemplatesMenu(false);
   }
 
@@ -1217,7 +1237,7 @@ export default function UploadsPage() {
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
               <div className="mb-3 text-sm text-white/70">Post to</div>
               <div className="flex items-center gap-2 flex-wrap">
-                {PLATFORMS.map((platform) => (
+                {enabledPlatforms.map((platform) => (
                   <button
                     key={platform.key}
                     onClick={() => platform.available && togglePlatform(platform.key)}

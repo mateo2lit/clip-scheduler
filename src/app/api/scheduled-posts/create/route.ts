@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
 export async function POST(req: Request) {
   try {
@@ -44,6 +45,14 @@ export async function POST(req: Request) {
     } = body;
 
     const isDraft = requestedStatus === "draft";
+    const normalizedProvider = String(provider || "youtube").toLowerCase();
+
+    if (normalizedProvider === "threads" && !isThreadsEnabledForUserId(userId)) {
+      return NextResponse.json(
+        { error: "Threads is not available for this account." },
+        { status: 403 }
+      );
+    }
 
     if (!upload_id || (!isDraft && !scheduled_for)) {
       return NextResponse.json(
@@ -57,7 +66,7 @@ export async function POST(req: Request) {
       user_id: userId,
       team_id: teamId,
       upload_id,
-      provider: provider ?? "youtube",
+      provider: normalizedProvider,
       title: title ?? "Untitled Clip",
       description: description ?? "",
       privacy_status: privacy_status ?? "private",

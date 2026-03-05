@@ -8,6 +8,7 @@ import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
 import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky } from "@/lib/blueskyUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
+import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
 export const runtime = "nodejs";
 
@@ -133,6 +134,9 @@ async function runWorker(req: Request) {
       for (const igPost of igPosts) {
         try {
           const isThreads = igPost.provider === "threads";
+          if (isThreads && !isThreadsEnabledForUserId(igPost.user_id)) {
+            throw new Error("Threads is not available for this account.");
+          }
 
           // Load platform account for this provider
           const { data: acct } = await supabaseAdmin
@@ -474,6 +478,10 @@ async function runWorker(req: Request) {
         results.push({ id: post.id, ok: true, igProcessing: true, containerId });
         continue; // Skip the "mark posted" step below
       } else if (provider === "threads") {
+        if (!isThreadsEnabledForUserId(post.user_id)) {
+          throw new Error("Threads is not available for this account.");
+        }
+
         if (!acct.access_token || !acct.ig_user_id) {
           throw new Error("Threads account not configured. Please reconnect your Threads account.");
         }

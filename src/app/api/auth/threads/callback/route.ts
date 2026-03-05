@@ -8,6 +8,7 @@ import {
 } from "@/lib/threads";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { verifyOAuthState } from "@/lib/oauthState";
+import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,13 @@ export async function GET(req: Request) {
     if (!state) return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
 
     const userId = verifyOAuthState(state);
+
+    if (!isThreadsEnabledForUserId(userId)) {
+      return NextResponse.json(
+        { ok: false, error: "Threads is not available for this account." },
+        { status: 403 }
+      );
+    }
 
     const { data: membership } = await supabaseAdmin
       .from("team_members")

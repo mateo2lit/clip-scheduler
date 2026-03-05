@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getThreadsAuthConfig } from "@/lib/threads";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { generateOAuthState } from "@/lib/oauthState";
+import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,13 @@ async function handler(req: Request) {
   const { userId, role } = result.ctx;
   const ownerCheck = requireOwnerOrAdmin(role);
   if (ownerCheck) return ownerCheck;
+
+  if (!isThreadsEnabledForUserId(userId)) {
+    return NextResponse.json(
+      { ok: false, error: "Threads is not available for this account." },
+      { status: 403 }
+    );
+  }
 
   const { appId, redirectUri } = getThreadsAuthConfig();
 

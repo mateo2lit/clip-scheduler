@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
+import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 
 type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
@@ -159,6 +160,11 @@ export default function SettingsPage() {
     return new URLSearchParams(window.location.search);
   }, []);
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
+  const threadsEnabled = isThreadsEnabledForUserIdClient(userId);
+  const visiblePlatforms = useMemo(
+    () => PLATFORMS.filter((p) => p.key !== "threads" || threadsEnabled),
+    [threadsEnabled]
+  );
 
   const banner = useMemo(() => {
     const conn = query.get("connected");
@@ -1206,7 +1212,7 @@ export default function SettingsPage() {
             </button>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
-            {PLATFORMS.map((platform) => {
+            {visiblePlatforms.map((platform) => {
               const acct = accounts[platform.key];
               return (
                 <div key={platform.key} className="p-5">
@@ -1815,7 +1821,6 @@ export default function SettingsPage() {
     </main>
   );
 }
-
 
 
 
