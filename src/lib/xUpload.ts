@@ -71,6 +71,7 @@ export async function uploadVideoToX({
   bucket,
   storagePath,
   text,
+  replySettings = "everyone",
 }: {
   platformAccountId: string;
   accessToken: string | null;
@@ -79,6 +80,7 @@ export async function uploadVideoToX({
   bucket: string;
   storagePath: string;
   text: string;
+  replySettings?: "everyone" | "mentionedUsers" | "subscribers";
 }): Promise<{ tweetId: string }> {
   // Refresh token if expired or missing
   let token = accessToken;
@@ -203,6 +205,7 @@ export async function uploadVideoToX({
     body: JSON.stringify({
       text: tweetText,
       media: { media_ids: [mediaId] },
+      reply_settings: replySettings,
     }),
   });
 

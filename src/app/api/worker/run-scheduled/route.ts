@@ -310,7 +310,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id,platform_account_id")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -319,7 +319,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id,platform_account_id")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -473,6 +473,7 @@ async function runWorker(req: Request) {
           throw new Error("Facebook Page not configured. Please reconnect your Facebook account.");
         }
 
+        const fbSettings = (post.facebook_settings ?? {}) as any;
         const fbArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
@@ -480,8 +481,8 @@ async function runWorker(req: Request) {
           pageAccessToken: acct.page_access_token,
           bucket,
           storagePath,
-          title: post.title ?? "Clip Scheduler Upload",
-          description: post.description ?? "",
+          title: fbSettings.title_override || post.title || "Clip Scheduler Upload",
+          description: fbSettings.description_override ?? post.description ?? "",
         };
 
         if (post.thumbnail_path) {
@@ -564,6 +565,8 @@ async function runWorker(req: Request) {
           throw new Error("Bluesky account not configured. Please reconnect your Bluesky account.");
         }
 
+        const bskySettings = (post.bluesky_settings ?? {}) as any;
+        const bskyCaption = bskySettings.description_override || `${post.title ?? ""}\n\n${post.description ?? ""}`.trim();
         const bskyResult = await uploadToBluesky({
           did: acct.platform_user_id,
           handle: acct.platform_user_id,
@@ -571,7 +574,7 @@ async function runWorker(req: Request) {
           refreshJwt: acct.refresh_token || acct.access_token,
           bucket,
           storagePath,
-          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+          caption: bskyCaption,
         });
 
         if (
@@ -594,6 +597,8 @@ async function runWorker(req: Request) {
           throw new Error("X account not connected. Please reconnect your X account.");
         }
 
+        const xSettings = (post.x_settings ?? {}) as any;
+        const xText = xSettings.description_override || `${post.title ?? ""}${post.description ? `\n\n${post.description}` : ""}`.trim();
         const xResult = await uploadVideoToX({
           platformAccountId: acct.id,
           accessToken: acct.access_token,
@@ -601,7 +606,8 @@ async function runWorker(req: Request) {
           expiresAt: acct.expiry,
           bucket,
           storagePath,
-          text: `${post.title ?? ""}${post.description ? `\n\n${post.description}` : ""}`.trim(),
+          text: xText,
+          replySettings: xSettings.reply_settings || "everyone",
         });
         platformPostId = xResult.tweetId;
       } else if (provider === "linkedin") {
@@ -609,6 +615,7 @@ async function runWorker(req: Request) {
           throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");
         }
 
+        const liSettings = (post.linkedin_settings ?? {}) as any;
         const liArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
@@ -616,8 +623,9 @@ async function runWorker(req: Request) {
           personUrn: `urn:li:person:${acct.platform_user_id}`,
           bucket,
           storagePath,
-          title: post.title ?? "Clip Scheduler Upload",
-          description: post.description ?? "",
+          title: liSettings.title_override || post.title || "Clip Scheduler Upload",
+          description: liSettings.description_override ?? post.description ?? "",
+          visibility: liSettings.visibility || "PUBLIC",
         };
 
         if (post.thumbnail_path) {

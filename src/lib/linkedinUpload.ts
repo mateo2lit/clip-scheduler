@@ -14,6 +14,7 @@ type UploadToLinkedInArgs = {
 
   thumbnailBucket?: string;
   thumbnailPath?: string;
+  visibility?: "PUBLIC" | "CONNECTIONS";
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -62,6 +63,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     description,
     thumbnailBucket,
     thumbnailPath,
+    visibility = "PUBLIC",
   } = args;
 
   assertOk(accessToken, "Missing accessToken");
@@ -200,7 +202,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     body: JSON.stringify({
       author: personUrn,
       commentary: postText.slice(0, 3000),
-      visibility: "PUBLIC",
+      visibility,
       distribution: {
         feedDistribution: "MAIN_FEED",
         targetEntities: [],

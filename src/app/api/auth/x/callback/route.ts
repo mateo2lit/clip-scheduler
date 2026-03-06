@@ -137,7 +137,7 @@ export async function GET(req: Request) {
         label: profileName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider,platform_user_id" }
+      { onConflict: "team_id,provider" }
     );
 
     if (upsertErr) {

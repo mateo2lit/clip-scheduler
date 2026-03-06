@@ -357,6 +357,8 @@ export default function UploadsPage() {
   const [platformTitleOverrides, setPlatformTitleOverrides] = useState<Record<string, string>>({});
   const [platformDescOverrides, setPlatformDescOverrides] = useState<Record<string, string>>({});
   const [openCaptionOverride, setOpenCaptionOverride] = useState<string | null>(null);
+  const [linkedinVisibility, setLinkedinVisibility] = useState<"PUBLIC" | "CONNECTIONS">("PUBLIC");
+  const [xReplySettings, setXReplySettings] = useState<"everyone" | "mentionedUsers" | "subscribers">("everyone");
 
   // Post templates (localStorage)
   const TEMPLATES_KEY = "clipdash_post_templates";
@@ -1042,6 +1044,7 @@ export default function UploadsPage() {
           body.linkedin_settings = {
             title_override: platformTitleOverrides.linkedin || undefined,
             description_override: platformDescOverrides.linkedin || undefined,
+            visibility: linkedinVisibility !== "PUBLIC" ? linkedinVisibility : undefined,
           };
         }
 
@@ -1056,6 +1059,13 @@ export default function UploadsPage() {
           body.bluesky_settings = {
             title_override: platformTitleOverrides.bluesky || undefined,
             description_override: platformDescOverrides.bluesky || undefined,
+          };
+        }
+
+        if (platform === "x") {
+          body.x_settings = {
+            description_override: platformDescOverrides.x || undefined,
+            reply_settings: xReplySettings !== "everyone" ? xReplySettings : undefined,
           };
         }
 
@@ -2352,6 +2362,13 @@ export default function UploadsPage() {
                   ) : null}
                 </div>
                 <div className="p-5">
+                  <div className="mb-4">
+                    <label className="block text-xs text-white/40 mb-1.5">Audience visibility</label>
+                    <select value={linkedinVisibility} onChange={(e) => setLinkedinVisibility(e.target.value as "PUBLIC" | "CONNECTIONS")} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                      <option value="PUBLIC">Anyone on LinkedIn</option>
+                      <option value="CONNECTIONS">Connections only</option>
+                    </select>
+                  </div>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "linkedin" ? null : "linkedin")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
                     <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "linkedin" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     Customize caption for LinkedIn
@@ -2454,6 +2471,14 @@ export default function UploadsPage() {
                 </div>
                 <div className="p-5">
                   <p className="text-xs text-white/40 mb-3">Video will be posted as an X tweet. Tweet text is limited to 280 characters.</p>
+                  <div className="mb-4">
+                    <label className="block text-xs text-white/40 mb-1.5">Who can reply</label>
+                    <select value={xReplySettings} onChange={(e) => setXReplySettings(e.target.value as "everyone" | "mentionedUsers" | "subscribers")} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                      <option value="everyone">Everyone</option>
+                      <option value="mentionedUsers">Mentioned users only</option>
+                      <option value="subscribers">Subscribers only</option>
+                    </select>
+                  </div>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "x" ? null : "x")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
                     <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "x" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     Customize tweet text for X
