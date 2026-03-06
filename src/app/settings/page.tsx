@@ -20,8 +20,6 @@ type SettingsTab = "account" | "subscription" | "connected" | "team" | "notifica
 
 function proxiedAvatar(url: string | null | undefined): string | null {
   if (!url) return null;
-  // YouTube (lh3.googleusercontent.com) loads fine cross-origin; proxy everything else
-  if (url.includes("googleusercontent.com")) return url;
   return `/api/avatar-proxy?url=${encodeURIComponent(url)}`;
 }
 

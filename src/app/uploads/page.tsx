@@ -6,7 +6,6 @@ import { useTeam } from "@/lib/useTeam";
 
 function proxiedAvatar(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.includes("googleusercontent.com")) return url;
   return `/api/avatar-proxy?url=${encodeURIComponent(url)}`;
 }
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
