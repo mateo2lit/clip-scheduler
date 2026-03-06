@@ -2,7 +2,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export type UnifiedMetric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky";
   title: string;
   views: number;
   likes: number;
@@ -179,5 +179,43 @@ export async function fetchInstagramMetrics(
     };
   } catch (e: any) {
     return { metrics: [], error: `Instagram: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── Bluesky ─────────────────────────────────────────────────────────
+
+export async function fetchBlueskyMetrics(
+  posts: PostInfo[]
+): Promise<{ metrics: UnifiedMetric[]; error?: string }> {
+  try {
+    const uris = posts.map((p) => p.platform_post_id).filter((u): u is string => !!u);
+    if (uris.length === 0) return { metrics: [] };
+
+    const metrics: UnifiedMetric[] = [];
+    // Bluesky allows up to 25 URIs per getPosts call
+    for (let i = 0; i < uris.length; i += 25) {
+      const batch = uris.slice(i, i + 25);
+      const qs = batch.map((u) => `uris[]=${encodeURIComponent(u)}`).join("&");
+      const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?${qs}`);
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      for (const bPost of json.posts ?? []) {
+        const post = posts.find((p) => p.platform_post_id === bPost.uri);
+        metrics.push({
+          videoId: bPost.uri,
+          platform: "bluesky",
+          title: post?.title ?? (bPost.record?.text ?? "").slice(0, 120) ?? "Bluesky post",
+          views: 0,
+          likes: bPost.likeCount ?? 0,
+          comments: bPost.replyCount ?? 0,
+          postedAt: post?.posted_at ?? bPost.record?.createdAt ?? new Date().toISOString(),
+        });
+      }
+    }
+
+    return { metrics };
+  } catch (e: any) {
+    return { metrics: [], error: `Bluesky: ${e?.message || "Unknown error"}` };
   }
 }

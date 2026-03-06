@@ -3,7 +3,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 export type UnifiedComment = {
   id: string;
   replyId?: string;
-  platform: "youtube" | "facebook" | "instagram";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky";
   postTitle: string;
   postId: string;
   postUrl?: string;
@@ -299,5 +299,69 @@ export async function fetchInstagramComments(
       return { comments: [], error: "Reconnect Instagram to see comments" };
     }
     return { comments: [], error: `Instagram: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── Bluesky ─────────────────────────────────────────────────────────
+
+export async function fetchBlueskyComments(
+  posts: PostInfo[]
+): Promise<{ comments: UnifiedComment[]; error?: string }> {
+  try {
+    const results = await Promise.allSettled(
+      posts.map(async (post) => {
+        const uri = post.platform_post_id;
+        if (!uri) return [];
+
+        const res = await fetch(
+          `https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=1&parentHeight=0`
+        );
+        if (!res.ok) return [];
+
+        const json = await res.json();
+        const replies: any[] = json.thread?.replies ?? [];
+
+        return replies
+          .filter((r) => r.$type === "app.bsky.feed.defs#threadViewPost" && r.post)
+          .map((r): UnifiedComment => {
+            const rPost = r.post;
+            const author = rPost.author ?? {};
+            const rUri: string = rPost.uri ?? "";
+            const rkey = rUri.split("/").pop() ?? "";
+            const handle: string = author.handle ?? "";
+            const postUrl = rUri.startsWith("at://")
+              ? `https://bsky.app/profile/${encodeURIComponent(handle)}/post/${rkey}`
+              : undefined;
+
+            return {
+              id: rPost.uri ?? `bsky-reply-${Math.random()}`,
+              replyId: rPost.uri ?? undefined,
+              platform: "bluesky",
+              postTitle: post.title ?? "Untitled",
+              postId: uri,
+              postUrl,
+              postThumbnailUrl: null,
+              authorName: author.displayName || author.handle || "Unknown",
+              authorImageUrl: author.avatar ?? null,
+              text: rPost.record?.text ?? "",
+              publishedAt: rPost.record?.createdAt ?? new Date().toISOString(),
+              likeCount: rPost.likeCount ?? 0,
+            };
+          });
+      })
+    );
+
+    const comments: UnifiedComment[] = [];
+    const errors: string[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled") comments.push(...r.value);
+      else errors.push(r.reason?.message || "Unknown error");
+    }
+    return {
+      comments,
+      error: errors.length > 0 ? `Bluesky: ${errors[0]}` : undefined,
+    };
+  } catch (e: any) {
+    return { comments: [], error: `Bluesky: ${e?.message || "Unknown error"}` };
   }
 }

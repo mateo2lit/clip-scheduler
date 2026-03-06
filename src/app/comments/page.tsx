@@ -7,7 +7,7 @@ import { supabase } from "@/app/login/supabaseClient";
 type Comment = {
   id: string;
   replyId?: string;
-  platform: "youtube" | "facebook" | "instagram";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky";
   postTitle: string;
   postId: string;
   postUrl?: string;
@@ -20,7 +20,7 @@ type Comment = {
   likeCount: number;
 };
 
-type PlatformFilter = "all" | "youtube" | "facebook" | "instagram";
+type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky";
 type SortMode = "priority" | "recent" | "oldest";
 type ReadFilter = "unread" | "read" | "all";
 
@@ -28,12 +28,14 @@ const platformLabels: Record<string, string> = {
   youtube: "YouTube",
   facebook: "Facebook",
   instagram: "Instagram",
+  bluesky: "Bluesky",
 };
 
 const platformColors: Record<string, { badge: string; text: string }> = {
   youtube: { badge: "bg-red-500/10 border-red-500/20 text-red-400", text: "text-red-400" },
   facebook: { badge: "bg-blue-500/10 border-blue-500/20 text-blue-400", text: "text-blue-400" },
   instagram: { badge: "bg-pink-500/10 border-pink-500/20 text-pink-400", text: "text-pink-400" },
+  bluesky: { badge: "bg-sky-500/10 border-sky-500/20 text-sky-400", text: "text-sky-400" },
 };
 
 function relativeTime(iso: string) {
@@ -341,7 +343,7 @@ export default function CommentsPage() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
               <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Platforms</p>
               <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
-                {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
+                {(["all", "youtube", "facebook", "instagram", "bluesky"] as PlatformFilter[]).map((p) => (
                   <button
                     key={p}
                     onClick={() => setFilter(p)}

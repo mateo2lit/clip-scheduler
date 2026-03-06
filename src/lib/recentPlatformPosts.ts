@@ -140,3 +140,37 @@ export async function fetchRecentInstagramPosts(params: {
     return { posts: [], error: `Instagram recent posts: ${e?.message || "Unknown error"}` };
   }
 }
+
+export async function fetchRecentBlueskyPosts(params: {
+  did: string;
+  maxResults: number;
+  sinceIso?: string;
+}): Promise<{ posts: RecentPost[]; error?: string }> {
+  try {
+    const limit = Math.min(Math.max(params.maxResults, 1), 100);
+    const url = `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(params.did)}&filter=posts_no_replies&limit=${limit}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      return { posts: [], error: `Bluesky recent posts: HTTP ${res.status}` };
+    }
+
+    const json = await res.json();
+    const posts: RecentPost[] = [];
+    for (const item of json.feed ?? []) {
+      const post = item.post;
+      if (!post?.uri) continue;
+      const createdAt: string | null = post.record?.createdAt ?? post.indexedAt ?? null;
+      if (!isAfterSince(createdAt, params.sinceIso)) continue;
+      posts.push({
+        id: `bsky-${post.uri}`,
+        title: (post.record?.text ?? "").slice(0, 120) || "Bluesky post",
+        platform_post_id: post.uri,
+        posted_at: createdAt,
+        thumbnail_url: null,
+      });
+    }
+    return { posts };
+  } catch (e: any) {
+    return { posts: [], error: `Bluesky recent posts: ${e?.message || "Unknown error"}` };
+  }
+}

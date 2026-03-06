@@ -6,7 +6,7 @@ import { supabase } from "@/app/login/supabaseClient";
 
 type Metric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky";
   title: string;
   views: number;
   likes: number;
@@ -15,13 +15,14 @@ type Metric = {
 };
 
 type Totals = { views: number; likes: number; comments: number };
-type PlatformFilter = "all" | "youtube" | "facebook" | "instagram";
+type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky";
 type RangeFilter = "24h" | "1w" | "1m" | "1y";
 
 const platformLabels: Record<string, string> = {
   youtube: "YouTube",
   facebook: "Facebook",
   instagram: "Instagram",
+  bluesky: "Bluesky",
 };
 
 function PlatformIcon({ platform }: { platform: string }) {
@@ -43,6 +44,13 @@ function PlatformIcon({ platform }: { platform: string }) {
     return (
       <svg className="w-5 h-5 text-pink-500" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069ZM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0Zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881Z" />
+      </svg>
+    );
+  }
+  if (platform === "bluesky") {
+    return (
+      <svg className="w-5 h-5 text-sky-400" viewBox="0 0 360 320" fill="currentColor">
+        <path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/>
       </svg>
     );
   }
@@ -201,7 +209,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex gap-2 mb-6">
-          {(["all", "youtube", "facebook", "instagram"] as PlatformFilter[]).map((p) => (
+          {(["all", "youtube", "facebook", "instagram", "bluesky"] as PlatformFilter[]).map((p) => (
             <button
               key={p}
               onClick={() => setFilter(p)}

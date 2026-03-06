@@ -5,12 +5,14 @@ import {
   fetchYouTubeComments,
   fetchFacebookComments,
   fetchInstagramComments,
+  fetchBlueskyComments,
   type UnifiedComment,
 } from "@/lib/commentFetchers";
 import {
   fetchRecentYouTubePosts,
   fetchRecentFacebookPosts,
   fetchRecentInstagramPosts,
+  fetchRecentBlueskyPosts,
 } from "@/lib/recentPlatformPosts";
 
 export const runtime = "nodejs";
@@ -25,9 +27,9 @@ export async function GET(req: Request) {
     // Load all platform accounts for this team, grouped by provider
     const { data: accounts } = await supabaseAdmin
       .from("platform_accounts")
-      .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id")
+      .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
       .eq("team_id", teamId)
-      .in("provider", ["youtube", "facebook", "instagram"]);
+      .in("provider", ["youtube", "facebook", "instagram", "bluesky"]);
 
     const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
@@ -94,6 +96,24 @@ export async function GET(req: Request) {
     for (const r of igResults) {
       if (r.status === "fulfilled") allComments.push(...r.value);
       else errors.push(r.reason?.message || "Instagram comment fetch error");
+    }
+
+    // Fetch from all Bluesky accounts
+    const bskyResults = await Promise.allSettled(
+      (acctsByProvider.get("bluesky") ?? [])
+        .filter((a) => a.platform_user_id)
+        .map(async (a) => {
+          const recent = await fetchRecentBlueskyPosts({ did: a.platform_user_id, maxResults: 20, sinceIso: sevenDaysAgo });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedComment[];
+          const r = await fetchBlueskyComments(recent.posts);
+          if (r.error) errors.push(r.error);
+          return r.comments;
+        })
+    );
+    for (const r of bskyResults) {
+      if (r.status === "fulfilled") allComments.push(...r.value);
+      else errors.push(r.reason?.message || "Bluesky comment fetch error");
     }
 
     // Sort by most recent first
