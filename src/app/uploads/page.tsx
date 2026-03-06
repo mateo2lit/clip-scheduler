@@ -2045,35 +2045,37 @@ export default function UploadsPage() {
                     </div>
 
                     {/* Point 3: Allow Duet */}
-                    <div className={`flex items-center justify-between ${ttCreatorInfo?.duet_disabled ? "opacity-40" : ""}`}>
-                      <div>
+                    <div>
+                      <div className="flex items-center justify-between">
                         <p className="text-sm text-white/80">Allow Duet</p>
-                        {ttCreatorInfo?.duet_disabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                        <button
+                          type="button"
+                          onClick={() => setTtAllowDuet((v) => !v)}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowDuet ? "bg-blue-500" : "bg-white/10"}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowDuet ? "translate-x-5" : "translate-x-0"}`} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={!!ttCreatorInfo?.duet_disabled}
-                        onClick={() => setTtAllowDuet((v) => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowDuet ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
-                      >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowDuet ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
+                      {ttAllowDuet && ttPrivacyLevel === "SELF_ONLY" && (
+                        <p className="text-xs text-amber-400/70 mt-1">Duet is not available for private posts — this setting will apply when posting publicly.</p>
+                      )}
                     </div>
 
                     {/* Point 4: Allow Stitch */}
-                    <div className={`flex items-center justify-between ${ttCreatorInfo?.stitch_disabled ? "opacity-40" : ""}`}>
-                      <div>
+                    <div>
+                      <div className="flex items-center justify-between">
                         <p className="text-sm text-white/80">Allow Stitch</p>
-                        {ttCreatorInfo?.stitch_disabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                        <button
+                          type="button"
+                          onClick={() => setTtAllowStitch((v) => !v)}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowStitch ? "bg-blue-500" : "bg-white/10"}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowStitch ? "translate-x-5" : "translate-x-0"}`} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={!!ttCreatorInfo?.stitch_disabled}
-                        onClick={() => setTtAllowStitch((v) => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowStitch ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
-                      >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowStitch ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
+                      {ttAllowStitch && ttPrivacyLevel === "SELF_ONLY" && (
+                        <p className="text-xs text-amber-400/70 mt-1">Stitch is not available for private posts — this setting will apply when posting publicly.</p>
+                      )}
                     </div>
                   </div>
 
