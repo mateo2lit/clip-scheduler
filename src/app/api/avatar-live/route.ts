@@ -53,11 +53,11 @@ export async function GET(req: Request) {
       if (result) return result;
     }
 
-    // Instagram: fetch fresh profile_picture_url with access token, then immediately proxy it
-    // (CDN URL is valid for the IP that just received it — same server, same request)
-    if (provider === "instagram" && ig_user_id && access_token) {
+    // Instagram: uses the new Instagram API (graph.instagram.com, not graph.facebook.com)
+    // Fetch fresh profile_picture_url with the stored access token, then immediately proxy it
+    if (provider === "instagram" && access_token) {
       const profileRes = await fetch(
-        `https://graph.facebook.com/${ig_user_id}?fields=profile_picture_url&access_token=${access_token}`
+        `https://graph.instagram.com/me?fields=profile_picture_url&access_token=${access_token}`
       );
       if (profileRes.ok) {
         const profileData = await profileRes.json();
@@ -84,7 +84,21 @@ export async function GET(req: Request) {
       }
     }
 
-    // YouTube, LinkedIn, Bluesky, and fallback: proxy stored avatar_url directly
+    // Bluesky: re-fetch from public API using DID — no token needed, works for old accounts
+    if (provider === "bluesky" && account.platform_user_id) {
+      const profileRes = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(account.platform_user_id)}`
+      );
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        if (profile.avatar) {
+          const result = await proxyImage(profile.avatar);
+          if (result) return result;
+        }
+      }
+    }
+
+    // YouTube, LinkedIn, and fallback: proxy stored avatar_url directly
     if (avatar_url) {
       const result = await proxyImage(avatar_url);
       if (result) return result;

@@ -77,8 +77,8 @@ export async function GET(req: Request) {
     const profile = await getInstagramProfile(longLivedToken);
     const igUserId = profile.id; // Graph API IG User ID (needed for /media and /media_publish)
     const profileName = profile.username || null;
-    // Use stable Graph API picture URL (no signed CDN tokens — works from any IP via proxy)
-    const avatarUrl = `https://graph.facebook.com/${igUserId}/picture?type=large`;
+    // Store the profile picture URL directly; the avatar-live endpoint will re-fetch it fresh
+    const avatarUrl = profile.profilePictureUrl || null;
 
     // 4) Upsert platform_accounts with provider="instagram".
     // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
