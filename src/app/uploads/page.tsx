@@ -486,7 +486,7 @@ export default function UploadsPage() {
         const paJson = await paRes.json();
         if (paJson.ok) {
           const lists: Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>> = {};
-          const autoSelect: Record<string, string> = {};
+          const autoSelect: Record<string, string[]> = {};
           const accts: Record<string, { profileName: string | null; avatarUrl: string | null }> = {};
           for (const row of paJson.data || []) {
             if (!row.provider || !row.id) continue;
