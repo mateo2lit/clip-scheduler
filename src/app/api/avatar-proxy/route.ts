@@ -3,19 +3,15 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 // Allowed CDN hostnames for platform avatars — prevents open proxy abuse
+// Root domains — the isAllowed check also matches any subdomain via endsWith
 const ALLOWED_HOSTS = [
-  "lh3.googleusercontent.com",      // Google / YouTube
-  "tiktokcdn.com",                  // TikTok (suffix match covers all subdomains)
+  "googleusercontent.com",  // Google / YouTube (lh3, lh4, lh5, lh6, ...)
+  "tiktokcdn.com",          // TikTok
   "tiktokcdn-us.com",
-  "cdninstagram.com",               // Instagram (suffix match below)
-  "fbcdn.net",                      // Facebook (suffix match below)
-  "facebook.com",
-  "media.licdn.com",                // LinkedIn
-  "media-exp1.licdn.com",
-  "media-exp2.licdn.com",
-  "dms.licdn.com",
-  "cdn.bsky.app",                   // Bluesky
-  "av-eks-egress.bsky.app",
+  "cdninstagram.com",       // Instagram
+  "fbcdn.net",              // Facebook
+  "licdn.com",              // LinkedIn (media.licdn.com, dms.licdn.com, ...)
+  "bsky.app",               // Bluesky (cdn.bsky.app, av-eks-egress.bsky.app, ...)
 ];
 
 function isAllowed(url: URL): boolean {
