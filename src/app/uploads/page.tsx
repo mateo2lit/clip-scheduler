@@ -1982,16 +1982,16 @@ export default function UploadsPage() {
                   </div>
                 )}
 
-                <div className="p-5 space-y-4">
-                  {/* Privacy Level — dynamic from creator info */}
-                  <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Privacy Level</label>
+                <div className="p-5 space-y-5">
+                  {/* ── Point 1: Who can watch this video ── */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Who can watch this video</p>
                     <select
                       value={ttPrivacyLevel}
                       onChange={(e) => setTtPrivacyLevel(e.target.value)}
                       className={`w-full rounded-lg border px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40 ${!ttPrivacyLevel ? "border-amber-500/30 bg-amber-500/5" : "border-white/10 bg-white/5"}`}
                     >
-                      <option value="" className="bg-neutral-900">Select privacy level...</option>
+                      <option value="" className="bg-neutral-900">Select who can watch...</option>
                       {ttCreatorInfo ? (
                         ttCreatorInfo.privacy_level_options.map((opt) => (
                           <option
@@ -2002,71 +2002,88 @@ export default function UploadsPage() {
                             className="bg-neutral-900 disabled:text-white/30"
                           >
                             {opt === "SELF_ONLY"
-                              ? `Private (Self Only)${ttBrandContent ? " — unavailable for branded content" : ""}`
+                              ? `Private${ttBrandContent ? " — unavailable for branded content" : ""}`
                               : opt === "MUTUAL_FOLLOW_FRIENDS" ? "Friends"
                               : opt === "FOLLOWER_OF_CREATOR" ? "Followers"
-                              : opt === "PUBLIC_TO_EVERYONE" ? "Public"
+                              : opt === "PUBLIC_TO_EVERYONE" ? "Everyone"
                               : opt}
                           </option>
                         ))
                       ) : (
                         <>
-                          <option value="SELF_ONLY" disabled={ttBrandContent} className="bg-neutral-900">
-                            {`Private (Self Only)${ttBrandContent ? " — unavailable for branded content" : ""}`}
-                          </option>
+                          <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Everyone</option>
                           <option value="MUTUAL_FOLLOW_FRIENDS" className="bg-neutral-900">Friends</option>
                           <option value="FOLLOWER_OF_CREATOR" className="bg-neutral-900">Followers</option>
-                          <option value="PUBLIC_TO_EVERYONE" className="bg-neutral-900">Public</option>
+                          <option value="SELF_ONLY" disabled={ttBrandContent} className="bg-neutral-900">
+                            {`Private${ttBrandContent ? " — unavailable for branded content" : ""}`}
+                          </option>
                         </>
                       )}
                     </select>
-                    {!ttPrivacyLevel && <p className="text-xs text-amber-400/70 mt-1">Required: select a privacy level</p>}
-                    {ttBrandContent && <p className="text-xs text-amber-400/70 mt-1">Branded content cannot be set to &quot;Private (Self Only)&quot;</p>}
+                    {!ttPrivacyLevel && <p className="text-xs text-amber-400/70">Required: select who can watch this video</p>}
+                    {ttBrandContent && <p className="text-xs text-amber-400/70">Branded content cannot be set to &quot;Private&quot;</p>}
                   </div>
 
-                  {/* Interaction toggles */}
-                  <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2">
-                    <label className={`flex items-center gap-2 ${ttCreatorInfo?.comment_disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
-                      <input
-                        type="checkbox"
-                        checked={ttAllowComments}
-                        onChange={(e) => setTtAllowComments(e.target.checked)}
-                        disabled={ttCreatorInfo?.comment_disabled}
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white"
-                      />
-                      <span className="text-sm text-white/70">Allow Comments</span>
-                      {ttCreatorInfo?.comment_disabled && <span className="text-[10px] text-white/30">(disabled by creator)</span>}
-                    </label>
-                    <label className={`flex items-center gap-2 ${ttCreatorInfo?.duet_disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
-                      <input
-                        type="checkbox"
-                        checked={ttAllowDuet}
-                        onChange={(e) => setTtAllowDuet(e.target.checked)}
-                        disabled={ttCreatorInfo?.duet_disabled}
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white"
-                      />
-                      <span className="text-sm text-white/70">Allow Duet</span>
-                      {ttCreatorInfo?.duet_disabled && <span className="text-[10px] text-white/30">(disabled by creator)</span>}
-                    </label>
-                    <label className={`flex items-center gap-2 ${ttCreatorInfo?.stitch_disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
-                      <input
-                        type="checkbox"
-                        checked={ttAllowStitch}
-                        onChange={(e) => setTtAllowStitch(e.target.checked)}
-                        disabled={ttCreatorInfo?.stitch_disabled}
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white"
-                      />
-                      <span className="text-sm text-white/70">Allow Stitch</span>
-                      {ttCreatorInfo?.stitch_disabled && <span className="text-[10px] text-white/30">(disabled by creator)</span>}
-                    </label>
-                  </div>
+                  {/* ── Points 2–4: Interaction settings ── */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Interaction settings</p>
 
-                  {/* Commercial content disclosure */}
-                  <div className="pt-4 border-t border-white/10 space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
+                    {/* Point 2: Allow Comments */}
+                    <div className={`flex items-center justify-between ${ttCreatorInfo?.comment_disabled ? "opacity-40" : ""}`}>
                       <div>
-                        <p className="text-sm text-white/80">Disclose commercial content</p>
-                        <p className="text-xs text-white/40 mt-0.5">Turn on if this content promotes goods or services</p>
+                        <p className="text-sm text-white/80">Allow comments</p>
+                        {ttCreatorInfo?.comment_disabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!!ttCreatorInfo?.comment_disabled}
+                        onClick={() => setTtAllowComments((v) => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowComments ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowComments ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </div>
+
+                    {/* Point 3: Allow Duet */}
+                    <div className={`flex items-center justify-between ${ttCreatorInfo?.duet_disabled ? "opacity-40" : ""}`}>
+                      <div>
+                        <p className="text-sm text-white/80">Allow Duet</p>
+                        {ttCreatorInfo?.duet_disabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!!ttCreatorInfo?.duet_disabled}
+                        onClick={() => setTtAllowDuet((v) => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowDuet ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowDuet ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </div>
+
+                    {/* Point 4: Allow Stitch */}
+                    <div className={`flex items-center justify-between ${ttCreatorInfo?.stitch_disabled ? "opacity-40" : ""}`}>
+                      <div>
+                        <p className="text-sm text-white/80">Allow Stitch</p>
+                        {ttCreatorInfo?.stitch_disabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!!ttCreatorInfo?.stitch_disabled}
+                        onClick={() => setTtAllowStitch((v) => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowStitch ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowStitch ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Point 5: Content disclosure ── */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Content disclosure</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-white/80">Disclose video content</p>
+                        <p className="text-xs text-white/40 mt-0.5">Turn on if this video promotes a brand, product, or service</p>
                       </div>
                       <button
                         type="button"
@@ -2075,11 +2092,11 @@ export default function UploadsPage() {
                           setTtCommercialToggle(next);
                           if (!next) { setTtBrandOrganic(false); setTtBrandContent(false); }
                         }}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${ttCommercialToggle ? "bg-blue-500" : "bg-white/10"}`}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttCommercialToggle ? "bg-blue-500" : "bg-white/10"}`}
                       >
                         <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttCommercialToggle ? "translate-x-5" : "translate-x-0"}`} />
                       </button>
-                    </label>
+                    </div>
 
                     {ttCommercialToggle && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
@@ -2117,11 +2134,12 @@ export default function UploadsPage() {
                   </div>
 
                   {/* AI-generated content disclosure */}
-                  <div className="pt-4 border-t border-white/10">
-                    <label className="flex items-center justify-between cursor-pointer">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">AI-generated content</p>
+                    <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-white/80">AI-generated content</p>
-                        <p className="text-xs text-white/40 mt-0.5">This video was created or significantly assisted by AI tools</p>
+                        <p className="text-sm text-white/80">Label as AI-generated</p>
+                        <p className="text-xs text-white/40 mt-0.5">This video was created or significantly assisted by AI</p>
                       </div>
                       <button
                         type="button"
@@ -2130,9 +2148,9 @@ export default function UploadsPage() {
                       >
                         <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAigcDisclosure ? "translate-x-5" : "translate-x-0"}`} />
                       </button>
-                    </label>
+                    </div>
                     {ttAigcDisclosure && (
-                      <p className="text-xs text-blue-400/70 mt-2">TikTok will label this post as AI-generated content.</p>
+                      <p className="text-xs text-blue-400/70">TikTok will label this post as AI-generated content.</p>
                     )}
                   </div>
 
@@ -2151,7 +2169,7 @@ export default function UploadsPage() {
                   )}
 
                   {/* Consent checkboxes — required before scheduling */}
-                  <div className="pt-4 border-t border-white/10 space-y-3">
+                  <div className="space-y-3">
                     {/* Checkbox 1: TikTok's required Music Usage Confirmation (exact wording) */}
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
