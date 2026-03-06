@@ -6,31 +6,39 @@ import { supabase } from "./login/supabaseClient";
 const FAQ_ITEMS = [
   {
     q: "Why switch from Buffer or Hootsuite?",
-    a: "Clip Dash is built specifically for video creators. It supports large video uploads, platform-specific settings (like TikTok privacy levels and Instagram Reels), and an AI hashtag engine — none of which Buffer or Hootsuite handle well for video content.",
+    a: "Clip Dash is built specifically for video creators. It handles large file uploads (up to 2 GB), platform-specific settings like TikTok privacy levels, Instagram Reels vs. Stories, and YouTube Shorts, plus AI hashtag suggestions and multiple connected accounts per platform — things Buffer and Hootsuite don't handle well for video.",
   },
   {
     q: "What platforms do you support?",
-    a: "YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky - 6 platforms total.",
+    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, and Threads — 7 platforms total.",
   },
   {
-    q: "How many social accounts can I connect?",
-    a: "You can connect one account per platform. The Creator plan covers a single workspace, and the Team plan adds up to 5 collaborators sharing the same connected accounts.",
+    q: "How many social accounts can I connect per platform?",
+    a: "Unlimited. Connect multiple YouTube channels, TikTok accounts, Instagram profiles, and more. When scheduling, you choose which accounts to post to — including all of them at once with a single upload.",
   },
   {
     q: "What types of content can I post?",
-    a: "Video content only — including YouTube videos and Shorts, TikTok clips, Instagram Reels and Stories, Facebook video posts, and LinkedIn video posts.",
+    a: "Video content — YouTube videos and Shorts (up to 256 GB / 12 hrs), TikTok clips (up to 60 min), Instagram Reels (up to 15 min) and Stories, Facebook video posts, LinkedIn videos (up to 15 min), Bluesky videos (up to 3 min / 100 MB), and Threads videos (up to 5 min).",
+  },
+  {
+    q: "How much storage do I get?",
+    a: "Creator plan: 5 GB active storage. Team plan: 15 GB. Videos are automatically deleted from storage after they've been successfully posted to all platforms, so your active storage stays low under normal use.",
   },
   {
     q: "Will my posts get less reach using this app?",
-    a: "No. Clip Dash publishes through each platform's official API, which is the same method native apps and major scheduling tools use. There is no known reach penalty for API-published posts.",
+    a: "No. Clip Dash publishes through each platform's official API — the same method native apps and major scheduling tools use. There is no known reach penalty for API-published posts.",
   },
   {
     q: "Do I need to share my social media passwords?",
-    a: "Never. All connections use OAuth, so you authenticate directly with each platform and we only receive a secure access token. Your passwords stay private.",
+    a: "Never. All connections use OAuth (or Bluesky App Passwords), so you authenticate directly with each platform and we only receive a secure access token. Your passwords stay private.",
   },
   {
     q: "How many posts can I schedule per month?",
-    a: "Unlimited on both plans. There are no posting caps.",
+    a: "Unlimited on both plans. No posting caps.",
+  },
+  {
+    q: "Can I post to multiple accounts at the same time?",
+    a: "Yes. If you have two YouTube channels connected, you can check both when scheduling and Clip Dash will post the same video to both automatically.",
   },
   {
     q: "Can I cancel anytime?",
@@ -144,7 +152,7 @@ export default function Home() {
           </span>
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-          Plan, publish, and grow across YouTube, TikTok, Instagram, Facebook, and LinkedIn from one focused creator workspace.
+          Plan, publish, and grow across YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and Threads from one focused creator workspace.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {loaded && (
@@ -203,7 +211,7 @@ export default function Home() {
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Everything you need to grow</h2>
           <p className="mt-4 text-white/40 text-lg">One tool to manage your entire content pipeline.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
               icon: (
@@ -211,18 +219,28 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
                 </svg>
               ),
-              title: "Multi-Platform Publishing",
-              desc: "Schedule once and auto-publish to YouTube, TikTok, Instagram, Facebook, and LinkedIn.",
+              title: "7 Platforms, One Workflow",
+              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and Threads from a single upload.",
               color: "blue",
             },
             {
               icon: (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+              ),
+              title: "Multiple Accounts Per Platform",
+              desc: "Connect multiple YouTube channels, TikTok accounts, or Instagram profiles and post to all of them at once.",
+              color: "pink",
+            },
+            {
+              icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                 </svg>
               ),
               title: "AI Tag Suggestions",
-              desc: "Generate platform-aware hashtags in seconds, then pick and apply only the tags you want.",
+              desc: "Generate platform-aware hashtags in seconds based on your title, description, and target audience.",
               color: "purple",
             },
             {
@@ -232,7 +250,7 @@ export default function Home() {
                 </svg>
               ),
               title: "Unified Comments Inbox",
-              desc: "Read and reply to comments across platforms in one place so engagement never slips through.",
+              desc: "Read and reply to comments across all platforms in one place so engagement never slips through.",
               color: "emerald",
             },
           ].map((f) => (
@@ -242,6 +260,7 @@ export default function Home() {
             >
               <div className={`inline-flex rounded-xl p-3 mb-4 ${
                 f.color === "blue" ? "bg-blue-500/10 text-blue-400" :
+                f.color === "pink" ? "bg-pink-500/10 text-pink-400" :
                 f.color === "purple" ? "bg-purple-500/10 text-purple-400" :
                 "bg-emerald-500/10 text-emerald-400"
               }`}>
@@ -262,9 +281,9 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { step: "1", title: "Create once, customize fast", desc: "Upload your video, generate AI tag suggestions, and finalize your caption in minutes." },
-            { step: "2", title: "Schedule across channels", desc: "Select platforms and schedule times with one workflow instead of repeating busywork." },
-            { step: "3", title: "Grow with less manual work", desc: "Posts publish automatically and comments are managed from one unified inbox." },
+            { step: "1", title: "Upload once", desc: "Drop your video, add a title and description, generate AI hashtag suggestions, and set a custom thumbnail — all in one place." },
+            { step: "2", title: "Pick platforms and accounts", desc: "Select which platforms to post to. If you have multiple YouTube channels or TikTok accounts, choose which ones to post to — or all of them at once." },
+            { step: "3", title: "Schedule and relax", desc: "Set a time, hit schedule, and Clip Dash handles the rest. Posts publish automatically and comments from every platform land in your unified inbox." },
           ].map((s) => (
             <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5">
@@ -297,11 +316,15 @@ export default function Home() {
             <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                Unlimited uploads
+                Unlimited uploads &amp; scheduled posts
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                All platforms
+                All 7 platforms
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                Multiple accounts per platform
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
@@ -310,6 +333,10 @@ export default function Home() {
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                 Unified comments inbox
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                5 GB active storage
               </li>
             </ul>
             <a
@@ -338,6 +365,10 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                15 GB active storage
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                 Shared inbox and workflows
               </li>
               <li className="flex items-start gap-2">
@@ -360,8 +391,8 @@ export default function Home() {
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
             {[
-              { value: "6", label: "Publishing platforms" },
-              { value: "1", label: "Unified comments inbox" },
+              { value: "7", label: "Publishing platforms" },
+              { value: "∞", label: "Accounts per platform" },
               { value: "AI", label: "Tag suggestions built in" },
               { value: "24/7", label: "Automated scheduling" },
             ].map((s) => (
@@ -392,6 +423,7 @@ export default function Home() {
             { key: "facebook",  name: "Facebook",  color: "text-blue-400",  icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073Z"/></svg> },
             { key: "linkedin",  name: "LinkedIn",  color: "text-blue-300",  icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z"/></svg> },
             { key: "bluesky",   name: "Bluesky",   color: "text-sky-400",   icon: <svg className="w-10 h-10" viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg> },
+            { key: "threads",   name: "Threads",   color: "text-white/70",  icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.05-4.073 1.364-7.298 3.905-9.58C7.628.302 10.594-.06 12.186 0c2.64.065 4.955.942 6.681 2.534.94.861 1.696 1.957 2.25 3.258l-2.145.9c-.427-1.012-1.03-1.881-1.793-2.582-1.33-1.218-3.15-1.872-5.053-1.915-1.275-.032-3.6.239-5.392 1.913C4.899 5.69 3.884 8.26 3.84 11.998c.038 3.733 1.053 6.3 3.014 7.847 1.782 1.374 4.107 1.662 5.367 1.682 1.254-.005 3.424-.237 5.25-1.624.926-.71 1.63-1.63 2.09-2.73-1.208-.226-2.457-.285-3.73-.147-2.02.217-3.717-.185-5.04-1.196-.959-.728-1.505-1.833-1.514-2.949-.013-1.208.496-2.372 1.389-3.191 1.083-.994 2.67-1.487 4.712-1.487a11.91 11.91 0 0 1 1.96.164c-.143-.49-.38-.882-.714-1.165-.522-.442-1.329-.667-2.396-.667l-.118.001c-.899.01-2.094.317-2.823 1.218l-1.617-1.38C9.5 7.067 11.083 6.5 12.72 6.5l.156-.001c1.597-.007 2.936.388 3.88 1.168.99.815 1.534 2.016 1.617 3.578.1 1.828-.265 3.382-1.086 4.624-.821 1.241-2.071 2.097-3.617 2.475a10.6 10.6 0 0 1-2.52.296c-2.01-.003-3.41-.55-4.165-1.636-.48-.687-.636-1.504-.49-2.413.215-1.326 1.1-2.477 2.482-3.235 1.028-.565 2.2-.808 3.468-.72.447.03.883.084 1.303.161-.12-.857-.477-1.423-.979-1.694-.545-.292-1.245-.355-1.78-.16-.617.224-1.126.747-1.516 1.555l-1.972-.906c.568-1.24 1.46-2.154 2.643-2.72 1.002-.476 2.123-.616 3.237-.405 1.4.267 2.483 1.038 3.13 2.233.551 1.014.787 2.285.696 3.78a11.72 11.72 0 0 1-.1.99c-.11.762-.286 1.46-.52 2.083 1.58.048 3.121.386 4.573.996-.015.14-.03.278-.046.414-.257 2.155-1.023 3.932-2.278 5.282C17.236 22.803 14.85 23.975 12.186 24z"/></svg> },
           ].map((p) => (
             <a
               key={p.key}

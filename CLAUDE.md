@@ -1,7 +1,7 @@
 # Clip Dash — Project Context
 
 ## What is this?
-Clip Dash is a SaaS for content creators to schedule and auto-publish videos across YouTube, TikTok, Instagram, Facebook, and LinkedIn from one dashboard. Upload once, pick platforms and times, and the worker posts it automatically.
+Clip Dash is a SaaS for content creators to schedule and auto-publish videos across YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and Threads (7 platforms) from one dashboard. Upload once, pick platforms and times, and the worker posts it automatically. Users can connect multiple accounts per platform and post to all of them simultaneously.
 
 ## Tech Stack
 - **Framework:** Next.js 14.2 (App Router), React 18, TypeScript, Tailwind CSS v4
@@ -12,13 +12,16 @@ Clip Dash is a SaaS for content creators to schedule and auto-publish videos acr
 - **Email:** Resend for transactional emails (post success/failed/reconnect notifications)
 - **AI:** Anthropic Claude Haiku for hashtag suggestions
 - **Deploy:** Vercel (serverless functions, cron)
-- **OAuth Providers:** Google (YouTube), TikTok, Facebook, Instagram (Meta), LinkedIn
+- **OAuth Providers:** Google (YouTube), TikTok, Facebook, Instagram (Meta), LinkedIn, Bluesky (AT Protocol), Threads (Meta)
 
 ## Architecture
 - **Auth pattern:** Every API route calls `getTeamContext(req)` from `src/lib/teamAuth.ts` which extracts the Bearer token, validates via Supabase, and returns `{ userId, teamId, role }`.
 - **Team model:** Single-team per user. `teams` table has billing fields (`stripe_customer_id`, `plan`, `plan_status`). `team_members` links users to teams with roles (`owner`, `admin`, `member`).
-- **Upload flow:** User uploads video to Supabase Storage -> creates `uploads` row -> creates `scheduled_posts` row(s) with target platforms and schedule time -> cron worker picks them up and posts.
-- **Worker:** `/api/worker/run-scheduled` processes due posts. Protected by `WORKER_SECRET` query param. Handles YouTube, TikTok, Facebook, Instagram (async container), LinkedIn. Instagram uses two-phase: create container -> poll until ready -> publish.
+- **Upload flow:** User uploads video to Supabase Storage -> creates `uploads` row (with `file_size` + `storage_deleted`) -> creates `scheduled_posts` row(s) with target platforms, selected account IDs, and schedule time -> cron worker picks them up and posts.
+- **Multi-account per platform:** Users can connect multiple accounts for any platform (e.g., two YouTube channels). On the upload page, checkboxes let them select which accounts to post to. One `scheduled_posts` row is created per selected account per platform.
+- **Worker:** `/api/worker/run-scheduled` processes due posts. Protected by `WORKER_SECRET` query param. Handles YouTube, TikTok, Facebook, Instagram (async container), LinkedIn, Bluesky, Threads. Instagram uses two-phase: create container -> poll until ready -> publish.
+- **Storage cleanup:** After all posts in a group succeed, the worker deletes the file from Supabase Storage and sets `uploads.storage_deleted = true`. The nightly `refresh-tokens` worker also hard-deletes files for uploads where all posts are terminal (posted/failed) and `scheduled_for` is older than 7 days.
+- **Storage limits:** Creator plan = 5 GB active storage, Team plan = 15 GB. Enforced at upload time by summing `file_size` where `storage_deleted = false`. Upload is rejected with 403 if new file would exceed limit.
 - **Token refresh:** `/api/worker/refresh-tokens` refreshes Facebook/Instagram tokens expiring within 7 days. YouTube uses refresh_token on each upload. TikTok refreshes inline.
 
 ## Key Directories
@@ -58,12 +61,15 @@ src/
     facebookUpload.ts  — Facebook upload logic
     instagramUpload.ts — Instagram container + publish logic
     linkedinUpload.ts  — LinkedIn upload logic
+    blueskyUpload.ts   — Bluesky AT Protocol upload logic
+    threadsUpload.ts   — Threads upload logic
     email.ts           — Transactional email templates via Resend
     commentFetchers.ts — YouTube/Facebook/Instagram comment fetching
     metricsFetchers.ts — YouTube/Facebook/Instagram metrics (views, likes, comments)
     tiktok.ts          — TikTok OAuth helpers
     facebook.ts        — Facebook OAuth helpers
     instagram.ts       — Instagram OAuth helpers
+    bluesky.ts         — Bluesky OAuth helpers
 ```
 
 ## Environment Variables Required
@@ -88,9 +94,9 @@ RESEND_API_KEY (expected by email.ts)
 - `teams` — id, name, owner_id, plan, plan_status, trial_ends_at, stripe_customer_id, stripe_subscription_id
 - `team_members` — team_id, user_id, role, joined_at (UNIQUE team_id+user_id)
 - `team_invites` — id, team_id, email, status, created_at
-- `uploads` — id, user_id, team_id, bucket, file_path
-- `scheduled_posts` — id, user_id, team_id, upload_id, title, description, provider, status, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id, ig_container_id, ig_container_created_at, platform_post_id, platform_media_id, posted_at, last_error
-- `platform_accounts` — user_id, team_id, provider, access_token, refresh_token, expiry, platform_user_id, page_id, page_access_token, ig_user_id, profile_name, avatar_url (UNIQUE team_id+provider)
+- `uploads` — id, user_id, team_id, bucket, file_path, file_size (bigint), storage_deleted (boolean default false)
+- `scheduled_posts` — id, user_id, team_id, upload_id, platform_account_id (FK→platform_accounts ON DELETE SET NULL), title, description, provider, status, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id, ig_container_id, ig_container_created_at, platform_post_id, platform_media_id, posted_at, last_error
+- `platform_accounts` — user_id, team_id, provider, access_token, refresh_token, expiry, platform_user_id, label, page_id, page_access_token, ig_user_id, profile_name, avatar_url (UNIQUE team_id+provider+platform_user_id — allows multiple accounts per platform)
 - `notification_preferences` — user_id, notify_post_success, notify_post_failed, notify_reconnect
 - `platform_defaults` — user_id, platform, settings (JSONB)
 
