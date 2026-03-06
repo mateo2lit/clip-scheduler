@@ -5,13 +5,16 @@ export const runtime = "nodejs";
 // Allowed CDN hostnames for platform avatars — prevents open proxy abuse
 // Root domains — the isAllowed check also matches any subdomain via endsWith
 const ALLOWED_HOSTS = [
-  "googleusercontent.com",  // Google / YouTube (lh3, lh4, lh5, lh6, ...)
+  "googleusercontent.com",  // Google profile pictures
+  "ggpht.com",              // YouTube channel avatars (yt3.ggpht.com)
+  "ytimg.com",              // YouTube thumbnails
   "tiktokcdn.com",          // TikTok
   "tiktokcdn-us.com",
   "cdninstagram.com",       // Instagram
-  "fbcdn.net",              // Facebook
-  "licdn.com",              // LinkedIn (media.licdn.com, dms.licdn.com, ...)
-  "bsky.app",               // Bluesky (cdn.bsky.app, av-eks-egress.bsky.app, ...)
+  "fbcdn.net",              // Facebook (scontent-*.xx.fbcdn.net etc.)
+  "xx.fbcdn.net",
+  "licdn.com",              // LinkedIn
+  "bsky.app",               // Bluesky
 ];
 
 function isAllowed(url: URL): boolean {
