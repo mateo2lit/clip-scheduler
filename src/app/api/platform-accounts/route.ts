@@ -23,13 +23,15 @@ export async function GET(req: Request) {
 
     if (dbError) return jsonError(dbError.message, 500);
 
-    // Rewrite stale signed CDN avatar URLs to stable Graph API picture URLs for existing accounts
+    // Return stable avatar URLs:
+    // - Facebook: stable public Graph API picture URL (no signed tokens)
+    // - Instagram/TikTok/LinkedIn/Bluesky: live endpoint that re-fetches with credentials server-side
     const accounts = (data ?? []).map(({ page_id, ig_user_id, ...acct }) => {
       if (acct.provider === "facebook" && page_id) {
         return { ...acct, avatar_url: `https://graph.facebook.com/${page_id}/picture?type=large` };
       }
-      if (acct.provider === "instagram" && ig_user_id) {
-        return { ...acct, avatar_url: `https://graph.facebook.com/${ig_user_id}/picture?type=large` };
+      if (["instagram", "tiktok", "linkedin", "bluesky"].includes(acct.provider) && acct.id) {
+        return { ...acct, avatar_url: `/api/avatar-live?id=${acct.id}` };
       }
       return acct;
     });

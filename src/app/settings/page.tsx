@@ -20,6 +20,8 @@ type SettingsTab = "account" | "subscription" | "connected" | "team" | "notifica
 
 function proxiedAvatar(url: string | null | undefined): string | null {
   if (!url) return null;
+  // Local API endpoints (e.g. /api/avatar-live) — return directly, no double-wrapping
+  if (url.startsWith("/")) return url;
   return `/api/avatar-proxy?url=${encodeURIComponent(url)}`;
 }
 
