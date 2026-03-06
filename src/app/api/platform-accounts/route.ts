@@ -18,12 +18,23 @@ export async function GET(req: Request) {
 
     const { data, error: dbError } = await supabaseAdmin
       .from("platform_accounts")
-      .select("id, provider, created_at, updated_at, expiry, profile_name, avatar_url, label")
+      .select("id, provider, created_at, updated_at, expiry, profile_name, avatar_url, label, page_id, ig_user_id")
       .eq("team_id", teamId);
 
     if (dbError) return jsonError(dbError.message, 500);
 
-    return NextResponse.json({ ok: true, data: data ?? [] });
+    // Rewrite stale signed CDN avatar URLs to stable Graph API picture URLs for existing accounts
+    const accounts = (data ?? []).map(({ page_id, ig_user_id, ...acct }) => {
+      if (acct.provider === "facebook" && page_id) {
+        return { ...acct, avatar_url: `https://graph.facebook.com/${page_id}/picture?type=large` };
+      }
+      if (acct.provider === "instagram" && ig_user_id) {
+        return { ...acct, avatar_url: `https://graph.facebook.com/${ig_user_id}/picture?type=large` };
+      }
+      return acct;
+    });
+
+    return NextResponse.json({ ok: true, data: accounts });
   } catch (e: any) {
     console.error("GET /api/platform-accounts failed:", e?.message ?? e);
     return jsonError(e?.message ?? "Server error", 500);

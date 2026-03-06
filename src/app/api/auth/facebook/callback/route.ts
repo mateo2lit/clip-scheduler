@@ -120,20 +120,9 @@ export async function GET(req: Request) {
     // Auto-select first page
     const page = pages[0];
 
-    // 4) Fetch page profile picture
-    let profileName: string | null = page.name || null;
-    let avatarUrl: string | null = null;
-    try {
-      const picRes = await fetch(
-        `https://graph.facebook.com/v21.0/${page.id}/picture?redirect=false&access_token=${encodeURIComponent(page.access_token)}`
-      );
-      if (picRes.ok) {
-        const picData = await picRes.json();
-        avatarUrl = picData?.data?.url || null;
-      }
-    } catch {
-      // Non-fatal
-    }
+    // 4) Build stable page picture URL (no signed tokens — works from any IP via proxy)
+    const profileName: string | null = page.name || null;
+    const avatarUrl = `https://graph.facebook.com/${page.id}/picture?type=large`;
 
     // 5) Upsert platform_accounts with provider="facebook".
     // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.

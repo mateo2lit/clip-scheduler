@@ -14,7 +14,9 @@ const ALLOWED_HOSTS = [
   "fbcdn.net",              // Facebook (scontent-*.xx.fbcdn.net etc.)
   "xx.fbcdn.net",
   "licdn.com",              // LinkedIn
+  "media.licdn.com",        // LinkedIn profile pictures
   "bsky.app",               // Bluesky
+  "graph.facebook.com",     // Facebook/Instagram stable picture redirect
 ];
 
 function isAllowed(url: URL): boolean {
