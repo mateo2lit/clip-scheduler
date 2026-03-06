@@ -2215,10 +2215,8 @@ export default function UploadsPage() {
                   <span className="font-medium">Instagram Settings</span>
                   {(platformAccountsList.instagram?.length ?? 0) > 1 ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-white/40">Account:</span>
-                      <select value={selectedAccountIds.instagram || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, instagram: id })); const a = (platformAccountsList.instagram || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, instagram: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
-                        {(platformAccountsList.instagram || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>)}
-                      </select>
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.instagram || []).map((id) => platformAccountsList.instagram?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
                     </div>
                   ) : platformAccounts.instagram?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
@@ -2271,10 +2269,8 @@ export default function UploadsPage() {
                   <span className="font-medium">Facebook Settings</span>
                   {(platformAccountsList.facebook?.length ?? 0) > 1 ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-white/40">Page:</span>
-                      <select value={selectedAccountIds.facebook || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, facebook: id })); const a = (platformAccountsList.facebook || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, facebook: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
-                        {(platformAccountsList.facebook || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Page"}</option>)}
-                      </select>
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.facebook || []).map((id) => platformAccountsList.facebook?.find((a) => a.id === id)?.profileName || "Page").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
                     </div>
                   ) : platformAccounts.facebook?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
@@ -2306,10 +2302,8 @@ export default function UploadsPage() {
                   <span className="font-medium">LinkedIn Settings</span>
                   {(platformAccountsList.linkedin?.length ?? 0) > 1 ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-white/40">Profile:</span>
-                      <select value={selectedAccountIds.linkedin || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, linkedin: id })); const a = (platformAccountsList.linkedin || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, linkedin: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
-                        {(platformAccountsList.linkedin || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Profile"}</option>)}
-                      </select>
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.linkedin || []).map((id) => platformAccountsList.linkedin?.find((a) => a.id === id)?.profileName || "Profile").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
                     </div>
                   ) : platformAccounts.linkedin?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
@@ -2341,10 +2335,8 @@ export default function UploadsPage() {
                   <span className="font-medium">Threads Settings</span>
                   {(platformAccountsList.threads?.length ?? 0) > 1 ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-white/40">Account:</span>
-                      <select value={selectedAccountIds.threads || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, threads: id })); const a = (platformAccountsList.threads || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, threads: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
-                        {(platformAccountsList.threads || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>)}
-                      </select>
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.threads || []).map((id) => platformAccountsList.threads?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
                     </div>
                   ) : platformAccounts.threads?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
@@ -2377,10 +2369,8 @@ export default function UploadsPage() {
                   <span className="font-medium">Bluesky Settings</span>
                   {(platformAccountsList.bluesky?.length ?? 0) > 1 ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-white/40">Account:</span>
-                      <select value={selectedAccountIds.bluesky || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, bluesky: id })); const a = (platformAccountsList.bluesky || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, bluesky: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
-                        {(platformAccountsList.bluesky || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>)}
-                      </select>
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.bluesky || []).map((id) => platformAccountsList.bluesky?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
                     </div>
                   ) : platformAccounts.bluesky?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
