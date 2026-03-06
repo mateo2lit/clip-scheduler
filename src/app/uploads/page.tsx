@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import { useTeam } from "@/lib/useTeam";
+
+function proxiedAvatar(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes("googleusercontent.com")) return url;
+  return `/api/avatar-proxy?url=${encodeURIComponent(url)}`;
+}
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
@@ -1302,7 +1308,7 @@ export default function UploadsPage() {
                       const acct = accts[0];
                       return (
                         <div key={p} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/50">
-                          {acct.avatarUrl && <img src={acct.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-4 w-4 rounded-full object-cover" />}
+                          {acct.avatarUrl && <img src={proxiedAvatar(acct.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-4 w-4 rounded-full object-cover" />}
                           <span className="text-white/40">{platform?.name}:</span>
                           <span className="text-white/80 font-medium">{acct.profileName || "Account"}</span>
                         </div>
@@ -1335,7 +1341,7 @@ export default function UploadsPage() {
                                 onClick={() => toggleAccountSelection(p, acct.id)}
                                 className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all ${checked ? "border-blue-400/50 bg-blue-400/15 text-blue-200" : "border-white/10 bg-white/5 text-white/40 hover:border-white/20 hover:text-white/60"}`}
                               >
-                                {acct.avatarUrl && <img src={acct.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-4 w-4 rounded-full object-cover" />}
+                                {acct.avatarUrl && <img src={proxiedAvatar(acct.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-4 w-4 rounded-full object-cover" />}
                                 <span>{acct.profileName || "Account"}</span>
                                 <span className={`ml-0.5 h-1.5 w-1.5 rounded-full ${checked ? "bg-blue-400" : "bg-white/20"}`} />
                               </button>
@@ -1845,7 +1851,7 @@ export default function UploadsPage() {
                   ) : platformAccounts.youtube?.profileName ? (
                     <div className="flex items-center gap-1.5 ml-2">
                       {platformAccounts.youtube.avatarUrl && (
-                        <img src={platformAccounts.youtube.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                        <img src={proxiedAvatar(platformAccounts.youtube.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.youtube.profileName}</span></span>
                     </div>
@@ -1969,7 +1975,7 @@ export default function UploadsPage() {
                   ) : (ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName) ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.tiktok?.avatarUrl && (
-                        <img src={platformAccounts.tiktok.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                        <img src={proxiedAvatar(platformAccounts.tiktok.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName}</span></span>
                     </div>
@@ -2241,7 +2247,7 @@ export default function UploadsPage() {
                   ) : platformAccounts.instagram?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.instagram.avatarUrl && (
-                        <img src={platformAccounts.instagram.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
+                        <img src={proxiedAvatar(platformAccounts.instagram.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.instagram.profileName}</span></span>
                     </div>
@@ -2294,7 +2300,7 @@ export default function UploadsPage() {
                     </div>
                   ) : platformAccounts.facebook?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      {platformAccounts.facebook.avatarUrl && <img src={platformAccounts.facebook.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      {platformAccounts.facebook.avatarUrl && <img src={proxiedAvatar(platformAccounts.facebook.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.facebook.profileName}</span></span>
                     </div>
                   ) : null}
@@ -2327,7 +2333,7 @@ export default function UploadsPage() {
                     </div>
                   ) : platformAccounts.linkedin?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      {platformAccounts.linkedin.avatarUrl && <img src={platformAccounts.linkedin.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      {platformAccounts.linkedin.avatarUrl && <img src={proxiedAvatar(platformAccounts.linkedin.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.linkedin.profileName}</span></span>
                     </div>
                   ) : null}
@@ -2360,7 +2366,7 @@ export default function UploadsPage() {
                     </div>
                   ) : platformAccounts.threads?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      {platformAccounts.threads.avatarUrl && <img src={platformAccounts.threads.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      {platformAccounts.threads.avatarUrl && <img src={proxiedAvatar(platformAccounts.threads.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.threads.profileName}</span></span>
                     </div>
                   ) : null}
@@ -2394,7 +2400,7 @@ export default function UploadsPage() {
                     </div>
                   ) : platformAccounts.bluesky?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
-                      {platformAccounts.bluesky.avatarUrl && <img src={platformAccounts.bluesky.avatarUrl} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      {platformAccounts.bluesky.avatarUrl && <img src={proxiedAvatar(platformAccounts.bluesky.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.bluesky.profileName}</span></span>
                     </div>
                   ) : null}

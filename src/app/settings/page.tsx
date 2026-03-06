@@ -18,6 +18,13 @@ type PlatformConfig = {
 };
 type SettingsTab = "account" | "subscription" | "connected" | "team" | "notifications" | "defaults" | "danger";
 
+function proxiedAvatar(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // YouTube (lh3.googleusercontent.com) loads fine cross-origin; proxy everything else
+  if (url.includes("googleusercontent.com")) return url;
+  return `/api/avatar-proxy?url=${encodeURIComponent(url)}`;
+}
+
 async function safeReadJson(res: Response) {
   const ct = res.headers.get("content-type") || "";
   const text = await res.text();
@@ -1287,11 +1294,10 @@ export default function SettingsPage() {
                               <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-semibold text-white/50">
                                 {(acct.profileName || acct.label || "?")[0].toUpperCase()}
                               </div>
-                              {acct.avatarUrl && (
+                              {proxiedAvatar(acct.avatarUrl) && (
                                 <img
-                                  src={acct.avatarUrl}
+                                  src={proxiedAvatar(acct.avatarUrl)!}
                                   alt=""
-                                  referrerPolicy="no-referrer"
                                   onError={(e) => { e.currentTarget.style.display = "none"; }}
                                   className="absolute inset-0 w-6 h-6 rounded-full object-cover"
                                 />
