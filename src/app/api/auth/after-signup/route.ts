@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ ok: true, message: "Already has team" });
+      return NextResponse.json({ ok: true, is_new: false, message: "Already has team" });
     }
 
     // Check for pending invites matching this user's email
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
           .update({ status: "accepted" })
           .eq("id", invite.id);
 
-        return NextResponse.json({ ok: true, message: "Joined team via invite" });
+        return NextResponse.json({ ok: true, is_new: false, message: "Joined team via invite" });
       }
     }
 
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       role: "owner",
     });
 
-    return NextResponse.json({ ok: true, message: "Team created" });
+    return NextResponse.json({ ok: true, is_new: true, message: "Team created" });
   } catch (e: any) {
     console.error("POST /api/auth/after-signup failed:", e?.message ?? e);
     return NextResponse.json(

@@ -1,0 +1,2 @@
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS onboarding_data JSONB;

@@ -21,14 +21,15 @@ export default function AuthCallbackPage() {
         if (event === "SIGNED_IN" && session) {
           // Ensure the user has a team (idempotent)
           try {
-            await fetch("/api/auth/after-signup", {
+            const r = await fetch("/api/auth/after-signup", {
               method: "POST",
               headers: { Authorization: `Bearer ${session.access_token}` },
             });
+            const json = await r.json().catch(() => ({}));
+            router.replace(json.is_new ? "/onboarding" : "/dashboard");
           } catch {
-            // Non-fatal: team will be created on next API call
+            router.replace("/dashboard");
           }
-          router.replace("/dashboard");
         }
       }
     );
@@ -47,12 +48,15 @@ export default function AuthCallbackPage() {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
         try {
-          await fetch("/api/auth/after-signup", {
+          const r2 = await fetch("/api/auth/after-signup", {
             method: "POST",
             headers: { Authorization: `Bearer ${data.session.access_token}` },
           });
-        } catch {}
-        router.replace("/dashboard");
+          const json2 = await r2.json().catch(() => ({}));
+          router.replace(json2.is_new ? "/onboarding" : "/dashboard");
+        } catch {
+          router.replace("/dashboard");
+        }
       } else {
         setMsg("Session expired. Redirecting to login...");
         setTimeout(() => router.replace("/login"), 1500);
