@@ -98,6 +98,7 @@ export async function GET(req: Request) {
       }
     }
 
+    // X (Twitter): stored pbs.twimg.com URL is public — proxy directly
     // YouTube, LinkedIn, and fallback: proxy stored avatar_url directly
     if (avatar_url) {
       const result = await proxyImage(avatar_url);

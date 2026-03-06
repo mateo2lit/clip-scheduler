@@ -17,6 +17,7 @@ const ALLOWED_HOSTS = [
   "media.licdn.com",        // LinkedIn profile pictures
   "bsky.app",               // Bluesky
   "graph.facebook.com",     // Facebook/Instagram stable picture redirect
+  "pbs.twimg.com",          // X (Twitter) profile pictures
 ];
 
 function isAllowed(url: URL): boolean {

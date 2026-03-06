@@ -30,7 +30,7 @@ export async function GET(req: Request) {
       if (acct.provider === "facebook" && page_id) {
         return { ...acct, avatar_url: `https://graph.facebook.com/${page_id}/picture?type=large` };
       }
-      if (["instagram", "tiktok", "linkedin", "bluesky"].includes(acct.provider) && acct.id) {
+      if (["instagram", "tiktok", "linkedin", "bluesky", "x"].includes(acct.provider) && acct.id) {
         return { ...acct, avatar_url: `/api/avatar-live?id=${acct.id}` };
       }
       return acct;

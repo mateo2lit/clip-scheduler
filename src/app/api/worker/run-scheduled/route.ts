@@ -7,6 +7,7 @@ import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/l
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
 import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky } from "@/lib/blueskyUpload";
+import { uploadVideoToX } from "@/lib/xUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
@@ -588,6 +589,21 @@ async function runWorker(req: Request) {
         }
 
         platformPostId = bskyResult.uri;
+      } else if (provider === "x") {
+        if (!acct.refresh_token) {
+          throw new Error("X account not connected. Please reconnect your X account.");
+        }
+
+        const xResult = await uploadVideoToX({
+          platformAccountId: acct.id,
+          accessToken: acct.access_token,
+          refreshToken: acct.refresh_token,
+          expiresAt: acct.expiry,
+          bucket,
+          storagePath,
+          text: `${post.title ?? ""}${post.description ? `\n\n${post.description}` : ""}`.trim(),
+        });
+        platformPostId = xResult.tweetId;
       } else if (provider === "linkedin") {
         if (!acct.access_token || !acct.platform_user_id) {
           throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");

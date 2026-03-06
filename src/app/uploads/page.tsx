@@ -123,6 +123,17 @@ const PLATFORMS: PlatformConfig[] = [
       </svg>
     ),
   },
+  {
+    key: "x",
+    name: "X",
+    available: true,
+    charLimit: 280,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.259 5.632L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+    ),
+  },
 ];
 
 const YOUTUBE_CATEGORIES: { value: YouTubeCategory; label: string }[] = [
@@ -255,6 +266,7 @@ export default function UploadsPage() {
     linkedin: { profileName: null, avatarUrl: null },
     threads: { profileName: null, avatarUrl: null },
     bluesky: { profileName: null, avatarUrl: null },
+    x: { profileName: null, avatarUrl: null },
   });
   // Full list of connected accounts per provider (for multi-account picker)
   const [platformAccountsList, setPlatformAccountsList] = useState<Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>>>({});
@@ -2416,6 +2428,40 @@ export default function UploadsPage() {
                     <div className="mt-3 space-y-2">
                       <textarea value={platformDescOverrides.bluesky || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, bluesky: e.target.value }))} placeholder="Caption (optional, max 300 chars)" rows={3} maxLength={300} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                       <p className="text-xs text-white/30 text-right">{(platformDescOverrides.bluesky || "").length}/300</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* X Settings */}
+            {selectedPlatforms.includes("x") && (
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-white/80">{PLATFORMS.find(p => p.key === "x")?.icon}</div>
+                  <span className="font-medium">X Settings</span>
+                  {(platformAccountsList.x?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.x || []).map((id) => platformAccountsList.x?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
+                    </div>
+                  ) : platformAccounts.x?.profileName ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.x.avatarUrl && <img src={proxiedAvatar(platformAccounts.x.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.x.profileName}</span></span>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="p-5">
+                  <p className="text-xs text-white/40 mb-3">Video will be posted as an X tweet. Tweet text is limited to 280 characters.</p>
+                  <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "x" ? null : "x")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
+                    <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "x" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    Customize tweet text for X
+                  </button>
+                  {openCaptionOverride === "x" && (
+                    <div className="mt-3 space-y-2">
+                      <textarea value={platformDescOverrides.x || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, x: e.target.value }))} placeholder="Tweet text (optional, max 280 chars)" rows={3} maxLength={280} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <p className="text-xs text-white/30 text-right">{(platformDescOverrides.x || "").length}/280</p>
                     </div>
                   )}
                 </div>
