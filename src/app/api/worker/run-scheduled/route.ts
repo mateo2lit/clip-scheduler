@@ -118,7 +118,8 @@ async function tryDeleteUploadFile(bucket: string, storagePath: string) {
 async function checkAndMaybeDeleteFile(
   groupId: string | null | undefined,
   bucket: string,
-  storagePath: string
+  storagePath: string,
+  uploadId?: string | null
 ) {
   try {
     if (groupId) {
@@ -131,6 +132,12 @@ async function checkAndMaybeDeleteFile(
       if (!allPosted) return;
     }
     await tryDeleteUploadFile(bucket, storagePath);
+    if (uploadId) {
+      await supabaseAdmin
+        .from("uploads")
+        .update({ storage_deleted: true })
+        .eq("id", uploadId);
+    }
   } catch {
     // Non-fatal
   }
@@ -232,7 +239,7 @@ async function runWorker(req: Request) {
                 const igProbed = pickFirstNonEmpty(igUpload, ["file_path", "storage_path", "path", "object_path"]);
                 if (igProbed.value) {
                   const igBucket = igUpload.bucket?.trim() || DEFAULT_BUCKET;
-                  await checkAndMaybeDeleteFile(igPost.group_id, igBucket, igProbed.value);
+                  await checkAndMaybeDeleteFile(igPost.group_id, igBucket, igProbed.value, igPost.upload_id);
                 }
               }
             }
@@ -656,7 +663,7 @@ async function runWorker(req: Request) {
       }
 
       // Delete source file if all group posts are now posted (or solo post)
-      await checkAndMaybeDeleteFile(post.group_id, bucket, storagePath);
+      await checkAndMaybeDeleteFile(post.group_id, bucket, storagePath, post.upload_id);
 
       const okResult: any = {
         id: post.id,

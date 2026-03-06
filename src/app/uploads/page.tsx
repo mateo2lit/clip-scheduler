@@ -879,7 +879,7 @@ export default function UploadsPage() {
       const res = await fetch("/api/uploads/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ bucket: BUCKET, file_path: objectKey }),
+        body: JSON.stringify({ bucket: BUCKET, file_path: objectKey, file_size: file.size }),
       });
 
       const out = await res.json().catch(() => null);

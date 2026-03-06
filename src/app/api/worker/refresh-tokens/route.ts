@@ -152,6 +152,7 @@ async function runRefresh(req: Request) {
 
         try {
           await supabaseAdmin.storage.from(bucket).remove([storagePath]);
+          await supabaseAdmin.from("uploads").update({ storage_deleted: true }).eq("id", uploadId);
         } catch {
           // Non-fatal
         }
