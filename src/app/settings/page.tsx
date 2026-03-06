@@ -1283,9 +1283,20 @@ export default function SettingsPage() {
                       {accts.map((acct) => (
                         <div key={acct.id} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            {acct.avatarUrl && (
-                              <img src={acct.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover" />
-                            )}
+                            <div className="relative w-6 h-6 shrink-0">
+                              <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-semibold text-white/50">
+                                {(acct.profileName || acct.label || "?")[0].toUpperCase()}
+                              </div>
+                              {acct.avatarUrl && (
+                                <img
+                                  src={acct.avatarUrl}
+                                  alt=""
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                  className="absolute inset-0 w-6 h-6 rounded-full object-cover"
+                                />
+                              )}
+                            </div>
                             <span className="text-sm text-white/60">{acct.label || acct.profileName || "Connected account"}</span>
                           </div>
                           {(teamRole === "owner" || teamRole === "admin") && (

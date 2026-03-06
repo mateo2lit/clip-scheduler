@@ -20,9 +20,23 @@ export async function POST(req: Request) {
     // Authenticate with Bluesky
     const session = await blueskyLogin(handle.trim(), appPassword.trim());
 
+    // Fetch profile to get display name and avatar
+    const displayName = session.handle || handle.replace(/^@/, "");
+    let avatarUrl: string | null = null;
+    try {
+      const profileRes = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(session.did)}`
+      );
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        avatarUrl = profile.avatar ?? null;
+      }
+    } catch {
+      // Non-fatal — avatar stays null
+    }
+
     // Upsert platform_accounts.
     // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
-    const displayName = session.handle || handle.replace(/^@/, "");
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -32,7 +46,7 @@ export async function POST(req: Request) {
         refresh_token: session.refreshJwt,
         platform_user_id: session.did,
         profile_name: displayName,
-        avatar_url: null,
+        avatar_url: avatarUrl,
         label: displayName,
         updated_at: new Date().toISOString(),
       },
