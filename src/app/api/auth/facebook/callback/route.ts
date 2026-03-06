@@ -135,7 +135,8 @@ export async function GET(req: Request) {
       // Non-fatal
     }
 
-    // 5) Upsert platform_accounts with provider="facebook"
+    // 5) Upsert platform_accounts with provider="facebook".
+    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -149,9 +150,10 @@ export async function GET(req: Request) {
         page_access_token: page.access_token,
         profile_name: profileName,
         avatar_url: avatarUrl,
+        label: profileName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider" }
+      { onConflict: "team_id,provider,platform_user_id" }
     );
 
     if (upsertErr) {

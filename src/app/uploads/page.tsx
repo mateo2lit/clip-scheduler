@@ -249,6 +249,10 @@ export default function UploadsPage() {
     threads: { profileName: null, avatarUrl: null },
     bluesky: { profileName: null, avatarUrl: null },
   });
+  // Full list of connected accounts per provider (for multi-account picker)
+  const [platformAccountsList, setPlatformAccountsList] = useState<Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>>>({});
+  // Which account id is selected per provider
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Record<string, string>>({});
 
   // Upload state
   const [file, setFile] = useState<File | null>(null);
@@ -481,10 +485,22 @@ export default function UploadsPage() {
         });
         const paJson = await paRes.json();
         if (paJson.ok) {
+          const lists: Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>> = {};
+          const autoSelect: Record<string, string> = {};
           const accts: Record<string, { profileName: string | null; avatarUrl: string | null }> = {};
           for (const row of paJson.data || []) {
-            if (row.provider) accts[row.provider] = { profileName: row.profile_name || null, avatarUrl: row.avatar_url || null };
+            if (!row.provider || !row.id) continue;
+            if (!lists[row.provider]) lists[row.provider] = [];
+            lists[row.provider].push({ id: row.id, profileName: row.profile_name || null, avatarUrl: row.avatar_url || null });
           }
+          for (const [provider, provAccts] of Object.entries(lists)) {
+            if (provAccts.length > 0) {
+              autoSelect[provider] = provAccts[0].id;
+              accts[provider] = { profileName: provAccts[0].profileName, avatarUrl: provAccts[0].avatarUrl };
+            }
+          }
+          setPlatformAccountsList(lists);
+          setSelectedAccountIds(autoSelect);
           setPlatformAccounts(accts);
         }
       } catch {}
@@ -921,6 +937,7 @@ export default function UploadsPage() {
           group_id: groupId,
           upload_id: lastUploadId,
           provider: platform,
+          platform_account_id: selectedAccountIds[platform] || null,
           title: title || null,
           description: description || null,
           privacy_status: platform === "tiktok" ? ttPrivacyLevel : ytVisibility,
@@ -1752,14 +1769,32 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-red-500">{PLATFORMS.find(p => p.key === "youtube")?.icon}</div>
                   <span className="font-medium">YouTube Settings</span>
-                  {platformAccounts.youtube?.profileName && (
+                  {(platformAccountsList.youtube?.length ?? 0) > 1 ? (
+                    <div className="flex items-center gap-1.5 ml-2">
+                      <span className="text-xs text-white/40">Channel:</span>
+                      <select
+                        value={selectedAccountIds.youtube || ""}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedAccountIds((prev) => ({ ...prev, youtube: id }));
+                          const acct = (platformAccountsList.youtube || []).find((a) => a.id === id);
+                          if (acct) setPlatformAccounts((prev) => ({ ...prev, youtube: { profileName: acct.profileName, avatarUrl: acct.avatarUrl } }));
+                        }}
+                        className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none"
+                      >
+                        {(platformAccountsList.youtube || []).map((a) => (
+                          <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : platformAccounts.youtube?.profileName ? (
                     <div className="flex items-center gap-1.5 ml-2">
                       {platformAccounts.youtube.avatarUrl && (
                         <img src={platformAccounts.youtube.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.youtube.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                   <button onClick={() => setYtIsShort(!ytIsShort)} className={`ml-auto flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-all ${ytIsShort ? "bg-blue-400 text-black" : "border border-white/10 bg-white/5 text-white/70"}`}>
                     <span className={`w-2 h-2 rounded-full ${ytIsShort ? "bg-black" : "bg-white/40"}`} />Short
                   </button>
@@ -1869,14 +1904,32 @@ export default function UploadsPage() {
                   <div className="text-white">{PLATFORMS.find(p => p.key === "tiktok")?.icon}</div>
                   <span className="font-medium">TikTok Settings</span>
                   {ttCreatorLoading && <span className="ml-auto text-xs text-white/40">Loading creator info...</span>}
-                  {(ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName) && (
+                  {(platformAccountsList.tiktok?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Account:</span>
+                      <select
+                        value={selectedAccountIds.tiktok || ""}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedAccountIds((prev) => ({ ...prev, tiktok: id }));
+                          const acct = (platformAccountsList.tiktok || []).find((a) => a.id === id);
+                          if (acct) setPlatformAccounts((prev) => ({ ...prev, tiktok: { profileName: acct.profileName, avatarUrl: acct.avatarUrl } }));
+                        }}
+                        className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none"
+                      >
+                        {(platformAccountsList.tiktok || []).map((a) => (
+                          <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName) ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.tiktok?.avatarUrl && (
                         <img src={platformAccounts.tiktok.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {ttCreatorError && (
@@ -2116,14 +2169,21 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-pink-500">{PLATFORMS.find(p => p.key === "instagram")?.icon}</div>
                   <span className="font-medium">Instagram Settings</span>
-                  {platformAccounts.instagram?.profileName && (
+                  {(platformAccountsList.instagram?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Account:</span>
+                      <select value={selectedAccountIds.instagram || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, instagram: id })); const a = (platformAccountsList.instagram || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, instagram: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
+                        {(platformAccountsList.instagram || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>)}
+                      </select>
+                    </div>
+                  ) : platformAccounts.instagram?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.instagram.avatarUrl && (
                         <img src={platformAccounts.instagram.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.instagram.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
@@ -2165,12 +2225,19 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-blue-500">{PLATFORMS.find(p => p.key === "facebook")?.icon}</div>
                   <span className="font-medium">Facebook Settings</span>
-                  {platformAccounts.facebook?.profileName && (
+                  {(platformAccountsList.facebook?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Page:</span>
+                      <select value={selectedAccountIds.facebook || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, facebook: id })); const a = (platformAccountsList.facebook || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, facebook: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
+                        {(platformAccountsList.facebook || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Page"}</option>)}
+                      </select>
+                    </div>
+                  ) : platformAccounts.facebook?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.facebook.avatarUrl && <img src={platformAccounts.facebook.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.facebook.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="p-5">
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "facebook" ? null : "facebook")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
@@ -2193,12 +2260,19 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-blue-400">{PLATFORMS.find(p => p.key === "linkedin")?.icon}</div>
                   <span className="font-medium">LinkedIn Settings</span>
-                  {platformAccounts.linkedin?.profileName && (
+                  {(platformAccountsList.linkedin?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Profile:</span>
+                      <select value={selectedAccountIds.linkedin || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, linkedin: id })); const a = (platformAccountsList.linkedin || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, linkedin: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
+                        {(platformAccountsList.linkedin || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Profile"}</option>)}
+                      </select>
+                    </div>
+                  ) : platformAccounts.linkedin?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.linkedin.avatarUrl && <img src={platformAccounts.linkedin.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.linkedin.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="p-5">
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "linkedin" ? null : "linkedin")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
@@ -2221,12 +2295,19 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-white/80">{PLATFORMS.find(p => p.key === "threads")?.icon}</div>
                   <span className="font-medium">Threads Settings</span>
-                  {platformAccounts.threads?.profileName && (
+                  {(platformAccountsList.threads?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Account:</span>
+                      <select value={selectedAccountIds.threads || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, threads: id })); const a = (platformAccountsList.threads || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, threads: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
+                        {(platformAccountsList.threads || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>)}
+                      </select>
+                    </div>
+                  ) : platformAccounts.threads?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.threads.avatarUrl && <img src={platformAccounts.threads.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.threads.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="p-5">
                   <p className="text-xs text-white/40 mb-3">Video will be posted as a Threads video post. Async publishing — takes 1–5 minutes.</p>
@@ -2250,12 +2331,19 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-sky-400">{PLATFORMS.find(p => p.key === "bluesky")?.icon}</div>
                   <span className="font-medium">Bluesky Settings</span>
-                  {platformAccounts.bluesky?.profileName && (
+                  {(platformAccountsList.bluesky?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Account:</span>
+                      <select value={selectedAccountIds.bluesky || ""} onChange={(e) => { const id = e.target.value; setSelectedAccountIds((p) => ({ ...p, bluesky: id })); const a = (platformAccountsList.bluesky || []).find((x) => x.id === id); if (a) setPlatformAccounts((p) => ({ ...p, bluesky: { profileName: a.profileName, avatarUrl: a.avatarUrl } })); }} className="rounded-lg bg-white/5 border border-white/10 px-2 py-0.5 text-xs text-white/70 focus:outline-none">
+                        {(platformAccountsList.bluesky || []).map((a) => <option key={a.id} value={a.id}>{a.profileName || "Account"}</option>)}
+                      </select>
+                    </div>
+                  ) : platformAccounts.bluesky?.profileName ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.bluesky.avatarUrl && <img src={platformAccounts.bluesky.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.bluesky.profileName}</span></span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="p-5">
                   <p className="text-xs text-white/40 mb-3">Video will be posted as a Bluesky video post. Caption is limited to 300 characters.</p>

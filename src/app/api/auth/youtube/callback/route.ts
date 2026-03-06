@@ -12,11 +12,6 @@ function mustEnv(name: string) {
   return v;
 }
 
-/**
- * Server-safe site URL resolution:
- * - Prefer explicit server env if present
- * - Otherwise rely on the actual request origin (best on Vercel)
- */
 function getSiteUrl(req: Request) {
   return (
     process.env.SITE_URL ||
@@ -68,27 +63,47 @@ export async function GET(req: Request) {
 
     const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-    // ✅ Exchange code for tokens
+    // 1) Exchange code for tokens
     const { tokens } = await oauth2.getToken(code);
 
     const accessToken = tokens.access_token ?? null;
-
-    // IMPORTANT:
-    // Google may NOT return refresh_token on subsequent connects.
-    // We must preserve the existing refresh_token in DB if it exists.
     const newRefreshToken = tokens.refresh_token ?? null;
-
-    // Optional but useful for debugging/worker logic
     const expiryIso =
       typeof tokens.expiry_date === "number" ? new Date(tokens.expiry_date).toISOString() : null;
 
-    // 1) Read existing platform account (if any) so we can preserve refresh_token
-    const existing = await supabaseAdmin
+    // 2) Fetch channel profile — we need channelId to scope the refresh_token lookup
+    //    so we move this before the existing-account lookup.
+    oauth2.setCredentials(tokens);
+    const youtube = google.youtube({ version: "v3", auth: oauth2 });
+
+    let channelId: string | null = null;
+    let profileName: string | null = null;
+    let avatarUrl: string | null = null;
+    try {
+      const channelRes = await youtube.channels.list({ part: ["snippet"], mine: true });
+      const channel = channelRes.data.items?.[0];
+      if (channel) {
+        channelId = channel.id ?? null;
+        if (channel.snippet) {
+          profileName = channel.snippet.title ?? null;
+          avatarUrl = channel.snippet.thumbnails?.default?.url ?? null;
+        }
+      }
+    } catch (profileErr) {
+      console.warn("Failed to fetch YouTube channel info:", profileErr);
+    }
+
+    // 3) Read existing platform account for this specific channel to preserve refresh_token.
+    //    Scope by platform_user_id (channelId) so we don't interfere with other connected channels.
+    const existingQuery = supabaseAdmin
       .from("platform_accounts")
       .select("id, refresh_token")
       .eq("team_id", teamId)
-      .eq("provider", "youtube")
-      .maybeSingle();
+      .eq("provider", "youtube");
+
+    const existing = channelId
+      ? await existingQuery.eq("platform_user_id", channelId).maybeSingle()
+      : await existingQuery.maybeSingle();
 
     if (existing.error) {
       return NextResponse.json({ ok: false, error: existing.error.message }, { status: 500 });
@@ -97,8 +112,6 @@ export async function GET(req: Request) {
     const preservedRefreshToken = existing.data?.refresh_token ?? null;
     const refreshTokenToStore = newRefreshToken || preservedRefreshToken;
 
-    // If we have NO refresh token at all, tell the user how to fix it.
-    // This usually means they need to revoke access in Google and reconnect.
     if (!refreshTokenToStore) {
       return NextResponse.json(
         {
@@ -110,24 +123,12 @@ export async function GET(req: Request) {
       );
     }
 
-    // 2) Fetch channel profile info (name + avatar)
-    let profileName: string | null = null;
-    let avatarUrl: string | null = null;
-    try {
-      oauth2.setCredentials(tokens);
-      const youtube = google.youtube({ version: "v3", auth: oauth2 });
-      const channelRes = await youtube.channels.list({ part: ["snippet"], mine: true });
-      const channel = channelRes.data.items?.[0];
-      if (channel?.snippet) {
-        profileName = channel.snippet.title ?? null;
-        avatarUrl = channel.snippet.thumbnails?.default?.url ?? null;
-      }
-    } catch (profileErr) {
-      // Non-fatal: continue without profile data
-      console.warn("Failed to fetch YouTube channel info:", profileErr);
-    }
+    // 4) Upsert platform_accounts.
+    //    onConflict uses "team_id,provider,platform_user_id" — requires the unique constraint
+    //    added in the multi-channel DB migration. Until that migration runs, this uses
+    //    "team_id,provider" as the fallback conflict target.
+    const conflictTarget = channelId ? "team_id,provider,platform_user_id" : "team_id,provider";
 
-    // 3) Upsert platform_accounts safely
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -136,16 +137,16 @@ export async function GET(req: Request) {
         access_token: accessToken,
         refresh_token: refreshTokenToStore,
         expiry: expiryIso,
+        platform_user_id: channelId,
         profile_name: profileName,
         avatar_url: avatarUrl,
+        label: profileName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider" }
+      { onConflict: conflictTarget }
     );
 
     if (upsertErr) {
-      // If your platform_accounts table does NOT have `expiry`, Supabase will error.
-      // In that case, remove the `expiry` field above and retry.
       return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
     }
 

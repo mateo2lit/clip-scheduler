@@ -22,84 +22,78 @@ export async function GET(req: Request) {
 
     const { teamId } = result.ctx;
 
-    // Load platform accounts for this team
+    // Load all platform accounts for this team, grouped by provider
     const { data: accounts } = await supabaseAdmin
       .from("platform_accounts")
-      .select("provider, refresh_token, access_token, page_id, page_access_token, ig_user_id")
+      .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id")
       .eq("team_id", teamId)
       .in("provider", ["youtube", "facebook", "instagram"]);
 
-    const acctMap = new Map<string, any>();
+    const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
-      acctMap.set(a.provider, a);
+      if (!acctsByProvider.has(a.provider)) acctsByProvider.set(a.provider, []);
+      acctsByProvider.get(a.provider)!.push(a);
     }
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Fetch recent platform posts live (no DB post storage)
-    const [ytRecent, fbRecent, igRecent] = await Promise.all([
-      acctMap.has("youtube") && acctMap.get("youtube")?.refresh_token
-        ? fetchRecentYouTubePosts({
-            refreshToken: acctMap.get("youtube").refresh_token,
-            maxResults: 20,
-            sinceIso: sevenDaysAgo,
-          })
-        : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
-      acctMap.has("facebook") && acctMap.get("facebook")?.page_id && acctMap.get("facebook")?.page_access_token
-        ? fetchRecentFacebookPosts({
-            pageId: acctMap.get("facebook").page_id,
-            pageAccessToken: acctMap.get("facebook").page_access_token,
-            maxResults: 20,
-            sinceIso: threeDaysAgo,
-          })
-        : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
-      acctMap.has("instagram") && acctMap.get("instagram")?.ig_user_id && acctMap.get("instagram")?.access_token
-        ? fetchRecentInstagramPosts({
-            igUserId: acctMap.get("instagram").ig_user_id,
-            accessToken: acctMap.get("instagram").access_token,
-            maxResults: 20,
-            sinceIso: threeDaysAgo,
-          })
-        : Promise.resolve({ posts: [] as any[], error: undefined as string | undefined }),
-    ]);
-
-    const ytPosts = ytRecent.posts;
-    const fbPosts = fbRecent.posts;
-    const igPosts = igRecent.posts;
-
-    // Fetch comments from all platforms in parallel
     const errors: string[] = [];
-    if (ytRecent.error) errors.push(ytRecent.error);
-    if (fbRecent.error) errors.push(fbRecent.error);
-    if (igRecent.error) errors.push(igRecent.error);
-
-    const [ytResult, fbResult, igResult] = await Promise.allSettled([
-      ytPosts.length > 0 && acctMap.has("youtube")
-        ? fetchYouTubeComments(ytPosts, acctMap.get("youtube").refresh_token)
-        : Promise.resolve({ comments: [] as UnifiedComment[], error: undefined as string | undefined }),
-      fbPosts.length > 0 && acctMap.has("facebook")
-        ? fetchFacebookComments(fbPosts, acctMap.get("facebook").page_access_token)
-        : Promise.resolve({ comments: [] as UnifiedComment[], error: undefined as string | undefined }),
-      igPosts.length > 0 && acctMap.has("instagram")
-        ? fetchInstagramComments(
-            igPosts,
-            acctMap.get("instagram").access_token,
-            acctMap.get("instagram").ig_user_id
-          )
-        : Promise.resolve({ comments: [] as UnifiedComment[], error: undefined as string | undefined }),
-    ]);
-
     const allComments: UnifiedComment[] = [];
 
-    for (const r of [ytResult, fbResult, igResult]) {
-      if (r.status === "fulfilled") {
-        allComments.push(...r.value.comments);
-        if (r.value.error) errors.push(r.value.error);
-      } else {
-        errors.push(r.reason?.message || "Unknown fetch error");
-      }
+    // Fetch from all YouTube accounts
+    const ytResults = await Promise.allSettled(
+      (acctsByProvider.get("youtube") ?? [])
+        .filter((a) => a.refresh_token)
+        .map(async (a) => {
+          const recent = await fetchRecentYouTubePosts({ refreshToken: a.refresh_token, maxResults: 20, sinceIso: sevenDaysAgo });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedComment[];
+          const r = await fetchYouTubeComments(recent.posts, a.refresh_token);
+          if (r.error) errors.push(r.error);
+          return r.comments;
+        })
+    );
+    for (const r of ytResults) {
+      if (r.status === "fulfilled") allComments.push(...r.value);
+      else errors.push(r.reason?.message || "YouTube comment fetch error");
+    }
+
+    // Fetch from all Facebook accounts
+    const fbResults = await Promise.allSettled(
+      (acctsByProvider.get("facebook") ?? [])
+        .filter((a) => a.page_id && a.page_access_token)
+        .map(async (a) => {
+          const recent = await fetchRecentFacebookPosts({ pageId: a.page_id, pageAccessToken: a.page_access_token, maxResults: 20, sinceIso: threeDaysAgo });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedComment[];
+          const r = await fetchFacebookComments(recent.posts, a.page_access_token);
+          if (r.error) errors.push(r.error);
+          return r.comments;
+        })
+    );
+    for (const r of fbResults) {
+      if (r.status === "fulfilled") allComments.push(...r.value);
+      else errors.push(r.reason?.message || "Facebook comment fetch error");
+    }
+
+    // Fetch from all Instagram accounts
+    const igResults = await Promise.allSettled(
+      (acctsByProvider.get("instagram") ?? [])
+        .filter((a) => a.ig_user_id && a.access_token)
+        .map(async (a) => {
+          const recent = await fetchRecentInstagramPosts({ igUserId: a.ig_user_id, accessToken: a.access_token, maxResults: 20, sinceIso: threeDaysAgo });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedComment[];
+          const r = await fetchInstagramComments(recent.posts, a.access_token, a.ig_user_id);
+          if (r.error) errors.push(r.error);
+          return r.comments;
+        })
+    );
+    for (const r of igResults) {
+      if (r.status === "fulfilled") allComments.push(...r.value);
+      else errors.push(r.reason?.message || "Instagram comment fetch error");
     }
 
     // Sort by most recent first
@@ -107,15 +101,11 @@ export async function GET(req: Request) {
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
 
-    // Temporary debug
     const debug = {
-      accounts: Array.from(acctMap.keys()),
-      ytPostCount: ytPosts.length,
-      fbPostCount: fbPosts.length,
-      igPostCount: igPosts.length,
-      igPosts: igPosts.map((p: any) => ({ id: p.id, platform_post_id: p.platform_post_id, platform_media_id: p.platform_media_id })),
-      hasIgAcct: acctMap.has("instagram"),
-      igUserId: acctMap.get("instagram")?.ig_user_id ?? null,
+      accounts: Array.from(acctsByProvider.keys()),
+      ytCount: (acctsByProvider.get("youtube") ?? []).length,
+      fbCount: (acctsByProvider.get("facebook") ?? []).length,
+      igCount: (acctsByProvider.get("instagram") ?? []).length,
     };
 
     return NextResponse.json({ ok: true, debug, errors, commentCount: allComments.length, comments: allComments });

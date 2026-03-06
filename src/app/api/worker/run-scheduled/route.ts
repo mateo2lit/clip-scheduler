@@ -107,6 +107,35 @@ async function checkAndNotifyGroup(groupId: string, userId: string, postTitle: s
   }
 }
 
+async function tryDeleteUploadFile(bucket: string, storagePath: string) {
+  try {
+    await supabaseAdmin.storage.from(bucket).remove([storagePath]);
+  } catch {
+    // Non-fatal — storage cleanup failure shouldn't break the worker
+  }
+}
+
+async function checkAndMaybeDeleteFile(
+  groupId: string | null | undefined,
+  bucket: string,
+  storagePath: string
+) {
+  try {
+    if (groupId) {
+      const { data: groupPosts } = await supabaseAdmin
+        .from("scheduled_posts")
+        .select("status")
+        .eq("group_id", groupId);
+      if (!groupPosts || groupPosts.length === 0) return;
+      const allPosted = groupPosts.every((p: any) => p.status === "posted");
+      if (!allPosted) return;
+    }
+    await tryDeleteUploadFile(bucket, storagePath);
+  } catch {
+    // Non-fatal
+  }
+}
+
 async function runWorker(req: Request) {
   requireWorkerAuth(req);
 
@@ -125,7 +154,7 @@ async function runWorker(req: Request) {
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, user_id, team_id, provider, ig_container_id, ig_container_created_at, instagram_settings, group_id, title")
+      .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, group_id, title, platform_account_id")
       .eq("status", "ig_processing")
       .in("provider", ["instagram", "threads"])
       .limit(5);
@@ -138,13 +167,13 @@ async function runWorker(req: Request) {
             throw new Error("Threads is not available for this account.");
           }
 
-          // Load platform account for this provider
-          const { data: acct } = await supabaseAdmin
+          // Load platform account — prefer platform_account_id, fall back to team+provider
+          const igAcctQ = supabaseAdmin
             .from("platform_accounts")
-            .select("id, access_token, ig_user_id")
-            .eq("team_id", igPost.team_id)
-            .eq("provider", isThreads ? "threads" : "instagram")
-            .maybeSingle();
+            .select("id, access_token, ig_user_id");
+          const { data: acct } = igPost.platform_account_id
+            ? await igAcctQ.eq("id", igPost.platform_account_id).maybeSingle()
+            : await igAcctQ.eq("team_id", igPost.team_id).eq("provider", isThreads ? "threads" : "instagram").maybeSingle();
 
           if (!acct?.access_token || !acct?.ig_user_id || !igPost.ig_container_id) {
             throw new Error(`Missing ${isThreads ? "Threads" : "Instagram"} account or container ID`);
@@ -189,6 +218,22 @@ async function runWorker(req: Request) {
               const info = await getNotificationInfo(igPost.user_id);
               if (info?.notifySuccess) {
                 await sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", [igPost.provider || "instagram"]);
+              }
+            }
+
+            // Delete source file if all group posts are now posted (or solo post)
+            if (igPost.upload_id) {
+              const { data: igUpload } = await supabaseAdmin
+                .from("uploads")
+                .select("bucket, file_path, storage_path, path, object_path")
+                .eq("id", igPost.upload_id)
+                .maybeSingle();
+              if (igUpload) {
+                const igProbed = pickFirstNonEmpty(igUpload, ["file_path", "storage_path", "path", "object_path"]);
+                if (igProbed.value) {
+                  const igBucket = igUpload.bucket?.trim() || DEFAULT_BUCKET;
+                  await checkAndMaybeDeleteFile(igPost.group_id, igBucket, igProbed.value);
+                }
               }
             }
           } else if (result.status === "error") {
@@ -257,7 +302,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id,platform_account_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -266,7 +311,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,thumbnail_path,group_id,platform_account_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -366,13 +411,13 @@ async function runWorker(req: Request) {
 
       const provider = post.provider || "youtube";
 
-      // Load platform account (team-based lookup)
-      const { data: acct, error: acctErr } = await supabaseAdmin
+      // Load platform account — prefer platform_account_id, fall back to team+provider for legacy posts
+      const acctQ = supabaseAdmin
         .from("platform_accounts")
-        .select("id, refresh_token, access_token, expiry, platform_user_id, page_id, page_access_token, ig_user_id")
-        .eq("team_id", post.team_id)
-        .eq("provider", provider)
-        .maybeSingle();
+        .select("id, refresh_token, access_token, expiry, platform_user_id, page_id, page_access_token, ig_user_id");
+      const { data: acct, error: acctErr } = post.platform_account_id
+        ? await acctQ.eq("id", post.platform_account_id).maybeSingle()
+        : await acctQ.eq("team_id", post.team_id).eq("provider", provider).maybeSingle();
 
       if (acctErr) {
         throw new Error(`Failed to load ${provider} account: ${acctErr.message}`);
@@ -609,6 +654,9 @@ async function runWorker(req: Request) {
           await sendPostSuccessEmail(info.email, post.title ?? "Untitled", [provider]);
         }
       }
+
+      // Delete source file if all group posts are now posted (or solo post)
+      await checkAndMaybeDeleteFile(post.group_id, bucket, storagePath);
 
       const okResult: any = {
         id: post.id,

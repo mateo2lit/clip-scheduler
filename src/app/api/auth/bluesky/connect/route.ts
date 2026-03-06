@@ -20,7 +20,9 @@ export async function POST(req: Request) {
     // Authenticate with Bluesky
     const session = await blueskyLogin(handle.trim(), appPassword.trim());
 
-    // Upsert platform_accounts
+    // Upsert platform_accounts.
+    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
+    const displayName = session.handle || handle.replace(/^@/, "");
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -29,11 +31,12 @@ export async function POST(req: Request) {
         access_token: session.accessJwt,
         refresh_token: session.refreshJwt,
         platform_user_id: session.did,
-        profile_name: session.handle || handle.replace(/^@/, ""),
+        profile_name: displayName,
         avatar_url: null,
+        label: displayName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider" }
+      { onConflict: "team_id,provider,platform_user_id" }
     );
 
     if (upsertErr) {

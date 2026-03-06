@@ -73,7 +73,8 @@ export async function GET(req: Request) {
     // 2) Fetch user profile
     const profile = await getLinkedInProfile(accessToken);
 
-    // 3) Upsert platform_accounts with provider="linkedin"
+    // 3) Upsert platform_accounts with provider="linkedin".
+    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -85,9 +86,10 @@ export async function GET(req: Request) {
         platform_user_id: profile.sub,
         profile_name: profile.name,
         avatar_url: profile.picture,
+        label: profile.name,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider" }
+      { onConflict: "team_id,provider,platform_user_id" }
     );
 
     if (upsertErr) {

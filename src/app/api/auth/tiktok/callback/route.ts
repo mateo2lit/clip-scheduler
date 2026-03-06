@@ -115,13 +115,15 @@ export async function GET(req: Request) {
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // Preserve existing refresh_token if TikTok doesn't return a new one
-    const existing = await supabaseAdmin
+    // Preserve existing refresh_token for this specific TikTok account (scoped by openId)
+    const existingQ = supabaseAdmin
       .from("platform_accounts")
       .select("id, refresh_token")
       .eq("team_id", teamId)
-      .eq("provider", "tiktok")
-      .maybeSingle();
+      .eq("provider", "tiktok");
+    const existing = openId
+      ? await existingQ.eq("platform_user_id", openId).maybeSingle()
+      : await existingQ.maybeSingle();
 
     if (existing.error) {
       return NextResponse.json({ ok: false, error: existing.error.message }, { status: 500 });
@@ -159,7 +161,9 @@ export async function GET(req: Request) {
       console.warn("Failed to fetch TikTok user info:", profileErr);
     }
 
-    // Upsert platform_accounts
+    // Upsert platform_accounts.
+    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
+    const conflictTarget = openId ? "team_id,provider,platform_user_id" : "team_id,provider";
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -171,9 +175,10 @@ export async function GET(req: Request) {
         expiry: expiresAt,
         profile_name: profileName,
         avatar_url: avatarUrl,
+        label: profileName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider" }
+      { onConflict: conflictTarget }
     );
 
     if (upsertErr) {

@@ -144,15 +144,15 @@ export default function SettingsPage() {
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
 
-  type AccountInfo = { connected: boolean; profileName?: string; avatarUrl?: string };
-  const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo>>({
-    youtube: { connected: false },
-    tiktok: { connected: false },
-    instagram: { connected: false },
-    facebook: { connected: false },
-    linkedin: { connected: false },
-    threads: { connected: false },
-    bluesky: { connected: false },
+  type AccountInfo = { id: string; profileName?: string; avatarUrl?: string; label?: string };
+  const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo[]>>({
+    youtube: [],
+    tiktok: [],
+    instagram: [],
+    facebook: [],
+    linkedin: [],
+    threads: [],
+    bluesky: [],
   });
 
   const query = useMemo(() => {
@@ -213,20 +213,20 @@ export default function SettingsPage() {
       const { json } = await safeReadJson(res);
       if (!res.ok || !json?.ok) return;
 
-      const rows = (json.data || []) as Array<{ provider?: string; profile_name?: string; avatar_url?: string }>;
-      const next: Record<ProviderKey, AccountInfo> = {
-        youtube: { connected: false },
-        tiktok: { connected: false },
-        instagram: { connected: false },
-        facebook: { connected: false },
-        linkedin: { connected: false },
-        threads: { connected: false },
-        bluesky: { connected: false },
+      const rows = (json.data || []) as Array<{ id?: string; provider?: string; profile_name?: string; avatar_url?: string; label?: string }>;
+      const next: Record<ProviderKey, AccountInfo[]> = {
+        youtube: [],
+        tiktok: [],
+        instagram: [],
+        facebook: [],
+        linkedin: [],
+        threads: [],
+        bluesky: [],
       };
 
       for (const r of rows) {
         const p = (r.provider || "").toLowerCase() as ProviderKey;
-        if (p in next) next[p] = { connected: true, profileName: r.profile_name, avatarUrl: r.avatar_url };
+        if (p in next && r.id) next[p].push({ id: r.id, profileName: r.profile_name, avatarUrl: r.avatar_url, label: r.label });
       }
 
       setAccounts(next);
@@ -740,8 +740,30 @@ export default function SettingsPage() {
       if (!token) return;
       const res = await fetch("/api/platform-accounts?provider=bluesky", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       const { json } = await safeReadJson(res);
-      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, bluesky: { connected: false } }));
+      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, bluesky: [] }));
     } catch (e) { console.error(e); }
+  }
+
+  async function disconnectAccount(provider: ProviderKey, accountId: string) {
+    if (!confirm(`Disconnect this ${provider} account? Scheduled posts using it will not be affected.`)) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      const res = await fetch(`/api/platform-accounts?id=${accountId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { json } = await safeReadJson(res);
+      if (res.ok && json?.ok) {
+        setAccounts((prev) => ({
+          ...prev,
+          [provider]: prev[provider].filter((a) => a.id !== accountId),
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   // Notification preferences
@@ -899,7 +921,7 @@ export default function SettingsPage() {
     init();
   }, [loadTeamInfo, loadPlanInfo, loadNotifPrefs, loadPlatformDefaults]);
 
-  const connectedCount = Object.values(accounts).filter((a) => a.connected).length;
+  const connectedCount = Object.values(accounts).filter((arr) => arr.length > 0).length;
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -1213,166 +1235,74 @@ export default function SettingsPage() {
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
             {visiblePlatforms.map((platform) => {
-              const acct = accounts[platform.key];
+              const accts = accounts[platform.key];
+              const isConnected = accts.length > 0;
+              const connectFns: Partial<Record<ProviderKey, () => void>> = {
+                youtube: connectYouTube,
+                tiktok: connectTikTok,
+                facebook: connectFacebook,
+                instagram: connectInstagram,
+                linkedin: connectLinkedIn,
+                threads: connectThreads,
+              };
+              const connectFn = connectFns[platform.key];
               return (
                 <div key={platform.key} className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <div className={`rounded-full p-2.5 ${acct.connected ? "bg-white/10 text-white" : "bg-white/5 text-white/40"}`}>
-                          {platform.icon}
-                        </div>
-                        {acct.connected && acct.avatarUrl && (
-                          <img
-                            src={acct.avatarUrl}
-                            alt=""
-                            referrerPolicy="no-referrer"
-                            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#050505] object-cover"
-                          />
-                        )}
+                      <div className={`rounded-full p-2.5 ${isConnected ? "bg-white/10 text-white" : "bg-white/5 text-white/40"}`}>
+                        {platform.icon}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{platform.name}</span>
-                          {acct.connected && (
+                          {isConnected && (
                             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 border border-emerald-500/20">
                               Connected
                             </span>
                           )}
-                          {!platform.available && !acct.connected && (
-                            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-white/40 border border-white/10">
-                              Coming soon
-                            </span>
-                          )}
                         </div>
-                        {acct.connected && acct.profileName ? (
-                          <div className="text-sm text-white/50 mt-0.5">{acct.profileName}</div>
-                        ) : acct.connected ? (
-                          <div className="text-sm text-white/30 mt-0.5 italic">Reconnect to load account name</div>
-                        ) : (
+                        {!isConnected && (
                           <div className="text-sm text-white/40 mt-0.5">{platform.description}</div>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {(teamRole === "owner" || teamRole === "admin") && (
-                        <>
-                          {platform.key === "youtube" && acct.connected && (
-                            <button
-                              onClick={disconnectYouTube}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "tiktok" && acct.connected && (
-                            <button
-                              onClick={disconnectTikTok}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "facebook" && acct.connected && (
-                            <button
-                              onClick={disconnectFacebook}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "instagram" && acct.connected && (
-                            <button
-                              onClick={disconnectInstagram}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "linkedin" && acct.connected && (
-                            <button
-                              onClick={disconnectLinkedIn}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "threads" && acct.connected && (
-                            <button
-                              onClick={disconnectThreads}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "bluesky" && acct.connected && (
-                            <button
-                              onClick={disconnectBluesky}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          )}
-                          {platform.key === "youtube" ? (
-                            <button
-                              onClick={connectYouTube}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                            >
-                              {acct.connected ? "Reconnect" : "Connect"}
-                            </button>
-                          ) : platform.key === "tiktok" ? (
-                            <button
-                              onClick={connectTikTok}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                            >
-                              {acct.connected ? "Reconnect" : "Connect"}
-                            </button>
-                          ) : platform.key === "facebook" ? (
-                            <button
-                              onClick={connectFacebook}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                            >
-                              {acct.connected ? "Reconnect" : "Connect"}
-                            </button>
-                          ) : platform.key === "instagram" ? (
-                            <button
-                              onClick={connectInstagram}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                            >
-                              {acct.connected ? "Reconnect" : "Connect"}
-                            </button>
-                          ) : platform.key === "linkedin" ? (
-                            <button
-                              onClick={connectLinkedIn}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                            >
-                              {acct.connected ? "Reconnect" : "Connect"}
-                            </button>
-                          ) : platform.key === "threads" ? (
-                            <button
-                              onClick={connectThreads}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                            >
-                              {acct.connected ? "Reconnect" : "Connect"}
-                            </button>
-                          ) : platform.key === "bluesky" && !acct.connected ? (
-                            null
-                          ) : (
-                            <button
-                              disabled
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/30 cursor-not-allowed"
-                            >
-                              Connect
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {teamRole === "member" && !platform.available && (
-                        <span className="text-xs text-white/30">Coming soon</span>
-                      )}
-                    </div>
+                    {(teamRole === "owner" || teamRole === "admin") && platform.key !== "bluesky" && connectFn && (
+                      <button
+                        onClick={connectFn}
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                      >
+                        {isConnected ? "Add account" : "Connect"}
+                      </button>
+                    )}
                   </div>
-                  {platform.key === "bluesky" && !acct.connected && (teamRole === "owner" || teamRole === "admin") && (
+
+                  {/* Per-account rows */}
+                  {accts.length > 0 && (
+                    <div className="mt-3 ml-14 space-y-2">
+                      {accts.map((acct) => (
+                        <div key={acct.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {acct.avatarUrl && (
+                              <img src={acct.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover" />
+                            )}
+                            <span className="text-sm text-white/60">{acct.label || acct.profileName || "Connected account"}</span>
+                          </div>
+                          {(teamRole === "owner" || teamRole === "admin") && (
+                            <button
+                              onClick={() => disconnectAccount(platform.key, acct.id)}
+                              className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bluesky connect form (not connected) */}
+                  {platform.key === "bluesky" && !isConnected && (teamRole === "owner" || teamRole === "admin") && (
                     <div className="mt-4 space-y-3 pt-4 border-t border-white/5">
                       <p className="text-xs text-white/40">
                         Create an app password at{" "}
@@ -1404,6 +1334,42 @@ export default function SettingsPage() {
                         </button>
                       </div>
                       {blueskyError && <p className="text-xs text-red-400">{blueskyError}</p>}
+                    </div>
+                  )}
+                  {/* Bluesky add-another form (already connected) */}
+                  {platform.key === "bluesky" && isConnected && (teamRole === "owner" || teamRole === "admin") && (
+                    <div className="mt-3 ml-14">
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs text-white/40 hover:text-white/60 transition-colors list-none">
+                          + Add another Bluesky account
+                        </summary>
+                        <div className="mt-3 space-y-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              placeholder="@you.bsky.social"
+                              value={blueskyHandle}
+                              onChange={(e) => setBlueskyHandle(e.target.value)}
+                              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                            />
+                            <input
+                              type="password"
+                              placeholder="xxxx-xxxx-xxxx-xxxx"
+                              value={blueskyPassword}
+                              onChange={(e) => setBlueskyPassword(e.target.value)}
+                              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                            />
+                            <button
+                              onClick={connectBluesky}
+                              disabled={blueskyConnecting}
+                              className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {blueskyConnecting ? "Connecting…" : "Connect"}
+                            </button>
+                          </div>
+                          {blueskyError && <p className="text-xs text-red-400">{blueskyError}</p>}
+                        </div>
+                      </details>
                     </div>
                   )}
                 </div>

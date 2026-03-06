@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     const {
       upload_id,
       provider,
+      platform_account_id,
       title,
       description,
       privacy_status,
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
       team_id: teamId,
       upload_id,
       provider: normalizedProvider,
+      platform_account_id: platform_account_id || null,
       title: title ?? "Untitled Clip",
       description: description ?? "",
       privacy_status: privacy_status ?? "private",

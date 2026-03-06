@@ -105,6 +105,62 @@ async function runRefresh(req: Request) {
     }
   }
 
+  // ── 30-day storage cleanup safety net ───────────────────────────────────────
+  // Deletes files for uploads where every scheduled_post is in a terminal state
+  // and the latest scheduled_for is older than 30 days.
+  // This catches files that were never cleaned up (e.g., a post that permanently failed).
+  try {
+    const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
+    const thirtyDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: oldPosts } = await supabaseAdmin
+      .from("scheduled_posts")
+      .select("upload_id")
+      .in("status", ["posted", "failed"])
+      .lt("scheduled_for", thirtyDaysAgo)
+      .not("upload_id", "is", null);
+
+    if (oldPosts && oldPosts.length > 0) {
+      const uploadIds = [...new Set(oldPosts.map((p: any) => p.upload_id))];
+
+      for (const uploadId of uploadIds) {
+        // Only delete if ALL posts for this upload are in terminal states
+        const { data: allPosts } = await supabaseAdmin
+          .from("scheduled_posts")
+          .select("status")
+          .eq("upload_id", uploadId);
+
+        if (!allPosts || !allPosts.every((p: any) => ["posted", "failed"].includes(p.status))) {
+          continue;
+        }
+
+        const { data: upload } = await supabaseAdmin
+          .from("uploads")
+          .select("bucket, file_path, storage_path, path, object_path")
+          .eq("id", uploadId)
+          .maybeSingle();
+
+        if (!upload) continue;
+
+        const pathCol = ["file_path", "storage_path", "path", "object_path"].find(
+          (k) => typeof (upload as any)[k] === "string" && (upload as any)[k].trim()
+        );
+        if (!pathCol) continue;
+
+        const storagePath = (upload as any)[pathCol];
+        const bucket = (upload as any).bucket?.trim() || DEFAULT_BUCKET;
+
+        try {
+          await supabaseAdmin.storage.from(bucket).remove([storagePath]);
+        } catch {
+          // Non-fatal
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — don't let cleanup failure affect the token refresh response
+  }
+
   return NextResponse.json({
     ok: true,
     refreshed: results.filter((r) => r.ok).length,

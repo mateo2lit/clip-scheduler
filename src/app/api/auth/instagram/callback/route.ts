@@ -79,7 +79,8 @@ export async function GET(req: Request) {
     const profileName = profile.username || null;
     const avatarUrl = profile.profilePictureUrl || null;
 
-    // 4) Upsert platform_accounts with provider="instagram"
+    // 4) Upsert platform_accounts with provider="instagram".
+    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -92,9 +93,10 @@ export async function GET(req: Request) {
         ig_user_id: igUserId,
         profile_name: profileName,
         avatar_url: avatarUrl,
+        label: profileName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "team_id,provider" }
+      { onConflict: "team_id,provider,platform_user_id" }
     );
 
     if (upsertErr) {

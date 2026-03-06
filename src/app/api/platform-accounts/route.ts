@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
     const { data, error: dbError } = await supabaseAdmin
       .from("platform_accounts")
-      .select("provider, created_at, updated_at, expiry, profile_name, avatar_url")
+      .select("id, provider, created_at, updated_at, expiry, profile_name, avatar_url, label")
       .eq("team_id", teamId);
 
     if (dbError) return jsonError(dbError.message, 500);
@@ -42,23 +42,32 @@ export async function DELETE(req: Request) {
     if (ownerCheck) return ownerCheck;
 
     const url = new URL(req.url);
-    const provider = url.searchParams.get("provider");
+    const accountId = url.searchParams.get("id");
+    const provider = url.searchParams.get("provider"); // legacy fallback
 
-    if (!provider) {
-      return jsonError("Missing provider query parameter", 400);
+    if (!accountId && !provider) {
+      return jsonError("Missing id or provider query parameter", 400);
     }
 
-    const { error: deleteError } = await supabaseAdmin
+    let deleteQuery = supabaseAdmin
       .from("platform_accounts")
       .delete()
-      .eq("team_id", teamId)
-      .eq("provider", provider.toLowerCase());
+      .eq("team_id", teamId);
+
+    if (accountId) {
+      deleteQuery = deleteQuery.eq("id", accountId);
+    } else {
+      // Legacy: provider-based delete (single-account, pre-migration)
+      deleteQuery = deleteQuery.eq("provider", provider!.toLowerCase());
+    }
+
+    const { error: deleteError } = await deleteQuery;
 
     if (deleteError) {
       return jsonError(deleteError.message, 500);
     }
 
-    return NextResponse.json({ ok: true, message: `Disconnected ${provider}` });
+    return NextResponse.json({ ok: true, message: `Disconnected ${accountId ?? provider}` });
   } catch (e: any) {
     console.error("DELETE /api/platform-accounts failed:", e?.message ?? e);
     return jsonError(e?.message ?? "Server error", 500);
