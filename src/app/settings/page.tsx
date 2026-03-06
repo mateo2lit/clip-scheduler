@@ -471,7 +471,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setAccounts((prev) => ({ ...prev, youtube: { connected: false } }));
+        setAccounts((prev) => ({ ...prev, youtube: [] }));
       }
     } catch (e) {
       console.error(e);
@@ -522,7 +522,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setAccounts((prev) => ({ ...prev, tiktok: { connected: false } }));
+        setAccounts((prev) => ({ ...prev, tiktok: [] }));
       }
     } catch (e) {
       console.error(e);
@@ -573,7 +573,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setAccounts((prev) => ({ ...prev, facebook: { connected: false } }));
+        setAccounts((prev) => ({ ...prev, facebook: [] }));
       }
     } catch (e) {
       console.error(e);
@@ -624,7 +624,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setAccounts((prev) => ({ ...prev, instagram: { connected: false } }));
+        setAccounts((prev) => ({ ...prev, instagram: [] }));
       }
     } catch (e) {
       console.error(e);
@@ -675,7 +675,7 @@ export default function SettingsPage() {
 
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) {
-        setAccounts((prev) => ({ ...prev, linkedin: { connected: false } }));
+        setAccounts((prev) => ({ ...prev, linkedin: [] }));
       }
     } catch (e) {
       console.error(e);
@@ -702,7 +702,7 @@ export default function SettingsPage() {
       if (!token) return;
       const res = await fetch("/api/platform-accounts?provider=threads", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       const { json } = await safeReadJson(res);
-      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, threads: { connected: false } }));
+      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, threads: [] }));
     } catch (e) { console.error(e); }
   }
 
