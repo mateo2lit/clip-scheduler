@@ -242,6 +242,7 @@ export default function SettingsPage() {
         linkedin: [],
         threads: [],
         bluesky: [],
+        x: [],
       };
 
       for (const r of rows) {
