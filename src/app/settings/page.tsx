@@ -16,7 +16,7 @@ type PlatformConfig = {
   icon: React.ReactNode;
   available: boolean;
 };
-type SettingsTab = "account" | "subscription" | "connected" | "team" | "notifications" | "defaults" | "danger";
+type SettingsTab = "account" | "subscription" | "connected" | "team" | "notifications" | "defaults" | "queue" | "danger";
 
 function proxiedAvatar(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -125,6 +125,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; subtitle: string }>
   { id: "team", label: "Team", subtitle: "Members and invites" },
   { id: "notifications", label: "Notifications", subtitle: "Email alerts" },
   { id: "defaults", label: "Upload Defaults", subtitle: "Platform presets" },
+  { id: "queue", label: "Queue", subtitle: "Posting schedule" },
   { id: "danger", label: "Danger Zone", subtitle: "Sign out and delete" },
 ];
 
@@ -162,6 +163,14 @@ export default function SettingsPage() {
     bluesky: [],
   });
   const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
+
+  // Queue schedule state
+  type QueueSlot = { id: string; time: string; days: boolean[] };
+  type QueueScheduleConfig = { slots: QueueSlot[]; randomize: boolean; timezone: string };
+  const [queueSchedule, setQueueSchedule] = useState<QueueScheduleConfig>({ slots: [], randomize: false, timezone: "UTC" });
+  const [queueLoaded, setQueueLoaded] = useState(false);
+  const [queueSaving, setQueueSaving] = useState(false);
+  const [newSlotTime, setNewSlotTime] = useState("12:00");
 
   const query = useMemo(() => {
     if (typeof window === "undefined") return new URLSearchParams();
@@ -948,6 +957,65 @@ export default function SettingsPage() {
     });
     setEditingName(null);
   }
+
+  // Load queue when Queue tab is opened
+  useEffect(() => {
+    if (activeTab !== "queue" || queueLoaded) return;
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) return;
+        const res = await fetch("/api/queue", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const json = await res.json().catch(() => null);
+          if (json?.schedule) {
+            setQueueSchedule({ slots: json.schedule.slots || [], randomize: !!json.schedule.randomize, timezone: json.schedule.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone });
+          } else {
+            setQueueSchedule(prev => ({ ...prev, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
+          }
+        }
+      } catch {}
+      setQueueLoaded(true);
+    })();
+  }, [activeTab, queueLoaded]);
+
+  async function saveQueueSchedule(updated: QueueScheduleConfig) {
+    try {
+      setQueueSaving(true);
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      await fetch("/api/queue", { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+    } catch {} finally { setQueueSaving(false); }
+  }
+
+  function addQueueSlot() {
+    if (!newSlotTime || queueSchedule.slots.find(s => s.time === newSlotTime)) return;
+    const updated: QueueScheduleConfig = { ...queueSchedule, slots: [...queueSchedule.slots, { id: crypto.randomUUID(), time: newSlotTime, days: [true, true, true, true, true, true, true] }].sort((a, b) => a.time.localeCompare(b.time)) };
+    setQueueSchedule(updated); saveQueueSchedule(updated);
+  }
+
+  function removeQueueSlot(id: string) {
+    const updated: QueueScheduleConfig = { ...queueSchedule, slots: queueSchedule.slots.filter(s => s.id !== id) };
+    setQueueSchedule(updated); saveQueueSchedule(updated);
+  }
+
+  function toggleQueueDay(slotId: string, dayIdx: number) {
+    const updated: QueueScheduleConfig = { ...queueSchedule, slots: queueSchedule.slots.map(s => s.id === slotId ? { ...s, days: s.days.map((v, i) => i === dayIdx ? !v : v) } : s) };
+    setQueueSchedule(updated); saveQueueSchedule(updated);
+  }
+
+  function toggleQueueRandomize() {
+    const updated: QueueScheduleConfig = { ...queueSchedule, randomize: !queueSchedule.randomize };
+    setQueueSchedule(updated); saveQueueSchedule(updated);
+  }
+
+  function formatQueueTime(t: string) {
+    const [h, m] = t.split(':').map(Number);
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+  }
+
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -1772,6 +1840,84 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+        )}
+
+        {activeTab === "queue" && (
+          <section className="mt-0 space-y-6">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+              <div className="mb-1 text-base font-semibold text-white">Queue Schedule</div>
+              {queueSchedule.slots.length > 0 ? (
+                <p className="mb-1 text-sm text-white/50">
+                  You have{" "}<span className="font-medium text-white">{queueSchedule.slots.reduce((n, s) => n + s.days.filter(Boolean).length, 0)}</span>{" "}slots per week.
+                </p>
+              ) : (
+                <p className="mb-1 text-sm text-white/50">No slots configured yet. Add a time below to get started.</p>
+              )}
+              <p className="mb-4 text-xs text-white/30">Editing your schedule won&apos;t affect posts that are already scheduled.</p>
+              <p className="mb-5 text-xs text-white/40">Timezone: <span className="text-white/60">{queueSchedule.timezone}</span></p>
+
+              {queueSchedule.slots.length > 0 && (
+                <div className="mb-5 overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-sm">
+                    <thead>
+                      <tr>
+                        <th className="w-32 pb-3 pr-6 text-left text-xs font-medium text-white/40">Time</th>
+                        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
+                          <th key={d} className="w-10 pb-3 text-center text-xs font-medium text-white/40">{d}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {queueSchedule.slots.map(slot => (
+                        <tr key={slot.id}>
+                          <td className="py-3 pr-6">
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => removeQueueSlot(slot.id)} className="flex h-5 w-5 items-center justify-center rounded-full text-lg leading-none text-white/20 transition-colors hover:bg-red-500/10 hover:text-red-400" title="Remove">×</button>
+                              <span className="tabular-nums font-medium text-white/80">{formatQueueTime(slot.time)}</span>
+                            </div>
+                          </td>
+                          {slot.days.map((active, i) => (
+                            <td key={i} className="py-3 text-center">
+                              <button type="button" onClick={() => toggleQueueDay(slot.id, i)} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/5 transition-colors">
+                                {active ? (
+                                  <svg className="h-6 w-6 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  <span className="block h-5 w-5 rounded-full border border-white/15" />
+                                )}
+                              </button>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3">
+                <input type="time" value={newSlotTime} onChange={e => setNewSlotTime(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40" />
+                <button type="button" onClick={addQueueSlot} className="flex items-center gap-1.5 rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Add time
+                </button>
+                {queueSaving && <span className="animate-pulse text-xs text-white/30">Saving…</span>}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+              <div className="flex items-center justify-between gap-6">
+                <div>
+                  <div className="text-sm font-semibold text-white">Randomize posting time</div>
+                  <div className="mt-1 text-xs text-white/50">Vary each post by up to 10 minutes so they don&apos;t always go out at the exact same time.</div>
+                </div>
+                <button type="button" role="switch" aria-checked={queueSchedule.randomize} onClick={toggleQueueRandomize} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${queueSchedule.randomize ? "bg-blue-500" : "bg-white/15"}`}>
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${queueSchedule.randomize ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "danger" && (

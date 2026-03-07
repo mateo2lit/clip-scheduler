@@ -1082,40 +1082,40 @@ export default function UploadsPage() {
     }
   }
 
-  function computeNextQueueSlot(posts: Array<{ status: string; scheduled_for?: string | null }>): Date {
-    const future = posts.filter((p) => p.status === "scheduled" && p.scheduled_for);
-    if (future.length === 0) {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      d.setHours(9, 0, 0, 0);
-      return d;
-    }
-    const latest = new Date(Math.max(...future.map((p) => new Date(p.scheduled_for!).getTime())));
-    latest.setTime(latest.getTime() + 24 * 60 * 60 * 1000);
-    return latest;
-  }
-
   async function handleSelectQueue() {
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       if (!token) return;
-      const res = await fetch("/api/scheduled-posts", {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch(`/api/queue/next-slot?tz=${encodeURIComponent(tz)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json().catch(() => null);
-      const posts = json?.data || [];
-      const slot = computeNextQueueSlot(posts);
+
+      if (!json?.hasSchedule) {
+        // No queue schedule — show a gentle prompt
+        alert("You haven't set up a queue schedule yet. Go to Settings → Queue to add your preferred posting times.");
+        return;
+      }
+      if (!json?.slot) {
+        alert("No available queue slots in the next 28 days. Check your queue schedule in Settings → Queue.");
+        return;
+      }
+
+      const slotDate = new Date(json.slot);
       const pad = (n: number) => String(n).padStart(2, "0");
-      const local = `${slot.getFullYear()}-${pad(slot.getMonth() + 1)}-${pad(slot.getDate())}T${pad(slot.getHours())}:${pad(slot.getMinutes())}`;
+      const local = `${slotDate.getFullYear()}-${pad(slotDate.getMonth() + 1)}-${pad(slotDate.getDate())}T${pad(slotDate.getHours())}:${pad(slotDate.getMinutes())}`;
       setScheduledForLocal(local);
       setScheduleType("scheduled");
       setShowScheduleActions(false);
       setShowSchedulePicker(false);
-      const preview = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(slot);
-      setQueuePreview(preview);
-    } catch {}
+      setQueuePreview(json.slotFormatted || new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(slotDate));
+    } catch {
+      alert("Failed to find next queue slot. Please try again.");
+    }
   }
+
 
   function loadTemplate(t: PostTemplate) {
     setTitle(t.title);
