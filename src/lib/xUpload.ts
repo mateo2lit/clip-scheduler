@@ -196,18 +196,22 @@ export async function uploadVideoToX({
   // 6. Post tweet with video — truncate text to 280 chars
   const tweetText = text.slice(0, 280);
 
-  const tweetRes = await fetch("https://api.x.com/2/tweets", {
-    method: "POST",
-    headers: {
-      Authorization: authHeader,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text: tweetText,
-      media: { media_ids: [mediaId] },
-      reply_settings: replySettings,
-    }),
-  });
+  // Request author expansion so we can capture profile info on free tier
+  const tweetRes = await fetch(
+    "https://api.x.com/2/tweets?expansions=author_id&user.fields=name,username,profile_image_url",
+    {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: tweetText,
+        media: { media_ids: [mediaId] },
+        reply_settings: replySettings,
+      }),
+    }
+  );
 
   if (!tweetRes.ok) {
     const t = await tweetRes.text();
@@ -217,6 +221,36 @@ export async function uploadVideoToX({
   const tweetData = await tweetRes.json();
   const tweetId: string = tweetData?.data?.id;
   if (!tweetId) throw new Error("X tweet post did not return a tweet ID");
+
+  // Opportunistically save profile info from tweet response (free tier workaround)
+  try {
+    const author = tweetData?.includes?.users?.[0];
+    if (author?.name || author?.username) {
+      const profileName = author.name || `@${author.username}`;
+      const rawAvatar: string | undefined = author.profile_image_url;
+      const avatarUrl = rawAvatar ? rawAvatar.replace("_normal", "_400x400") : null;
+      const { data: acctRow } = await supabaseAdmin
+        .from("platform_accounts")
+        .select("profile_name")
+        .eq("id", platformAccountId)
+        .maybeSingle();
+      // Only update if profile_name is currently missing
+      if (!acctRow?.profile_name) {
+        await supabaseAdmin
+          .from("platform_accounts")
+          .update({
+            profile_name: profileName,
+            label: profileName,
+            platform_user_id: author.id ?? null,
+            ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", platformAccountId);
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
 
   return { tweetId };
 }
