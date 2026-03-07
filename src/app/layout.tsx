@@ -3,8 +3,8 @@ import "./globals.css";
 import GlobalSpotlight from "@/components/GlobalSpotlight";
 
 export const metadata: Metadata = {
-  title: "Clip Scheduler",
-  description: "Schedule clip uploads",
+  title: "Clip Dash",
+  description: "Schedule and auto-publish videos across all your platforms from one dashboard.",
 };
 
 export default function RootLayout({
