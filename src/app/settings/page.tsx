@@ -173,6 +173,7 @@ export default function SettingsPage() {
     bluesky: [],
     x: [],
   });
+  const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
 
   const query = useMemo(() => {
     if (typeof window === "undefined") return new URLSearchParams();
@@ -968,6 +969,24 @@ export default function SettingsPage() {
 
   const connectedCount = Object.values(accounts).filter((arr) => arr.length > 0).length;
 
+  async function saveAccountName(acctId: string, name: string) {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    await fetch("/api/platform-accounts", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: acctId, profile_name: name }),
+    });
+    setAccounts((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next) as ProviderKey[]) {
+        next[key] = next[key].map((a) => a.id === acctId ? { ...a, profileName: name, label: name } : a);
+      }
+      return next;
+    });
+    setEditingName(null);
+  }
+
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       {/* Background gradient orbs */}
@@ -1342,7 +1361,28 @@ export default function SettingsPage() {
                                 />
                               )}
                             </div>
-                            <span className="text-sm text-white/60">{acct.label || acct.profileName || "Connected account"}</span>
+                            {editingName?.id === acct.id ? (
+                              <form onSubmit={(e) => { e.preventDefault(); saveAccountName(acct.id, editingName.value); }} className="flex items-center gap-1.5">
+                                <input
+                                  autoFocus
+                                  value={editingName.value}
+                                  onChange={(e) => setEditingName({ id: acct.id, value: e.target.value })}
+                                  onBlur={() => { if (editingName.value.trim()) saveAccountName(acct.id, editingName.value); else setEditingName(null); }}
+                                  placeholder="Enter display name"
+                                  className="rounded-lg border border-white/15 bg-white/5 px-2 py-0.5 text-sm text-white placeholder-white/30 outline-none focus:border-blue-400/40 w-40"
+                                />
+                                <button type="submit" className="text-xs text-blue-400 hover:text-blue-300">Save</button>
+                              </form>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setEditingName({ id: acct.id, value: acct.label || acct.profileName || "" })}
+                                className="text-sm text-white/60 hover:text-white/80 transition-colors text-left"
+                                title={!acct.profileName && !acct.label ? "Click to set display name" : "Click to edit name"}
+                              >
+                                {acct.label || acct.profileName || <span className="text-white/30 italic">Add display name</span>}
+                              </button>
+                            )}
                           </div>
                           {(teamRole === "owner" || teamRole === "admin") && (
                             <button

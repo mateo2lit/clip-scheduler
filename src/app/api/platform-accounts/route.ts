@@ -86,3 +86,30 @@ export async function DELETE(req: Request) {
     return jsonError(e?.message ?? "Server error", 500);
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const result = await getTeamContext(req);
+    if (!result.ok) return result.error;
+    const { teamId, role } = result.ctx;
+
+    const ownerCheck = requireOwnerOrAdmin(role);
+    if (ownerCheck) return ownerCheck;
+
+    const { id, profile_name } = await req.json().catch(() => ({}));
+    if (!id || typeof profile_name !== "string") {
+      return jsonError("Missing id or profile_name", 400);
+    }
+
+    const { error } = await supabaseAdmin
+      .from("platform_accounts")
+      .update({ profile_name: profile_name.trim(), label: profile_name.trim(), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("team_id", teamId);
+
+    if (error) return jsonError(error.message, 500);
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return jsonError(e?.message ?? "Server error", 500);
+  }
+}
