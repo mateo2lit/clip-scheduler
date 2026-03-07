@@ -1,0 +1,26 @@
+<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- Transparent background - no fill -->
+    <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#ec4899;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- ClipDash text -->
+    <text x="30" y="105" font-family="Montserrat, Arial, sans-serif" font-size="56" font-weight="900" fill="#0f172a" letter-spacing="-2">Clip</text>
+    <text x="165" y="105" font-family="Montserrat, Arial, sans-serif" font-size="56" font-weight="900" fill="#0f172a" letter-spacing="-2">Dash</text>
+    
+    <!-- Gradient dashes -->
+    <rect x="315" y="45" width="50" height="10" rx="5" fill="url(#grad1)"/>
+    <rect x="320" y="75" width="60" height="10" rx="5" fill="url(#grad2)"/>
+    <rect x="315" y="105" width="50" height="10" rx="5" fill="url(#grad3)"/>
+</svg>

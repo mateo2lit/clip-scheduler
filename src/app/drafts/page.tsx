@@ -149,7 +149,7 @@ export default function DraftsPage() {
 
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-semibold tracking-tight transition-colors hover:text-white/80">Clip Dash</Link>
+          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-7 w-auto" /></Link>
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 transition-colors hover:text-white/70">Settings</Link>
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-[11px] font-semibold">

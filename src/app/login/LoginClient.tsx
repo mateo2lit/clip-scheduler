@@ -110,8 +110,8 @@ export default function LoginClient() {
 
       <div className="relative z-10 w-full max-w-md px-6">
         <div className="text-center mb-8">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
-            Clip Dash
+          <Link href="/" className="inline-flex items-center justify-center">
+            <img src="/logo.svg" alt="Clip Dash" className="h-8 w-auto" />
           </Link>
         </div>
 
