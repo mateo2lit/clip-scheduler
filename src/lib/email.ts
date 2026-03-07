@@ -54,13 +54,13 @@ type EmailTheme = "success" | "warning" | "danger" | "neutral";
 function themeColors(theme: EmailTheme) {
   switch (theme) {
     case "success":
-      return { accent: "#16a34a", badgeBg: "#dcfce7", badgeText: "#166534" };
+      return { accent: "#34d399", badgeBg: "rgba(16,185,129,0.16)", badgeText: "#6ee7b7", badgeBorder: "rgba(16,185,129,0.35)" };
     case "warning":
-      return { accent: "#d97706", badgeBg: "#fef3c7", badgeText: "#92400e" };
+      return { accent: "#fbbf24", badgeBg: "rgba(245,158,11,0.16)", badgeText: "#fcd34d", badgeBorder: "rgba(245,158,11,0.35)" };
     case "danger":
-      return { accent: "#dc2626", badgeBg: "#fee2e2", badgeText: "#991b1b" };
+      return { accent: "#f87171", badgeBg: "rgba(248,113,113,0.16)", badgeText: "#fca5a5", badgeBorder: "rgba(248,113,113,0.35)" };
     default:
-      return { accent: "#2563eb", badgeBg: "#dbeafe", badgeText: "#1e3a8a" };
+      return { accent: "#60a5fa", badgeBg: "rgba(96,165,250,0.16)", badgeText: "#93c5fd", badgeBorder: "rgba(96,165,250,0.35)" };
   }
 }
 
@@ -79,40 +79,53 @@ type RenderEmailArgs = {
 function renderEmail(args: RenderEmailArgs) {
   const colors = themeColors(args.theme);
   const footerNote = args.footerNote || "You are receiving this because email notifications are enabled in your settings.";
+  const pageBg = "#050505";
+  const cardBg = "#0b0b10";
+  const cardBorder = "rgba(255,255,255,0.12)";
+  const titleColor = "#f8fafc";
+  const textColor = "#cbd5e1";
+  const mutedColor = "#94a3b8";
+  const buttonBg = "#ffffff";
+  const buttonText = "#050505";
 
   const html = `
   <!doctype html>
   <html>
-    <body style="margin:0;padding:0;background:#f4f7fb;">
+    <body style="margin:0;padding:0;background:${pageBg};">
       <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${escapeHtml(args.preview)}</span>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f7fb;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${pageBg};padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
         <tr>
           <td align="center">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:620px;">
               <tr>
-                <td style="padding:0 0 14px 4px;color:#334155;font-size:13px;font-weight:600;letter-spacing:.2px;">${BRAND_NAME}</td>
+                <td style="padding:0 0 14px 4px;color:${mutedColor};font-size:13px;font-weight:600;letter-spacing:.2px;">${BRAND_NAME}</td>
               </tr>
               <tr>
-                <td style="background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:26px;">
-                  <div style="display:inline-block;background:${colors.badgeBg};color:${colors.badgeText};font-size:12px;font-weight:700;line-height:1;padding:8px 10px;border-radius:999px;">Notification</div>
-                  <h1 style="margin:14px 0 10px 0;font-size:24px;line-height:1.25;color:#0f172a;">${escapeHtml(args.heading)}</h1>
-                  <div style="color:#334155;font-size:15px;line-height:1.65;">${args.bodyHtml}</div>
+                <td style="background:
+                  radial-gradient(460px circle at 10% -10%, rgba(59,130,246,0.14), rgba(59,130,246,0) 55%),
+                  radial-gradient(420px circle at 90% -20%, rgba(168,85,247,0.14), rgba(168,85,247,0) 56%),
+                  radial-gradient(340px circle at 50% 120%, rgba(236,72,153,0.10), rgba(236,72,153,0) 58%),
+                  ${cardBg};
+                  border:1px solid ${cardBorder};border-radius:14px;padding:26px;">
+                  <div style="display:inline-block;background:${colors.badgeBg};border:1px solid ${colors.badgeBorder};color:${colors.badgeText};font-size:12px;font-weight:700;line-height:1;padding:8px 10px;border-radius:999px;">Notification</div>
+                  <h1 style="margin:14px 0 10px 0;font-size:24px;line-height:1.25;color:${titleColor};">${escapeHtml(args.heading)}</h1>
+                  <div style="color:${textColor};font-size:15px;line-height:1.65;">${args.bodyHtml}</div>
 
                   ${args.primaryCtaLabel && args.primaryCtaUrl ? `
                     <div style="margin-top:22px;">
-                      <a href="${args.primaryCtaUrl}" style="display:inline-block;background:${colors.accent};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:11px 18px;border-radius:999px;">${escapeHtml(args.primaryCtaLabel)}</a>
+                      <a href="${args.primaryCtaUrl}" style="display:inline-block;background:${buttonBg};color:${buttonText};text-decoration:none;font-size:14px;font-weight:700;padding:11px 18px;border-radius:999px;">${escapeHtml(args.primaryCtaLabel)}</a>
                     </div>
                   ` : ""}
 
                   ${args.secondaryCtaLabel && args.secondaryCtaUrl ? `
                     <div style="margin-top:12px;">
-                      <a href="${args.secondaryCtaUrl}" style="display:inline-block;color:#334155;text-decoration:none;font-size:13px;font-weight:600;">${escapeHtml(args.secondaryCtaLabel)}</a>
+                      <a href="${args.secondaryCtaUrl}" style="display:inline-block;color:${mutedColor};text-decoration:none;font-size:13px;font-weight:600;">${escapeHtml(args.secondaryCtaLabel)}</a>
                     </div>
                   ` : ""}
 
-                  <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;line-height:1.6;">
+                  <div style="margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);color:${mutedColor};font-size:12px;line-height:1.6;">
                     ${escapeHtml(footerNote)}<br/>
-                    ${BRAND_NAME} - <a href="${appUrl("/settings")}" style="color:#475569;text-decoration:underline;">Manage notification settings</a>
+                    ${BRAND_NAME} - <a href="${appUrl("/settings")}" style="color:${textColor};text-decoration:underline;">Manage notification settings</a>
                   </div>
                 </td>
               </tr>
@@ -202,7 +215,7 @@ export async function sendPostFailedEmail(
       heading: "A post failed to publish",
       bodyHtml: `
         <p style="margin:0 0 12px 0;">We could not publish <strong>${safeTitle}</strong> to <strong>${escapeHtml(platformName)}</strong>.</p>
-        <div style="margin:0 0 12px 0;padding:10px 12px;border:1px solid #fecaca;background:#fef2f2;border-radius:10px;color:#7f1d1d;font-size:13px;line-height:1.55;">
+        <div style="margin:0 0 12px 0;padding:10px 12px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.12);border-radius:10px;color:#fecaca;font-size:13px;line-height:1.55;">
           <strong>Reason:</strong> ${safeError}
         </div>
         <p style="margin:0;">Open Scheduled posts to retry or edit the post. If this keeps happening, reconnect the platform in Settings.</p>
@@ -236,16 +249,17 @@ export async function sendGroupSummaryEmail(
 
   const rows = results
     .map((r) => {
-      const statusColor = r.ok ? "#166534" : "#991b1b";
-      const statusBg = r.ok ? "#dcfce7" : "#fee2e2";
+      const statusColor = r.ok ? "#6ee7b7" : "#fca5a5";
+      const statusBg = r.ok ? "rgba(16,185,129,0.16)" : "rgba(248,113,113,0.16)";
+      const statusBorder = r.ok ? "rgba(16,185,129,0.35)" : "rgba(248,113,113,0.35)";
       const statusText = r.ok ? "Published" : "Failed";
-      const details = r.ok ? "" : `<div style=\"margin-top:4px;color:#7f1d1d;font-size:12px;\">${escapeHtml(truncate(r.error || "Unknown error", 180))}</div>`;
+      const details = r.ok ? "" : `<div style=\"margin-top:4px;color:#fecaca;font-size:12px;\">${escapeHtml(truncate(r.error || "Unknown error", 180))}</div>`;
 
       return `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;">
-            <div style="font-size:14px;color:#0f172a;font-weight:600;">${escapeHtml(providerLabel(r.platform))}</div>
-            <div style="display:inline-block;margin-top:6px;background:${statusBg};color:${statusColor};font-size:11px;font-weight:700;border-radius:999px;padding:6px 9px;">${statusText}</div>
+          <td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1);">
+            <div style="font-size:14px;color:#f8fafc;font-weight:600;">${escapeHtml(providerLabel(r.platform))}</div>
+            <div style="display:inline-block;margin-top:6px;background:${statusBg};border:1px solid ${statusBorder};color:${statusColor};font-size:11px;font-weight:700;border-radius:999px;padding:6px 9px;">${statusText}</div>
             ${details}
           </td>
         </tr>`;
