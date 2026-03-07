@@ -1,0 +1,35 @@
+<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Transparent background - no fill -->
+    <defs>
+        <linearGradient id="centerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#334155;stop-opacity:1" />
+        </linearGradient>
+        <filter id="shadow">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+        </filter>
+    </defs>
+    
+    <!-- Central video icon -->
+    <rect x="130" y="130" width="40" height="40" rx="8" fill="url(#centerGrad)" filter="url(#shadow)"/>
+    <path d="M 143 143 L 143 157 L 157 150 Z" fill="white"/>
+    
+    <!-- Platform nodes with shadows -->
+    <circle cx="150" cy="80" r="16" fill="#6366f1" filter="url(#shadow)"/>
+    <circle cx="150" cy="80" r="8" fill="white" opacity="0.3"/>
+    
+    <circle cx="220" cy="150" r="16" fill="#ec4899" filter="url(#shadow)"/>
+    <circle cx="220" cy="150" r="8" fill="white" opacity="0.3"/>
+    
+    <circle cx="150" cy="220" r="16" fill="#f59e0b" filter="url(#shadow)"/>
+    <circle cx="150" cy="220" r="8" fill="white" opacity="0.3"/>
+    
+    <circle cx="80" cy="150" r="16" fill="#10b981" filter="url(#shadow)"/>
+    <circle cx="80" cy="150" r="8" fill="white" opacity="0.3"/>
+    
+    <!-- Connection lines with gradient -->
+    <line x1="150" y1="130" x2="150" y2="96" stroke="#6366f1" stroke-width="3" opacity="0.6" stroke-linecap="round"/>
+    <line x1="170" y1="150" x2="204" y2="150" stroke="#ec4899" stroke-width="3" opacity="0.6" stroke-linecap="round"/>
+    <line x1="150" y1="170" x2="150" y2="204" stroke="#f59e0b" stroke-width="3" opacity="0.6" stroke-linecap="round"/>
+    <line x1="130" y1="150" x2="96" y2="150" stroke="#10b981" stroke-width="3" opacity="0.6" stroke-linecap="round"/>
+</svg>
