@@ -21,7 +21,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   linkedin: "LinkedIn",
   threads: "Threads",
   bluesky: "Bluesky",
-  x: "X",
 };
 
 function PlatformIcon({ platform, className = "w-4 h-4" }: { platform: string; className?: string }) {
@@ -39,8 +38,6 @@ function PlatformIcon({ platform, className = "w-4 h-4" }: { platform: string; c
     return <svg className={className} viewBox="0 0 192 192" fill="currentColor"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.738-8.699 14.753-10.548 21.347-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 6.997 4.67 16.01 6.96 25.379 6.455 12.369-.675 22.047-5.399 28.763-14.041 5.138-6.659 8.373-15.274 9.792-26.074 5.87 3.545 10.216 8.219 12.605 13.982 4.125 9.913 4.357 26.185-8.501 39.063-11.26 11.275-24.817 16.16-45.286 16.307-22.71-.164-39.904-7.489-51.106-21.779C35.928 138.529 30.2 120.9 29.95 98.5c.25-22.401 5.978-40.03 17.02-54.373C58.172 29.836 75.368 22.511 98.076 22.348c22.906.165 40.413 7.531 52.056 21.894 5.668 6.975 9.921 15.717 12.579 25.848l16.152-4.528c-3.29-12.703-8.806-23.758-16.43-32.811C147.386 14.963 125.72 5.18 98.163 5h-.383C70.56 5.18 49.137 14.99 34.393 29.979 20.97 44.12 14.036 64.1 13.786 98.5c.25 34.4 7.184 54.381 20.607 68.521C49.137 182.01 70.56 191.82 97.78 192h.383c24.761-.17 42.251-6.653 56.653-21.079 18.763-18.79 18.168-42.29 12.003-56.723-4.387-10.541-12.904-19.236-25.282-24.21zm-46.941 49.658c-10.426.583-21.24-4.098-21.783-14.082-.407-7.647 5.44-16.17 23.029-17.16 2.016-.115 3.995-.172 5.942-.172 6.377 0 12.358.616 17.771 1.8-2.02 25.214-14.959 28.946-24.959 29.614z" /></svg>;
   if (platform === "bluesky")
     return <svg className={className} viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z" /></svg>;
-  if (platform === "x")
-    return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>;
   return null;
 }
 
@@ -432,67 +429,6 @@ function ThreadsPreview({ title, description, hashtags, videoPreviewUrl, thumbna
 }
 
 // ── Bluesky Post Preview ──────────────────────────────────────────────────────
-function XPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl }: {
-  title: string; description: string; hashtags: string[];
-  videoPreviewUrl: string | null; thumbnailPreview: string | null;
-  profileName: string | null; avatarUrl: string | null;
-}) {
-  const displayName = profileName || "Your Name";
-  const handle = profileName ? `@${profileName.replace(/^@/, "").replace(/\s+/g, "_").toLowerCase()}` : "@yourhandle";
-  const tweetText = (description || title || "Your tweet will appear here…").slice(0, 280);
-  const tags = hashtags.slice(0, 3).map((t) => `#${t}`).join(" ");
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#000000]">
-      <div className="flex gap-2.5 p-3 pb-2">
-        <Avatar name={profileName} avatarUrl={avatarUrl} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold text-white leading-tight">{displayName}</span>
-            <span className="text-xs text-white/40">{handle}</span>
-            <span className="text-xs text-white/25">· now</span>
-          </div>
-          {tweetText && <p className="mt-1 text-sm text-white/85 line-clamp-4 leading-snug">{tweetText}</p>}
-          {tags && <p className="mt-0.5 text-xs text-[#1d9bf0]">{tags}</p>}
-          {(videoPreviewUrl || thumbnailPreview) ? (
-            <div className="relative mt-2 overflow-hidden rounded-2xl border border-white/10 bg-black" style={{ aspectRatio: "16/9" }}>
-              {videoPreviewUrl ? (
-                <video src={videoPreviewUrl} className="h-full w-full object-cover" muted />
-              ) : (
-                <img src={thumbnailPreview!} alt="" className="h-full w-full object-cover" />
-              )}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
-                  <svg className="ml-0.5 h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2 flex h-24 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
-              <svg className="h-8 w-8 text-white/15" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            </div>
-          )}
-          <div className="mt-2.5 flex items-center gap-5">
-            {[
-              <path key="reply" strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />,
-              <path key="retweet" strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />,
-              <path key="like" strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 9 11.25 9 11.25s9-6.375 9-11.25z" />,
-            ].map((path, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-white/35">
-                <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">{path}</svg>
-                <span className="text-xs">0</span>
-              </div>
-            ))}
-            <svg className="ml-auto text-white/25" style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function BlueskyPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl }: {
   title: string; description: string; hashtags: string[];
   videoPreviewUrl: string | null; thumbnailPreview: string | null;
@@ -687,16 +623,7 @@ export default function PostPreviewPanel({
                 profileName={accts.bluesky?.profileName || null}
                 avatarUrl={accts.bluesky?.avatarUrl || null}
               />
-            )}
-            {activePlatform === "x" && (
-              <XPreview
-                title={title} description={description} hashtags={hashtags}
-                videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
-                profileName={accts.x?.profileName || null}
-                avatarUrl={accts.x?.avatarUrl || null}
-              />
-            )}
-          </div>
+            )}          </div>
 
           <p className="mt-3 text-center text-[10px] text-white/20">
             Preview is approximate · Actual appearance may vary

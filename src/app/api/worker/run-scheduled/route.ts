@@ -7,7 +7,6 @@ import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/l
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
 import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky } from "@/lib/blueskyUpload";
-import { uploadVideoToX } from "@/lib/xUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
@@ -310,7 +309,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,thumbnail_path,group_id,platform_account_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -319,7 +318,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,thumbnail_path,group_id,platform_account_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -592,26 +591,6 @@ async function runWorker(req: Request) {
         }
 
         platformPostId = bskyResult.uri;
-      } else if (provider === "x") {
-        if (!acct.refresh_token) {
-          throw new Error("X account not connected. Please reconnect your X account.");
-        }
-
-        const xSettings = (post.x_settings ?? {}) as any;
-        const xText = xSettings.description_override || `${post.title ?? ""}${post.description ? `\n\n${post.description}` : ""}`.trim();
-        if (!acct.access_token) {
-          throw new Error("X account not connected. Please reconnect your X account.");
-        }
-        const xResult = await uploadVideoToX({
-          platformAccountId: acct.id,
-          accessToken: acct.access_token,
-          accessTokenSecret: acct.refresh_token, // OAuth 1.0a: token secret stored in refresh_token column
-          bucket,
-          storagePath,
-          text: xText,
-          replySettings: xSettings.reply_settings || "everyone",
-        });
-        platformPostId = xResult.tweetId;
       } else if (provider === "linkedin") {
         if (!acct.access_token || !acct.platform_user_id) {
           throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");

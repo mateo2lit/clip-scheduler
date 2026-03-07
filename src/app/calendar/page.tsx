@@ -184,7 +184,7 @@ export default function CalendarPage() {
     if (platformFilter === "all") return true;
     return g.posts.some((p) => (p.provider || "").toLowerCase() === platformFilter);
   });
-  const selectablePlatforms = Object.entries(PROVIDER_STYLES).filter(([key]) => key !== "x");
+  const selectablePlatforms = Object.entries(PROVIDER_STYLES);
 
   function getGroupsForDate(date: Date) {
     return filteredGroups.filter((g) => isSameDay(new Date(g.scheduled_for), date));

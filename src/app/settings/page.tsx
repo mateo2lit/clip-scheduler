@@ -5,7 +5,7 @@ import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky" | "x";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
 const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
@@ -116,17 +116,6 @@ const PLATFORMS: PlatformConfig[] = [
       </svg>
     ),
   },
-  {
-    key: "x" as ProviderKey,
-    name: "X",
-    description: "Post videos to your X (Twitter) account",
-    available: true,
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.259 5.632L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-      </svg>
-    ),
-  },
 ];
 
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; subtitle: string }> = [
@@ -171,7 +160,6 @@ export default function SettingsPage() {
     linkedin: [],
     threads: [],
     bluesky: [],
-    x: [],
   });
   const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
 
@@ -194,7 +182,6 @@ export default function SettingsPage() {
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
     if (conn === "threads") return { kind: "success" as const, text: "Threads connected successfully" };
-    if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
     const checkout = query.get("checkout");
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
@@ -243,7 +230,6 @@ export default function SettingsPage() {
         linkedin: [],
         threads: [],
         bluesky: [],
-        x: [],
       };
 
       for (const r of rows) {
@@ -766,30 +752,6 @@ export default function SettingsPage() {
     } catch (e) { console.error(e); }
   }
 
-  async function connectX() {
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) { alert("Please log in first."); return; }
-      const res = await fetch("/api/auth/x/start", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-      const { json } = await safeReadJson(res);
-      if (!res.ok || !json?.ok || !json?.url) { alert("Failed to start X connection. Please try again."); return; }
-      window.location.href = json.url;
-    } catch (e: any) { alert(e?.message || "Connect failed"); }
-  }
-
-  async function disconnectX() {
-    if (!confirm("Disconnect X? You'll need to reconnect before scheduling uploads.")) return;
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) return;
-      const res = await fetch("/api/platform-accounts?provider=x", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      const { json } = await safeReadJson(res);
-      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, x: [] }));
-    } catch (e) { console.error(e); }
-  }
-
   async function disconnectAccount(provider: ProviderKey, accountId: string) {
     if (!confirm(`Disconnect this ${provider} account? Scheduled posts using it will not be affected.`)) return;
     try {
@@ -1308,7 +1270,6 @@ export default function SettingsPage() {
                 instagram: connectInstagram,
                 linkedin: connectLinkedIn,
                 threads: connectThreads,
-                x: connectX,
               };
               const connectFn = connectFns[platform.key];
               return (
