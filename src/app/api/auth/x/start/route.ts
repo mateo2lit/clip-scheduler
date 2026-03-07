@@ -1,45 +1,73 @@
 import { NextResponse } from "next/server";
-import { getXAuthConfig } from "@/lib/xUpload";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
-import { generateOAuthState } from "@/lib/oauthState";
-import crypto from "crypto";
+import { buildOAuth1Header, getXConsumerKeys } from "@/lib/xOAuth1";
 
 export const runtime = "nodejs";
+
+function getSiteUrl(req: Request) {
+  return (
+    process.env.SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    new URL(req.url).origin
+  );
+}
 
 async function handler(req: Request) {
   const result = await getTeamContext(req);
   if (!result.ok) return result.error;
 
-  const { userId, role } = result.ctx;
+  const { userId, teamId, role } = result.ctx;
   const ownerCheck = requireOwnerOrAdmin(role);
   if (ownerCheck) return ownerCheck;
 
-  const { clientId, redirectUri } = getXAuthConfig();
+  const { apiKey, apiSecret } = getXConsumerKeys();
+  const siteUrl = getSiteUrl(req);
+  const callbackUrl = `${siteUrl}/api/auth/x/callback`;
 
-  // PKCE — code verifier is random, challenge is SHA-256(verifier) base64url
-  const codeVerifier = crypto.randomBytes(32).toString("base64url");
-  const codeChallenge = crypto
-    .createHash("sha256")
-    .update(codeVerifier)
-    .digest("base64url");
-
-  // State embeds signed userId token + codeVerifier separated by ":"
-  const signedToken = generateOAuthState(userId);
-  const state = `${signedToken}:${codeVerifier}`;
-
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    scope: "tweet.write users.read offline.access",
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
+  // Step 1: get a request token from Twitter
+  const authHeader = buildOAuth1Header("POST", "https://api.twitter.com/oauth/request_token", apiKey, apiSecret, {
+    oauthCallback: callbackUrl,
   });
 
-  const authUrl = `https://x.com/i/oauth2/authorize?${params.toString()}`;
+  const res = await fetch("https://api.twitter.com/oauth/request_token", {
+    method: "POST",
+    headers: { Authorization: authHeader },
+  });
 
-  return NextResponse.json({ ok: true, url: authUrl });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`X request token failed: ${res.status} ${text}`);
+  }
+
+  const body = await res.text();
+  const params = new URLSearchParams(body);
+  const oauthToken = params.get("oauth_token");
+  const oauthTokenSecret = params.get("oauth_token_secret");
+
+  if (!oauthToken || !oauthTokenSecret) {
+    throw new Error("X did not return a request token");
+  }
+
+  // Store the token secret + user context in an httpOnly cookie for the callback
+  const response = NextResponse.json({
+    ok: true,
+    url: `https://api.twitter.com/oauth/authorize?oauth_token=${oauthToken}`,
+  });
+
+  response.cookies.set(
+    "x_oauth1_state",
+    JSON.stringify({ oauthTokenSecret, userId, teamId }),
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 15 * 60, // 15 minutes
+      path: "/",
+      sameSite: "lax",
+    }
+  );
+
+  return response;
 }
 
 export async function POST(req: Request) {

@@ -599,11 +599,13 @@ async function runWorker(req: Request) {
 
         const xSettings = (post.x_settings ?? {}) as any;
         const xText = xSettings.description_override || `${post.title ?? ""}${post.description ? `\n\n${post.description}` : ""}`.trim();
+        if (!acct.access_token) {
+          throw new Error("X account not connected. Please reconnect your X account.");
+        }
         const xResult = await uploadVideoToX({
           platformAccountId: acct.id,
           accessToken: acct.access_token,
-          refreshToken: acct.refresh_token,
-          expiresAt: acct.expiry,
+          accessTokenSecret: acct.refresh_token, // OAuth 1.0a: token secret stored in refresh_token column
           bucket,
           storagePath,
           text: xText,
