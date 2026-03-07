@@ -2470,6 +2470,13 @@ export default function UploadsPage() {
                   ) : null}
                 </div>
                 <div className="p-5">
+                  <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2.5">
+                    <svg className="w-4 h-4 text-amber-400/70 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                    <div>
+                      <p className="text-xs font-medium text-amber-400/80">X Basic API required for video</p>
+                      <p className="text-xs text-white/35 mt-0.5">X's free API tier only supports text tweets. Video posting requires the <a href="https://developer.x.com/en/products/twitter-api" target="_blank" rel="noopener noreferrer" className="text-blue-400/70 hover:text-blue-300 underline">Basic plan ($100/mo)</a>.</p>
+                    </div>
+                  </div>
                   <p className="text-xs text-white/40 mb-3">Video will be posted as an X tweet. Tweet text is limited to 280 characters.</p>
                   <div className="mb-4">
                     <label className="block text-xs text-white/40 mb-1.5">Who can reply</label>

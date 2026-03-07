@@ -124,6 +124,9 @@ export async function uploadVideoToX({
 
   if (!initRes.ok) {
     const t = await initRes.text();
+    if (initRes.status === 403) {
+      throw new Error("X video posting requires the Basic API plan ($100/month). Upgrade at developer.x.com to enable video posts.");
+    }
     throw new Error(`X media init failed: ${initRes.status} ${t}`);
   }
 
