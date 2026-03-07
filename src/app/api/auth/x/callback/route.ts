@@ -101,25 +101,44 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "X did not return tokens" }, { status: 400 });
     }
 
-    // Fetch user profile via /2/users/me (requires users.read scope)
+    // Fetch user profile via /2/users/me
+    // Try with profile_image_url first, fall back to basic fields only
     let platformUserId: string | null = null;
     let profileName: string | null = null;
     let avatarUrl: string | null = null;
 
     try {
+      // Attempt 1: all fields including avatar
       const profileRes = await fetch(
         "https://api.x.com/2/users/me?user.fields=profile_image_url,name,username",
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (profileRes.ok) {
-        const profile = await profileRes.json();
-        platformUserId = profile.data?.id ?? null;
-        profileName = profile.data?.name || (`@${profile.data?.username}`) || null;
-        const rawAvatar: string | undefined = profile.data?.profile_image_url;
+      const profileText = await profileRes.text();
+      let profile: any = null;
+      try { profile = JSON.parse(profileText); } catch {}
+
+      if (profileRes.ok && profile?.data) {
+        platformUserId = profile.data.id ?? null;
+        profileName = profile.data.name || (profile.data.username ? `@${profile.data.username}` : null);
+        const rawAvatar: string | undefined = profile.data.profile_image_url;
         avatarUrl = rawAvatar ? rawAvatar.replace("_normal", "_400x400") : null;
+      } else {
+        // Attempt 2: basic fields only (id, name, username are default)
+        console.error("[X callback] profile fetch failed:", profileRes.status, profileText.slice(0, 300));
+        const basicRes = await fetch(
+          "https://api.x.com/2/users/me",
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (basicRes.ok) {
+          const basic = await basicRes.json();
+          platformUserId = basic.data?.id ?? null;
+          profileName = basic.data?.name || (basic.data?.username ? `@${basic.data.username}` : null);
+        } else {
+          console.error("[X callback] basic profile fetch also failed:", basicRes.status, await basicRes.text().catch(() => ""));
+        }
       }
-    } catch {
-      // Non-fatal — profile name will be null until user reconnects
+    } catch (e: any) {
+      console.error("[X callback] profile fetch exception:", e?.message);
     }
 
     // Manual upsert: check for existing row then update or insert
