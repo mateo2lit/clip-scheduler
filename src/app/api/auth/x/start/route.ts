@@ -31,7 +31,7 @@ async function handler(req: Request) {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "tweet.write users.read offline.access",
+    scope: "tweet.write users.read offline.access openid",
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",

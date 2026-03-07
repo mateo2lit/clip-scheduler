@@ -101,26 +101,49 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "X did not return tokens" }, { status: 400 });
     }
 
-    // Fetch user profile
+    // Fetch user profile — try OIDC userinfo first (works on free tier),
+    // then fall back to v2/users/me (requires Basic+ tier)
     let platformUserId: string | null = null;
     let profileName: string | null = null;
     let avatarUrl: string | null = null;
 
     try {
-      const profileRes = await fetch(
-        "https://api.x.com/2/users/me?user.fields=profile_image_url,name,username",
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      if (profileRes.ok) {
-        const profile = await profileRes.json();
-        platformUserId = profile.data?.id ?? null;
-        profileName = profile.data?.name || profile.data?.username || null;
-        // Replace _normal with _400x400 for a larger avatar
-        const rawAvatar: string | undefined = profile.data?.profile_image_url;
+      // OIDC userinfo — available as part of auth regardless of API tier
+      const oidcRes = await fetch("https://api.x.com/2/oauth2/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (oidcRes.ok) {
+        const oidc = await oidcRes.json();
+        platformUserId = oidc.sub ?? null;
+        profileName = oidc.name || oidc.preferred_username || null;
+        // username without @ prefix
+        if (!profileName && oidc.preferred_username) profileName = `@${oidc.preferred_username}`;
+        const rawAvatar: string | undefined = oidc.profile_image_url;
         avatarUrl = rawAvatar ? rawAvatar.replace("_normal", "_400x400") : null;
       }
     } catch {
       // Non-fatal
+    }
+
+    // Fallback: standard v2 users/me (requires Basic API tier)
+    if (!profileName) {
+      try {
+        const profileRes = await fetch(
+          "https://api.x.com/2/users/me?user.fields=profile_image_url,name,username",
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          platformUserId = platformUserId ?? profile.data?.id ?? null;
+          profileName = profile.data?.name || profile.data?.username || null;
+          if (!avatarUrl) {
+            const rawAvatar: string | undefined = profile.data?.profile_image_url;
+            avatarUrl = rawAvatar ? rawAvatar.replace("_normal", "_400x400") : null;
+          }
+        }
+      } catch {
+        // Non-fatal
+      }
     }
 
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
