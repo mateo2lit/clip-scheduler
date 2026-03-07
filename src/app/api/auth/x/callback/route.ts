@@ -122,22 +122,41 @@ export async function GET(req: Request) {
       // Non-fatal — profile name will be null until user reconnects
     }
 
-    const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
-      {
-        user_id: userId,
-        team_id: teamId,
-        provider: "x",
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        expiry: expiresAt,
-        platform_user_id: platformUserId,
-        profile_name: profileName,
-        avatar_url: avatarUrl,
-        label: profileName,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "team_id,provider" }
-    );
+    // Manual upsert: check for existing row then update or insert
+    const { data: existing } = await supabaseAdmin
+      .from("platform_accounts")
+      .select("id")
+      .eq("team_id", teamId)
+      .eq("provider", "x")
+      .maybeSingle();
+
+    const accountData = {
+      user_id: userId,
+      team_id: teamId,
+      provider: "x",
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expiry: expiresAt,
+      platform_user_id: platformUserId,
+      profile_name: profileName,
+      avatar_url: avatarUrl,
+      label: profileName,
+      updated_at: new Date().toISOString(),
+    };
+
+    let upsertErr: any = null;
+    if (existing?.id) {
+      const { error } = await supabaseAdmin
+        .from("platform_accounts")
+        .update(accountData)
+        .eq("id", existing.id);
+      upsertErr = error;
+    } else {
+      const { error } = await supabaseAdmin
+        .from("platform_accounts")
+        .insert(accountData);
+      upsertErr = error;
+    }
 
     if (upsertErr) {
       return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
