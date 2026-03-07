@@ -108,94 +108,82 @@ export async function uploadVideoToX({
   const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
   const totalBytes = videoBuffer.length;
 
-  // 2. Initialize media upload
-  const initRes = await fetch("https://api.x.com/2/media/upload", {
-    method: "POST",
-    headers: {
-      Authorization: authHeader,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      media_type: "video/mp4",
-      total_bytes: totalBytes,
-      media_category: "tweet_video",
-    }),
-  });
+  // 2–5. Upload media via v1.1 chunked upload (works on free tier; v2 media endpoint requires Basic)
+  const UPLOAD_URL = "https://upload.twitter.com/1.1/media/upload";
 
+  // INIT
+  const initForm = new URLSearchParams({
+    command: "INIT",
+    total_bytes: String(totalBytes),
+    media_type: "video/mp4",
+    media_category: "tweet_video",
+  });
+  const initRes = await fetch(UPLOAD_URL, {
+    method: "POST",
+    headers: { Authorization: authHeader, "Content-Type": "application/x-www-form-urlencoded" },
+    body: initForm.toString(),
+  });
   if (!initRes.ok) {
     const t = await initRes.text();
-    if (initRes.status === 403) {
-      throw new Error("X video posting requires the Basic API plan ($100/month). Upgrade at developer.x.com to enable video posts.");
-    }
     throw new Error(`X media init failed: ${initRes.status} ${t}`);
   }
-
   const initData = await initRes.json();
-  const mediaId: string = initData?.data?.id;
+  const mediaId: string = initData?.media_id_string ?? String(initData?.media_id ?? "");
   if (!mediaId) throw new Error("X media upload did not return a media ID");
 
-  // 3. Upload chunks
+  // APPEND chunks
   const totalChunks = Math.ceil(totalBytes / CHUNK_SIZE);
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const chunk = videoBuffer.slice(start, Math.min(start + CHUNK_SIZE, totalBytes));
-
-    const appendRes = await fetch(
-      `https://api.x.com/2/media/upload/${mediaId}/append?segment_index=${i}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/octet-stream",
-        },
-        body: chunk,
-      }
-    );
-
+    const appendForm = new FormData();
+    appendForm.append("command", "APPEND");
+    appendForm.append("media_id", mediaId);
+    appendForm.append("segment_index", String(i));
+    appendForm.append("media", new Blob([chunk], { type: "application/octet-stream" }));
+    const appendRes = await fetch(UPLOAD_URL, {
+      method: "POST",
+      headers: { Authorization: authHeader },
+      body: appendForm,
+    });
     if (!appendRes.ok) {
       const t = await appendRes.text();
       throw new Error(`X media append chunk ${i} failed: ${appendRes.status} ${t}`);
     }
   }
 
-  // 4. Finalize upload
-  const finalizeRes = await fetch(`https://api.x.com/2/media/upload/${mediaId}/finalize`, {
+  // FINALIZE
+  const finalizeForm = new URLSearchParams({ command: "FINALIZE", media_id: mediaId });
+  const finalizeRes = await fetch(UPLOAD_URL, {
     method: "POST",
-    headers: { Authorization: authHeader },
+    headers: { Authorization: authHeader, "Content-Type": "application/x-www-form-urlencoded" },
+    body: finalizeForm.toString(),
   });
-
   if (!finalizeRes.ok) {
     const t = await finalizeRes.text();
     throw new Error(`X media finalize failed: ${finalizeRes.status} ${t}`);
   }
-
   const finalizeData = await finalizeRes.json();
 
-  // 5. Poll for video processing
-  let processingState: string | undefined =
-    finalizeData?.data?.processing_info?.state;
+  // Poll STATUS until ready
+  let processingState: string | undefined = finalizeData?.processing_info?.state;
   let attempts = 0;
-
   while (processingState === "pending" || processingState === "in_progress") {
     if (attempts++ > 30) throw new Error("X video processing timed out");
     await new Promise((r) => setTimeout(r, 5_000));
-
-    const statusRes = await fetch(`https://api.x.com/2/media/upload/${mediaId}`, {
+    const statusRes = await fetch(`${UPLOAD_URL}?command=STATUS&media_id=${mediaId}`, {
       headers: { Authorization: authHeader },
     });
     if (statusRes.ok) {
       const statusData = await statusRes.json();
-      processingState = statusData?.data?.processing_info?.state;
+      processingState = statusData?.processing_info?.state;
       if (processingState === "failed") {
-        throw new Error(
-          `X video processing failed: ${statusData?.data?.processing_info?.error?.message ?? "unknown"}`
-        );
+        throw new Error(`X video processing failed: ${statusData?.processing_info?.error?.message ?? "unknown"}`);
       }
     } else {
       break;
     }
   }
-
   // 6. Post tweet with video — truncate text to 280 chars
   const tweetText = text.slice(0, 280);
 
