@@ -116,6 +116,8 @@ export async function GET(req: Request) {
       const profileText = await profileRes.text();
       let profile: any = null;
       try { profile = JSON.parse(profileText); } catch {}
+      // Always log so we can see exactly what X returns
+      console.log("[X callback] users/me status:", profileRes.status, "body:", profileText.slice(0, 500));
 
       if (profileRes.ok && profile?.data) {
         platformUserId = profile.data.id ?? null;
