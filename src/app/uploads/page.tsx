@@ -1967,7 +1967,7 @@ export default function UploadsPage() {
 
             {/* TikTok Settings */}
             {selectedPlatforms.includes("tiktok") && (
-              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-white">{PLATFORMS.find(p => p.key === "tiktok")?.icon}</div>
                   <span className="font-medium">TikTok Settings</span>
@@ -2033,7 +2033,6 @@ export default function UploadsPage() {
                         </>
                       )}
                     </select>
-                    {!ttPrivacyLevel && <p className="text-xs text-amber-400/70">Required: select who can watch this video</p>}
                     {ttBrandContent && <p className="text-xs text-amber-400/70">Branded content cannot be set to &quot;Private&quot;</p>}
                   </div>
 
