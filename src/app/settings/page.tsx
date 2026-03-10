@@ -150,6 +150,8 @@ export default function SettingsPage() {
   const [plan, setPlan] = useState<string>("none");
   const [planStatus, setPlanStatus] = useState<string>("inactive");
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [renewalDate, setRenewalDate] = useState<string | null>(null);
+  const [postedCount, setPostedCount] = useState<number>(0);
   const [planLoading, setPlanLoading] = useState(false);
 
   type AccountInfo = { id: string; profileName?: string; avatarUrl?: string; label?: string };
@@ -289,6 +291,8 @@ export default function SettingsPage() {
         setPlan(json.plan);
         setPlanStatus(json.plan_status);
         setTrialEndsAt(json.trial_ends_at);
+        setRenewalDate(json.current_period_end ?? null);
+        setPostedCount(json.posted_count ?? 0);
       }
     } catch (e) {
       console.error(e);
@@ -1153,12 +1157,12 @@ export default function SettingsPage() {
         )}
 
         {activeTab === "subscription" && (
-        <section className="mt-0">
-          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-4">Subscription</h2>
+        <section className="mt-0 space-y-4">
+          <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Subscription</h2>
 
           {/* Past due warning */}
           {planStatus === "past_due" && (
-            <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
               <span>Payment failed — please update your payment method.</span>
               <button
                 onClick={handleManageSubscription}
@@ -1173,7 +1177,6 @@ export default function SettingsPage() {
           {/* No plan — show plan picker */}
           {(plan === "none" && planStatus !== "canceled") && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Creator */}
               <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
                   Most Popular
@@ -1184,18 +1187,10 @@ export default function SettingsPage() {
                   <span className="text-white/40 text-sm ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    Unlimited uploads
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    All platforms
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    1 team member (solo)
-                  </li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>5 GB storage</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>1 team member (solo)</li>
                 </ul>
                 <button
                   onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || "")}
@@ -1205,27 +1200,17 @@ export default function SettingsPage() {
                   {planLoading ? "Loading..." : "Start 7-day free trial"}
                 </button>
               </div>
-
-              {/* Team */}
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 flex flex-col">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 flex flex-col">
                 <h3 className="text-lg font-semibold">Team</h3>
                 <div className="mt-2 mb-4">
                   <span className="text-3xl font-bold">$19.99</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    Unlimited uploads
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    All platforms
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    Up to 5 team members
-                  </li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>15 GB storage</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Up to 5 team members</li>
                 </ul>
                 <button
                   onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || "")}
@@ -1239,60 +1224,105 @@ export default function SettingsPage() {
           )}
 
           {/* Active or trialing plan */}
-          {(planStatus === "trialing" || planStatus === "active") && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-emerald-500/10 p-3">
-                    <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium capitalize">{plan === "creator" ? "Creator" : "Team"} Plan</div>
-                    <div className="text-sm text-white/40 mt-0.5">
-                      {planStatus === "trialing" && trialEndsAt
-                        ? `Trial ends ${new Date(trialEndsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}`
-                        : "Active subscription"}
+          {(planStatus === "trialing" || planStatus === "active") && (() => {
+            const timeSavedHrs = Math.round((postedCount * 5) / 60 * 10) / 10;
+            const planPrice = plan === "team" ? "$19.99" : "$9.99";
+            const planStorage = plan === "team" ? "15 GB" : "5 GB";
+            const isTrialing = planStatus === "trialing";
+            const dateStr = isTrialing && trialEndsAt
+              ? new Date(trialEndsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
+              : renewalDate
+              ? new Date(renewalDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
+              : null;
+            return (
+              <div className="space-y-3">
+                {/* Plan header card */}
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-full p-2 ${isTrialing ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
+                        {isTrialing ? (
+                          <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{plan === "creator" ? "Creator" : "Team"} Plan</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${isTrialing ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>
+                            {isTrialing ? "Trial" : "Active"}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-sm text-white/40">
+                          {planPrice}/month
+                          {dateStr && (
+                            <span className="ml-2 text-white/25">·</span>
+                          )}
+                          {dateStr && (
+                            <span className="ml-2">{isTrialing ? "Trial ends" : "Renews"} {dateStr}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    {teamRole === "owner" && (
+                      <button
+                        onClick={handleManageSubscription}
+                        disabled={planLoading}
+                        className="shrink-0 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-50"
+                      >
+                        {planLoading ? "Loading..." : "Manage"}
+                      </button>
+                    )}
                   </div>
                 </div>
-                {teamRole === "owner" && (
-                  <button
-                    onClick={handleManageSubscription}
-                    disabled={planLoading}
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
-                  >
-                    {planLoading ? "Loading..." : "Manage Subscription"}
-                  </button>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                    <p className="text-2xl font-semibold text-white">{postedCount}</p>
+                    <p className="mt-0.5 text-xs text-white/40">Posts published</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                    <p className="text-2xl font-semibold text-blue-300">{connectedCount}</p>
+                    <p className="mt-0.5 text-xs text-white/40">Platforms active</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                    <p className="text-2xl font-semibold text-purple-300">{timeSavedHrs}h</p>
+                    <p className="mt-0.5 text-xs text-white/40">Est. time saved</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                    <p className="text-2xl font-semibold text-white/80">{planStorage}</p>
+                    <p className="mt-0.5 text-xs text-white/40">Storage included</p>
+                  </div>
+                </div>
+
+                {/* Retention nudge */}
+                {postedCount > 0 && (
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 flex items-start gap-3">
+                    <svg className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                    </svg>
+                    <p className="text-sm text-white/50">
+                      You&apos;ve published <span className="text-white/80 font-medium">{postedCount} post{postedCount !== 1 ? "s" : ""}</span> across <span className="text-white/80 font-medium">{connectedCount} platform{connectedCount !== 1 ? "s" : ""}</span> with Clip Dash — saving an estimated <span className="text-emerald-400 font-medium">{timeSavedHrs} hours</span> of manual work.
+                    </p>
+                  </div>
                 )}
               </div>
-              <div className="mt-5 pt-5 border-t border-white/5">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-semibold">&infin;</div>
-                    <div className="text-xs text-white/40 mt-1">Uploads</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">{teamMembers.length}</div>
-                    <div className="text-xs text-white/40 mt-1">Team member{teamMembers.length !== 1 ? "s" : ""}</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">{connectedCount}</div>
-                    <div className="text-xs text-white/40 mt-1">Connected</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Canceled */}
           {planStatus === "canceled" && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-red-500/10 p-3">
-                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-red-500/10 p-2">
+                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
@@ -1302,10 +1332,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setPlan("none");
-                    setPlanStatus("inactive");
-                  }}
+                  onClick={() => { setPlan("none"); setPlanStatus("inactive"); }}
                   className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors"
                 >
                   Re-subscribe
