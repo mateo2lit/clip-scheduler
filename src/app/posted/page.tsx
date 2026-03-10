@@ -228,60 +228,48 @@ export default function PostedPage() {
 
       <div className="relative z-10 mx-auto max-w-5xl px-6 pb-20 pt-10">
 
-        {/* Page header */}
-        <div className="mb-10 flex items-start justify-between gap-6">
-          <div className="flex items-start gap-3">
-            <Link
-              href="/dashboard"
-              className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/40 transition-all hover:bg-white/[0.08] hover:text-white/70"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </Link>
-            <div>
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/[0.08] px-2.5 py-0.5 text-[11px] font-medium text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                Published
+        {/* Page header — matches scheduled page style */}
+        <section className="mb-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
+          <div className="mb-5 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 font-medium text-emerald-300">Published</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-medium text-white/60">History</span>
+          </div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <Link
+                href="/dashboard"
+                className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white/70"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Posted Content</h1>
+                <p className="mt-2 text-sm text-white/70 sm:text-base">
+                  {loading ? "Loading history..." : `${groups.length} upload${groups.length === 1 ? "" : "s"} successfully published.`}
+                </p>
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Posted Content</h1>
-              <p className="mt-1 text-sm text-white/40">
-                {loading ? "Loading..." : `${groups.length} upload${groups.length === 1 ? "" : "s"} published across your connected platforms.`}
-              </p>
+            </div>
+            <Link href="/uploads" className="w-fit rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/90">
+              New upload
+            </Link>
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-white/40">Published</p>
+              <p className="mt-1 text-2xl font-semibold text-white">{loading ? "..." : groups.length}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-white/40">Platforms reached</p>
+              <p className="mt-1 text-2xl font-semibold text-blue-300">{loading ? "..." : platformCount}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-white/40">Total posts</p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-300">{loading ? "..." : posts.length}</p>
             </div>
           </div>
-          <Link
-            href="/uploads"
-            className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-white/90"
-          >
-            New upload
-          </Link>
-        </div>
-
-        {/* Stats strip */}
-        {!loading && groups.length > 0 && (
-          <div className="mb-8 flex items-center gap-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-white/30">Uploads</p>
-              <p className="mt-0.5 text-xl font-semibold text-white">{groups.length}</p>
-            </div>
-            <div className="h-8 w-px bg-white/[0.08]" />
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-white/30">Platforms</p>
-              <p className="mt-0.5 text-xl font-semibold text-blue-300">{platformCount}</p>
-            </div>
-            <div className="h-8 w-px bg-white/[0.08]" />
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-white/30">Total posts</p>
-              <p className="mt-0.5 text-xl font-semibold text-emerald-300">{posts.length}</p>
-            </div>
-            <div className="h-8 w-px bg-white/[0.08]" />
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-white/30">With links</p>
-              <p className="mt-0.5 text-xl font-semibold text-white/60">{withExternalLinks}</p>
-            </div>
-          </div>
-        )}
+        </section>
 
         {/* Content */}
         {loading ? (
