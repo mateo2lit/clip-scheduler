@@ -962,6 +962,14 @@ export default function SettingsPage() {
     setEditingName(null);
   }
 
+  // Recommended post times based on cross-platform engagement research
+  const RECOMMENDED_TIMES = [
+    { time: "09:00", label: "9:00 AM", note: "Morning check-in", days: [true,true,true,true,true,false,false] },
+    { time: "12:00", label: "12:00 PM", note: "Lunch break",     days: [true,true,true,true,true,false,false] },
+    { time: "15:00", label: "3:00 PM",  note: "Afternoon peak",  days: [true,true,true,true,true,true,true] },
+    { time: "19:00", label: "7:00 PM",  note: "Evening prime",   days: [true,true,true,true,true,true,true] },
+  ];
+
   // Load queue when Queue tab is opened
   useEffect(() => {
     if (activeTab !== "queue" || queueLoaded) return;
@@ -973,10 +981,15 @@ export default function SettingsPage() {
         const res = await fetch("/api/queue", { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const json = await res.json().catch(() => null);
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
           if (json?.schedule) {
-            setQueueSchedule({ slots: json.schedule.slots || [], randomize: !!json.schedule.randomize, timezone: json.schedule.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone });
+            setQueueSchedule({ slots: json.schedule.slots || [], randomize: !!json.schedule.randomize, timezone: json.schedule.timezone || tz });
           } else {
-            setQueueSchedule(prev => ({ ...prev, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
+            // First time setup — pre-populate with recommended times and save
+            const defaultSlots = RECOMMENDED_TIMES.map(r => ({ id: crypto.randomUUID(), time: r.time, days: r.days }));
+            const defaults = { slots: defaultSlots, randomize: false, timezone: tz };
+            setQueueSchedule(defaults);
+            await fetch("/api/queue", { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(defaults) });
           }
         }
       } catch {}
@@ -1896,6 +1909,37 @@ export default function SettingsPage() {
                   Add time
                 </button>
                 {queueSaving && <span className="animate-pulse text-xs text-white/30">Saving…</span>}
+              </div>
+
+              {/* Suggested times */}
+              <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                <p className="mb-2.5 text-xs text-white/30">Suggested times — based on peak engagement across platforms</p>
+                <div className="flex flex-wrap gap-2">
+                  {RECOMMENDED_TIMES.map(r => {
+                    const alreadyAdded = queueSchedule.slots.some(s => s.time === r.time);
+                    return (
+                      <button
+                        key={r.time}
+                        type="button"
+                        disabled={alreadyAdded}
+                        onClick={() => {
+                          if (alreadyAdded) return;
+                          const updated: QueueScheduleConfig = { ...queueSchedule, slots: [...queueSchedule.slots, { id: crypto.randomUUID(), time: r.time, days: r.days }].sort((a, b) => a.time.localeCompare(b.time)) };
+                          setQueueSchedule(updated); saveQueueSchedule(updated);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${alreadyAdded ? "border-white/[0.06] bg-white/[0.02] text-white/20 cursor-default" : "border-white/10 bg-white/[0.03] text-white/50 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:text-blue-300"}`}
+                      >
+                        {alreadyAdded ? (
+                          <svg className="w-3 h-3 text-emerald-500/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m4.5 12.75 6 6 9-13.5" /></svg>
+                        ) : (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        )}
+                        <span className="font-medium">{r.label}</span>
+                        <span className="text-white/25">{r.note}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
