@@ -275,7 +275,7 @@ export default function UploadsPage() {
   const [description, setDescription] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState("");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["youtube"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const threadsEnabled = isThreadsEnabledForUserIdClient(userId);
   const enabledPlatforms = useMemo(
     () => PLATFORMS.filter((p) => p.key !== "threads" || threadsEnabled),
@@ -1641,7 +1641,7 @@ export default function UploadsPage() {
                       </button>
 
                       {showScheduleActions && (
-                        <div className="absolute right-0 top-[calc(100%+10px)] z-30 w-72 overflow-hidden rounded-2xl border border-white/12 bg-[#0e1118] shadow-[0_24px_60px_rgba(2,6,23,0.6)]">
+                        <div className="absolute right-0 bottom-[calc(100%+10px)] z-30 w-72 overflow-hidden rounded-2xl border border-white/12 bg-[#0e1118] shadow-[0_24px_60px_rgba(2,6,23,0.6)]">
                           <button
                             type="button"
                             onClick={() => {
@@ -2033,6 +2033,7 @@ export default function UploadsPage() {
                         </>
                       )}
                     </select>
+                    {!ttPrivacyLevel && <p className="text-xs text-amber-400/70">Required: select who can watch this video</p>}
                     {ttBrandContent && <p className="text-xs text-amber-400/70">Branded content cannot be set to &quot;Private&quot;</p>}
                   </div>
 
