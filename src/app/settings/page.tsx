@@ -1027,7 +1027,7 @@ export default function SettingsPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-12 w-auto" /></Link>
+          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-24 w-auto" /></Link>
           <div className="flex items-center gap-3">
             <span className="text-sm text-white/40">Settings</span>
             <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[11px] font-semibold">

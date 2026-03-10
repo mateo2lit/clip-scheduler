@@ -106,7 +106,7 @@ export default function Home() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-12 w-auto" /></a>
+          <a href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-24 w-auto" /></a>
           <div className="flex items-center gap-3">
             {loaded && (
               user ? (

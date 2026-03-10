@@ -140,7 +140,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-[#050505] text-white flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
-        <img src="/logo.svg" alt="Clip Dash" className="h-11 w-auto" />
+        <img src="/logo.svg" alt="Clip Dash" className="h-22 w-auto" />
 
         {/* Step progress */}
         <div className="flex items-center gap-2">
