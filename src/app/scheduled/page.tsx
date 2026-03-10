@@ -81,30 +81,16 @@ function providerLabel(provider: string | null) {
   return labels[provider.toLowerCase()] || provider;
 }
 
-function ProviderIcon({ provider, className = "w-5 h-5" }: { provider: string | null; className?: string }) {
+function ProviderIcon({ provider, className = "w-3 h-3" }: { provider: string | null; className?: string }) {
   const p = provider?.toLowerCase();
-  if (p === "youtube") {
-    return <svg className={`${className} text-red-500`} viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z" /></svg>;
-  }
-  if (p === "facebook") {
-    return <svg className={`${className} text-blue-500`} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073Z" /></svg>;
-  }
-  if (p === "instagram") {
-    return <svg className={`${className} text-pink-500`} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069ZM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0Zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881Z" /></svg>;
-  }
-  if (p === "tiktok") {
-    return <svg className={`${className} text-white`} viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07Z" /></svg>;
-  }
-  if (p === "linkedin") {
-    return <svg className={`${className} text-blue-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z" /></svg>;
-  }
-  if (p === "threads") {
-    return <svg className={`${className} text-white/70`} viewBox="0 0 192 192" fill="currentColor"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.738-8.699 14.753-10.548 21.347-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 6.997 4.67 16.01 6.96 25.379 6.455 12.369-.675 22.047-5.399 28.763-14.041 5.138-6.659 8.373-15.274 9.792-26.074 5.87 3.545 10.216 8.219 12.605 13.982 4.125 9.913 4.357 26.185-8.501 39.063-11.26 11.275-24.817 16.16-45.286 16.307-22.71-.164-39.904-7.489-51.106-21.779C35.928 138.529 30.2 120.9 29.95 98.5c.25-22.401 5.978-40.03 17.02-54.373C58.172 29.836 75.368 22.511 98.076 22.348c22.906.165 40.413 7.531 52.056 21.894 5.668 6.975 9.921 15.717 12.579 25.848l16.152-4.528c-3.29-12.703-8.806-23.758-16.43-32.811C147.386 14.963 125.72 5.18 98.163 5h-.383C70.56 5.18 49.137 14.99 34.393 29.979 20.97 44.12 14.036 64.1 13.786 98.5c.25 34.4 7.184 54.381 20.607 68.521C49.137 182.01 70.56 191.82 97.78 192h.383c24.761-.17 42.251-6.653 56.653-21.079 18.763-18.79 18.168-42.29 12.003-56.723-4.387-10.541-12.904-19.236-25.282-24.21zm-46.941 49.658c-10.426.583-21.24-4.098-21.783-14.082-.407-7.647 5.44-16.17 23.029-17.16 2.016-.115 3.995-.172 5.942-.172 6.377 0 12.358.616 17.771 1.8-2.02 25.214-14.959 28.946-24.959 29.614z"/></svg>;
-  }
-  if (p === "bluesky") {
-    return <svg className={`${className} text-sky-400`} viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg>;
-  }
-  return <span className="text-xs text-white/40">{providerLabel(provider)}</span>;
+  if (p === "youtube") return <svg className={`${className} text-red-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z" /></svg>;
+  if (p === "facebook") return <svg className={`${className} text-blue-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073Z" /></svg>;
+  if (p === "instagram") return <svg className={`${className} text-pink-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069ZM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0Zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881Z" /></svg>;
+  if (p === "tiktok") return <svg className={`${className} text-white/70`} viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07Z" /></svg>;
+  if (p === "linkedin") return <svg className={`${className} text-blue-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z" /></svg>;
+  if (p === "threads") return <svg className={`${className} text-white/70`} viewBox="0 0 192 192" fill="currentColor"><path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.738-8.699 14.753-10.548 21.347-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 6.997 4.67 16.01 6.96 25.379 6.455 12.369-.675 22.047-5.399 28.763-14.041 5.138-6.659 8.373-15.274 9.792-26.074 5.87 3.545 10.216 8.219 12.605 13.982 4.125 9.913 4.357 26.185-8.501 39.063-11.26 11.275-24.817 16.16-45.286 16.307-22.71-.164-39.904-7.489-51.106-21.779C35.928 138.529 30.2 120.9 29.95 98.5c.25-22.401 5.978-40.03 17.02-54.373C58.172 29.836 75.368 22.511 98.076 22.348c22.906.165 40.413 7.531 52.056 21.894 5.668 6.975 9.921 15.717 12.579 25.848l16.152-4.528c-3.29-12.703-8.806-23.758-16.43-32.811C147.386 14.963 125.72 5.18 98.163 5h-.383C70.56 5.18 49.137 14.99 34.393 29.979 20.97 44.12 14.036 64.1 13.786 98.5c.25 34.4 7.184 54.381 20.607 68.521C49.137 182.01 70.56 191.82 97.78 192h.383c24.761-.17 42.251-6.653 56.653-21.079 18.763-18.79 18.168-42.29 12.003-56.723-4.387-10.541-12.904-19.236-25.282-24.21zm-46.941 49.658c-10.426.583-21.24-4.098-21.783-14.082-.407-7.647 5.44-16.17 23.029-17.16 2.016-.115 3.995-.172 5.942-.172 6.377 0 12.358.616 17.771 1.8-2.02 25.214-14.959 28.946-24.959 29.614z"/></svg>;
+  if (p === "bluesky") return <svg className={`${className} text-sky-400`} viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg>;
+  return <span className="text-[10px] text-white/40">{providerLabel(provider)}</span>;
 }
 
 function computeGroupStatus(posts: ScheduledPost[]): PostGroup["groupStatus"] {
@@ -162,6 +148,44 @@ function getStoredThumbnailUrl(thumbnailPath: string | null | undefined) {
   return data?.publicUrl || null;
 }
 
+function getScheduledGroupLabel(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((targetDay.getTime() - nowDay.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return "Posting Soon";
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function ScheduledThumbnail({ group }: { group: PostGroup }) {
+  const thumb = group.posts.map((p) => getStoredThumbnailUrl(p.thumbnail_path)).find(Boolean) || null;
+  const primaryProvider = group.posts[0]?.provider?.toLowerCase() ?? null;
+  const cls = "h-[72px] w-[128px] shrink-0 rounded-xl object-cover border border-white/[0.08]";
+  const placeholder = "h-[72px] w-[128px] shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center";
+  if (thumb) {
+    return <img src={thumb} alt={group.title || "Thumbnail"} className={cls} />;
+  }
+  const iconMap: Record<string, JSX.Element> = {
+    youtube: <svg className="w-6 h-6 text-red-400/40" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z" /></svg>,
+    instagram: <svg className="w-6 h-6 text-pink-400/40" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069ZM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0Zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881Z" /></svg>,
+    facebook: <svg className="w-6 h-6 text-blue-400/40" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073Z" /></svg>,
+    tiktok: <svg className="w-5 h-5 text-white/25" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07Z" /></svg>,
+  };
+  return (
+    <div className={placeholder}>
+      {iconMap[primaryProvider ?? ""] ?? (
+        <svg className="w-5 h-5 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
 export default function ScheduledPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +198,6 @@ export default function ScheduledPage() {
   const [editSaving, setEditSaving] = useState(false);
 
   const teamIdRef = useRef<string | null>(null);
-  // Maps post id → status so we can detect both completions and new failures
   const knownStatusRef = useRef<Map<string, string>>(new Map());
   const initializedRef = useRef(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,7 +221,6 @@ export default function ScheduledPage() {
     const newStatusMap = new Map(newPosts.map((p) => [p.id, p.status]));
 
     if (initializedRef.current) {
-      // Posts that left the active list entirely → published
       const completedCount = [...knownStatusRef.current.keys()].filter(
         (id) => !newStatusMap.has(id)
       ).length;
@@ -209,7 +231,6 @@ export default function ScheduledPage() {
         );
       }
 
-      // Posts that transitioned to "failed" since the last poll
       const newlyFailed = newPosts.filter(
         (p) => p.status === "failed" && knownStatusRef.current.get(p.id) !== "failed"
       );
@@ -256,7 +277,6 @@ export default function ScheduledPage() {
       await fetchPosts();
       if (!cancelled) {
         setLoading(false);
-        // Poll every 5 s to catch completions; skip when tab is hidden
         pollInterval = setInterval(() => {
           if (!cancelled && document.visibilityState === "visible") fetchPosts();
         }, 5000);
@@ -310,7 +330,6 @@ export default function ScheduledPage() {
       }
       setPosts((prev) => {
         const updated = prev.filter((p) => !postIds.includes(p.id));
-        // Keep knownStatusRef in sync so cancelled posts don't fire a "published" toast
         knownStatusRef.current = new Map(updated.map((p) => [p.id, p.status]));
         return updated;
       });
@@ -368,6 +387,15 @@ export default function ScheduledPage() {
   const failedGroups = groups.filter((g) => g.groupStatus === "failed" || g.groupStatus === "partial_failure").length;
   const platformCount = new Set(groups.flatMap((g) => g.posts.map((p) => p.provider || "unknown"))).size;
 
+  // Group by date label
+  const byDate: { label: string; groups: PostGroup[] }[] = [];
+  for (const group of groups) {
+    const label = getScheduledGroupLabel(group.scheduled_for);
+    const existing = byDate.find((d) => d.label === label);
+    if (existing) existing.groups.push(group);
+    else byDate.push({ label, groups: [group] });
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
       <div className="pointer-events-none absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
@@ -375,8 +403,8 @@ export default function ScheduledPage() {
       <div className="pointer-events-none absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
 
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-7 w-auto" /></Link>
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-9 w-auto" /></Link>
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 transition-colors hover:text-white/70">Settings</Link>
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-[11px] font-semibold">
@@ -386,8 +414,8 @@ export default function ScheduledPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-10">
-        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
+      <div className="relative z-10 mx-auto max-w-5xl px-6 pb-20 pt-10">
+        <section className="mb-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
           <div className="mb-5 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 font-medium text-blue-300">Queue</span>
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-medium text-white/60">Scheduled</span>
@@ -435,186 +463,208 @@ export default function ScheduledPage() {
           </div>
         </section>
 
-        <section className="mt-8">
-          {loading ? (
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="border-t border-white/5 px-5 py-4 first:border-t-0">
-                  <div className="flex items-center gap-4">
-                    <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
-                    <div className="h-4 w-16 animate-pulse rounded bg-white/[0.06]" />
-                    <div className="ml-auto h-4 w-20 animate-pulse rounded bg-white/[0.06]" />
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+                <div className="h-[72px] w-[128px] shrink-0 animate-pulse rounded-xl bg-white/[0.05]" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-48 animate-pulse rounded bg-white/[0.06]" />
+                  <div className="h-3 w-64 animate-pulse rounded bg-white/[0.04]" />
+                  <div className="flex gap-2 pt-1">
+                    <div className="h-6 w-20 animate-pulse rounded-full bg-white/[0.04]" />
+                    <div className="h-6 w-16 animate-pulse rounded-full bg-white/[0.04]" />
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-16 text-center shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
-              <div className="mx-auto inline-flex rounded-xl bg-blue-500/10 p-3 text-blue-300">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
               </div>
-              <p className="mt-4 font-semibold text-white">No scheduled posts</p>
-              <p className="mt-1 text-sm text-white/50">Upload a video and choose a publish time to populate your queue.</p>
-              <Link href="/upload" className="mt-5 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-white/90">
-                Upload your first video
-              </Link>
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 py-20 text-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-400/[0.08]">
+              <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
             </div>
-          ) : (
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)]">
-              <div className="hidden grid-cols-12 gap-3 border-b border-white/10 px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-white/40 md:grid">
-                <div className="col-span-5">Title</div>
-                <div className="col-span-3">Platforms</div>
-                <div className="col-span-3">Scheduled</div>
-                <div className="col-span-1 text-right">Actions</div>
-              </div>
-              <div className="divide-y divide-white/5">
-                {groups.map((group) => {
-                  const statusInfo = getGroupStatusDisplay(group);
-                  const allPostIds = group.posts.map((p) => p.id);
-                  const failedPostIds = group.posts.filter((p) => p.status === "failed").map((p) => p.id);
-                  const hasFailed = failedPostIds.length > 0;
+            <p className="font-semibold text-white">No scheduled posts</p>
+            <p className="mt-1.5 max-w-xs text-sm text-white/40">Upload a video and choose a publish time to populate your queue.</p>
+            <Link href="/upload" className="mt-6 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white/80">
+              Upload your first video
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {byDate.map(({ label, groups: dateGroups }) => (
+              <div key={label}>
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/30">{label}</span>
+                  <div className="h-px flex-1 bg-white/[0.06]" />
+                  <span className="text-[11px] text-white/20">{dateGroups.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {dateGroups.map((group) => {
+                    const statusInfo = getGroupStatusDisplay(group);
+                    const allPostIds = group.posts.map((p) => p.id);
+                    const failedPostIds = group.posts.filter((p) => p.status === "failed").map((p) => p.id);
+                    const hasFailed = failedPostIds.length > 0;
+                    const isEditing = editingGroupId === group.groupId;
+                    const isFailed = group.groupStatus === "failed" || group.groupStatus === "partial_failure";
 
-                  const isEditing = editingGroupId === group.groupId;
+                    return (
+                      <div
+                        key={group.groupId}
+                        className={`rounded-2xl border transition-all ${
+                          isFailed
+                            ? "border-red-500/20 bg-red-500/[0.03] hover:border-red-500/30"
+                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.035]"
+                        }`}
+                      >
+                        {isEditing && (
+                          <div className="border-b border-white/[0.06] p-4">
+                            <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.04] p-4 space-y-3">
+                              <p className="text-xs font-medium uppercase tracking-wider text-blue-300/70">Edit Post</p>
+                              <div>
+                                <label className="block text-xs text-white/40 mb-1">Title</label>
+                                <input
+                                  type="text"
+                                  value={editFields.title}
+                                  onChange={(e) => setEditFields((f) => ({ ...f, title: e.target.value }))}
+                                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-500/40 focus:outline-none"
+                                  placeholder="Post title"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 mb-1">Description</label>
+                                <textarea
+                                  value={editFields.description}
+                                  onChange={(e) => setEditFields((f) => ({ ...f, description: e.target.value }))}
+                                  rows={3}
+                                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-500/40 focus:outline-none resize-none"
+                                  placeholder="Post description"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 mb-1">Schedule Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={editFields.scheduledFor}
+                                  onChange={(e) => setEditFields((f) => ({ ...f, scheduledFor: e.target.value }))}
+                                  className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white focus:border-blue-500/40 focus:outline-none"
+                                />
+                              </div>
+                              <div className="flex gap-2 pt-1">
+                                <button
+                                  onClick={() => handleSaveEdit(group)}
+                                  disabled={editSaving}
+                                  className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-white/90 disabled:opacity-50 transition-colors"
+                                >
+                                  {editSaving ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  onClick={() => setEditingGroupId(null)}
+                                  className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                  return (
-                    <div key={group.groupId} className="px-5 py-4 transition-colors hover:bg-white/[0.04]">
-                      {isEditing && (
-                        <div className="mb-4 rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 space-y-3">
-                          <p className="text-xs font-medium uppercase tracking-wider text-blue-300/70">Edit Post</p>
-                          <div>
-                            <label className="block text-xs text-white/40 mb-1">Title</label>
-                            <input
-                              type="text"
-                              value={editFields.title}
-                              onChange={(e) => setEditFields((f) => ({ ...f, title: e.target.value }))}
-                              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-500/40 focus:outline-none"
-                              placeholder="Post title"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-white/40 mb-1">Description</label>
-                            <textarea
-                              value={editFields.description}
-                              onChange={(e) => setEditFields((f) => ({ ...f, description: e.target.value }))}
-                              rows={3}
-                              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-blue-500/40 focus:outline-none resize-none"
-                              placeholder="Post description"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-white/40 mb-1">Schedule Time</label>
-                            <input
-                              type="datetime-local"
-                              value={editFields.scheduledFor}
-                              onChange={(e) => setEditFields((f) => ({ ...f, scheduledFor: e.target.value }))}
-                              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white focus:border-blue-500/40 focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={() => handleSaveEdit(group)}
-                              disabled={editSaving}
-                              className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-white/90 disabled:opacity-50 transition-colors"
-                            >
-                              {editSaving ? "Saving..." : "Save"}
-                            </button>
-                            <button
-                              onClick={() => setEditingGroupId(null)}
-                              className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid items-center gap-3 md:grid-cols-12">
-                        <div className="min-w-0 md:col-span-5">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {(() => {
-                              const thumb = group.posts.map((p) => getStoredThumbnailUrl(p.thumbnail_path)).find(Boolean) || null;
-                              return thumb ? (
-                                <img src={thumb} alt={group.title || "Scheduled thumbnail"} className="h-10 w-16 rounded-md object-cover border border-white/10 shrink-0" />
-                              ) : (
-                                <div className="h-10 w-16 rounded-md border border-white/10 bg-white/[0.03] shrink-0" />
-                              );
-                            })()}
-                            <div className="min-w-0">
-                              <p className="truncate font-medium text-white">{group.title || "Untitled"}</p>
-                              {group.description ? <p className="mt-1 line-clamp-1 text-xs text-white/40">{group.description}</p> : null}
+                        <div className="flex items-start gap-4 p-4">
+                          <ScheduledThumbnail group={group} />
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate font-medium text-white/90">{group.title || "Untitled"}</p>
+                                {group.description && (
+                                  <p className="mt-0.5 line-clamp-1 text-xs text-white/35">{group.description}</p>
+                                )}
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className={`text-xs font-medium ${statusInfo.color} ${statusInfo.pulse ? "animate-pulse" : ""}`}>
+                                  {statusInfo.text}
+                                </p>
+                                <p className="mt-0.5 text-[11px] text-white/20">
+                                  {formatDate(group.scheduled_for)}, {formatTime(group.scheduled_for)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {hasFailed && group.posts.find((p) => p.last_error) && (
+                              <p className="mt-1.5 text-xs text-red-400/70">
+                                {group.posts.filter((p) => p.status === "failed" && p.last_error).map((p) => p.last_error).join("; ")}
+                              </p>
+                            )}
+
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap gap-1.5">
+                                {group.posts.map((post) => (
+                                  <span
+                                    key={post.id}
+                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                                      post.status === "failed"
+                                        ? "border-red-500/30 bg-red-500/10 text-red-300"
+                                        : post.status === "posting" || post.status === "ig_processing"
+                                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300 animate-pulse"
+                                        : "border-white/[0.12] bg-white/[0.05] text-white/60"
+                                    }`}
+                                    title={`${providerLabel(post.provider)}: ${post.status}${post.last_error ? ` — ${post.last_error}` : ""}`}
+                                  >
+                                    <ProviderIcon provider={post.provider} className="w-3 h-3" />
+                                    {providerLabel(post.provider)}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {group.groupStatus === "scheduled" && !isEditing && (
+                                  <button
+                                    onClick={() => handleStartEdit(group)}
+                                    title="Edit post"
+                                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                    Edit
+                                  </button>
+                                )}
+                                {hasFailed && (
+                                  <button
+                                    onClick={() => handleRetry(group.groupId, failedPostIds)}
+                                    disabled={retrying === group.groupId}
+                                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
+                                  >
+                                    {retrying === group.groupId ? "Retrying..." : "Retry"}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleCancel(group.groupId, allPostIds)}
+                                  disabled={canceling === group.groupId}
+                                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                                    hasFailed
+                                      ? "border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                                      : "border-white/10 bg-white/5 text-white/50 hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
+                                  }`}
+                                >
+                                  {canceling === group.groupId ? (hasFailed ? "Removing..." : "Canceling...") : hasFailed ? "Remove" : "Cancel"}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5 md:col-span-3">
-                          {group.posts.map((post) => (
-                            <span
-                              key={post.id}
-                              className="inline-flex"
-                              title={`${providerLabel(post.provider)}: ${post.status}${post.last_error ? ` - ${post.last_error}` : ""}`}
-                            >
-                              <ProviderIcon provider={post.provider} className="w-5 h-5" />
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="md:col-span-3">
-                          <span className="text-xs tabular-nums text-white/40">
-                            {formatDate(group.scheduled_for)}, {formatTime(group.scheduled_for)}
-                          </span>
-                          <span className={`block mt-1 text-xs font-semibold tabular-nums ${statusInfo.color} ${statusInfo.pulse ? "animate-pulse" : ""}`}>
-                            {statusInfo.text}
-                          </span>
-                          {hasFailed ? (
-                            <p className="mt-1 text-xs text-red-400/80">
-                              {failedPostIds.length === group.posts.length
-                                ? group.posts.find((p) => p.last_error)?.last_error || "Upload failed"
-                                : `Failed on ${group.posts.filter((p) => p.status === "failed").map((p) => providerLabel(p.provider)).join(", ")}`}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        <div className="flex items-center justify-start gap-2 md:col-span-1 md:justify-end">
-                          {group.groupStatus === "scheduled" && !isEditing && (
-                            <button
-                              onClick={() => handleStartEdit(group)}
-                              title="Edit post"
-                              className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleCancel(group.groupId, allPostIds)}
-                            disabled={canceling === group.groupId}
-                            className={`rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50 ${hasFailed ? "border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20" : "border-white/10 bg-white/5 text-white/60 hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-300"}`}
-                          >
-                            {canceling === group.groupId ? (hasFailed ? "Removing..." : "Canceling...") : hasFailed ? "Remove" : "Cancel"}
-                          </button>
-                          {hasFailed ? (
-                            <button
-                              onClick={() => handleRetry(group.groupId, failedPostIds)}
-                              disabled={retrying === group.groupId}
-                              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-                            >
-                              {retrying === group.groupId ? "Retrying..." : "Retry"}
-                            </button>
-                          ) : null}
-                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </section>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Live update toast */}
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl backdrop-blur-xl transition-all ${
