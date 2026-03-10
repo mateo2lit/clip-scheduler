@@ -1347,14 +1347,11 @@ export default function SettingsPage() {
         <section className="mt-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Connected Accounts</h2>
-            <button
-              onClick={loadConnectedAccounts}
-              className="text-xs text-white/40 hover:text-white/70 transition-colors"
-            >
+            <button onClick={loadConnectedAccounts} className="text-xs text-white/40 hover:text-white/70 transition-colors">
               {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] divide-y divide-white/5">
+          <div className="space-y-2">
             {visiblePlatforms.map((platform) => {
               const accts = accounts[platform.key];
               const isConnected = accts.length > 0;
@@ -1367,45 +1364,48 @@ export default function SettingsPage() {
                 threads: connectThreads,
               };
               const connectFn = connectFns[platform.key];
+              const canManage = teamRole === "owner" || teamRole === "admin";
               return (
-                <div key={platform.key} className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`rounded-full p-2.5 ${isConnected ? "bg-white/10 text-white" : "bg-white/5 text-white/40"}`}>
+                <div key={platform.key} className={`rounded-2xl border transition-colors ${isConnected ? "border-white/[0.09] bg-white/[0.025]" : "border-white/[0.06] bg-white/[0.015]"}`}>
+                  {/* Platform header row */}
+                  <div className="flex items-center justify-between px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-xl p-2 ${isConnected ? "bg-white/[0.08] text-white" : "bg-white/[0.04] text-white/35"}`}>
                         {platform.icon}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{platform.name}</span>
+                          <span className={`text-sm font-medium ${isConnected ? "text-white/90" : "text-white/50"}`}>{platform.name}</span>
                           {isConnected && (
-                            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 border border-emerald-500/20">
-                              Connected
+                            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                              {accts.length > 1 ? `${accts.length} accounts` : "Connected"}
                             </span>
                           )}
                         </div>
                         {!isConnected && (
-                          <div className="text-sm text-white/40 mt-0.5">{platform.description}</div>
+                          <p className="text-xs text-white/30 mt-0.5">{platform.description}</p>
                         )}
                       </div>
                     </div>
-                    {(teamRole === "owner" || teamRole === "admin") && platform.key !== "bluesky" && connectFn && (
+                    {canManage && platform.key !== "bluesky" && connectFn && (
                       <button
                         onClick={connectFn}
-                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                        className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-medium text-white/55 hover:bg-white/[0.08] hover:text-white/80 transition-colors"
                       >
-                        {isConnected ? "Add account" : "Connect"}
+                        {isConnected ? "+ Add account" : "Connect"}
                       </button>
                     )}
                   </div>
 
-                  {/* Per-account rows */}
+                  {/* Connected account rows */}
                   {accts.length > 0 && (
-                    <div className="mt-3 ml-14 space-y-2">
+                    <div className="border-t border-white/[0.06] divide-y divide-white/[0.04]">
                       {accts.map((acct) => (
-                        <div key={acct.id} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="relative w-6 h-6 shrink-0">
-                              <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-semibold text-white/50">
+                        <div key={acct.id} className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {/* Avatar */}
+                            <div className="relative w-8 h-8 shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-semibold text-white/50">
                                 {(acct.profileName || acct.label || "?")[0].toUpperCase()}
                               </div>
                               {proxiedAvatar(acct.avatarUrl) && (
@@ -1413,37 +1413,40 @@ export default function SettingsPage() {
                                   src={proxiedAvatar(acct.avatarUrl)!}
                                   alt=""
                                   onError={(e) => { e.currentTarget.style.display = "none"; }}
-                                  className="absolute inset-0 w-6 h-6 rounded-full object-cover"
+                                  className="absolute inset-0 w-8 h-8 rounded-full object-cover"
                                 />
                               )}
                             </div>
+                            {/* Name / edit */}
                             {editingName?.id === acct.id ? (
-                              <form onSubmit={(e) => { e.preventDefault(); saveAccountName(acct.id, editingName.value); }} className="flex items-center gap-1.5">
+                              <form onSubmit={(e) => { e.preventDefault(); saveAccountName(acct.id, editingName.value); }} className="flex items-center gap-2">
                                 <input
                                   autoFocus
                                   value={editingName.value}
                                   onChange={(e) => setEditingName({ id: acct.id, value: e.target.value })}
                                   onBlur={() => { if (editingName.value.trim()) saveAccountName(acct.id, editingName.value); else setEditingName(null); }}
-                                  placeholder="Enter display name"
-                                  className="rounded-lg border border-white/15 bg-white/5 px-2 py-0.5 text-sm text-white placeholder-white/30 outline-none focus:border-blue-400/40 w-40"
+                                  placeholder="Display name"
+                                  className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-sm text-white placeholder-white/30 outline-none focus:border-blue-400/40 w-40"
                                 />
-                                <button type="submit" className="text-xs text-blue-400 hover:text-blue-300">Save</button>
+                                <button type="submit" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Save</button>
                               </form>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => setEditingName({ id: acct.id, value: acct.label || acct.profileName || "" })}
-                                className="text-sm text-white/60 hover:text-white/80 transition-colors text-left"
-                                title={!acct.profileName && !acct.label ? "Click to set display name" : "Click to edit name"}
+                                className="group flex items-center gap-1.5 text-sm text-white/70 hover:text-white/90 transition-colors text-left"
                               >
-                                {acct.label || acct.profileName || <span className="text-white/30 italic">Add display name</span>}
+                                {acct.label || acct.profileName || <span className="text-white/25 italic text-xs">Add display name</span>}
+                                <svg className="w-3 h-3 text-white/20 group-hover:text-white/40 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
                               </button>
                             )}
                           </div>
-                          {(teamRole === "owner" || teamRole === "admin") && (
+                          {canManage && (
                             <button
                               onClick={() => disconnectAccount(platform.key, acct.id)}
-                              className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+                              className="rounded-full border border-white/[0.08] bg-transparent px-3 py-1 text-xs text-white/35 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 transition-colors"
                             >
                               Disconnect
                             </button>
@@ -1453,75 +1456,38 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Bluesky connect form (not connected) */}
-                  {platform.key === "bluesky" && !isConnected && (teamRole === "owner" || teamRole === "admin") && (
-                    <div className="mt-4 space-y-3 pt-4 border-t border-white/5">
-                      <p className="text-xs text-white/40">
-                        Create an app password at{" "}
-                        <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" className="text-white/60 underline">
-                          bsky.app → Settings → App Passwords
-                        </a>
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="text"
-                          placeholder="@you.bsky.social"
-                          value={blueskyHandle}
-                          onChange={(e) => setBlueskyHandle(e.target.value)}
-                          className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
-                        />
-                        <input
-                          type="password"
-                          placeholder="xxxx-xxxx-xxxx-xxxx"
-                          value={blueskyPassword}
-                          onChange={(e) => setBlueskyPassword(e.target.value)}
-                          className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
-                        />
-                        <button
-                          onClick={connectBluesky}
-                          disabled={blueskyConnecting}
-                          className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 whitespace-nowrap"
-                        >
-                          {blueskyConnecting ? "Connecting…" : "Connect Bluesky"}
-                        </button>
-                      </div>
-                      {blueskyError && <p className="text-xs text-red-400">{blueskyError}</p>}
-                    </div>
-                  )}
-                  {/* Bluesky add-another form (already connected) */}
-                  {platform.key === "bluesky" && isConnected && (teamRole === "owner" || teamRole === "admin") && (
-                    <div className="mt-3 ml-14">
-                      <details className="group">
-                        <summary className="cursor-pointer text-xs text-white/40 hover:text-white/60 transition-colors list-none">
-                          + Add another Bluesky account
-                        </summary>
-                        <div className="mt-3 space-y-2">
+                  {/* Bluesky form */}
+                  {platform.key === "bluesky" && canManage && (
+                    <div className={`${isConnected ? "border-t border-white/[0.06]" : ""} px-4 py-3`}>
+                      {isConnected ? (
+                        <details className="group">
+                          <summary className="cursor-pointer text-xs text-white/35 hover:text-white/60 transition-colors list-none flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            Add another Bluesky account
+                          </summary>
+                          <div className="mt-3 space-y-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <input type="text" placeholder="@you.bsky.social" value={blueskyHandle} onChange={(e) => setBlueskyHandle(e.target.value)} className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                              <input type="password" placeholder="App password" value={blueskyPassword} onChange={(e) => setBlueskyPassword(e.target.value)} className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                              <button onClick={connectBluesky} disabled={blueskyConnecting} className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 whitespace-nowrap">{blueskyConnecting ? "Connecting…" : "Connect"}</button>
+                            </div>
+                            {blueskyError && <p className="text-xs text-red-400">{blueskyError}</p>}
+                          </div>
+                        </details>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-xs text-white/35">
+                            Create an app password at{" "}
+                            <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" className="text-white/55 underline underline-offset-2">bsky.app → Settings → App Passwords</a>
+                          </p>
                           <div className="flex flex-col sm:flex-row gap-2">
-                            <input
-                              type="text"
-                              placeholder="@you.bsky.social"
-                              value={blueskyHandle}
-                              onChange={(e) => setBlueskyHandle(e.target.value)}
-                              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
-                            />
-                            <input
-                              type="password"
-                              placeholder="xxxx-xxxx-xxxx-xxxx"
-                              value={blueskyPassword}
-                              onChange={(e) => setBlueskyPassword(e.target.value)}
-                              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
-                            />
-                            <button
-                              onClick={connectBluesky}
-                              disabled={blueskyConnecting}
-                              className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 whitespace-nowrap"
-                            >
-                              {blueskyConnecting ? "Connecting…" : "Connect"}
-                            </button>
+                            <input type="text" placeholder="@you.bsky.social" value={blueskyHandle} onChange={(e) => setBlueskyHandle(e.target.value)} className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                            <input type="password" placeholder="App password" value={blueskyPassword} onChange={(e) => setBlueskyPassword(e.target.value)} className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                            <button onClick={connectBluesky} disabled={blueskyConnecting} className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 whitespace-nowrap">{blueskyConnecting ? "Connecting…" : "Connect"}</button>
                           </div>
                           {blueskyError && <p className="text-xs text-red-400">{blueskyError}</p>}
                         </div>
-                      </details>
+                      )}
                     </div>
                   )}
                 </div>
