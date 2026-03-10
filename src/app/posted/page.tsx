@@ -194,7 +194,12 @@ export default function PostedPage() {
 
   const groups = groupPosts(posts);
   const platformCount = new Set(groups.flatMap((g) => g.posts.map((p) => p.provider || "unknown"))).size;
-  const withExternalLinks = groups.filter((g) => g.posts.some((p) => !!getPostUrl(p.provider, p.platform_post_id))).length;
+  const now = new Date();
+  const thisMonthCount = groups.filter((g) => {
+    if (!g.posted_at) return false;
+    const d = new Date(g.posted_at);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
 
   // Group by month
   const byMonth: { label: string; groups: PostGroup[] }[] = [];
@@ -247,26 +252,31 @@ export default function PostedPage() {
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Posted Content</h1>
                 <p className="mt-2 text-sm text-white/70 sm:text-base">
-                  {loading ? "Loading history..." : `${groups.length} upload${groups.length === 1 ? "" : "s"} successfully published.`}
+                  {loading ? "Loading history..." : `${groups.length} upload${groups.length === 1 ? "" : "s"} across ${platformCount} platform${platformCount === 1 ? "" : "s"}.`}
                 </p>
               </div>
             </div>
-            <Link href="/uploads" className="w-fit rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/90">
-              New upload
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/calendar" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/10">
+                Calendar
+              </Link>
+              <Link href="/uploads" className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/90">
+                New upload
+              </Link>
+            </div>
           </div>
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-xs uppercase tracking-wider text-white/40">Published</p>
+              <p className="text-xs uppercase tracking-wider text-white/40">All Time</p>
               <p className="mt-1 text-2xl font-semibold text-white">{loading ? "..." : groups.length}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-xs uppercase tracking-wider text-white/40">Platforms reached</p>
-              <p className="mt-1 text-2xl font-semibold text-blue-300">{loading ? "..." : platformCount}</p>
+              <p className="text-xs uppercase tracking-wider text-white/40">This Month</p>
+              <p className="mt-1 text-2xl font-semibold text-blue-300">{loading ? "..." : thisMonthCount}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-xs uppercase tracking-wider text-white/40">Total posts</p>
-              <p className="mt-1 text-2xl font-semibold text-emerald-300">{loading ? "..." : posts.length}</p>
+              <p className="text-xs uppercase tracking-wider text-white/40">Platforms</p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-300">{loading ? "..." : platformCount}</p>
             </div>
           </div>
         </section>

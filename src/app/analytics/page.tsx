@@ -224,14 +224,12 @@ export default function AnalyticsPage() {
           ))}
         </div>
 
-        {/* Per-video table */}
+        {/* Per-video list */}
         {loading ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 rounded-xl bg-white/[0.04] animate-pulse" />
-              ))}
-            </div>
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 rounded-2xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
+            ))}
           </div>
         ) : error ? (
           <div className="rounded-3xl border border-red-500/20 bg-red-500/[0.05] p-6 text-center">
@@ -242,37 +240,35 @@ export default function AnalyticsPage() {
             <p className="text-white/40">No posted content yet. Metrics will appear here once your posts are published.</p>
           </div>
         ) : (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left text-xs text-white/30 uppercase tracking-wider font-medium px-5 py-3">Title</th>
-                  <th className="text-center text-xs text-white/30 uppercase tracking-wider font-medium px-3 py-3 w-14"></th>
-                  <th className="text-right text-xs text-white/30 uppercase tracking-wider font-medium px-5 py-3">Views</th>
-                  <th className="text-right text-xs text-white/30 uppercase tracking-wider font-medium px-5 py-3">Likes</th>
-                  <th className="text-right text-xs text-white/30 uppercase tracking-wider font-medium px-5 py-3">Comments</th>
-                  <th className="text-right text-xs text-white/30 uppercase tracking-wider font-medium px-5 py-3">Posted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m) => (
-                  <tr key={`${m.platform}-${m.videoId}`} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                    <td className="px-5 py-3.5 text-sm text-white/80 max-w-[300px] truncate">{m.title}</td>
-                    <td className="px-3 py-3.5 text-center">
-                      <span className="inline-flex" title={platformLabels[m.platform]}>
-                        <PlatformIcon platform={m.platform} />
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-white/70 text-right tabular-nums">{m.views.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 text-sm text-white/70 text-right tabular-nums">{m.likes.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 text-sm text-white/70 text-right tabular-nums">{m.comments.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 text-sm text-white/40 text-right">
-                      {new Date(m.postedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {filtered.map((m) => (
+              <div
+                key={`${m.platform}-${m.videoId}`}
+                className="flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition-all hover:border-white/[0.12] hover:bg-white/[0.035]"
+              >
+                <span title={platformLabels[m.platform]} className="shrink-0">
+                  <PlatformIcon platform={m.platform} />
+                </span>
+                <p className="flex-1 min-w-0 truncate text-sm font-medium text-white/80">{m.title}</p>
+                <div className="flex items-center gap-5 shrink-0 text-right">
+                  <div className="hidden sm:block text-center">
+                    <p className="text-xs text-white/30 uppercase tracking-wider">Views</p>
+                    <p className="text-sm font-semibold text-white/80 tabular-nums">{m.views.toLocaleString()}</p>
+                  </div>
+                  <div className="hidden sm:block text-center">
+                    <p className="text-xs text-white/30 uppercase tracking-wider">Likes</p>
+                    <p className="text-sm font-semibold text-white/80 tabular-nums">{m.likes.toLocaleString()}</p>
+                  </div>
+                  <div className="hidden sm:block text-center">
+                    <p className="text-xs text-white/30 uppercase tracking-wider">Comments</p>
+                    <p className="text-sm font-semibold text-white/80 tabular-nums">{m.comments.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-white/25">{new Date(m.postedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
