@@ -341,6 +341,7 @@ export default function UploadsPage() {
   const [ttConsentChecked, setTtConsentChecked] = useState(false);
   const [ttContentRightsChecked, setTtContentRightsChecked] = useState(false);
   const [ttAigcDisclosure, setTtAigcDisclosure] = useState(false);
+  const [ttDisclosureHover, setTtDisclosureHover] = useState(false);
 
   // Per-platform caption overrides
   const [platformTitleOverrides, setPlatformTitleOverrides] = useState<Record<string, string>>({});
@@ -686,7 +687,7 @@ export default function UploadsPage() {
     if (ttCreatorError) return ttCreatorError;
     if (ttCreatorInfo && !ttCreatorInfo.can_post) return "Your TikTok account is not currently eligible to post. Please try again later.";
     if (!ttPrivacyLevel) return "Please select a privacy level for TikTok";
-    if (ttCommercialToggle && !ttBrandOrganic && !ttBrandContent) return "Please select at least one commercial content type";
+    if (ttCommercialToggle && !ttBrandOrganic && !ttBrandContent) return "You need to indicate if your content promotes yourself, a third party, or both.";
     if (ttCreatorInfo && ttCreatorInfo.max_video_post_duration_sec > 0 && videoDuration !== null && videoDuration > ttCreatorInfo.max_video_post_duration_sec) {
       return `Video exceeds TikTok's maximum duration of ${ttCreatorInfo.max_video_post_duration_sec}s for your account (video is ${Math.round(videoDuration)}s).`;
     }
@@ -2113,8 +2114,19 @@ export default function UploadsPage() {
                     </div>
 
                     {ttCommercialToggle && (
-                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-                        <label className="flex items-start gap-3 cursor-pointer">
+                      <div
+                        className="relative space-y-2"
+                        onMouseEnter={() => setTtDisclosureHover(true)}
+                        onMouseLeave={() => setTtDisclosureHover(false)}
+                      >
+                        {/* Hover tooltip — shown when toggle is on but neither box is checked */}
+                        {ttDisclosureHover && !ttBrandOrganic && !ttBrandContent && (
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-lg border border-white/15 bg-neutral-900 px-3 py-1.5 text-xs text-white shadow-xl">
+                            You need to indicate if your content promotes yourself, a third party, or both.
+                            <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-neutral-900" />
+                          </div>
+                        )}
+                        <label className={`flex items-start gap-3 cursor-pointer rounded-xl border p-3 transition-colors ${ttBrandOrganic ? "border-blue-500/40 bg-blue-500/10" : "border-white/10 bg-white/[0.02]"}`}>
                           <input
                             type="checkbox"
                             checked={ttBrandOrganic}
@@ -2122,12 +2134,12 @@ export default function UploadsPage() {
                             className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400 shrink-0"
                           />
                           <div>
-                            <p className="text-sm text-white/80">Your Brand</p>
+                            <p className={`text-sm font-medium ${ttBrandOrganic ? "text-white" : "text-white/80"}`}>Your Brand</p>
                             <p className="text-xs text-white/40">You are promoting yourself or your own business</p>
-                            <p className="text-xs text-blue-400/70 mt-0.5">Your post will be labeled &quot;Promotional content&quot;</p>
+                            <p className="text-xs text-blue-400/70 mt-0.5">Your video will be labeled as &quot;Promotional content&quot;</p>
                           </div>
                         </label>
-                        <label className="flex items-start gap-3 cursor-pointer">
+                        <label className={`flex items-start gap-3 cursor-pointer rounded-xl border p-3 transition-colors ${ttBrandContent ? "border-blue-500/40 bg-blue-500/10" : "border-white/10 bg-white/[0.02]"}`}>
                           <input
                             type="checkbox"
                             checked={ttBrandContent}
@@ -2135,13 +2147,13 @@ export default function UploadsPage() {
                             className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-blue-400 shrink-0"
                           />
                           <div>
-                            <p className="text-sm text-white/80">Branded Content</p>
+                            <p className={`text-sm font-medium ${ttBrandContent ? "text-white" : "text-white/80"}`}>Branded Content</p>
                             <p className="text-xs text-white/40">You are promoting another brand or a third party (paid partnership)</p>
-                            <p className="text-xs text-blue-400/70 mt-0.5">Your post will be labeled &quot;Paid partnership&quot;</p>
+                            <p className="text-xs text-blue-400/70 mt-0.5">Your video will be labeled as &quot;Paid partnership&quot;</p>
                           </div>
                         </label>
                         {!ttBrandOrganic && !ttBrandContent && (
-                          <p className="text-xs text-amber-400/70">Select at least one option above to continue</p>
+                          <p className="text-xs text-amber-400/70 px-1">Select at least one option above to continue</p>
                         )}
                       </div>
                     )}
@@ -2193,13 +2205,17 @@ export default function UploadsPage() {
                         className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-white shrink-0"
                       />
                       <span className="text-sm text-white/75">
-                        By posting, I agree to TikTok&apos;s{" "}
-                        <a href="https://www.tiktok.com/legal/music-usage-confirmation" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Music Usage Confirmation</a>
-                        {ttBrandContent && (
-                          <>{" "}and{" "}
-                            <a href="https://www.tiktok.com/legal/branded-content-policy" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Branded Content Policy</a>
+                        {ttBrandContent ? (
+                          <>By posting, you agree to TikTok&apos;s{" "}
+                            <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Branded Content Policy</a>
+                            {" "}and{" "}
+                            <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Music Usage Confirmation</a>.
                           </>
-                        )}.
+                        ) : (
+                          <>By posting, you agree to TikTok&apos;s{" "}
+                            <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2 hover:text-blue-300">Music Usage Confirmation</a>.
+                          </>
+                        )}
                       </span>
                     </label>
 
@@ -2437,12 +2453,44 @@ export default function UploadsPage() {
             {/* X Settings */}
 
             {/* Action Buttons */}
-            <div className="sticky bottom-4 z-20 flex items-center justify-between rounded-2xl border border-white/10 bg-neutral-950/85 p-3 backdrop-blur-xl">
-              <button onClick={() => handleSchedule(true)} disabled={scheduling} className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50">Save as draft</button>
-              <button onClick={() => handleSchedule(false)} disabled={scheduling || selectedPlatforms.length === 0 || !!ttValidationError} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-8 py-3 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:opacity-50">
-                {scheduling ? "Scheduling..." : scheduleType === "now" ? "Publish now" : "Schedule"}
-              </button>
-            </div>
+            {(() => {
+              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError;
+              const blockReason = selectedPlatforms.length === 0
+                ? "Select at least one platform"
+                : ttValidationError || null;
+              return (
+                <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950/85 backdrop-blur-xl overflow-hidden">
+                  {blockReason && (
+                    <div className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
+                      <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      </svg>
+                      <p className="text-xs text-amber-300">{blockReason}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between p-3">
+                    <button onClick={() => handleSchedule(true)} disabled={scheduling} className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50">Save as draft</button>
+                    <button
+                      onClick={() => handleSchedule(false)}
+                      disabled={publishBlocked}
+                      title={blockReason ?? undefined}
+                      className={`rounded-full px-8 py-3 text-sm font-semibold transition-all flex items-center gap-2 ${
+                        publishBlocked
+                          ? "bg-white/10 text-white/30 cursor-not-allowed border border-white/10"
+                          : "bg-gradient-to-r from-blue-400 to-purple-400 text-black hover:from-blue-300 hover:to-purple-300 shadow-[0_0_20px_rgba(96,165,250,0.3)]"
+                      }`}
+                    >
+                      {publishBlocked && !scheduling && (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      )}
+                      {scheduling ? "Scheduling..." : scheduleType === "now" ? "Publish now" : "Schedule"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Right column — live post preview panel */}

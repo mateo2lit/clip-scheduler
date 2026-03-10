@@ -1,0 +1,56 @@
+====================================================================
+TIKTOK CONTENT POSTING API APPLICATION ANSWERS
+====================================================================
+
+--------------------------------------------------------------------
+Q: Describe your organization's work as it relates to TikTok
+--------------------------------------------------------------------
+
+Clip Dash is a video scheduling and publishing SaaS platform built for content creators. Creators upload their original video content once, select target platforms and posting times, and Clip Dash publishes the content on their behalf at the scheduled time. In relation to TikTok, Clip Dash allows creators to schedule original videos to their connected TikTok accounts using TikTok's Content Posting API. Creators authenticate via TikTok's official OAuth flow, configure all required TikTok-specific settings directly within our platform (privacy level, interaction preferences, and commercial content disclosure), and grant explicit consent before any content is uploaded. Our integration does not modify, watermark, or alter video content in any way — the creator's original video is published exactly as uploaded. Clip Dash serves independent creators, small businesses, and social media managers who manage posting schedules across multiple platforms. TikTok is one of the primary platforms our users publish to, and the integration is designed to comply fully with TikTok's Content Sharing Guidelines, including creator info validation, privacy controls, and commercial content disclosure requirements.
+
+--------------------------------------------------------------------
+Q: Explain the goal of your application and how Content Posting API
+   integration can be beneficial
+--------------------------------------------------------------------
+
+Clip Dash is a multi-platform video scheduling tool that lets content creators upload a video once, configure platform-specific settings, and schedule it to publish across TikTok, YouTube, Instagram, and other platforms — all from a single dashboard. The Content Posting API is essential to this because it allows us to publish to TikTok on the creator's behalf only after they have explicitly reviewed and confirmed all settings, including privacy level, interaction preferences, and commercial content disclosure as required by TikTok's Content Sharing Guidelines. Rather than replacing the creator's intent, the integration surfaces TikTok's full set of controls directly in our UI so creators can make informed decisions before a post goes live. Without the API, TikTok would be the one platform our users still have to manage separately, which defeats the core purpose of the product.
+
+--------------------------------------------------------------------
+Q: Approximately how many users use your API client(s) to publish
+   videos to TikTok on a daily basis?
+--------------------------------------------------------------------
+
+SELECTION: Less than 100
+
+--------------------------------------------------------------------
+Q: Explain how you determined the daily usage estimate
+--------------------------------------------------------------------
+
+Clip Dash is in its early launch phase with a small initial user base. Our current estimate is fewer than 100 daily publishing users on TikTok. This is based on our existing waitlist and early access signups, the majority of whom are individual creators and small social media managers — not high-volume enterprise accounts. Most users are expected to publish 1–2 TikTok posts per day at most, and not every registered user will publish daily. As the platform grows we anticipate revisiting this cap, but for the initial period fewer than 100 daily publishing users accurately reflects our expected usage.
+
+--------------------------------------------------------------------
+Q: Please list the API response data fields that your API client
+   will save in its database
+--------------------------------------------------------------------
+
+From OAuth Token Exchange (POST /v2/oauth/token/):
+- access_token       → stored in platform_accounts.access_token (encrypted at rest)
+- refresh_token      → stored in platform_accounts.refresh_token (encrypted at rest)
+- open_id            → stored in platform_accounts.platform_user_id (used to identify the TikTok account)
+- expires_in         → converted to an absolute timestamp, stored in platform_accounts.expiry
+
+From User Info API (GET /v2/user/info/ with fields=display_name,avatar_url):
+- data.user.display_name  → stored in platform_accounts.profile_name and platform_accounts.label (displayed in UI to confirm which account is connected)
+- data.user.avatar_url    → stored in platform_accounts.avatar_url (displayed in UI only)
+
+From Token Refresh (POST /v2/oauth/token/ with grant_type=refresh_token):
+- access_token       → overwrites platform_accounts.access_token
+- refresh_token      → overwrites platform_accounts.refresh_token
+- expires_in         → converted to timestamp, overwrites platform_accounts.expiry
+
+From Content Posting API (POST /v2/post/publish/video/init/):
+- data.publish_id    → stored in scheduled_posts.platform_post_id (used to poll publish status and for the creator's own reference)
+
+Note: Creator info fields returned by POST /v2/post/publish/creator_info/query/ (creator_nickname, privacy_level_options, comment_disabled, duet_disabled, stitch_disabled, max_video_post_duration_sec, can_post) are used exclusively for real-time UI validation at the time of scheduling. They are passed to the frontend to populate the privacy dropdown and interaction controls but are NOT persisted to the database.
+
+====================================================================
