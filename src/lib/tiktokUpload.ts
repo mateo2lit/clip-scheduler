@@ -28,7 +28,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const CHUNK_SIZE = 64 * 1024 * 1024; // 64 MB per chunk (TikTok maximum)
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://clipdash.org").replace(/\/+$/, "");
 
 export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Promise<{
   publishId: string;
@@ -54,6 +54,7 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
   assertOk(bucket, "Missing bucket");
   assertOk(storagePath, "Missing storagePath");
   assertOk(title, "Missing title");
+  assertOk(process.env.TIKTOK_PROXY_SECRET, "Missing TIKTOK_PROXY_SECRET env var");
 
   // 1) Get fresh access token
   const tokens = await getTikTokAccessToken({
@@ -73,48 +74,11 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     .eq("id", platformAccountId)
     .eq("user_id", userId);
 
-  // 2) Get video size and a signed URL for range requests.
-  //    TikTok's PULL_FROM_URL requires verified domain ownership (supabase.co is not verifiable),
-  //    so we use FILE_UPLOAD and stream each chunk via HTTP range requests — only 10 MB in memory at a time.
-  const { data: uploadRecord } = await supabaseAdmin
-    .from("uploads")
-    .select("file_size")
-    .eq("file_path", storagePath)
-    .maybeSingle();
+  // 2) Build proxy URL — TikTok fetches from clipdash.org (verified domain).
+  //    The proxy streams the file from Supabase without buffering it in memory.
+  const proxyUrl = `${APP_URL}/api/tiktok-video-proxy?path=${encodeURIComponent(storagePath)}&bucket=${encodeURIComponent(bucket)}&token=${encodeURIComponent(process.env.TIKTOK_PROXY_SECRET)}`;
 
-  // Get a signed URL for range-based fetching from Supabase
-  const { data: signedData, error: signedError } = await supabaseAdmin.storage
-    .from(bucket)
-    .createSignedUrl(storagePath, 60 * 60);
-
-  if (signedError || !signedData?.signedUrl) {
-    throw new Error(`Failed to create signed URL: ${signedError?.message ?? "unknown"}`);
-  }
-
-  const signedUrl = signedData.signedUrl;
-
-  // Determine video size: prefer DB record, fall back to HEAD request
-  let videoSize = uploadRecord?.file_size ? Number(uploadRecord.file_size) : 0;
-  if (!videoSize) {
-    const headRes = await fetch(signedUrl, { method: "HEAD" });
-    const cl = headRes.headers.get("content-length");
-    if (cl) videoSize = parseInt(cl, 10);
-  }
-
-  if (!videoSize) {
-    throw new Error("Could not determine video file size");
-  }
-
-  // Chunk sizing: single chunk if file fits in one, otherwise 10 MB chunks
-  const chunkSize = videoSize <= CHUNK_SIZE ? videoSize : CHUNK_SIZE;
-  const totalChunks = Math.ceil(videoSize / chunkSize);
-
-  // Detect MIME type from file extension
-  const ext = storagePath.split(".").pop()?.toLowerCase();
-  const contentType =
-    ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4";
-
-  // 3) Initialize TikTok FILE_UPLOAD publish
+  // 3) Initialize TikTok PULL_FROM_URL publish
   const initRes = await fetch(
     "https://open.tiktokapis.com/v2/post/publish/video/init/",
     {
@@ -134,10 +98,8 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
           brand_content_toggle: brandContentToggle,
         },
         source_info: {
-          source: "FILE_UPLOAD",
-          video_size: videoSize,
-          chunk_size: chunkSize,
-          total_chunk_count: totalChunks,
+          source: "PULL_FROM_URL",
+          video_url: proxyUrl,
         },
       }),
     }
@@ -154,48 +116,15 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     throw new Error(`TikTok upload init error: ${initData.error.code} - ${initData.error.message}`);
   }
 
-  const uploadUrl = initData.data?.upload_url;
   const publishId = initData.data?.publish_id;
 
-  if (!uploadUrl || !publishId) {
-    throw new Error("TikTok upload init did not return upload_url or publish_id");
+  if (!publishId) {
+    throw new Error("TikTok upload init did not return publish_id");
   }
 
-  // 4) Upload chunks — stream from Supabase via range requests, never load full file into memory
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * chunkSize;
-    const end = Math.min(start + chunkSize, videoSize);
-    const thisChunkSize = end - start;
-
-    // Fetch just this chunk from Supabase
-    const rangeRes = await fetch(signedUrl, {
-      headers: { Range: `bytes=${start}-${end - 1}` },
-    });
-
-    if (!rangeRes.ok && rangeRes.status !== 206) {
-      throw new Error(`Failed to fetch chunk ${i + 1}/${totalChunks} from storage: ${rangeRes.status}`);
-    }
-
-    const chunkBuffer = Buffer.from(await rangeRes.arrayBuffer());
-
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": contentType,
-        "Content-Range": `bytes ${start}-${end - 1}/${videoSize}`,
-        "Content-Length": String(thisChunkSize),
-      },
-      body: chunkBuffer,
-    });
-
-    if (!uploadRes.ok) {
-      const text = await uploadRes.text();
-      throw new Error(`TikTok chunk ${i + 1}/${totalChunks} upload failed: ${uploadRes.status} ${text}`);
-    }
-  }
-
-  // 5) Poll /v2/post/publish/status/fetch/ until TikTok finishes processing
-  const maxPolls = 30;
+  // 4) Poll /v2/post/publish/status/fetch/ until TikTok finishes fetching and processing.
+  //    Large files can take several minutes — poll for up to 10 minutes.
+  const maxPolls = 120;
   const pollInterval = 5000;
 
   for (let i = 0; i < maxPolls; i++) {
