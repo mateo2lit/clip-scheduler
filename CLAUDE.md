@@ -42,6 +42,7 @@ src/
       platform-defaults/ — Per-platform upload default settings
       notifications/ — Email notification preferences
       account/      — Account deletion (also Meta data deletion callback)
+      support/      — Support tickets CRUD + magic resolve endpoint
     dashboard/    — Post count overview + links to analytics/comments
     analytics/    — Per-video performance metrics with platform filtering
     uploads/      — Main upload + scheduling UI
@@ -51,6 +52,7 @@ src/
     calendar/     — Calendar view of scheduled posts
     comments/     — Cross-platform comment inbox
     settings/     — Account, billing, connections, team, notifications, defaults
+    support/      — Support page (FAQ accordion, submit ticket, my tickets, articles)
     login/        — Auth page (login/signup)
   lib/
     teamAuth.ts        — Auth + team context extraction
@@ -88,6 +90,8 @@ WORKER_SECRET, CRON_SECRET
 ANTHROPIC_API_KEY
 OAUTH_STATE_SECRET
 RESEND_API_KEY (expected by email.ts)
+SUPPORT_EMAIL=support@clipdash.org     # admin inbox for ticket notifications
+SUPPORT_ADMIN_SECRET=<random-32-char>  # protects the magic resolve link in admin emails
 ```
 
 ## Database Tables
@@ -98,6 +102,7 @@ RESEND_API_KEY (expected by email.ts)
 - `scheduled_posts` — id, user_id, team_id, upload_id, platform_account_id (FK→platform_accounts ON DELETE SET NULL), title, description, provider, status, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id, ig_container_id, ig_container_created_at, platform_post_id, platform_media_id, posted_at, last_error
 - `platform_accounts` — user_id, team_id, provider, access_token, refresh_token, expiry, platform_user_id, label, page_id, page_access_token, ig_user_id, profile_name, avatar_url (UNIQUE team_id+provider+platform_user_id — allows multiple accounts per platform)
 - `notification_preferences` — user_id, notify_post_success, notify_post_failed, notify_reconnect
+- `support_tickets` — id, team_id, user_id, email, subject, description, type (bug/question/billing/feature), status (open/in_progress/resolved), reply_message, created_at, updated_at
 - `platform_defaults` — user_id, platform, settings (JSONB)
 
 ## Conventions
@@ -129,10 +134,8 @@ RESEND_API_KEY (expected by email.ts)
 **Issue:** `requireWorkerAuth()` returns early (allows access) if `WORKER_SECRET` env var is not set. In production this should fail closed.
 **Fix:** Change to throw error if `WORKER_SECRET` is not set in production.
 
-### 4. TikTok Content Posting API approval required
-**Issue:** TikTok requires app review and approval for `video.publish` scope before you can post to ANY user's account (not just your own test account). Your app currently requests `user.info.basic,video.upload,video.publish`.
-**Action:** Submit app for review on TikTok Developer Portal NOW — approval can take days to weeks. You can launch without TikTok posting initially and add it when approved. Users can still connect TikTok, but posts will fail until approved.
-**Ref:** https://developers.tiktok.com/doc/content-posting-api-get-started
+### 4. ~~TikTok Content Posting API approval required~~ ✅ RESOLVED (Mar 10, 2026)
+**Approved.** `user.info.basic,video.upload,video.publish` scopes are active. TikTok OAuth, upload, and publish flow is fully implemented and unblocked.
 
 ### 5. Vercel cron not configured
 **File:** `vercel.json` is empty `{}`
@@ -216,7 +219,7 @@ package.json specifies `"node": "20.x"` but system is running Node 24. Vercel li
 - [ ] Fix OAuth CSRF (item 1)
 - [ ] Delete debug routes (item 2)
 - [ ] Harden worker auth (item 3)
-- [ ] Submit TikTok app for review (item 4) — can launch without TikTok initially
+- [x] TikTok API approved (Mar 10, 2026) — video.upload,video.publish scopes active
 - [ ] Configure Vercel cron (item 5)
 - [ ] Add security headers (item 6)
 - [ ] Wire up delete account button (item 9)

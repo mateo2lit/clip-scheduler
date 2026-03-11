@@ -360,6 +360,116 @@ export async function sendTeamJoinedEmail(
   }
 }
 
+export async function sendSupportTicketUserEmail(
+  to: string,
+  subject: string,
+  ticketId: string
+) {
+  if (!resend) return;
+
+  const safeSubject = escapeHtml(subject || "your issue");
+
+  try {
+    const rendered = renderEmail({
+      preview: `We received your support ticket about "${truncate(subject || "your issue", 70)}".`,
+      theme: "neutral",
+      heading: "Support ticket received",
+      bodyHtml: `
+        <p style="margin:0 0 12px 0;">Thanks for reaching out. We received your ticket about <strong>${safeSubject}</strong>.</p>
+        <p style="margin:0;">We'll get back to you soon.</p>
+      `,
+      primaryCtaLabel: "View your tickets",
+      primaryCtaUrl: appUrl("/support?tab=tickets"),
+      footerNote: "You are receiving this because you submitted a support ticket.",
+    });
+
+    await sendEmail(to, `Support ticket received — ${subject}`, rendered);
+  } catch (e) {
+    console.error("Failed to send support ticket user email:", e);
+  }
+}
+
+export async function sendSupportTicketAdminEmail(
+  ticketSubject: string,
+  description: string,
+  type: string,
+  userEmail: string,
+  ticketId: string
+) {
+  if (!process.env.SUPPORT_EMAIL) return;
+  if (!resend) return;
+
+  const typeLabels: Record<string, string> = {
+    bug: "Bug Report",
+    question: "Question",
+    billing: "Billing",
+    feature: "Feature Request",
+  };
+  const typeLabel = typeLabels[type] || type;
+  const safeSubject = escapeHtml(ticketSubject || "(no subject)");
+  const safeEmail = escapeHtml(userEmail || "");
+  const safeDescription = escapeHtml(description || "").replace(/\n/g, "<br/>");
+  const resolveUrl = appUrl(`/api/support/tickets/${ticketId}/resolve?secret=${process.env.SUPPORT_ADMIN_SECRET}`);
+  const replyUrl = `mailto:${userEmail}?subject=${encodeURIComponent("Re: " + ticketSubject)}`;
+
+  try {
+    const rendered = renderEmail({
+      preview: `New ${typeLabel} ticket from ${userEmail}: "${truncate(ticketSubject || "", 60)}"`,
+      theme: "warning",
+      heading: "New support ticket",
+      bodyHtml: `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
+          <tr><td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#94a3b8;font-size:13px;width:80px;">From</td><td style="padding:6px 0 6px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#f8fafc;font-size:13px;">${safeEmail}</td></tr>
+          <tr><td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#94a3b8;font-size:13px;">Type</td><td style="padding:6px 0 6px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#f8fafc;font-size:13px;">${escapeHtml(typeLabel)}</td></tr>
+          <tr><td style="padding:6px 0;color:#94a3b8;font-size:13px;">Subject</td><td style="padding:6px 0 6px 12px;color:#f8fafc;font-size:13px;">${safeSubject}</td></tr>
+        </table>
+        <div style="padding:10px 12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);border-radius:8px;color:#cbd5e1;font-size:13px;line-height:1.6;white-space:pre-wrap;">${safeDescription}</div>
+      `,
+      primaryCtaLabel: "Resolve this ticket",
+      primaryCtaUrl: resolveUrl,
+      secondaryCtaLabel: `Reply via email to ${userEmail}`,
+      secondaryCtaUrl: replyUrl,
+      footerNote: "This notification was sent to the support inbox.",
+    });
+
+    await sendEmail(process.env.SUPPORT_EMAIL, `[Support] ${typeLabel} — ${ticketSubject}`, rendered);
+  } catch (e) {
+    console.error("Failed to send support ticket admin email:", e);
+  }
+}
+
+export async function sendSupportTicketResolvedEmail(
+  to: string,
+  ticketSubject: string,
+  replyMessage: string | null | undefined
+) {
+  if (!resend) return;
+
+  const safeSubject = escapeHtml(ticketSubject || "your issue");
+  const replyBlock = replyMessage
+    ? `<div style="margin-top:12px;padding:10px 12px;border:1px solid rgba(52,211,153,0.3);background:rgba(16,185,129,0.08);border-radius:8px;color:#6ee7b7;font-size:13px;line-height:1.6;">${escapeHtml(replyMessage).replace(/\n/g, "<br/>")}</div>`
+    : "";
+
+  try {
+    const rendered = renderEmail({
+      preview: `Your ticket about "${truncate(ticketSubject || "your issue", 60)}" has been resolved.`,
+      theme: "success",
+      heading: "Your ticket has been resolved",
+      bodyHtml: `
+        <p style="margin:0 0 12px 0;">Your ticket about <strong>${safeSubject}</strong> has been resolved.</p>
+        ${replyBlock}
+      `,
+      primaryCtaLabel: "Open Support",
+      primaryCtaUrl: appUrl("/support"),
+      footerNote: "You are receiving this because your support ticket was resolved.",
+    });
+
+    await sendEmail(to, "Your support ticket has been resolved", rendered);
+  } catch (e) {
+    console.error("Failed to send support ticket resolved email:", e);
+  }
+}
+
 export async function sendReconnectEmail(
   to: string,
   platform: string
