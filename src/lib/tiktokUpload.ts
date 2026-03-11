@@ -94,14 +94,22 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
   const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
 
   // TikTok requires video_size, chunk_size, and total_chunk_count even for PULL_FROM_URL.
-  // Fetch the file size via a HEAD request on the signed URL.
+  // Primary source: uploads table (file_size is stored at upload time).
   let videoSize = 0;
-  try {
-    const headRes = await fetch(signedUrl, { method: "HEAD" });
-    const contentLength = headRes.headers.get("content-length");
-    if (contentLength) videoSize = parseInt(contentLength, 10);
-  } catch {
-    // Non-fatal — proceed with 0 and let TikTok reject if truly required
+  const { data: uploadRecord } = await supabaseAdmin
+    .from("uploads")
+    .select("file_size")
+    .eq("file_path", storagePath)
+    .maybeSingle();
+  if (uploadRecord?.file_size) {
+    videoSize = Number(uploadRecord.file_size);
+  } else {
+    // Fallback: HEAD request on the signed URL
+    try {
+      const headRes = await fetch(signedUrl, { method: "HEAD" });
+      const cl = headRes.headers.get("content-length");
+      if (cl) videoSize = parseInt(cl, 10);
+    } catch {}
   }
 
   // 3) Initialize TikTok publish via /v2/post/publish/video/init/
@@ -126,9 +134,11 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
         source_info: {
           source: "PULL_FROM_URL",
           video_url: signedUrl,
-          video_size: videoSize,
-          chunk_size: videoSize,
-          total_chunk_count: 1,
+          ...(videoSize > 0 && {
+            video_size: videoSize,
+            chunk_size: videoSize,
+            total_chunk_count: 1,
+          }),
         },
       }),
     }
