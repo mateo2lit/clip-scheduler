@@ -28,7 +28,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB per chunk
+const CHUNK_SIZE = 64 * 1024 * 1024; // 64 MB per chunk (TikTok maximum)
 
 export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Promise<{
   publishId: string;
