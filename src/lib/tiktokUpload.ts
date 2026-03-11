@@ -24,27 +24,11 @@ function assertOk(condition: any, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-async function getSignedDownloadUrl(params: {
-  bucket: string;
-  path: string;
-  expiresInSeconds?: number;
-}): Promise<string> {
-  const { bucket, path, expiresInSeconds = 60 * 60 } = params; // 1 hour — TikTok needs time to fetch
-
-  const { data, error } = await supabaseAdmin.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresInSeconds);
-
-  if (error || !data?.signedUrl) {
-    throw new Error(`Failed to create signed URL: ${error?.message || "unknown error"}`);
-  }
-
-  return data.signedUrl;
-}
-
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB per chunk
 
 export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Promise<{
   publishId: string;
@@ -89,30 +73,30 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     .eq("id", platformAccountId)
     .eq("user_id", userId);
 
-  // 2) Create signed URL — TikTok fetches the video directly from Supabase (PULL_FROM_URL).
-  //    This avoids routing large files through the Vercel function entirely.
-  const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
+  // 2) Download video from Supabase storage into memory.
+  //    TikTok's PULL_FROM_URL requires verified domain ownership (supabase.co is not verifiable),
+  //    so we use FILE_UPLOAD instead.
+  const { data: videoBlob, error: downloadError } = await supabaseAdmin.storage
+    .from(bucket)
+    .download(storagePath);
 
-  // TikTok requires video_size, chunk_size, and total_chunk_count even for PULL_FROM_URL.
-  // Primary source: uploads table (file_size is stored at upload time).
-  let videoSize = 0;
-  const { data: uploadRecord } = await supabaseAdmin
-    .from("uploads")
-    .select("file_size")
-    .eq("file_path", storagePath)
-    .maybeSingle();
-  if (uploadRecord?.file_size) {
-    videoSize = Number(uploadRecord.file_size);
-  } else {
-    // Fallback: HEAD request on the signed URL
-    try {
-      const headRes = await fetch(signedUrl, { method: "HEAD" });
-      const cl = headRes.headers.get("content-length");
-      if (cl) videoSize = parseInt(cl, 10);
-    } catch {}
+  if (downloadError || !videoBlob) {
+    throw new Error(`Failed to download video from storage: ${downloadError?.message ?? "unknown"}`);
   }
 
-  // 3) Initialize TikTok publish via /v2/post/publish/video/init/
+  const videoBuffer = Buffer.from(await videoBlob.arrayBuffer());
+  const videoSize = videoBuffer.byteLength;
+
+  // Chunk sizing: single chunk if file fits in one, otherwise 10 MB chunks
+  const chunkSize = videoSize <= CHUNK_SIZE ? videoSize : CHUNK_SIZE;
+  const totalChunks = Math.ceil(videoSize / chunkSize);
+
+  // Detect MIME type from file extension
+  const ext = storagePath.split(".").pop()?.toLowerCase();
+  const contentType =
+    ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4";
+
+  // 3) Initialize TikTok FILE_UPLOAD publish
   const initRes = await fetch(
     "https://open.tiktokapis.com/v2/post/publish/video/init/",
     {
@@ -132,13 +116,10 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
           brand_content_toggle: brandContentToggle,
         },
         source_info: {
-          source: "PULL_FROM_URL",
-          video_url: signedUrl,
-          ...(videoSize > 0 && {
-            video_size: videoSize,
-            chunk_size: videoSize,
-            total_chunk_count: 1,
-          }),
+          source: "FILE_UPLOAD",
+          video_size: videoSize,
+          chunk_size: chunkSize,
+          total_chunk_count: totalChunks,
         },
       }),
     }
@@ -152,18 +133,39 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
   const initData = await initRes.json();
 
   if (initData.error?.code && initData.error.code !== "ok") {
-    throw new Error(
-      `TikTok upload init error: ${initData.error.code} - ${initData.error.message}`
-    );
+    throw new Error(`TikTok upload init error: ${initData.error.code} - ${initData.error.message}`);
   }
 
+  const uploadUrl = initData.data?.upload_url;
   const publishId = initData.data?.publish_id;
 
-  if (!publishId) {
-    throw new Error("TikTok upload init did not return publish_id");
+  if (!uploadUrl || !publishId) {
+    throw new Error("TikTok upload init did not return upload_url or publish_id");
   }
 
-  // 4) Poll /v2/post/publish/status/fetch/ until TikTok finishes fetching and processing
+  // 4) Upload chunks
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, videoSize);
+    const chunk = videoBuffer.subarray(start, end);
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentType,
+        "Content-Range": `bytes ${start}-${end - 1}/${videoSize}`,
+        "Content-Length": String(chunk.byteLength),
+      },
+      body: chunk,
+    });
+
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      throw new Error(`TikTok chunk ${i + 1}/${totalChunks} upload failed: ${uploadRes.status} ${text}`);
+    }
+  }
+
+  // 5) Poll /v2/post/publish/status/fetch/ until TikTok finishes processing
   const maxPolls = 30;
   const pollInterval = 5000;
 
@@ -196,7 +198,7 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
       throw new Error(`TikTok publish failed: ${failReason}`);
     }
 
-    // PROCESSING_UPLOAD or PROCESSING_DOWNLOAD - keep polling
+    // PROCESSING_UPLOAD or PROCESSING_DOWNLOAD — keep polling
   }
 
   // Exhausted polls — TikTok may still be processing in the background
