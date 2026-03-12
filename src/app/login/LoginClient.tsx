@@ -38,7 +38,8 @@ export default function LoginClient() {
       if (error) {
         setMsg(error.message);
       } else {
-        router.push("/dashboard");
+        const redirect = params.get("redirect");
+        router.push(redirect && redirect.startsWith("/") ? redirect : "/dashboard");
         return;
       }
     } else if (mode === "signup") {

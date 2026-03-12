@@ -552,7 +552,7 @@ export default function UploadsPage() {
         try {
           const { data: draftPosts } = await supabase
             .from("scheduled_posts")
-            .select("id, upload_id, title, description, provider, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id")
+            .select("id, upload_id, title, description, provider, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id, platform_account_id")
             .eq("status", "draft")
             .or(`group_id.eq.${draftGroupId},id.eq.${draftGroupId}`);
 
@@ -566,6 +566,19 @@ export default function UploadsPage() {
                 .map((p: any) => p.provider)
                 .filter((p: string) => Boolean(p) && (p !== "threads" || threadsEnabled))
             );
+
+            // Restore the specific account selected per platform (not all accounts)
+            const draftAccountIds: Record<string, string[]> = {};
+            for (const post of draftPosts) {
+              if (post.provider && post.platform_account_id) {
+                if (!draftAccountIds[post.provider]) draftAccountIds[post.provider] = [];
+                draftAccountIds[post.provider].push(post.platform_account_id);
+              }
+            }
+            if (Object.keys(draftAccountIds).length > 0) {
+              setSelectedAccountIds((prev) => ({ ...prev, ...draftAccountIds }));
+            }
+
             if (first.thumbnail_path) setLastThumbnailPath(first.thumbnail_path);
             if (first.scheduled_for) {
               const d = new Date(first.scheduled_for);
@@ -604,8 +617,14 @@ export default function UploadsPage() {
 
             setDraftEditGroupId(draftGroupId);
             setStep("details");
+          } else {
+            alert("Draft not found. It may have already been deleted.");
+            window.location.href = "/drafts";
           }
-        } catch {}
+        } catch (e: any) {
+          alert("Failed to load draft: " + (e?.message || "Unknown error"));
+          window.location.href = "/drafts";
+        }
       }
     }
     loadSession();
@@ -940,14 +959,6 @@ export default function UploadsPage() {
         }
       }
 
-      // Delete old draft posts if we're editing an existing draft
-      if (draftEditGroupId) {
-        await fetch(`/api/scheduled-posts?groupId=${encodeURIComponent(draftEditGroupId)}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-
       // Create a separate scheduled post for each selected platform × selected account
       const errors: string[] = [];
       const groupId = crypto.randomUUID();
@@ -1068,6 +1079,14 @@ export default function UploadsPage() {
 
       if (errors.length === totalPostsToCreate) {
         throw new Error(errors.join("\n"));
+      }
+
+      // All (or some) posts created — now safe to delete the old draft
+      if (draftEditGroupId) {
+        await fetch(`/api/scheduled-posts?groupId=${encodeURIComponent(draftEditGroupId)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
 
       if (errors.length > 0) {

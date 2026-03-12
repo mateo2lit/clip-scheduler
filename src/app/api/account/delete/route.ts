@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
@@ -64,6 +65,22 @@ export async function DELETE(req: Request) {
 
     // 4) Handle team cleanup
     if (role === "owner") {
+      // Cancel Stripe subscription before deleting team row (otherwise user keeps getting billed)
+      const { data: team } = await supabaseAdmin
+        .from("teams")
+        .select("stripe_subscription_id")
+        .eq("id", teamId)
+        .single();
+
+      if (team?.stripe_subscription_id) {
+        try {
+          await getStripe().subscriptions.cancel(team.stripe_subscription_id);
+        } catch (stripeErr: any) {
+          // Log but don't block deletion — subscription may already be cancelled
+          console.error("[Account Delete] Stripe cancellation failed:", stripeErr?.message);
+        }
+      }
+
       // Delete all team invites
       await supabaseAdmin
         .from("team_invites")

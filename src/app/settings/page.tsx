@@ -179,6 +179,10 @@ export default function SettingsPage() {
     return new URLSearchParams(window.location.search);
   }, []);
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const threadsEnabled = isThreadsEnabledForUserIdClient(userId);
   const visiblePlatforms = useMemo(
     () => PLATFORMS.filter((p) => p.key !== "threads" || threadsEnabled),
@@ -1989,28 +1993,7 @@ export default function SettingsPage() {
                   <div className="text-sm text-white/40 mt-0.5">Permanently delete your account and all data</div>
                 </div>
                 <button
-                  onClick={async () => {
-                    if (!confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) return;
-                    if (!confirm("This will delete all your data, scheduled posts, and team. Type DELETE to confirm.")) return;
-                    try {
-                      const { data: sess } = await supabase.auth.getSession();
-                      const token = sess.session?.access_token;
-                      if (!token) return;
-                      const res = await fetch("/api/account/delete", {
-                        method: "DELETE",
-                        headers: { Authorization: `Bearer ${token}` },
-                      });
-                      const json = await res.json();
-                      if (res.ok && json.ok) {
-                        await supabase.auth.signOut();
-                        window.location.href = "/login";
-                      } else {
-                        alert(json.error || "Failed to delete account");
-                      }
-                    } catch (e: any) {
-                      alert(e?.message || "Failed to delete account");
-                    }
-                  }}
+                  onClick={() => { setDeleteConfirmText(""); setDeleteError(null); setShowDeleteModal(true); }}
                   className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
                 >
                   Delete
@@ -2031,6 +2014,91 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      {/* Delete account modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-red-500/20 bg-[#0e0e0e] p-6 shadow-2xl">
+            {/* Icon */}
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+
+            <h2 className="text-lg font-semibold text-white text-center">Delete your account</h2>
+            <p className="mt-2 text-sm text-white/50 text-center">
+              This will permanently delete your account, all scheduled posts, uploaded videos, team, and billing data. <span className="text-white/70 font-medium">This cannot be undone.</span>
+            </p>
+
+            <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.03] p-4 space-y-1 text-sm text-white/40">
+              <div className="flex items-center gap-2"><span className="text-red-400">✕</span> All scheduled and posted content</div>
+              <div className="flex items-center gap-2"><span className="text-red-400">✕</span> All connected platform accounts</div>
+              <div className="flex items-center gap-2"><span className="text-red-400">✕</span> Your team and all members</div>
+              <div className="flex items-center gap-2"><span className="text-red-400">✕</span> Your subscription (not refunded)</div>
+            </div>
+
+            <div className="mt-5">
+              <label className="block text-sm text-white/50 mb-2">
+                Type <span className="font-mono font-semibold text-white/80">DELETE MY ACCOUNT</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(null); }}
+                placeholder="DELETE MY ACCOUNT"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/40 transition-colors font-mono"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {deleteError && (
+                <p className="mt-2 text-sm text-red-400">{deleteError}</p>
+              )}
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteLoading}
+                className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleteConfirmText !== "DELETE MY ACCOUNT" || deleteLoading}
+                onClick={async () => {
+                  setDeleteLoading(true);
+                  setDeleteError(null);
+                  try {
+                    const { data: sess } = await supabase.auth.getSession();
+                    const token = sess.session?.access_token;
+                    if (!token) { setDeleteError("Session expired. Please refresh and try again."); setDeleteLoading(false); return; }
+                    const res = await fetch("/api/account/delete", {
+                      method: "DELETE",
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const json = await res.json();
+                    if (res.ok && json.ok) {
+                      await supabase.auth.signOut();
+                      window.location.href = "/login";
+                    } else {
+                      setDeleteError(json.error || "Failed to delete account. Please try again.");
+                      setDeleteLoading(false);
+                    }
+                  } catch (e: any) {
+                    setDeleteError(e?.message || "Failed to delete account. Please try again.");
+                    setDeleteLoading(false);
+                  }
+                }}
+                className="flex-1 rounded-full bg-red-500/80 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? "Deleting…" : "Delete my account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
