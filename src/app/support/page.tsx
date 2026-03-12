@@ -31,7 +31,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: "What video formats and file sizes are supported?",
-        a: "Clip Dash accepts MP4, MOV, and WebM files. Storage limits depend on your plan: Creator gets 5 GB of active storage, Team gets 15 GB. Per-platform limits: YouTube 256 GB, TikTok 4 GB, Instagram 1 GB, Facebook 10 GB, LinkedIn 5 GB, Bluesky 50 MB. We recommend H.264 MP4 for the broadest compatibility.",
+        a: "Clip Dash accepts MP4, MOV, and WebM files. Storage limits depend on your plan: Creator gets 25 GB of active storage, Team gets 50 GB. Per-platform limits: YouTube 256 GB, TikTok 4 GB, Instagram 1 GB, Facebook 10 GB, LinkedIn 5 GB, Bluesky 50 MB. We recommend H.264 MP4 for the broadest compatibility.",
       },
       {
         q: "How does auto-publishing work?",
@@ -90,7 +90,7 @@ const FAQ_CATEGORIES = [
     items: [
       {
         q: "What's the difference between Creator and Team plans?",
-        a: "Creator ($9.99/month): 1 user, 5 GB active storage, all 6 platforms. Team ($19.99/month): multiple users sharing one workspace, 15 GB active storage, shared platform accounts so the whole team can post from the same accounts.",
+        a: "Creator ($9.99/month): 1 user, 25 GB active storage, all 6 platforms. Team ($19.99/month): multiple users sharing one workspace, 50 GB active storage, shared platform accounts so the whole team can post from the same accounts.",
       },
       {
         q: "How does storage work?",

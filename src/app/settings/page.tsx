@@ -1206,7 +1206,7 @@ export default function SettingsPage() {
                 <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
                   <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
                   <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>5 GB storage</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>25 GB storage</li>
                   <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>1 team member (solo)</li>
                 </ul>
                 <button
@@ -1226,7 +1226,7 @@ export default function SettingsPage() {
                 <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
                   <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
                   <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>15 GB storage</li>
+                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>50 GB storage</li>
                   <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Up to 5 team members</li>
                 </ul>
                 <button
@@ -1244,7 +1244,7 @@ export default function SettingsPage() {
           {(planStatus === "trialing" || planStatus === "active") && (() => {
             const timeSavedHrs = Math.round((postedCount * 5) / 60 * 10) / 10;
             const planPrice = plan === "team" ? "$19.99" : "$9.99";
-            const planStorage = plan === "team" ? "15 GB" : "5 GB";
+            const planStorage = plan === "team" ? "50 GB" : "25 GB";
             const isTrialing = planStatus === "trialing";
             const dateStr = isTrialing && trialEndsAt
               ? new Date(trialEndsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })

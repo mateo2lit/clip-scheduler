@@ -40,8 +40,8 @@ export async function POST(req: Request) {
 
     // Check active storage usage against plan limit
     const STORAGE_LIMITS: Record<string, number> = {
-      creator: 5 * 1024 * 1024 * 1024,   // 5 GB
-      team:    15 * 1024 * 1024 * 1024,   // 15 GB
+      creator: 25 * 1024 * 1024 * 1024,   // 25 GB
+      team:    50 * 1024 * 1024 * 1024,   // 50 GB
     };
     const planLimit = STORAGE_LIMITS[team?.plan ?? ""] ?? STORAGE_LIMITS.creator;
 
