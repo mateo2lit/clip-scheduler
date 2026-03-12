@@ -45,8 +45,6 @@ type PlatformConfig = {
   charLimit: number;
 };
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB hard limit
-
 const PLATFORM_SIZE_LIMITS: Record<string, { maxBytes: number; label: string }> = {
   bluesky:   { maxBytes: 50  * 1024 * 1024,        label: "50 MB"  },
   instagram: { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
@@ -730,12 +728,6 @@ export default function UploadsPage() {
 
   function handleFileSelect(f: File | null) {
     setFileSizeError(null);
-    if (!f) { setFile(null); return; }
-    if (f.size > MAX_FILE_SIZE) {
-      setFileSizeError(`File is too large (${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB). Maximum upload size is 5 GB.`);
-      setFile(null);
-      return;
-    }
     setFile(f);
   }
 
@@ -1326,7 +1318,7 @@ export default function UploadsPage() {
                 {fileSizeError}
               </div>
             )}
-            <p className="mt-4 text-center text-xs text-white/40">Supported formats: MP4, MOV, AVI, WebM · Max 5 GB</p>
+            <p className="mt-4 text-center text-xs text-white/40">Supported formats: MP4, MOV, AVI, WebM</p>
 
             {/* Per-platform limits cheat sheet */}
             <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
