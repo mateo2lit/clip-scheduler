@@ -549,16 +549,22 @@ export default function SupportPage() {
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-medium text-white/50">Type</label>
-                  <select
-                    value={ticketType}
-                    onChange={(e) => setTicketType(e.target.value as TicketType)}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white focus:border-white/20 focus:outline-none appearance-none"
-                  >
-                    <option value="question">Question</option>
-                    <option value="bug">Bug Report</option>
-                    <option value="billing">Billing</option>
-                    <option value="feature">Feature Request</option>
-                  </select>
+                  <div className="flex flex-wrap gap-2">
+                    {(["question", "bug", "billing", "feature"] as TicketType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTicketType(t)}
+                        className={`rounded-full border px-4 py-2 text-sm transition-all ${
+                          ticketType === t
+                            ? "border-white/20 bg-white/10 text-white"
+                            : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/15 hover:text-white/70"
+                        }`}
+                      >
+                        {TYPE_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
