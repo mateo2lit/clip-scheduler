@@ -489,6 +489,7 @@ export default function Home() {
             <div className="flex items-center gap-6 text-sm text-white/40">
               <a href="/dashboard" className="hover:text-white/70 transition-colors">Dashboard</a>
               <a href="/platforms" className="hover:text-white/70 transition-colors">Platforms</a>
+              <a href="/support" className="hover:text-white/70 transition-colors">Support</a>
               <a href="/terms" className="hover:text-white/70 transition-colors">Terms</a>
               <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy</a>
               <a href="#pricing" className="hover:text-white/70 transition-colors">Pricing</a>

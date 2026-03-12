@@ -1106,6 +1106,13 @@ export default function SettingsPage() {
                 <div className="text-xs text-white/40">{tab.subtitle}</div>
               </button>
             ))}
+            <a
+              href="/support"
+              className="w-full rounded-2xl px-4 py-3 text-left transition-colors text-white/60 hover:bg-white/5 hover:text-white/80 block"
+            >
+              <div className="text-sm font-medium">Support</div>
+              <div className="text-xs text-white/40">Help & tickets</div>
+            </a>
           </aside>
 
           <div>

@@ -302,6 +302,16 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+      {/* Floating help button */}
+      <a
+        href="/support"
+        className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/50 shadow-lg backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white/80"
+        title="Help & Support"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+        </svg>
+      </a>
     </main>
   );
 }
