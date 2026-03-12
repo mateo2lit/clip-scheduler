@@ -43,6 +43,8 @@ src/
       notifications/ — Email notification preferences
       account/      — Account deletion (also Meta data deletion callback)
       support/      — Support tickets CRUD + magic resolve endpoint
+      admin/
+        support/  — Admin endpoints: GET all tickets, PATCH ticket (status + reply_message + notify)
     dashboard/    — Post count overview + links to analytics/comments
     analytics/    — Per-video performance metrics with platform filtering
     uploads/      — Main upload + scheduling UI
@@ -53,6 +55,8 @@ src/
     comments/     — Cross-platform comment inbox
     settings/     — Account, billing, connections, team, notifications, defaults
     support/      — Support page (FAQ accordion, submit ticket, my tickets, articles)
+    admin/
+      support/  — Admin-only support panel (secret-gated, view/reply/resolve tickets)
     login/        — Auth page (login/signup)
   lib/
     teamAuth.ts        — Auth + team context extraction

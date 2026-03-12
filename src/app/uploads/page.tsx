@@ -1323,14 +1323,17 @@ export default function UploadsPage() {
             {/* Per-platform limits cheat sheet */}
             <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/30">Platform size limits</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-6">
-                {Object.entries(PLATFORM_SIZE_LIMITS).map(([platform, { label }]) => (
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-4">
+                {Object.entries(PLATFORM_SIZE_LIMITS)
+                  .filter(([, { maxBytes }]) => maxBytes <= 5 * 1024 * 1024 * 1024)
+                  .map(([platform, { label }]) => (
                   <div key={platform} className="flex items-center justify-between gap-2">
                     <span className="text-xs capitalize text-white/40">{platform}</span>
                     <span className="text-xs font-medium text-white/60">{label}</span>
                   </div>
                 ))}
               </div>
+              <p className="mt-2.5 text-[10px] text-white/20">YouTube (256 GB) and Facebook (10 GB) limits not shown — unlikely to be reached.</p>
             </div>
           </div>
         )}
