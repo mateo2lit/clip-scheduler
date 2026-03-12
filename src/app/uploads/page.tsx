@@ -45,6 +45,18 @@ type PlatformConfig = {
   charLimit: number;
 };
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB hard limit
+
+const PLATFORM_SIZE_LIMITS: Record<string, { maxBytes: number; label: string }> = {
+  bluesky:   { maxBytes: 50  * 1024 * 1024,        label: "50 MB"  },
+  instagram: { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
+  threads:   { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
+  tiktok:    { maxBytes: 4   * 1024 * 1024 * 1024, label: "4 GB"   },
+  linkedin:  { maxBytes: 5   * 1024 * 1024 * 1024, label: "5 GB"   },
+  facebook:  { maxBytes: 10  * 1024 * 1024 * 1024, label: "10 GB"  },
+  youtube:   { maxBytes: 256 * 1024 * 1024 * 1024, label: "256 GB" },
+};
+
 const PLATFORMS: PlatformConfig[] = [
   {
     key: "youtube",
@@ -264,6 +276,7 @@ export default function UploadsPage() {
 
   // Upload state
   const [file, setFile] = useState<File | null>(null);
+  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [lastUploadId, setLastUploadId] = useState<string | null>(null);
@@ -715,12 +728,23 @@ export default function UploadsPage() {
     return null;
   }, [selectedPlatforms, ttCreatorError, ttCreatorInfo, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked, ttContentRightsChecked]);
 
+  function handleFileSelect(f: File | null) {
+    setFileSizeError(null);
+    if (!f) { setFile(null); return; }
+    if (f.size > MAX_FILE_SIZE) {
+      setFileSizeError(`File is too large (${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB). Maximum upload size is 5 GB.`);
+      setFile(null);
+      return;
+    }
+    setFile(f);
+  }
+
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && droppedFile.type.startsWith("video/")) {
-      setFile(droppedFile);
+      handleFileSelect(droppedFile);
     }
   }
 
@@ -1292,11 +1316,30 @@ export default function UploadsPage() {
                     </svg>
                   </div>
                   <div><p className="font-medium text-white">Drop your video here</p><p className="mt-1 text-sm text-white/70">or click to browse</p></div>
-                  <input type="file" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <input type="file" accept="video/*" onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 </div>
               )}
             </div>
-            <p className="mt-4 text-center text-xs text-white/40">Supported formats: MP4, MOV, AVI, WebM</p>
+            {fileSizeError && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.08] px-4 py-2.5 text-sm text-red-300">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+                {fileSizeError}
+              </div>
+            )}
+            <p className="mt-4 text-center text-xs text-white/40">Supported formats: MP4, MOV, AVI, WebM · Max 5 GB</p>
+
+            {/* Per-platform limits cheat sheet */}
+            <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/30">Platform size limits</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-6">
+                {Object.entries(PLATFORM_SIZE_LIMITS).map(([platform, { label }]) => (
+                  <div key={platform} className="flex items-center justify-between gap-2">
+                    <span className="text-xs capitalize text-white/40">{platform}</span>
+                    <span className="text-xs font-medium text-white/60">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1321,6 +1364,26 @@ export default function UploadsPage() {
                   </button>
                 ))}
               </div>
+              {/* Per-platform file size warnings */}
+              {file && (() => {
+                const warnings = selectedPlatforms.filter((p) => {
+                  const limit = PLATFORM_SIZE_LIMITS[p];
+                  return limit && file.size > limit.maxBytes;
+                });
+                if (warnings.length === 0) return null;
+                return (
+                  <div className="mt-3 space-y-1.5">
+                    {warnings.map((p) => (
+                      <div key={p} className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-300">
+                        <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
+                        <span className="capitalize font-medium">{p}</span>
+                        <span className="text-amber-300/70">— file exceeds the {PLATFORM_SIZE_LIMITS[p].label} limit and will fail to post.</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {/* Account selection for selected platforms */}
               {selectedPlatforms.some((p) => (platformAccountsList[p]?.length ?? 0) > 0) && (
                 <div className="mt-3 space-y-2">
