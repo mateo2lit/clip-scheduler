@@ -223,8 +223,8 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
                 </svg>
               ),
-              title: "7 Platforms, One Workflow",
-              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky from a single upload.",
+              title: "6 Platforms, One Workflow",
+              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky from a single upload.",
               color: "blue",
             },
             {
@@ -468,7 +468,7 @@ export default function Home() {
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
             {[
-              { value: "7", label: "Publishing platforms" },
+              { value: "6", label: "Publishing platforms" },
               { value: "∞", label: "Accounts per platform" },
               { value: "AI", label: "Tag suggestions built in" },
               { value: "24/7", label: "Automated scheduling" },
@@ -489,10 +489,10 @@ export default function Home() {
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Supported Platforms</h2>
           <p className="mt-3 text-white/40 max-w-md mx-auto">
-            These are all the platforms you can post to from within Clip Dash.
+            Post to all 6 platforms from a single upload.
           </p>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           {[
             { key: "youtube",   name: "YouTube",   color: "text-red-400",   icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z"/></svg> },
             { key: "tiktok",    name: "TikTok",    color: "text-white",     icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg> },
