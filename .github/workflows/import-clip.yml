@@ -24,7 +24,7 @@ jobs:
       - name: Install yt-dlp and ffmpeg
         run: |
           sudo apt-get install -y ffmpeg -qq
-          pip install -q yt-dlp
+          pip install -q --upgrade yt-dlp
 
       - name: Mark job as fetching
         run: |
@@ -38,7 +38,7 @@ jobs:
       - name: Get clip metadata
         id: meta
         run: |
-          JSON=$(yt-dlp --dump-json --no-playlist "${{ inputs.url }}" 2>/dev/null | head -1)
+          JSON=$(yt-dlp --dump-json --no-playlist "${{ inputs.url }}" 2>/tmp/meta_err.txt | head -1)
           if [ -z "$JSON" ]; then
             echo "title=Imported clip" >> $GITHUB_OUTPUT
             echo "duration=0" >> $GITHUB_OUTPUT
@@ -62,16 +62,22 @@ jobs:
       - name: Download clip
         run: |
           yt-dlp \
-            --format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[ext!=webm]" \
+            --format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[ext!=webm]/best" \
             --merge-output-format mp4 \
             --max-filesize 2G \
             --no-playlist \
-            --no-warnings \
             -o "/tmp/clip.%(ext)s" \
-            "${{ inputs.url }}"
+            "${{ inputs.url }}" \
+            2>&1 | tee /tmp/download_log.txt
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "yt-dlp exited with code $EXIT_CODE"
+            exit 1
+          fi
 
           # Find the output file (extension might vary)
-          CLIP_FILE=$(ls /tmp/clip.* 2>/dev/null | head -1)
+          CLIP_FILE=$(ls /tmp/clip.* 2>/dev/null | grep -v '\.txt$' | head -1)
           if [ -z "$CLIP_FILE" ]; then
             echo "Download failed — no output file found"
             exit 1
@@ -136,9 +142,22 @@ jobs:
       - name: Mark failed on error
         if: failure()
         run: |
+          # Try to get a useful error snippet from logs
+          ERR_MSG="Import failed — the URL may be unsupported, the clip unavailable, or it exceeded the 2 GB limit."
+          if [ -f /tmp/download_log.txt ]; then
+            SNIPPET=$(grep -i "error\|unsupported\|not found\|unavailable\|private\|removed" /tmp/download_log.txt | tail -2 | tr '\n' ' ' | sed 's/"/\\"/g' | cut -c1-200)
+            if [ -n "$SNIPPET" ]; then
+              ERR_MSG="$SNIPPET"
+            fi
+          elif [ -f /tmp/meta_err.txt ]; then
+            SNIPPET=$(tail -2 /tmp/meta_err.txt | tr '\n' ' ' | sed 's/"/\\"/g' | cut -c1-200)
+            if [ -n "$SNIPPET" ]; then
+              ERR_MSG="$SNIPPET"
+            fi
+          fi
           curl -sS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\":\"failed\",\"error\":\"Import failed — the URL may be unsupported, the clip unavailable, or it exceeded the 2 GB limit.\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"status\":\"failed\",\"error\":\"${ERR_MSG}\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
