@@ -88,10 +88,11 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number | null>(null);
 
   const progress = useSimulatedProgress(job?.status ?? "pending");
 
-  // Stop polling when done/failed
+  // Stop polling when done/failed or after 15-minute timeout
   useEffect(() => {
     if (job?.status === "done" || job?.status === "failed") {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -124,9 +125,15 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
       const newJob: ImportJob = { id: json.jobId, status: "pending", source_platform: json.platform };
       setJob(newJob);
       setSubmitting(false);
+      pollStartRef.current = Date.now();
 
-      // Start polling
+      // Start polling — timeout after 15 minutes
       pollRef.current = setInterval(async () => {
+        if (pollStartRef.current && Date.now() - pollStartRef.current > 15 * 60 * 1000) {
+          clearInterval(pollRef.current!);
+          setJob((prev) => prev ? { ...prev, status: "failed", error: "Import timed out. The clip may be too large or the worker encountered an error." } : prev);
+          return;
+        }
         try {
           const pollRes = await fetch(`/api/imports/${json.jobId}`, {
             headers: { Authorization: `Bearer ${token}` },

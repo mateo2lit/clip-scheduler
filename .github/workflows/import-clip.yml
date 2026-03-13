@@ -103,6 +103,7 @@ jobs:
           FILE_PATH="${{ inputs.team_id }}/${{ inputs.job_id }}.mp4"
 
           HTTP_STATUS=$(curl -sS -o /tmp/upload_response.txt -w "%{http_code}" \
+            --max-time 600 \
             -X POST \
             "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${FILE_PATH}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
@@ -110,8 +111,8 @@ jobs:
             --data-binary @/tmp/clip.mp4)
 
           if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
-            echo "Storage upload failed with status $HTTP_STATUS:"
-            cat /tmp/upload_response.txt
+            echo "Storage upload failed with status $HTTP_STATUS:" | tee -a /tmp/download_log.txt
+            cat /tmp/upload_response.txt | tee -a /tmp/download_log.txt
             exit 1
           fi
 
