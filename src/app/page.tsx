@@ -345,10 +345,10 @@ export default function Home() {
                   sub: "active creator average",
                 },
                 {
-                  before: "0",
-                  after: "missed posts",
-                  label: "publishing runs on autopilot",
-                  sub: "24/7 automated",
+                  before: "1–2 platforms",
+                  after: "All 6",
+                  label: "platforms reached with one upload",
+                  sub: "YouTube, TikTok, IG, FB, LinkedIn, Bluesky",
                 },
               ].map((s) => (
                 <div key={s.label} className="p-8 flex flex-col justify-between gap-4">
