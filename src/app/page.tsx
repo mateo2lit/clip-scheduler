@@ -254,7 +254,7 @@ export default function Home() {
                 </svg>
               ),
               title: "Unified Comments Inbox",
-              desc: "Read and reply to comments across all platforms in one place so engagement never slips through.",
+              desc: "Read and reply to comments from YouTube, Instagram, Facebook, and Bluesky in one place so engagement never slips through.",
               color: "emerald",
             },
           ].map((f) => (
@@ -287,7 +287,7 @@ export default function Home() {
           {[
             { step: "1", title: "Upload once", desc: "Drop your video, add a title and description, generate AI hashtag suggestions, and set a custom thumbnail — all in one place." },
             { step: "2", title: "Pick platforms and accounts", desc: "Select which platforms to post to. If you have multiple YouTube channels or TikTok accounts, choose which ones to post to — or all of them at once." },
-            { step: "3", title: "Schedule and relax", desc: "Set a time, hit schedule, and Clip Dash handles the rest. Posts publish automatically and comments from every platform land in your unified inbox." },
+            { step: "3", title: "Schedule and relax", desc: "Set a time, hit schedule, and Clip Dash handles the rest. Posts publish automatically and comments from YouTube, Instagram, Facebook, and Bluesky land in your unified inbox." },
           ].map((s) => (
             <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5">
