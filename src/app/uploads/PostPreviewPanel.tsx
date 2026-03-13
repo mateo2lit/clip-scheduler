@@ -11,6 +11,7 @@ type PostPreviewPanelProps = {
   thumbnailPreview: string | null;
   platformAccounts: Record<string, { profileName: string | null; avatarUrl: string | null }>;
   ttNickname: string | null;
+  ytIsShort?: boolean;
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -148,13 +149,89 @@ function TikTokPreview({ title, description, hashtags, videoPreviewUrl, thumbnai
 }
 
 // ── YouTube Card Preview ──────────────────────────────────────────────────────
-function YouTubePreview({ title, thumbnailPreview, videoPreviewUrl, profileName, avatarUrl }: {
+function YouTubePreview({ title, thumbnailPreview, videoPreviewUrl, profileName, avatarUrl, isShort }: {
   title: string;
   thumbnailPreview: string | null; videoPreviewUrl: string | null;
   profileName: string | null; avatarUrl: string | null;
+  isShort?: boolean;
 }) {
   const channel = profileName || "Your Channel";
   const displayTitle = title || "Your video title will appear here";
+
+  if (isShort) {
+    return (
+      <div className="relative w-full overflow-hidden rounded-2xl bg-black shadow-2xl" style={{ aspectRatio: "9/16" }}>
+        {/* Media background */}
+        {videoPreviewUrl ? (
+          <video src={videoPreviewUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline />
+        ) : thumbnailPreview ? (
+          <img src={thumbnailPreview} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-b from-neutral-900 via-neutral-900 to-neutral-950" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent via-40% to-black/75" />
+
+        {/* Top bar */}
+        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 pt-2.5 pb-1">
+          <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <div className="flex items-center gap-1.5">
+            <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+            </svg>
+            <span className="text-sm font-bold text-white">Shorts</span>
+          </div>
+          <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
+          </svg>
+        </div>
+
+        {/* Right engagement column */}
+        <div className="absolute bottom-20 right-2 z-10 flex flex-col items-center gap-3.5">
+          <div className="relative mb-1 flex flex-col items-center">
+            <Avatar name={profileName} avatarUrl={avatarUrl} size="md" />
+            <div className="absolute -bottom-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#ff0000]">
+              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M12 4v16M4 12h16" />
+              </svg>
+            </div>
+          </div>
+          {[
+            { d: "M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 9 11.25 9 11.25s9-6.375 9-11.25z", label: "0" },
+            { d: "M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z", label: "0" },
+            { d: "M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z", label: "" },
+          ].map(({ d, label }, i) => (
+            <div key={i} className="flex flex-col items-center gap-0.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+                </svg>
+              </div>
+              {label && <span className="text-[10px] font-medium text-white">{label}</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom info */}
+        <div className="absolute inset-x-0 bottom-0 z-10 p-3 pr-14">
+          <p className="mb-0.5 text-sm font-semibold text-white">{channel}</p>
+          {displayTitle && <p className="text-xs leading-relaxed text-white line-clamp-2">{displayTitle}</p>}
+        </div>
+
+        {/* Empty state */}
+        {!videoPreviewUrl && !thumbnailPreview && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-white/10 backdrop-blur-sm">
+              <svg className="ml-1 h-7 w-7 text-white/60" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl bg-[#0f0f0f] border border-white/10">
@@ -509,6 +586,7 @@ export default function PostPreviewPanel({
   thumbnailPreview,
   platformAccounts,
   ttNickname,
+  ytIsShort,
 }: PostPreviewPanelProps) {
   const [activePlatform, setActivePlatform] = useState(selectedPlatforms[0] || "");
 
@@ -582,6 +660,7 @@ export default function PostPreviewPanel({
                 thumbnailPreview={thumbnailPreview} videoPreviewUrl={videoPreviewUrl}
                 profileName={accts.youtube?.profileName || null}
                 avatarUrl={accts.youtube?.avatarUrl || null}
+                isShort={ytIsShort}
               />
             )}
             {activePlatform === "instagram" && (

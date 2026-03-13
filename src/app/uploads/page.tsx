@@ -2536,7 +2536,7 @@ export default function UploadsPage() {
                 ? "Select at least one platform"
                 : ttValidationError || null;
               return (
-                <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950/85 backdrop-blur-xl overflow-hidden">
+                <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950 overflow-hidden">
                   {blockReason && (
                     <div className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
                       <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2581,6 +2581,7 @@ export default function UploadsPage() {
               thumbnailPreview={thumbnailPreview}
               platformAccounts={platformAccounts}
               ttNickname={ttCreatorInfo?.nickname || null}
+              ytIsShort={ytIsShort}
             />
           </div>
           </div>
