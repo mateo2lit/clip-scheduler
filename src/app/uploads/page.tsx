@@ -13,6 +13,7 @@ function proxiedAvatar(url: string | null | undefined): string | null {
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
+import ImportModal from "./ImportModal";
 
 const EMOJI_CATEGORIES = {
   "Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😎", "🤩"],
@@ -250,6 +251,7 @@ function buildTimeOptions(stepMinutes = 15) {
 
 export default function UploadsPage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const { teamId } = useTeam();
   const [step, setStep] = useState<Step>("upload");
 
@@ -280,6 +282,7 @@ export default function UploadsPage() {
   const [lastUploadId, setLastUploadId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [planActive, setPlanActive] = useState<boolean | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Shared content
   const [title, setTitle] = useState("");
@@ -488,6 +491,7 @@ export default function UploadsPage() {
         return;
       }
       setUserId(data.session.user.id);
+      setAccessToken(data.session.access_token);
 
       // Check plan status
       try {
@@ -1319,6 +1323,24 @@ export default function UploadsPage() {
               </div>
             )}
             <p className="mt-4 text-center text-xs text-white/40">Supported formats: MP4, MOV, AVI, WebM</p>
+
+            {/* Import from URL */}
+            <div className="mt-5 flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/[0.06]" />
+              <span className="text-xs text-white/25 shrink-0">or</span>
+              <div className="flex-1 h-px bg-white/[0.06]" />
+            </div>
+            <button
+              onClick={() => setShowImportModal(true)}
+              disabled={planActive === false}
+              className="mt-3 w-full flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/60 hover:bg-white/[0.06] hover:border-white/20 hover:text-white/80 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+              </svg>
+              Import from URL
+              <span className="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/30">Twitch · Kick · YouTube · more</span>
+            </button>
 
             {/* Per-platform limits cheat sheet */}
             <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
@@ -2605,6 +2627,20 @@ export default function UploadsPage() {
         )}
       </div>
     </div>
+
+    {/* Import from URL modal */}
+    {showImportModal && accessToken && (
+      <ImportModal
+        token={accessToken}
+        onClose={() => setShowImportModal(false)}
+        onImported={(uploadId, importedTitle) => {
+          setShowImportModal(false);
+          setLastUploadId(uploadId);
+          setTitle(importedTitle);
+          setStep("details");
+        }}
+      />
+    )}
   );
 }
 

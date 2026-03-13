@@ -1,0 +1,144 @@
+name: Import Clip
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "import_jobs row ID"
+        required: true
+      url:
+        description: "Source clip URL"
+        required: true
+      team_id:
+        description: "Team ID"
+        required: true
+      user_id:
+        description: "User ID"
+        required: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install yt-dlp and ffmpeg
+        run: |
+          sudo apt-get install -y ffmpeg -qq
+          pip install -q yt-dlp
+
+      - name: Mark job as fetching
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"fetching\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Get clip metadata
+        id: meta
+        run: |
+          JSON=$(yt-dlp --dump-json --no-playlist "${{ inputs.url }}" 2>/dev/null | head -1)
+          if [ -z "$JSON" ]; then
+            echo "title=Imported clip" >> $GITHUB_OUTPUT
+            echo "duration=0" >> $GITHUB_OUTPUT
+          else
+            TITLE=$(echo "$JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('title','Imported clip')[:200].replace('\"','').replace(\"'\",\"\"))" 2>/dev/null || echo "Imported clip")
+            DURATION=$(echo "$JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(int(d.get('duration') or 0))" 2>/dev/null || echo "0")
+            echo "title=${TITLE}" >> $GITHUB_OUTPUT
+            echo "duration=${DURATION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Mark job as uploading
+        run: |
+          SAFE_TITLE=$(echo "${{ steps.meta.outputs.title }}" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))" | tr -d '\n')
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"uploading\",\"title\":${SAFE_TITLE},\"duration_seconds\":${{ steps.meta.outputs.duration }},\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Download clip
+        run: |
+          yt-dlp \
+            --format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[ext!=webm]" \
+            --merge-output-format mp4 \
+            --max-filesize 2G \
+            --no-playlist \
+            --no-warnings \
+            -o "/tmp/clip.%(ext)s" \
+            "${{ inputs.url }}"
+
+          # Find the output file (extension might vary)
+          CLIP_FILE=$(ls /tmp/clip.* 2>/dev/null | head -1)
+          if [ -z "$CLIP_FILE" ]; then
+            echo "Download failed — no output file found"
+            exit 1
+          fi
+
+          # Ensure it's mp4
+          if [[ "$CLIP_FILE" != *.mp4 ]]; then
+            ffmpeg -i "$CLIP_FILE" -c copy /tmp/clip.mp4 -y -loglevel quiet
+            rm "$CLIP_FILE"
+          fi
+
+          echo "ACTUAL_SIZE=$(stat -c%s /tmp/clip.mp4)" >> $GITHUB_ENV
+
+      - name: Upload to Supabase Storage
+        run: |
+          FILE_PATH="${{ inputs.team_id }}/${{ inputs.job_id }}.mp4"
+
+          HTTP_STATUS=$(curl -sS -o /tmp/upload_response.txt -w "%{http_code}" \
+            -X POST \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${FILE_PATH}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: video/mp4" \
+            --data-binary @/tmp/clip.mp4)
+
+          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
+            echo "Storage upload failed with status $HTTP_STATUS:"
+            cat /tmp/upload_response.txt
+            exit 1
+          fi
+
+          echo "FILE_PATH=${FILE_PATH}" >> $GITHUB_ENV
+
+      - name: Create uploads row and mark job done
+        run: |
+          UPLOAD_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Insert uploads row
+          UPLOAD_STATUS=$(curl -sS -o /tmp/upload_row_response.txt -w "%{http_code}" \
+            -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/uploads" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{\"id\":\"${UPLOAD_ID}\",\"user_id\":\"${{ inputs.user_id }}\",\"team_id\":\"${{ inputs.team_id }}\",\"bucket\":\"clips\",\"file_path\":\"${FILE_PATH}\",\"file_size\":${ACTUAL_SIZE},\"storage_deleted\":false}")
+
+          if [ "$UPLOAD_STATUS" != "201" ] && [ "$UPLOAD_STATUS" != "200" ]; then
+            echo "Failed to create uploads row (status $UPLOAD_STATUS):"
+            cat /tmp/upload_row_response.txt
+            exit 1
+          fi
+
+          # Mark job done
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"done\",\"upload_id\":\"${UPLOAD_ID}\",\"updated_at\":\"${NOW}\"}"
+
+      - name: Mark failed on error
+        if: failure()
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"failed\",\"error\":\"Import failed — the URL may be unsupported, the clip unavailable, or it exceeded the 2 GB limit.\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
