@@ -353,8 +353,8 @@ export default function Home() {
               ].map((s) => (
                 <div key={s.label} className="p-8 flex flex-col justify-between gap-4">
                   <div>
-                    <div className="text-xl font-semibold text-white/70 line-through mb-1">{s.before}</div>
-                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    <div className="text-[1.625rem] font-semibold text-white/70 line-through mb-1">{s.before}</div>
+                    <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                       {s.after}
                     </div>
                   </div>
