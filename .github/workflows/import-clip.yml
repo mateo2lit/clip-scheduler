@@ -39,7 +39,7 @@ jobs:
       - name: Get clip metadata
         id: meta
         run: |
-          JSON=$(yt-dlp --dump-json --no-playlist --impersonate chrome "${{ inputs.url }}" 2>/tmp/meta_err.txt | head -1)
+          JSON=$(yt-dlp --dump-json --no-playlist "${{ inputs.url }}" 2>/tmp/meta_err.txt | head -1)
           if [ -z "$JSON" ]; then
             echo "title=Imported clip" >> $GITHUB_OUTPUT
             echo "duration=0" >> $GITHUB_OUTPUT
@@ -67,7 +67,6 @@ jobs:
             --merge-output-format mp4 \
             --max-filesize 2G \
             --no-playlist \
-            --impersonate chrome \
             -o "/tmp/clip.%(ext)s" \
             "${{ inputs.url }}" \
             2>&1 | tee /tmp/download_log.txt
