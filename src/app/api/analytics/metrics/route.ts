@@ -6,6 +6,7 @@ import {
   fetchFacebookMetrics,
   fetchInstagramMetrics,
   fetchBlueskyMetrics,
+  fetchTikTokMetrics,
   type UnifiedMetric,
 } from "@/lib/metricsFetchers";
 import {
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
       .from("platform_accounts")
       .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
       .eq("team_id", teamId)
-      .in("provider", ["youtube", "facebook", "instagram", "bluesky"]);
+      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok"]);
 
     const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
@@ -111,6 +112,41 @@ export async function GET(req: Request) {
     for (const r of igResults) {
       if (r.status === "fulfilled") allMetrics.push(...r.value);
       else errors.push(r.reason?.message || "Instagram fetch error");
+    }
+
+    // Fetch from all TikTok accounts — use our DB for the post list, TikTok API for stats
+    const ttResults = await Promise.allSettled(
+      (acctsByProvider.get("tiktok") ?? [])
+        .filter((a) => a.access_token)
+        .map(async (a) => {
+          const { data: ttPosts } = await supabaseAdmin
+            .from("scheduled_posts")
+            .select("id, title, platform_post_id, posted_at")
+            .eq("team_id", teamId)
+            .eq("provider", "tiktok")
+            .eq("status", "posted")
+            .eq("platform_account_id", a.id)
+            .gte("posted_at", sinceIso)
+            .order("posted_at", { ascending: false })
+            .limit(maxResults);
+
+          if (!ttPosts || ttPosts.length === 0) return [] as UnifiedMetric[];
+
+          const posts = ttPosts.map((p) => ({
+            id: p.id,
+            title: p.title,
+            platform_post_id: p.platform_post_id,
+            posted_at: p.posted_at,
+          }));
+
+          const r = await fetchTikTokMetrics(posts, a.access_token);
+          if (r.error) errors.push(r.error);
+          return r.metrics;
+        })
+    );
+    for (const r of ttResults) {
+      if (r.status === "fulfilled") allMetrics.push(...r.value);
+      else errors.push(r.reason?.message || "TikTok fetch error");
     }
 
     // Fetch from all Bluesky accounts

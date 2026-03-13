@@ -2,7 +2,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export type UnifiedMetric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
   title: string;
   views: number;
   likes: number;
@@ -179,6 +179,63 @@ export async function fetchInstagramMetrics(
     };
   } catch (e: any) {
     return { metrics: [], error: `Instagram: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── TikTok ──────────────────────────────────────────────────────────
+
+export async function fetchTikTokMetrics(
+  posts: PostInfo[],
+  accessToken: string
+): Promise<{ metrics: UnifiedMetric[]; error?: string }> {
+  try {
+    const videoIds = posts
+      .map((p) => p.platform_post_id)
+      .filter((id): id is string => !!id);
+
+    if (videoIds.length === 0) return { metrics: [] };
+
+    const metrics: UnifiedMetric[] = [];
+    // TikTok allows up to 20 video IDs per request
+    for (let i = 0; i < videoIds.length; i += 20) {
+      const batch = videoIds.slice(i, i + 20);
+      const res = await fetch(
+        "https://open.tiktokapis.com/v2/video/query/?fields=id,title,create_time,view_count,like_count,comment_count,share_count",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ filters: { video_ids: batch } }),
+        }
+      );
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+      }
+
+      const json = await res.json();
+      for (const item of json.data?.videos ?? []) {
+        const post = posts.find((p) => p.platform_post_id === item.id);
+        metrics.push({
+          videoId: item.id,
+          platform: "tiktok",
+          title: post?.title ?? item.title ?? "TikTok video",
+          views: item.view_count ?? 0,
+          likes: item.like_count ?? 0,
+          comments: item.comment_count ?? 0,
+          postedAt: post?.posted_at ?? (item.create_time
+            ? new Date(item.create_time * 1000).toISOString()
+            : new Date().toISOString()),
+        });
+      }
+    }
+
+    return { metrics };
+  } catch (e: any) {
+    return { metrics: [], error: `TikTok: ${e?.message || "Unknown error"}` };
   }
 }
 

@@ -6,7 +6,7 @@ import { supabase } from "@/app/login/supabaseClient";
 
 type Metric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
   title: string;
   views: number;
   likes: number;
@@ -15,7 +15,7 @@ type Metric = {
 };
 
 type Totals = { views: number; likes: number; comments: number };
-type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky";
+type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
 type RangeFilter = "24h" | "1w" | "1m" | "1y";
 
 const platformLabels: Record<string, string> = {
@@ -23,6 +23,7 @@ const platformLabels: Record<string, string> = {
   facebook: "Facebook",
   instagram: "Instagram",
   bluesky: "Bluesky",
+  tiktok: "TikTok",
 };
 
 function PlatformIcon({ platform }: { platform: string }) {
@@ -51,6 +52,13 @@ function PlatformIcon({ platform }: { platform: string }) {
     return (
       <svg className="w-5 h-5 text-sky-400" viewBox="0 0 360 320" fill="currentColor">
         <path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/>
+      </svg>
+    );
+  }
+  if (platform === "tiktok") {
+    return (
+      <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
       </svg>
     );
   }
@@ -209,7 +217,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex gap-2 mb-6">
-          {(["all", "youtube", "facebook", "instagram", "bluesky"] as PlatformFilter[]).map((p) => (
+          {(["all", "youtube", "tiktok", "instagram", "facebook", "bluesky"] as PlatformFilter[]).map((p) => (
             <button
               key={p}
               onClick={() => setFilter(p)}
