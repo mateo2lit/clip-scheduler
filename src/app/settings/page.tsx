@@ -1400,6 +1400,15 @@ export default function SettingsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className={`text-sm font-medium ${isConnected ? "text-white/90" : "text-white/50"}`}>{platform.name}</span>
+                          <a
+                            href={`/platforms/${platform.key}`}
+                            title={`Learn more about ${platform.name}`}
+                            className="text-white/20 hover:text-white/60 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                          </a>
                           {isConnected && (
                             <span className="rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                               {accts.length > 1 ? `${accts.length} accounts` : "Connected"}
