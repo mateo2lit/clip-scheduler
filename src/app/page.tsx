@@ -319,7 +319,7 @@ export default function Home() {
                 The average creator loses <strong className="text-white/70 font-medium">8–12 hours a week</strong> logging into platforms, re-uploading files, and copying captions. That's time that should go into making content — not managing it.
               </p>
               <p className="mt-3 text-white/45 text-base leading-relaxed max-w-md">
-                Clip Dash compresses an entire distribution workflow into a single 10-minute upload session. Schedule once, publish everywhere, automatically.
+                Clip Dash compresses an entire distribution workflow into a 60-second upload session. Schedule once, publish everywhere, automatically.
               </p>
             </div>
 
@@ -327,8 +327,8 @@ export default function Home() {
             <div className="grid grid-cols-2 divide-x divide-y divide-white/[0.07]">
               {[
                 {
-                  before: "2 hrs",
-                  after: "10 min",
+                  before: "30 min",
+                  after: "60 sec",
                   label: "to publish across all platforms",
                   sub: "per video",
                 },
