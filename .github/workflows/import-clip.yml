@@ -64,7 +64,6 @@ jobs:
           yt-dlp \
             --format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[ext!=webm]/best" \
             --merge-output-format mp4 \
-            --max-filesize 2G \
             --no-playlist \
             -o "/tmp/clip.%(ext)s" \
             "${{ inputs.url }}" \
@@ -73,6 +72,7 @@ jobs:
           EXIT_CODE=${PIPESTATUS[0]}
           if [ "$EXIT_CODE" != "0" ]; then
             echo "yt-dlp exited with code $EXIT_CODE"
+            cat /tmp/download_log.txt
             exit 1
           fi
 
@@ -89,7 +89,14 @@ jobs:
             rm "$CLIP_FILE"
           fi
 
-          echo "ACTUAL_SIZE=$(stat -c%s /tmp/clip.mp4)" >> $GITHUB_ENV
+          # Enforce 2 GB limit post-download
+          ACTUAL_SIZE=$(stat -c%s /tmp/clip.mp4)
+          if [ "$ACTUAL_SIZE" -gt 2147483648 ]; then
+            echo "File exceeds 2 GB limit ($ACTUAL_SIZE bytes)"
+            exit 1
+          fi
+
+          echo "ACTUAL_SIZE=${ACTUAL_SIZE}" >> $GITHUB_ENV
 
       - name: Upload to Supabase Storage
         run: |
@@ -144,17 +151,15 @@ jobs:
         run: |
           # Try to get a useful error snippet from logs
           ERR_MSG="Import failed — the URL may be unsupported, the clip unavailable, or it exceeded the 2 GB limit."
-          if [ -f /tmp/download_log.txt ]; then
-            SNIPPET=$(grep -i "error\|unsupported\|not found\|unavailable\|private\|removed" /tmp/download_log.txt | tail -2 | tr '\n' ' ' | sed 's/"/\\"/g' | cut -c1-200)
-            if [ -n "$SNIPPET" ]; then
-              ERR_MSG="$SNIPPET"
+          for LOG in /tmp/download_log.txt /tmp/meta_err.txt; do
+            if [ -f "$LOG" ] && [ -s "$LOG" ]; then
+              SNIPPET=$(tail -3 "$LOG" | tr '\n' ' ' | sed 's/["\]//g' | cut -c1-250)
+              if [ -n "$SNIPPET" ]; then
+                ERR_MSG="$SNIPPET"
+                break
+              fi
             fi
-          elif [ -f /tmp/meta_err.txt ]; then
-            SNIPPET=$(tail -2 /tmp/meta_err.txt | tr '\n' ' ' | sed 's/"/\\"/g' | cut -c1-200)
-            if [ -n "$SNIPPET" ]; then
-              ERR_MSG="$SNIPPET"
-            fi
-          fi
+          done
           curl -sS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
