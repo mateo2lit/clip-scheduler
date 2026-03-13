@@ -339,10 +339,10 @@ export default function Home() {
                   sub: "every time",
                 },
                 {
-                  before: "12 hrs",
-                  after: "saved/week",
-                  label: "freed up for content creation",
-                  sub: "active creator average",
+                  before: "1 platform",
+                  after: "6x reach",
+                  label: "same content, more platforms, bigger audience",
+                  sub: "without filming anything extra",
                 },
                 {
                   before: "1–2 platforms",
