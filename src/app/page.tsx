@@ -300,6 +300,75 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Time Savings Value Prop */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2">
+            {/* Left — headline */}
+            <div className="p-10 lg:p-14 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/[0.07]">
+              <div className="inline-block rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-xs text-white/50 mb-6 w-fit">
+                Built for creators who actually ship
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
+                Stop spending your time<br />
+                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  on distribution.
+                </span>
+              </h2>
+              <p className="mt-5 text-white/45 text-base leading-relaxed max-w-md">
+                The average creator loses <strong className="text-white/70 font-medium">8–12 hours a week</strong> logging into platforms, re-uploading files, and copying captions. That's time that should go into making content — not managing it.
+              </p>
+              <p className="mt-3 text-white/45 text-base leading-relaxed max-w-md">
+                Clip Dash compresses an entire distribution workflow into a single 10-minute upload session. Schedule once, publish everywhere, automatically.
+              </p>
+            </div>
+
+            {/* Right — stats grid */}
+            <div className="grid grid-cols-2 divide-x divide-y divide-white/[0.07]">
+              {[
+                {
+                  before: "2 hrs",
+                  after: "10 min",
+                  label: "to publish across all platforms",
+                  sub: "per video",
+                },
+                {
+                  before: "6 logins",
+                  after: "1 upload",
+                  label: "for full cross-platform distribution",
+                  sub: "every time",
+                },
+                {
+                  before: "12 hrs",
+                  after: "saved/week",
+                  label: "freed up for content creation",
+                  sub: "active creator average",
+                },
+                {
+                  before: "0",
+                  after: "missed posts",
+                  label: "publishing runs on autopilot",
+                  sub: "24/7 automated",
+                },
+              ].map((s) => (
+                <div key={s.label} className="p-8 flex flex-col justify-between gap-4">
+                  <div>
+                    <div className="text-xs text-white/25 line-through mb-1">{s.before}</div>
+                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      {s.after}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/55 leading-snug">{s.label}</p>
+                    <p className="text-[10px] text-white/25 mt-0.5">{s.sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="relative z-10 mx-auto max-w-4xl px-6 py-20">
         <div className="text-center mb-14">
