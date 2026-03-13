@@ -43,7 +43,7 @@ async function handler(req: Request) {
   const params = new URLSearchParams({
     client_key: clientKey,
     response_type: "code",
-    scope: "user.info.basic,video.upload,video.publish",
+    scope: "user.info.basic,video.upload,video.publish,video.list",
     redirect_uri: redirectUri,
     state,
     code_challenge: codeChallenge,
