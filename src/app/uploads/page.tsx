@@ -1224,6 +1224,7 @@ export default function UploadsPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-[#050505] text-white">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
@@ -2641,6 +2642,7 @@ export default function UploadsPage() {
         }}
       />
     )}
+    </>
   );
 }
 
