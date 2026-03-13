@@ -1382,23 +1382,40 @@ export default function UploadsPage() {
               {/* Account selection for selected platforms */}
               {selectedPlatforms.some((p) => (platformAccountsList[p]?.length ?? 0) > 0) && (
                 <div className="mt-3 space-y-2">
+                  {/* Single-account platforms — compact wrapping pills */}
+                  {(() => {
+                    const singles = selectedPlatforms.filter((p) => (platformAccountsList[p]?.length ?? 0) === 1);
+                    if (singles.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1.5">
+                        {singles.map((p) => {
+                          const acct = platformAccountsList[p][0];
+                          const platform = PLATFORMS.find((pl) => pl.key === p);
+                          return (
+                            <div key={p} className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 transition-colors hover:bg-white/[0.06]">
+                              <div className="relative shrink-0">
+                                {acct.avatarUrl ? (
+                                  <img src={proxiedAvatar(acct.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover" />
+                                ) : (
+                                  <div className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-semibold text-white/50">{(acct.profileName || "?")[0]?.toUpperCase()}</div>
+                                )}
+                              </div>
+                              <div className="flex items-baseline gap-1.5 min-w-0">
+                                <span className="text-xs font-medium text-white/80 truncate">{acct.profileName || "Account"}</span>
+                                <span className="text-[10px] text-white/30 shrink-0">{platform?.name}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                  {/* Multi-account platforms — expanded selectors */}
                   {selectedPlatforms.map((p) => {
                     const accts = platformAccountsList[p] || [];
-                    if (accts.length === 0) return null;
+                    if (accts.length <= 1) return null;
                     const platform = PLATFORMS.find((pl) => pl.key === p);
                     const selectedIds = selectedAccountIds[p] || [];
-
-                    if (accts.length === 1) {
-                      const acct = accts[0];
-                      return (
-                        <div key={p} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/50">
-                          {acct.avatarUrl && <img src={proxiedAvatar(acct.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-4 w-4 rounded-full object-cover" />}
-                          <span className="text-white/40">{platform?.name}:</span>
-                          <span className="text-white/80 font-medium">{acct.profileName || "Account"}</span>
-                        </div>
-                      );
-                    }
-
                     return (
                       <div key={p} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
                         <div className="flex items-center gap-2 mb-2">
