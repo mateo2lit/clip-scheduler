@@ -7,7 +7,6 @@ import { supabase } from "../login/supabaseClient";
 const TOTAL_STEPS = 3;
 
 type Role = "creator" | "business" | "agency" | "brand";
-type Challenge = "time" | "consistency" | "growth" | "team";
 
 const ROLES: { key: Role; emoji: string; label: string; sub: string }[] = [
   { key: "creator", emoji: "🎬", label: "Content Creator", sub: "YouTube, TikTok, Reels & more" },
@@ -16,39 +15,81 @@ const ROLES: { key: Role; emoji: string; label: string; sub: string }[] = [
   { key: "brand", emoji: "🚀", label: "Brand", sub: "Growing a company's presence" },
 ];
 
-const PLATFORMS: { key: string; label: string; color: string; icon: React.ReactNode }[] = [
+const ROLE_WELCOME: Record<Role, string> = {
+  creator: "We'll focus your dashboard on growing your personal brand.",
+  business: "We'll help you schedule content across your business profiles.",
+  agency: "We'll set you up for managing multiple client accounts.",
+  brand: "We'll streamline your content distribution across every channel.",
+};
+
+const PLATFORMS: { key: string; label: string; icon: React.ReactNode }[] = [
   {
-    key: "youtube", label: "YouTube", color: "group-hover:text-red-400",
-    icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.54 3.5 12 3.5 12 3.5s-7.54 0-9.38.55A3.02 3.02 0 0 0 .5 6.19C0 8.04 0 12 0 12s0 3.96.5 5.81a3.02 3.02 0 0 0 2.12 2.14C4.46 20.5 12 20.5 12 20.5s7.54 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14C24 15.96 24 12 24 12s0-3.96-.5-5.81zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>,
+    key: "youtube",
+    label: "YouTube",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+      </svg>
+    ),
   },
   {
-    key: "tiktok", label: "TikTok", color: "group-hover:text-white",
-    icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.77 1.52V6.76a4.85 4.85 0 0 1-1-.07z"/></svg>,
+    key: "tiktok",
+    label: "TikTok",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.77 1.52V6.76a4.85 4.85 0 0 1-1-.07z" />
+      </svg>
+    ),
   },
   {
-    key: "instagram", label: "Instagram", color: "group-hover:text-pink-400",
-    icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>,
+    key: "instagram",
+    label: "Instagram",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
+      </svg>
+    ),
   },
   {
-    key: "facebook", label: "Facebook", color: "group-hover:text-blue-400",
-    icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
+    key: "facebook",
+    label: "Facebook",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      </svg>
+    ),
   },
   {
-    key: "linkedin", label: "LinkedIn", color: "group-hover:text-blue-300",
-    icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>,
+    key: "linkedin",
+    label: "LinkedIn",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+      </svg>
+    ),
   },
   {
-    key: "bluesky", label: "Bluesky", color: "group-hover:text-sky-400",
-    icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.204-.659-.299-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.686 12 10.8z"/></svg>,
+    key: "threads",
+    label: "Threads",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.028-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.504-.587-1.277-.955-2.301-1.028-1.17.024-1.932.52-2.495 1.267L5.773 9.18c.837-1.15 2.243-2.29 4.528-2.35 1.636-.043 3.157.396 4.24 1.552 1.07 1.14 1.574 2.758 1.743 4.744.123.133.24.27.35.408.976 1.203 1.565 2.676 1.614 4.138.083 2.59-.86 4.738-2.718 6.196C14.1 23.469 13.207 24 12.186 24zm-2.35-8.296c.19.124.404.192.633.204.978-.053 1.655-.435 2.068-.956.554-.695.784-1.677.82-2.668a11.39 11.39 0 0 0-2.55-.18c-.836.049-1.567.28-2.013.66-.344.297-.502.658-.475 1.099.05.909.69 1.556 1.517 1.841z" />
+      </svg>
+    ),
+  },
+  {
+    key: "bluesky",
+    label: "Bluesky",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.204-.659-.299-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.686 12 10.8z" />
+      </svg>
+    ),
   },
 ];
 
-const CHALLENGES: { key: Challenge; emoji: string; label: string; sub: string }[] = [
-  { key: "time", emoji: "⏰", label: "It takes too long", sub: "Uploading to every platform manually eats my day" },
-  { key: "consistency", emoji: "📅", label: "Staying consistent", sub: "I keep falling off my posting schedule" },
-  { key: "growth", emoji: "📈", label: "Growing faster", sub: "I post but don't see the audience growth I want" },
-  { key: "team", emoji: "👥", label: "Team coordination", sub: "Managing content with others is chaotic" },
-];
+const CREATOR_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || "";
+const TEAM_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || "";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -58,11 +99,36 @@ export default function OnboardingPage() {
   const [animating, setAnimating] = useState(false);
 
   const [role, setRole] = useState<Role | null>(null);
-  const [platforms, setPlatforms] = useState<string[]>([]);
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Check if already completed
+  const [connectedAccounts, setConnectedAccounts] = useState<string[]>([]);
+  const [showBlueskyForm, setShowBlueskyForm] = useState(false);
+  const [blueskyHandle, setBlueskyHandle] = useState("");
+  const [blueskyPassword, setBlueskyPassword] = useState("");
+  const [blueskyConnecting, setBlueskyConnecting] = useState(false);
+  const [blueskyError, setBlueskyError] = useState<string | null>(null);
+  const [justConnected, setJustConnected] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const fetchConnectedAccounts = useCallback(async (token?: string) => {
+    let accessToken = token;
+    if (!accessToken) {
+      const { data } = await supabase.auth.getSession();
+      accessToken = data.session?.access_token;
+    }
+    if (!accessToken) return;
+    try {
+      const res = await fetch("/api/platform-accounts", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json.data && Array.isArray(json.data)) {
+        const providers = [...new Set<string>(json.data.map((a: any) => a.provider))];
+        setConnectedAccounts(providers);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
@@ -73,9 +139,25 @@ export default function OnboardingPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (json.completed) { router.replace("/dashboard"); return; }
+
+      const params = new URLSearchParams(window.location.search);
+      const connectedParam = params.get("connected");
+      if (connectedParam) {
+        setStep(2);
+        setJustConnected(connectedParam);
+        window.history.replaceState({}, "", "/onboarding");
+      }
+
+      await fetchConnectedAccounts(data.session.access_token);
       setLoading(false);
     })();
-  }, [router]);
+  }, [router, fetchConnectedAccounts]);
+
+  useEffect(() => {
+    if (!justConnected) return;
+    const timer = setTimeout(() => setJustConnected(null), 3000);
+    return () => clearTimeout(timer);
+  }, [justConnected]);
 
   const goTo = useCallback((next: number, dir: "forward" | "back") => {
     if (animating) return;
@@ -87,6 +169,72 @@ export default function OnboardingPage() {
     }, 220);
   }, [animating]);
 
+  async function connectPlatform(platform: string) {
+    document.cookie = "clip-onboarding=1; path=/; max-age=1800; SameSite=Lax";
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    try {
+      const res = await fetch(`/api/auth/${platform}/start`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      const json = await res.json();
+      if (json.url) window.location.href = json.url;
+    } catch {}
+  }
+
+  async function connectBluesky() {
+    setBlueskyConnecting(true);
+    setBlueskyError(null);
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) { setBlueskyConnecting(false); return; }
+    try {
+      const res = await fetch("/api/auth/bluesky/connect", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ handle: blueskyHandle, appPassword: blueskyPassword }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setBlueskyError(json.error || "Failed to connect Bluesky.");
+      } else {
+        setBlueskyHandle("");
+        setBlueskyPassword("");
+        setShowBlueskyForm(false);
+        setJustConnected("bluesky");
+        await fetchConnectedAccounts(data.session.access_token);
+      }
+    } catch {
+      setBlueskyError("Something went wrong. Please try again.");
+    } finally {
+      setBlueskyConnecting(false);
+    }
+  }
+
+  async function handleCheckout(priceId: string) {
+    if (!priceId) return;
+    setCheckoutLoading(true);
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) { setCheckoutLoading(false); return; }
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ priceId }),
+      });
+      const json = await res.json();
+      if (json.url) window.location.href = json.url;
+    } catch {
+      setCheckoutLoading(false);
+    }
+  }
+
   async function finish() {
     setSubmitting(true);
     const { data } = await supabase.auth.getSession();
@@ -97,22 +245,7 @@ export default function OnboardingPage() {
           Authorization: `Bearer ${data.session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ role, platforms, challenge }),
-      });
-    }
-    router.replace("/dashboard");
-  }
-
-  async function skip() {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      await fetch("/api/onboarding", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${data.session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ role, platforms, challenge, skipped: true }),
+        body: JSON.stringify({ role, platforms: connectedAccounts, skipped: true }),
       }).catch(() => {});
     }
     router.replace("/dashboard");
@@ -125,10 +258,6 @@ export default function OnboardingPage() {
       </div>
     );
   }
-
-  const canAdvanceStep1 = role !== null;
-  const canAdvanceStep2 = platforms.length > 0;
-  const canAdvanceStep3 = challenge !== null;
 
   const slideClass = animating
     ? direction === "forward"
@@ -175,16 +304,15 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <button onClick={skip} className="text-xs text-white/30 hover:text-white/60 transition-colors">
+        <button onClick={finish} className="text-xs text-white/30 hover:text-white/60 transition-colors">
           Skip →
         </button>
       </header>
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div
-          className={`w-full max-w-2xl transition-all duration-220 ease-out ${slideClass}`}
-        >
+        <div className={`w-full max-w-2xl transition-all duration-220 ease-out ${slideClass}`}>
+
           {/* Step 1: Role */}
           {step === 1 && (
             <div>
@@ -192,7 +320,7 @@ export default function OnboardingPage() {
                 Step 1 of 3
               </p>
               <h1 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-2">
-                What best describes you?
+                Welcome! What best describes you?
               </h1>
               <p className="text-center text-white/40 mb-10">
                 We&apos;ll personalize your experience based on how you use Clip Dash.
@@ -224,72 +352,127 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+              {role && (
+                <p className="mt-4 text-center text-sm text-blue-400/70">
+                  {ROLE_WELCOME[role]}
+                </p>
+              )}
               <div className="mt-8 flex justify-end">
                 <button
                   onClick={() => goTo(2, "forward")}
-                  disabled={!canAdvanceStep1}
+                  disabled={!role}
                   className="rounded-full bg-gradient-to-r from-blue-400 to-purple-500 px-8 py-3 text-sm font-semibold text-black transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Continue →
+                  Set up my accounts →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Platforms */}
+          {/* Step 2: Connect Accounts */}
           {step === 2 && (
             <div>
               <p className="text-center text-xs font-medium tracking-widest uppercase text-blue-400/80 mb-3">
                 Step 2 of 3
               </p>
               <h1 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-2">
-                Which platforms are you on?
+                Connect your platforms
               </h1>
               <p className="text-center text-white/40 mb-10">
-                Select all that apply — Clip Dash posts to all of them at once.
+                Connect at least one account to start publishing. Add more later in Settings.
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {PLATFORMS.map((p) => {
-                  const selected = platforms.includes(p.key);
+                  const isConnected = connectedAccounts.includes(p.key);
+                  const isJustConnected = justConnected === p.key;
+                  const isBluesky = p.key === "bluesky";
                   return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() =>
-                        setPlatforms((prev) =>
-                          prev.includes(p.key)
-                            ? prev.filter((k) => k !== p.key)
-                            : [...prev, p.key]
-                        )
-                      }
-                      className={`group relative flex flex-col items-center gap-2.5 rounded-2xl border p-4 transition-all duration-200 ${
-                        selected
-                          ? "border-blue-400/50 bg-blue-500/10 shadow-[0_0_20px_rgba(96,165,250,0.08)]"
-                          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
-                      }`}
-                    >
-                      <div className={`transition-colors ${selected ? "text-white" : "text-white/50"}`}>
-                        {p.icon}
+                    <div key={p.key}>
+                      <div
+                        className={`flex items-center justify-between gap-4 rounded-2xl border p-4 transition-all duration-300 ${
+                          isConnected || isJustConnected
+                            ? "border-emerald-400/40 bg-emerald-500/[0.06]"
+                            : "border-white/10 bg-white/[0.03]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={isConnected ? "text-white" : "text-white/50"}>
+                            {p.icon}
+                          </div>
+                          <span className={`text-sm font-medium ${isConnected ? "text-white" : "text-white/60"}`}>
+                            {p.label}
+                          </span>
+                          {isConnected && (
+                            <span className="text-xs text-emerald-400 font-medium">Connected</span>
+                          )}
+                        </div>
+                        {isConnected ? (
+                          <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                            <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        ) : isBluesky ? (
+                          <button
+                            onClick={() => setShowBlueskyForm((v) => !v)}
+                            className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/70 hover:bg-white/10 hover:border-white/20 transition-all shrink-0"
+                          >
+                            {showBlueskyForm ? "Cancel" : "Connect"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => connectPlatform(p.key)}
+                            className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/70 hover:bg-white/10 hover:border-white/20 transition-all shrink-0"
+                          >
+                            Connect
+                          </button>
+                        )}
                       </div>
-                      <span className={`text-xs font-medium transition-colors ${selected ? "text-white" : "text-white/50"}`}>
-                        {p.label}
-                      </span>
-                      {selected && (
-                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
+                      {/* Bluesky inline form */}
+                      {isBluesky && showBlueskyForm && !isConnected && (
+                        <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+                          <p className="text-xs text-white/40">
+                            Use an{" "}
+                            <a
+                              href="https://bsky.app/settings/app-passwords"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline hover:text-white/60"
+                            >
+                              App Password
+                            </a>{" "}
+                            — not your main Bluesky password.
+                          </p>
+                          <input
+                            type="text"
+                            placeholder="Handle (e.g. you.bsky.social)"
+                            value={blueskyHandle}
+                            onChange={(e) => setBlueskyHandle(e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                          />
+                          <input
+                            type="password"
+                            placeholder="App Password"
+                            value={blueskyPassword}
+                            onChange={(e) => setBlueskyPassword(e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                          />
+                          {blueskyError && (
+                            <p className="text-xs text-red-400">{blueskyError}</p>
+                          )}
+                          <button
+                            onClick={connectBluesky}
+                            disabled={blueskyConnecting || !blueskyHandle || !blueskyPassword}
+                            className="w-full rounded-xl bg-sky-500/20 border border-sky-400/20 text-sky-400 text-sm font-medium py-2 hover:bg-sky-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {blueskyConnecting ? "Connecting…" : "Connect Bluesky"}
+                          </button>
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
-              {platforms.length > 0 && (
-                <p className="mt-4 text-center text-xs text-white/30">
-                  {platforms.length} platform{platforms.length > 1 ? "s" : ""} selected
-                </p>
-              )}
               <div className="mt-8 flex items-center justify-between">
                 <button
                   onClick={() => goTo(1, "back")}
@@ -297,57 +480,116 @@ export default function OnboardingPage() {
                 >
                   ← Back
                 </button>
-                <button
-                  onClick={() => goTo(3, "forward")}
-                  disabled={!canAdvanceStep2}
-                  className="rounded-full bg-gradient-to-r from-blue-400 to-purple-500 px-8 py-3 text-sm font-semibold text-black transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  Continue →
-                </button>
+                <div className="flex items-center gap-4">
+                  {connectedAccounts.length === 0 && (
+                    <button
+                      onClick={() => goTo(3, "forward")}
+                      className="text-sm text-white/30 hover:text-white/60 transition-colors"
+                    >
+                      Skip for now
+                    </button>
+                  )}
+                  <button
+                    onClick={() => goTo(3, "forward")}
+                    className="rounded-full bg-gradient-to-r from-blue-400 to-purple-500 px-8 py-3 text-sm font-semibold text-black transition-all hover:opacity-90"
+                  >
+                    Continue →
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Step 3: Challenge */}
+          {/* Step 3: Plan Selection */}
           {step === 3 && (
             <div>
               <p className="text-center text-xs font-medium tracking-widest uppercase text-blue-400/80 mb-3">
                 Step 3 of 3
               </p>
               <h1 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-2">
-                What&apos;s your biggest challenge?
+                Choose your plan
               </h1>
-              <p className="text-center text-white/40 mb-10">
-                Help us show you the most useful features first.
+              <p className="text-center text-white/40 mb-2">
+                7-day free trial. No charge until trial ends. Cancel anytime.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {CHALLENGES.map((ch) => (
-                  <button
-                    key={ch.key}
-                    type="button"
-                    onClick={() => setChallenge(ch.key)}
-                    className={`group relative flex items-center gap-4 rounded-2xl border p-5 text-left transition-all duration-200 ${
-                      challenge === ch.key
-                        ? "border-blue-400/50 bg-blue-500/10 shadow-[0_0_30px_rgba(96,165,250,0.1)]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <span className="text-2xl shrink-0">{ch.emoji}</span>
-                    <div>
-                      <div className="font-semibold text-white">{ch.label}</div>
-                      <div className="text-sm text-white/40 mt-0.5">{ch.sub}</div>
-                    </div>
-                    {challenge === ch.key && (
-                      <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              {(role === "agency" || role === "brand") ? (
+                <p className="text-center text-sm text-blue-400/70 mb-8">
+                  Agencies and brands typically get the most from the Team plan — shared workspace and multi-member access.
+                </p>
+              ) : (
+                <div className="mb-8" />
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Creator */}
+                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
+                    Most Popular
+                  </div>
+                  <h3 className="text-lg font-semibold">Creator</h3>
+                  <div className="mt-3 mb-5">
+                    <span className="text-4xl font-bold">$9.99</span>
+                    <span className="text-white/40 text-sm ml-1">/month</span>
+                  </div>
+                  <ul className="space-y-2.5 text-sm text-white/60 mb-8 flex-1">
+                    {[
+                      "Unlimited uploads & scheduled posts",
+                      "All 6 platforms",
+                      "Multiple accounts per platform",
+                      "AI tag suggestions",
+                      "Unified comments inbox",
+                      "Analytics dashboard",
+                    ].map((feat) => (
+                      <li key={feat} className="flex items-start gap-2">
+                        <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
-                      </div>
-                    )}
+                        {feat}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => handleCheckout(CREATOR_PRICE_ID)}
+                    disabled={checkoutLoading || !CREATOR_PRICE_ID}
+                    className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {checkoutLoading ? "Loading…" : "Start free — 7 days, then $9.99/mo"}
                   </button>
-                ))}
+                </div>
+
+                {/* Team */}
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
+                  <h3 className="text-lg font-semibold">Team</h3>
+                  <div className="mt-3 mb-5">
+                    <span className="text-4xl font-bold">$19.99</span>
+                    <span className="text-white/40 text-sm ml-1">/month</span>
+                  </div>
+                  <ul className="space-y-2.5 text-sm text-white/60 mb-8 flex-1">
+                    {[
+                      "Everything in Creator",
+                      "Up to 5 team members",
+                      "Shared platform connections & scheduling",
+                      "Role-based permissions",
+                      "Shared uploads library & comments inbox",
+                      "Priority email support",
+                    ].map((feat) => (
+                      <li key={feat} className="flex items-start gap-2">
+                        <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        {feat}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => handleCheckout(TEAM_PRICE_ID)}
+                    disabled={checkoutLoading || !TEAM_PRICE_ID}
+                    className="w-full rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {checkoutLoading ? "Loading…" : "Start free — 7 days, then $19.99/mo"}
+                  </button>
+                </div>
               </div>
-              <div className="mt-8 flex items-center justify-between">
+              <div className="mt-6 flex items-center justify-between">
                 <button
                   onClick={() => goTo(2, "back")}
                   className="rounded-full border border-white/10 px-6 py-3 text-sm text-white/50 hover:text-white/80 hover:border-white/20 transition-all"
@@ -356,14 +598,15 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={finish}
-                  disabled={!canAdvanceStep3 || submitting}
-                  className="rounded-full bg-gradient-to-r from-blue-400 to-purple-500 px-8 py-3 text-sm font-semibold text-black transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
+                  disabled={submitting}
+                  className="text-sm text-white/30 hover:text-white/60 transition-colors disabled:cursor-not-allowed"
                 >
-                  {submitting ? "Setting up…" : "Go to Dashboard →"}
+                  {submitting ? "Setting up…" : "Skip for now →"}
                 </button>
               </div>
             </div>
           )}
+
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { verifyOAuthState } from "@/lib/oauthState";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -150,7 +151,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
     }
 
-    return NextResponse.redirect(`${siteUrl}/settings?connected=youtube`);
+    const cookieStore = cookies();
+    const inOnboarding = cookieStore.get("clip-onboarding")?.value === "1";
+    const redirectPath = inOnboarding ? "/onboarding" : "/settings";
+    const response = NextResponse.redirect(`${siteUrl}${redirectPath}?connected=youtube`);
+    if (inOnboarding) {
+      response.cookies.set("clip-onboarding", "", { maxAge: 0, path: "/" });
+    }
+    return response;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
   }

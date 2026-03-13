@@ -227,7 +227,7 @@ export default function WelcomePage() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 mb-6 text-left space-y-3">
             <p className="text-xs font-medium text-white/40 uppercase tracking-widest mb-2">Next steps</p>
             {[
-              { icon: "🔗", text: "Connect your social accounts", link: "/settings" },
+              { icon: "🔗", text: "Add more social accounts", link: "/settings" },
               { icon: "📤", text: "Upload and schedule your first video", link: "/uploads" },
               { icon: "📊", text: "See your analytics after posting", link: "/analytics" },
             ].map((item, i) => (

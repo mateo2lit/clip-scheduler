@@ -8,6 +8,7 @@ import {
 } from "@/lib/instagram";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { verifyOAuthState } from "@/lib/oauthState";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -105,7 +106,14 @@ export async function GET(req: Request) {
     }
 
     const siteUrl = getSiteUrl(req);
-    return NextResponse.redirect(`${siteUrl}/settings?connected=instagram`);
+    const cookieStore = cookies();
+    const inOnboarding = cookieStore.get("clip-onboarding")?.value === "1";
+    const redirectPath = inOnboarding ? "/onboarding" : "/settings";
+    const response = NextResponse.redirect(`${siteUrl}${redirectPath}?connected=instagram`);
+    if (inOnboarding) {
+      response.cookies.set("clip-onboarding", "", { maxAge: 0, path: "/" });
+    }
+    return response;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
   }
