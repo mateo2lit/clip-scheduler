@@ -24,8 +24,7 @@ jobs:
       - name: Install yt-dlp and ffmpeg
         run: |
           sudo apt-get install -y ffmpeg -qq
-          sudo curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-          sudo chmod a+rx /usr/local/bin/yt-dlp
+          pip install --upgrade yt-dlp curl_cffi
 
       - name: Mark job as fetching
         run: |
