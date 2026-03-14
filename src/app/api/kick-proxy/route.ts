@@ -40,10 +40,16 @@ export async function GET(req: Request) {
       });
       debug[apiUrl] = res.status;
       if (res.ok) {
-        const d = await res.json() as any;
-        const clip_url = d.clip_url ?? d.video_url ?? d.url ?? null;
+        const raw = await res.text();
+        debug[`${apiUrl}:body`] = raw.slice(0, 400);
+        const d = JSON.parse(raw) as any;
+        // Check top-level and common nested structures
+        const clip_url =
+          d.clip_url ?? d.video_url ?? d.url ?? d.source ??
+          d.data?.clip_url ?? d.data?.video_url ??
+          d.clip?.clip_url ?? d.clip?.video_url ?? null;
         if (clip_url) {
-          return Response.json({ ok: true, clip_url, title: d.title ?? null, duration: d.duration ?? null, source: "api" });
+          return Response.json({ ok: true, clip_url, title: d.title ?? d.data?.title ?? null, duration: d.duration ?? d.data?.duration ?? null, source: "api" });
         }
       }
     } catch (e: any) { debug[apiUrl] = e?.message; }
@@ -87,11 +93,21 @@ export async function GET(req: Request) {
         }
       }
 
-      // Raw regex scan
+      // Raw regex scan for clip_url field
       const rawMatch = html.match(/"clip_url"\s*:\s*"(https?:[^"]+)"/);
       if (rawMatch) {
         return Response.json({ ok: true, clip_url: rawMatch[1].replace(/\\\//g, "/"), title: null, duration: null, source: "html_raw" });
       }
+
+      // Broadest fallback: any .mp4 URL from a known Kick/video CDN
+      const mp4Match = html.match(/https:\/\/[^"' ]*(?:kick\.com|clipdash|vod\.|clips\.|media\.)[^"' ]*\.mp4[^"' ]*/);
+      if (mp4Match) {
+        return Response.json({ ok: true, clip_url: mp4Match[0].replace(/\\\//g, "/"), title: null, duration: null, source: "html_mp4" });
+      }
+
+      // Log a snippet around "clip_url" if present to see the actual format
+      const snippetIdx = html.indexOf("clip_url");
+      if (snippetIdx !== -1) debug[`${targetUrl}:clip_url_ctx`] = html.slice(snippetIdx, snippetIdx + 150);
     } catch (e: any) { debug[targetUrl] = e?.message; }
   }
 
