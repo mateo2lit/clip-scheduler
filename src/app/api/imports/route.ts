@@ -90,9 +90,13 @@ export async function POST(req: Request) {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clipdash.org";
         const workerSecret = process.env.WORKER_SECRET || "";
         try {
+          const abort = new AbortController();
+          const timeout = setTimeout(() => abort.abort(), 5000);
           const proxyRes = await fetch(
-            `${siteUrl}/api/kick-proxy?token=${encodeURIComponent(workerSecret)}&clipId=${encodeURIComponent(clipId)}&url=${encodeURIComponent(url)}`
+            `${siteUrl}/api/kick-proxy?token=${encodeURIComponent(workerSecret)}&clipId=${encodeURIComponent(clipId)}&url=${encodeURIComponent(url)}`,
+            { signal: abort.signal }
           );
+          clearTimeout(timeout);
           if (proxyRes.ok) {
             const d = await proxyRes.json() as any;
             if (d.ok) {
