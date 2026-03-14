@@ -2634,11 +2634,18 @@ export default function UploadsPage() {
       <ImportModal
         token={accessToken}
         onClose={() => setShowImportModal(false)}
-        onImported={(uploadId, importedTitle) => {
+        onImported={async (uploadId, importedTitle) => {
           setShowImportModal(false);
           setLastUploadId(uploadId);
           setTitle(importedTitle);
           setStep("details");
+          try {
+            const res = await fetch(`/api/uploads/${uploadId}`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const json = await res.json();
+            if (json.ok && json.signedUrl) setVideoPreviewUrl(json.signedUrl);
+          } catch {}
         }}
       />
     )}
