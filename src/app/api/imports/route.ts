@@ -76,39 +76,6 @@ export async function POST(req: Request) {
 
     const sourcePlatform = detectPlatform(url);
 
-    // For Kick: prefetch clip metadata + direct CDN URL from Vercel
-    // (GitHub Actions IPs are blocked by Kick's API; Vercel IPs are not)
-    let kickDirectUrl: string | null = null;
-    let kickTitle: string | null = null;
-    let kickDuration: number | null = null;
-
-    if (sourcePlatform === "kick") {
-      const clipIdMatch = url.match(/clips\/([a-zA-Z0-9_-]+)/i);
-      const clipId = clipIdMatch?.[1];
-      if (clipId) {
-        // Call our Edge proxy (runs on Cloudflare, bypasses Kick's datacenter IP block)
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clipdash.org";
-        const workerSecret = process.env.WORKER_SECRET || "";
-        try {
-          const abort = new AbortController();
-          const timeout = setTimeout(() => abort.abort(), 5000);
-          const proxyRes = await fetch(
-            `${siteUrl}/api/kick-proxy?token=${encodeURIComponent(workerSecret)}&clipId=${encodeURIComponent(clipId)}&url=${encodeURIComponent(url)}`,
-            { signal: abort.signal }
-          );
-          clearTimeout(timeout);
-          if (proxyRes.ok) {
-            const d = await proxyRes.json() as any;
-            if (d.ok) {
-              kickDirectUrl = d.clip_url ?? null;
-              kickTitle = d.title ?? null;
-              kickDuration = typeof d.duration === "number" ? d.duration : null;
-            }
-          }
-        } catch {}
-      }
-    }
-
     // Create import job
     const { data: job, error: jobErr } = await supabaseAdmin
       .from("import_jobs")
@@ -118,8 +85,6 @@ export async function POST(req: Request) {
         url,
         source_platform: sourcePlatform,
         status: "pending",
-        ...(kickTitle ? { title: kickTitle } : {}),
-        ...(kickDuration ? { duration_seconds: kickDuration } : {}),
       })
       .select("id")
       .single();
@@ -149,9 +114,6 @@ export async function POST(req: Request) {
               url,
               team_id: teamId,
               user_id: userId,
-              ...(kickDirectUrl ? { direct_url: kickDirectUrl } : {}),
-              ...(kickTitle ? { prefetched_title: kickTitle } : {}),
-              ...(kickDuration != null ? { prefetched_duration: String(kickDuration) } : {}),
             },
           }),
         }
