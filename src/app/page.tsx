@@ -13,6 +13,10 @@ const FAQ_ITEMS = [
     a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky — 6 platforms total.",
   },
   {
+    q: "Can I import clips from Twitch or Kick?",
+    a: "Yes. Paste a Twitch or Kick clip link on the uploads page and Clip Dash imports it into your library so you can cross-post it across your connected platforms.",
+  },
+  {
     q: "How many social accounts can I connect per platform?",
     a: "Unlimited. Connect multiple YouTube channels, TikTok accounts, Instagram profiles, and more. When scheduling, you choose which accounts to post to — including all of them at once with a single upload.",
   },
@@ -152,7 +156,7 @@ export default function Home() {
           </span>
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-          Stop logging into 6 apps to post the same video. Upload once to Clip Dash and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky — automatically.
+          Stop logging into 6 apps to post the same video. Upload once to Clip Dash and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky — automatically. You can also paste Twitch or Kick clip links and schedule them for cross-posting in seconds.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {loaded && (
@@ -271,6 +275,16 @@ export default function Home() {
             {
               icon: (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m13.19 8.688 4.505-4.504a3 3 0 1 1 4.243 4.242l-4.504 4.505m-4.243-4.243-4.505 4.505a3 3 0 0 0 4.243 4.243l4.504-4.505m-8.747-1.414 1.414 1.414" />
+                </svg>
+              ),
+              title: "Import Twitch & Kick Clips by URL",
+              desc: "Paste a Twitch or Kick clip link and turn it into a scheduled cross-post without manual downloading or re-uploading.",
+              color: "emerald",
+            },
+            {
+              icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                 </svg>
               ),
@@ -337,7 +351,7 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { step: "1", title: "Upload once", desc: "Drop your video, add a title and description, generate AI hashtag suggestions, and set a custom thumbnail — all in one place." },
+            { step: "1", title: "Upload or import", desc: "Drop your video file or paste a Twitch/Kick clip link, then add your title, description, hashtags, and thumbnail in one place." },
             { step: "2", title: "Pick platforms and accounts", desc: "Select which platforms to post to. If you have multiple YouTube channels or TikTok accounts, choose which ones to post to — or all of them at once." },
             { step: "3", title: "Schedule and relax", desc: "Set a time, hit schedule, and walk away. No re-uploading, no re-logging in. Clip Dash posts automatically and all your comments land in one unified inbox." },
           ].map((s) => (
