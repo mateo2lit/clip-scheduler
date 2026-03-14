@@ -104,8 +104,22 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
+  function hasMultipleUrls(input: string) {
+    const matches = input.match(/https?:\/\//gi) || [];
+    return matches.length > 1;
+  }
+
   async function startImport() {
     setSubmitError(null);
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setSubmitError("URL is required.");
+      return;
+    }
+    if (hasMultipleUrls(trimmedUrl)) {
+      setSubmitError("Please paste a single URL.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/imports", {
@@ -114,7 +128,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: trimmedUrl }),
       });
       const json = await res.json();
       if (!json.ok) {
