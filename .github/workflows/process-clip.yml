@@ -1,0 +1,165 @@
+name: Process Clip (Vertical Conversion)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "vertical_conversions row ID"
+        required: true
+      source_file_path:
+        description: "Source file path in Supabase Storage (clips bucket)"
+        required: true
+      team_id:
+        description: "Team ID"
+        required: true
+      user_id:
+        description: "User ID"
+        required: true
+      style:
+        description: "Conversion style: crop or blur"
+        required: true
+        default: "blur"
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install ffmpeg
+        run: sudo apt-get install -y ffmpeg -qq
+
+      - name: Mark job as processing
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/vertical_conversions?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"processing\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Download source from Supabase Storage
+        run: |
+          HTTP_STATUS=$(curl -sS -o /tmp/source.mp4 -w "%{http_code}" \
+            --max-time 600 \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.source_file_path }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+
+          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
+            echo "Download failed with HTTP status $HTTP_STATUS"
+            exit 1
+          fi
+
+          if [ ! -s /tmp/source.mp4 ]; then
+            echo "Downloaded file is empty"
+            exit 1
+          fi
+
+          # Validate it's a real video
+          if ! ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/source.mp4 > /tmp/ffprobe_out.txt 2>/tmp/ffprobe_err.txt; then
+            echo "Source is not a valid video file"
+            cat /tmp/ffprobe_err.txt
+            exit 1
+          fi
+
+      - name: Convert to vertical
+        run: |
+          STYLE="${{ inputs.style }}"
+
+          if [ "$STYLE" = "crop" ]; then
+            ffmpeg -i /tmp/source.mp4 \
+              -vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920" \
+              -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -r 30 \
+              -c:a aac -b:a 128k \
+              -movflags +faststart \
+              /tmp/output.mp4 -y \
+              2>/tmp/convert_log.txt
+          else
+            # blur (default)
+            ffmpeg -i /tmp/source.mp4 \
+              -filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:5[bg];[0:v]scale=-1:720[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2" \
+              -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -r 30 \
+              -c:a aac -b:a 128k \
+              -movflags +faststart \
+              /tmp/output.mp4 -y \
+              2>/tmp/convert_log.txt
+          fi
+
+          if [ ! -s /tmp/output.mp4 ]; then
+            echo "Conversion failed - output missing"
+            tail -10 /tmp/convert_log.txt
+            exit 1
+          fi
+
+          # Enforce 2 GB limit
+          ACTUAL_SIZE=$(stat -c%s /tmp/output.mp4)
+          if [ "$ACTUAL_SIZE" -gt 2147483648 ]; then
+            echo "Output exceeds 2 GB limit ($ACTUAL_SIZE bytes)"
+            exit 1
+          fi
+
+          echo "ACTUAL_SIZE=${ACTUAL_SIZE}" >> $GITHUB_ENV
+
+      - name: Upload to Supabase Storage
+        run: |
+          FILE_PATH="${{ inputs.team_id }}/${{ inputs.job_id }}_vertical.mp4"
+
+          HTTP_STATUS=$(curl -sS -o /tmp/upload_response.txt -w "%{http_code}" \
+            --max-time 600 \
+            -X POST \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${FILE_PATH}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: video/mp4" \
+            --data-binary @/tmp/output.mp4)
+
+          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
+            echo "Storage upload failed with status $HTTP_STATUS:"
+            cat /tmp/upload_response.txt
+            exit 1
+          fi
+
+          echo "FILE_PATH=${FILE_PATH}" >> $GITHUB_ENV
+
+      - name: Create uploads row and mark job done
+        run: |
+          UPLOAD_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          UPLOAD_STATUS=$(curl -sS -o /tmp/upload_row_response.txt -w "%{http_code}" \
+            -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/uploads" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{\"id\":\"${UPLOAD_ID}\",\"user_id\":\"${{ inputs.user_id }}\",\"team_id\":\"${{ inputs.team_id }}\",\"bucket\":\"clips\",\"file_path\":\"${FILE_PATH}\",\"file_size\":${ACTUAL_SIZE},\"storage_deleted\":false}")
+
+          if [ "$UPLOAD_STATUS" != "201" ] && [ "$UPLOAD_STATUS" != "200" ]; then
+            echo "Failed to create uploads row (status $UPLOAD_STATUS):"
+            cat /tmp/upload_row_response.txt
+            exit 1
+          fi
+
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/vertical_conversions?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"done\",\"result_upload_id\":\"${UPLOAD_ID}\",\"updated_at\":\"${NOW}\"}"
+
+      - name: Mark failed on error
+        if: failure()
+        run: |
+          ERR_MSG="Conversion failed."
+          if [ -f /tmp/convert_log.txt ] && [ -s /tmp/convert_log.txt ]; then
+            SNIPPET=$(tail -3 /tmp/convert_log.txt | tr '\n' ' ' | sed 's/["\]//g' | cut -c1-250)
+            if [ -n "$SNIPPET" ]; then
+              ERR_MSG="$SNIPPET"
+            fi
+          fi
+
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/vertical_conversions?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"failed\",\"error\":\"${ERR_MSG}\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"

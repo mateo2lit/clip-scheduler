@@ -380,8 +380,18 @@ export default function UploadsPage() {
   // Object URL for the in-browser video preview
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
 
-  // Video duration (seconds), read client-side when file is selected
+  // Video duration (seconds) and dimensions, read client-side when file is selected
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [videoWidth, setVideoWidth] = useState<number | null>(null);
+  const [videoHeight, setVideoHeight] = useState<number | null>(null);
+
+  // Vertical conversion state
+  const [verticalEnabled, setVerticalEnabled] = useState(false);
+  const [verticalStyle, setVerticalStyle] = useState<"crop" | "blur">("blur");
+  const [conversionJobId, setConversionJobId] = useState<string | null>(null);
+  const [conversionStatus, setConversionStatus] = useState<"idle" | "pending" | "processing" | "done" | "failed">("idle");
+  const [verticalUploadId, setVerticalUploadId] = useState<string | null>(null);
+  const [conversionError, setConversionError] = useState<string | null>(null);
 
   // Instagram specific
   const [igType, setIgType] = useState<InstagramType>("reel");
@@ -702,6 +712,8 @@ export default function UploadsPage() {
     video.src = url;
     video.onloadedmetadata = () => {
       setVideoDuration(video.duration);
+      setVideoWidth(video.videoWidth);
+      setVideoHeight(video.videoHeight);
       URL.revokeObjectURL(url);
     };
     video.onerror = () => URL.revokeObjectURL(url);
@@ -714,6 +726,28 @@ export default function UploadsPage() {
     setVideoPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  // Poll vertical conversion job status
+  useEffect(() => {
+    if (!conversionJobId || conversionStatus === "done" || conversionStatus === "failed") return;
+    const interval = setInterval(async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`/api/conversions/${conversionJobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.ok && json.job) {
+          setConversionStatus(json.job.status);
+          if (json.job.status === "done") setVerticalUploadId(json.job.result_upload_id);
+          if (json.job.status === "failed") setConversionError(json.job.error);
+        }
+      } catch {}
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [conversionJobId, conversionStatus]);
 
   // Compute TikTok validation
   const ttValidationError = useMemo(() => {
@@ -950,6 +984,13 @@ export default function UploadsPage() {
 
   async function handleSchedule(asDraft: boolean = false) {
     if (!userId || !lastUploadId) return;
+
+    // Guard: vertical conversion still in progress
+    if (verticalEnabled && conversionStatus !== "done") {
+      alert("Vertical conversion still in progress. Please wait for it to finish.");
+      return;
+    }
+
     setScheduling(true);
 
     try {
@@ -998,7 +1039,7 @@ export default function UploadsPage() {
         for (const accountId of idsToPost) {
         const body: any = {
           group_id: groupId,
-          upload_id: lastUploadId,
+          upload_id: (verticalEnabled && verticalUploadId) ? verticalUploadId : lastUploadId,
           provider: platform,
           platform_account_id: accountId,
           title: title || null,
@@ -1221,6 +1262,33 @@ export default function UploadsPage() {
     setTtBrandOrganic(false);
     setTtBrandContent(false);
     setTtCreatorInfo(null);
+    // Reset vertical conversion state
+    setVerticalEnabled(false);
+    setVerticalStyle("blur");
+    setConversionJobId(null);
+    setConversionStatus("idle");
+    setVerticalUploadId(null);
+    setConversionError(null);
+  }
+
+  async function startConversion() {
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    if (!token || !lastUploadId) return;
+    setConversionStatus("pending");
+    setConversionError(null);
+    const res = await fetch("/api/conversions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ upload_id: lastUploadId, style: verticalStyle }),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      setConversionJobId(json.jobId);
+    } else {
+      setConversionStatus("failed");
+      setConversionError(json.error || "Failed to start conversion.");
+    }
   }
 
   return (
@@ -1481,6 +1549,82 @@ export default function UploadsPage() {
                 </div>
               )}
             </div>
+
+            {/* Video Format — Vertical Conversion */}
+            {lastUploadId && videoWidth !== null && videoHeight !== null && videoHeight <= videoWidth && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="mb-3 text-sm text-white/70">Video format</div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium text-white">Convert to vertical (9:16)</span>
+                    <p className="text-xs text-white/40 mt-0.5">For Shorts, Reels &amp; TikTok</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={verticalEnabled}
+                    onClick={() => {
+                      const next = !verticalEnabled;
+                      setVerticalEnabled(next);
+                      if (next && conversionStatus === "idle") {
+                        startConversion();
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${verticalEnabled ? "bg-blue-500" : "bg-white/20"}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${verticalEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+
+                {verticalEnabled && (
+                  <div className="mt-3 space-y-3">
+                    {/* Style picker — disabled once conversion has started */}
+                    <div className="flex gap-2">
+                      {(["blur", "crop"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          disabled={conversionStatus !== "idle"}
+                          onClick={() => setVerticalStyle(s)}
+                          className={`flex-1 rounded-xl border px-3 py-2 text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${verticalStyle === s ? "border-blue-400/50 bg-blue-400/15 text-blue-200" : "border-white/10 bg-white/5 text-white/50 hover:border-white/20 hover:text-white/70"}`}
+                        >
+                          {s === "blur" ? "Blur background" : "Crop center"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Status indicator */}
+                    {(conversionStatus === "pending" || conversionStatus === "processing") && (
+                      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                        <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-blue-400" />
+                        <span className="text-xs text-white/60">
+                          {conversionStatus === "pending" ? "Queued…" : "Converting…"}
+                        </span>
+                        <div className="ml-auto h-1.5 flex-1 max-w-24 overflow-hidden rounded-full bg-white/10">
+                          <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-400/60" />
+                        </div>
+                      </div>
+                    )}
+                    {conversionStatus === "done" && (
+                      <div className="flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2">
+                        <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-xs text-green-300">Vertical version ready</span>
+                      </div>
+                    )}
+                    {conversionStatus === "failed" && (
+                      <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2">
+                        <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="text-xs text-red-300">{conversionError || "Conversion failed."}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Main Content Area */}
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
@@ -2571,9 +2715,12 @@ export default function UploadsPage() {
 
             {/* Action Buttons */}
             {(() => {
-              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError;
+              const verticalPending = verticalEnabled && conversionStatus !== "done";
+              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || verticalPending;
               const blockReason = selectedPlatforms.length === 0
                 ? "Select at least one platform"
+                : verticalPending
+                ? "Waiting for vertical conversion…"
                 : ttValidationError || null;
               return (
                 <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950 overflow-hidden">
