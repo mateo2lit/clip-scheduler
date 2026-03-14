@@ -78,20 +78,14 @@ jobs:
 
       - name: Download clip
         run: |
-          # For Kick with no prefetched URL, try HTML scraping from the runner
           EFFECTIVE_DIRECT_URL="${{ inputs.direct_url }}"
+
+          # Kick clips require a direct CDN URL pre-fetched by the import route (GitHub
+          # Actions IPs are blocked by Kick's API and HTML). If direct_url is empty for
+          # a Kick clip, fail early with a clear message rather than a cryptic 403.
           if [ -z "$EFFECTIVE_DIRECT_URL" ] && echo "${{ inputs.url }}" | grep -qi "kick\.com"; then
-            echo "Trying Kick HTML scrape from runner…" | tee /tmp/download_log.txt
-            EFFECTIVE_DIRECT_URL=$(curl -sL --max-time 20 \
-              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-              -H "Accept: text/html,*/*" \
-              -H "Accept-Language: en-US,en;q=0.9" \
-              -H "Referer: https://kick.com/" \
-              "${{ inputs.url }}" 2>>/tmp/download_log.txt \
-              | grep -o '"clip_url":"https://[^"]*"' \
-              | grep -o 'https://[^"]*' \
-              | head -1 || echo "")
-            [ -n "$EFFECTIVE_DIRECT_URL" ] && echo "HTML scrape succeeded: $EFFECTIVE_DIRECT_URL" | tee -a /tmp/download_log.txt || echo "HTML scrape failed, will try yt-dlp" | tee -a /tmp/download_log.txt
+            echo "Kick import requires a direct CDN URL (not available — metadata fetch may have failed)" | tee /tmp/download_log.txt
+            exit 1
           fi
 
           if [ -n "$EFFECTIVE_DIRECT_URL" ]; then

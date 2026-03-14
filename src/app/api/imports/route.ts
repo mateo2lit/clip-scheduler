@@ -76,6 +76,46 @@ export async function POST(req: Request) {
 
     const sourcePlatform = detectPlatform(url);
 
+    // For Kick: prefetch direct CDN URL from Vercel Edge (Cloudflare IPs aren't blocked by Kick;
+    // GitHub Actions datacenter IPs are). Without the direct URL the workflow will always 403.
+    let kickDirectUrl: string | null = null;
+    let kickTitle: string | null = null;
+    let kickDuration: number | null = null;
+
+    if (sourcePlatform === "kick") {
+      const clipIdMatch = url.match(/clips\/([a-zA-Z0-9_-]+)/i);
+      const clipId = clipIdMatch?.[1];
+      if (!clipId) {
+        return NextResponse.json({ ok: false, error: "Could not parse Kick clip ID from URL." }, { status: 400 });
+      }
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clipdash.org";
+      const workerSecret = process.env.WORKER_SECRET || "";
+      try {
+        const abort = new AbortController();
+        const timeout = setTimeout(() => abort.abort(), 8000);
+        const proxyRes = await fetch(
+          `${siteUrl}/api/kick-proxy?token=${encodeURIComponent(workerSecret)}&clipId=${encodeURIComponent(clipId)}&url=${encodeURIComponent(url)}`,
+          { signal: abort.signal }
+        );
+        clearTimeout(timeout);
+        if (proxyRes.ok) {
+          const d = await proxyRes.json() as any;
+          if (d.ok && d.clip_url) {
+            kickDirectUrl = d.clip_url;
+            kickTitle = d.title ?? null;
+            kickDuration = typeof d.duration === "number" ? d.duration : null;
+          }
+        }
+      } catch {}
+
+      if (!kickDirectUrl) {
+        return NextResponse.json(
+          { ok: false, error: "Could not fetch Kick clip metadata — the clip may be private, deleted, or Kick's API is temporarily unavailable." },
+          { status: 502 }
+        );
+      }
+    }
+
     // Create import job
     const { data: job, error: jobErr } = await supabaseAdmin
       .from("import_jobs")
@@ -85,6 +125,8 @@ export async function POST(req: Request) {
         url,
         source_platform: sourcePlatform,
         status: "pending",
+        ...(kickTitle ? { title: kickTitle } : {}),
+        ...(kickDuration ? { duration_seconds: kickDuration } : {}),
       })
       .select("id")
       .single();
@@ -114,6 +156,9 @@ export async function POST(req: Request) {
               url,
               team_id: teamId,
               user_id: userId,
+              ...(kickDirectUrl ? { direct_url: kickDirectUrl } : {}),
+              ...(kickTitle ? { prefetched_title: kickTitle } : {}),
+              ...(kickDuration != null ? { prefetched_duration: String(kickDuration) } : {}),
             },
           }),
         }

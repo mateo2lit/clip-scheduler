@@ -23,46 +23,71 @@ export async function GET(req: Request) {
     Origin: "https://kick.com",
   };
 
-  // Try JSON API
-  try {
-    const res = await fetch(`https://kick.com/api/v2/clips/${clipId}`, {
-      headers: { ...browserHeaders, Accept: "application/json" },
-    });
-    if (res.ok) {
-      const d = await res.json() as any;
-      return Response.json({
-        ok: true,
-        clip_url: d.clip_url ?? d.video_url ?? null,
-        title: d.title ?? null,
-        duration: d.duration ?? null,
-        source: "api",
-      });
-    }
-  } catch {}
-
-  // Fallback: scrape page HTML for __NEXT_DATA__
-  if (pageUrl) {
+  // Try JSON API v2
+  for (const apiUrl of [
+    `https://kick.com/api/v2/clips/${clipId}`,
+    `https://kick.com/api/v1/clips/${clipId}`,
+  ]) {
     try {
-      const res = await fetch(pageUrl, { headers: { ...browserHeaders, Accept: "text/html,*/*" } });
+      const res = await fetch(apiUrl, {
+        headers: { ...browserHeaders, Accept: "application/json" },
+      });
       if (res.ok) {
-        const html = await res.text();
-        const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-        if (match) {
-          const data = JSON.parse(match[1]) as any;
-          const clip = data?.props?.pageProps?.clip ?? data?.props?.pageProps?.data?.clip;
-          if (clip?.clip_url) {
-            return Response.json({
-              ok: true,
-              clip_url: clip.clip_url,
-              title: clip.title ?? null,
-              duration: clip.duration ?? null,
-              source: "html",
-            });
-          }
+        const d = await res.json() as any;
+        const clip_url = d.clip_url ?? d.video_url ?? d.url ?? null;
+        if (clip_url) {
+          return Response.json({
+            ok: true,
+            clip_url,
+            title: d.title ?? null,
+            duration: d.duration ?? null,
+            source: "api",
+          });
         }
       }
     } catch {}
   }
+
+  // Fallback: scrape page HTML
+  const targetUrl = pageUrl ?? `https://kick.com/clips/${clipId}`;
+  try {
+    const res = await fetch(targetUrl, { headers: { ...browserHeaders, Accept: "text/html,*/*" } });
+    if (res.ok) {
+      const html = await res.text();
+
+      // Try __NEXT_DATA__ JSON blob first
+      const ndMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+      if (ndMatch) {
+        try {
+          const data = JSON.parse(ndMatch[1]) as any;
+          const pp = data?.props?.pageProps ?? {};
+          const clip = pp.clip ?? pp.data?.clip ?? pp.clipData ?? null;
+          const clip_url = clip?.clip_url ?? clip?.video_url ?? clip?.url ?? null;
+          if (clip_url) {
+            return Response.json({
+              ok: true,
+              clip_url: clip_url.replace(/\\\//g, "/"),
+              title: clip?.title ?? null,
+              duration: clip?.duration ?? null,
+              source: "html_next",
+            });
+          }
+        } catch {}
+      }
+
+      // Last resort: regex scan the raw HTML for clip_url value
+      const m = html.match(/"clip_url"\s*:\s*"(https?:[^"]+)"/);
+      if (m) {
+        return Response.json({
+          ok: true,
+          clip_url: m[1].replace(/\\\//g, "/"),
+          title: null,
+          duration: null,
+          source: "html_raw",
+        });
+      }
+    }
+  } catch {}
 
   return Response.json({ ok: false, error: "Could not retrieve clip info" }, { status: 502 });
 }
