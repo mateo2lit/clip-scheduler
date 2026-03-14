@@ -105,6 +105,24 @@ jobs:
               echo "Direct download produced no file" | tee -a /tmp/download_log.txt
               exit 1
             fi
+
+            # Some Kick direct URLs are HLS playlists (m3u8), not MP4 binaries.
+            # Detect and remux to a local MP4 first so downstream ffprobe/transcode works.
+            if head -c 16 /tmp/clip_source | grep -q "#EXTM3U"; then
+              echo "Direct URL returned HLS playlist; remuxing to MP4..." | tee -a /tmp/download_log.txt
+              ffmpeg \
+                -protocol_whitelist file,http,https,tcp,tls,crypto \
+                -headers "Referer: https://kick.com/\r\nOrigin: https://kick.com\r\nUser-Agent: Mozilla/5.0\r\n" \
+                -i "$EFFECTIVE_DIRECT_URL" \
+                -c copy -bsf:a aac_adtstoasc \
+                /tmp/clip_source_hls.mp4 -y \
+                2>>/tmp/download_log.txt
+              if [ ! -s /tmp/clip_source_hls.mp4 ]; then
+                echo "Failed to remux HLS playlist from Kick URL" | tee -a /tmp/download_log.txt
+                exit 1
+              fi
+              mv /tmp/clip_source_hls.mp4 /tmp/clip_source
+            fi
           else
             yt-dlp \
               --format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[ext!=webm]/best" \
@@ -131,9 +149,26 @@ jobs:
 
           # Validate source media (guards against HTML/error payloads saved as .mp4)
           if ! ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/clip_source >/tmp/ffprobe_video.txt 2>/tmp/ffprobe_err.txt; then
-            echo "Downloaded file is not a valid video stream" | tee -a /tmp/download_log.txt
-            cat /tmp/ffprobe_err.txt | tail -3 | tee -a /tmp/download_log.txt
-            exit 1
+            # Fallback for non-standard HLS responses: let yt-dlp resolve the direct URL.
+            if [ -n "$EFFECTIVE_DIRECT_URL" ]; then
+              echo "ffprobe failed on direct download; retrying via yt-dlp..." | tee -a /tmp/download_log.txt
+              yt-dlp \
+                --add-header "Referer: https://kick.com/" \
+                --add-header "Origin: https://kick.com" \
+                --no-playlist \
+                -o "/tmp/clip_retry.%(ext)s" \
+                "$EFFECTIVE_DIRECT_URL" \
+                2>&1 | tee -a /tmp/download_log.txt
+              RETRY_FILE=$(ls /tmp/clip_retry.* 2>/dev/null | grep -v '\.txt$' | head -1)
+              if [ -n "$RETRY_FILE" ] && [ -s "$RETRY_FILE" ]; then
+                cp "$RETRY_FILE" /tmp/clip_source
+              fi
+            fi
+            if ! ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/clip_source >/tmp/ffprobe_video.txt 2>/tmp/ffprobe_err.txt; then
+              echo "Downloaded file is not a valid video stream" | tee -a /tmp/download_log.txt
+              cat /tmp/ffprobe_err.txt | tail -3 | tee -a /tmp/download_log.txt
+              exit 1
+            fi
           fi
           if [ ! -s /tmp/ffprobe_video.txt ]; then
             echo "Downloaded file has no video stream" | tee -a /tmp/download_log.txt
