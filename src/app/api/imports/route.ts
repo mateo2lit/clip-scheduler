@@ -86,46 +86,22 @@ export async function POST(req: Request) {
       const clipIdMatch = url.match(/clips\/([a-zA-Z0-9_-]+)/i);
       const clipId = clipIdMatch?.[1];
       if (clipId) {
-        const browserHeaders = {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          Referer: "https://kick.com/",
-          Origin: "https://kick.com",
-        };
-
-        // Try JSON API first
+        // Call our Edge proxy (runs on Cloudflare, bypasses Kick's datacenter IP block)
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clipdash.org";
+        const workerSecret = process.env.WORKER_SECRET || "";
         try {
-          const kickRes = await fetch(`https://kick.com/api/v2/clips/${clipId}`, {
-            headers: { ...browserHeaders, Accept: "application/json" },
-          });
-          if (kickRes.ok) {
-            const d = await kickRes.json();
-            kickDirectUrl = d.clip_url ?? d.video_url ?? null;
-            kickTitle = d.title ?? null;
-            kickDuration = typeof d.duration === "number" ? d.duration : null;
+          const proxyRes = await fetch(
+            `${siteUrl}/api/kick-proxy?token=${encodeURIComponent(workerSecret)}&clipId=${encodeURIComponent(clipId)}&url=${encodeURIComponent(url)}`
+          );
+          if (proxyRes.ok) {
+            const d = await proxyRes.json() as any;
+            if (d.ok) {
+              kickDirectUrl = d.clip_url ?? null;
+              kickTitle = d.title ?? null;
+              kickDuration = typeof d.duration === "number" ? d.duration : null;
+            }
           }
         } catch {}
-
-        // Fallback: scrape the page HTML for __NEXT_DATA__ (works even when JSON API is blocked)
-        if (!kickDirectUrl) {
-          try {
-            const htmlRes = await fetch(url, {
-              headers: { ...browserHeaders, Accept: "text/html,application/xhtml+xml,*/*" },
-            });
-            if (htmlRes.ok) {
-              const html = await htmlRes.text();
-              const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-              if (match) {
-                const data = JSON.parse(match[1]);
-                const clip = data?.props?.pageProps?.clip ?? data?.props?.pageProps?.data?.clip;
-                if (clip) {
-                  kickDirectUrl = clip.clip_url ?? clip.video_url ?? null;
-                  kickTitle = clip.title ?? null;
-                  kickDuration = typeof clip.duration === "number" ? clip.duration : null;
-                }
-              }
-            }
-          } catch {}
-        }
       }
     }
 
