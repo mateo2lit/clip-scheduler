@@ -98,19 +98,19 @@ export async function POST(req: Request) {
           { signal: abort.signal }
         );
         clearTimeout(timeout);
-        if (proxyRes.ok) {
-          const d = await proxyRes.json() as any;
-          if (d.ok && d.clip_url) {
-            kickDirectUrl = d.clip_url;
-            kickTitle = d.title ?? null;
-            kickDuration = typeof d.duration === "number" ? d.duration : null;
-          }
+        const d = await proxyRes.json() as any;
+        if (d.ok && d.clip_url) {
+          kickDirectUrl = d.clip_url;
+          kickTitle = d.title ?? null;
+          kickDuration = typeof d.duration === "number" ? d.duration : null;
+        } else {
+          console.error("Kick proxy returned:", JSON.stringify(d));
         }
-      } catch {}
+      } catch (e: any) {
+        console.error("Kick proxy fetch error:", e?.message);
+      }
 
       if (!kickDirectUrl) {
-        // Log proxy debug info server-side for diagnosis
-        console.error("Kick proxy failed for", url);
         return NextResponse.json(
           { ok: false, error: "Could not fetch Kick clip metadata — the clip may be private, deleted, or Kick's API is temporarily unavailable. Check Vercel function logs for details." },
           { status: 502 }
