@@ -333,16 +333,6 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%) skewX(-15deg); }
-          100% { transform: translateX(300%) skewX(-15deg); }
-        }
-        .animate-shimmer {
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-          animation: shimmer 1.8s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }

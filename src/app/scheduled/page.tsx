@@ -697,6 +697,7 @@ export default function ScheduledPage() {
                               </div>
                             </div>
                           </div>
+                        </div>
                         {(isPosting || isPostingSoon) && (
                           <PostingBar intensity={isPosting ? "strong" : "soft"} />
                         )}
@@ -709,13 +710,6 @@ export default function ScheduledPage() {
           </div>
         )}
       </div>
-
-      <style>{`
-        @keyframes postingSlide {
-          0% { transform: translateX(-200%); }
-          100% { transform: translateX(500%); }
-        }
-      `}</style>
 
       {toast && (
         <div
