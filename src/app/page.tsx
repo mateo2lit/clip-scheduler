@@ -156,8 +156,7 @@ export default function Home() {
           </span>
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-          Stop logging into 6 apps to post the same video. Upload once to Clip Dash and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky — automatically. You can also paste Twitch or Kick clip links and schedule them for cross-posting in seconds.
-        </p>
+          Stop logging into 6 apps to post the same video. Upload once or use a Twitch/Kick clip link to auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky.</p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {loaded && (
             user ? (
