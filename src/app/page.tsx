@@ -211,47 +211,7 @@ export default function Home() {
             <path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/>
           </svg>
         </div>
-        {/* Product mockup */}
-        <div className="mt-12 mx-auto max-w-lg rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left">
-          <div className="flex items-center gap-3 mb-4 border-b border-white/[0.06] pb-4">
-            <div className="w-2 h-2 rounded-full bg-white/10" />
-            <div className="text-xs text-white/30 font-medium">New upload</div>
-          </div>
-          {/* Fake dropzone */}
-          <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] py-6 text-center mb-4">
-            <svg className="w-6 h-6 text-white/20 mx-auto mb-1.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-            <p className="text-xs text-white/25">my-video.mp4 — 284 MB</p>
-          </div>
-          {/* Platform checkboxes */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {[
-              { label: "YouTube", checked: true },
-              { label: "TikTok", checked: true },
-              { label: "Instagram", checked: true },
-              { label: "Facebook", checked: false },
-              { label: "LinkedIn", checked: false },
-              { label: "Bluesky", checked: false },
-            ].map((p) => (
-              <div key={p.label} className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs ${p.checked ? "border-blue-400/30 bg-blue-500/10 text-blue-300" : "border-white/10 text-white/25"}`}>
-                <div className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 ${p.checked ? "border-blue-400 bg-blue-400" : "border-white/20"}`}>
-                  {p.checked && <svg className="w-2 h-2 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                </div>
-                {p.label}
-              </div>
-            ))}
-          </div>
-          {/* Schedule row */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/30">
-              Tomorrow at 9:00 AM
-            </div>
-            <button className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-2 text-xs font-semibold text-white">
-              Schedule →
-            </button>
-          </div>
-        </div>
+        
       </section>
 
       {/* Features */}
