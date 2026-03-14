@@ -279,7 +279,7 @@ jobs:
           done
 
           # Normalize known provider-specific failures into user-friendly messages.
-          if grep -qi "Sign in to confirm you.?re not a bot" /tmp/download_log.txt 2>/dev/null; then
+          if grep -qiE "Sign in to confirm|confirm you're not a bot|confirm youre not a bot" /tmp/download_log.txt 2>/dev/null; then
             ERR_MSG="YouTube blocked automated download for this video (anti-bot check). Try another video, upload the file directly, or use a public clip URL."
           fi
 
