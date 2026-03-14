@@ -134,8 +134,23 @@ jobs:
 
             EXIT_CODE=${PIPESTATUS[0]}
             if [ "$EXIT_CODE" != "0" ]; then
-              echo "yt-dlp exited with code $EXIT_CODE"
-              exit 1
+              # Fallback pass for YouTube bot-check cases on datacenter IPs.
+              if echo "${{ inputs.url }}" | grep -qiE "youtube\.com|youtu\.be"; then
+                echo "Primary yt-dlp pass failed; retrying with alternate YouTube client..." | tee -a /tmp/download_log.txt
+                yt-dlp \
+                  --extractor-args "youtube:player_client=android,web,tv_embedded" \
+                  --format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[ext!=webm]/best" \
+                  --merge-output-format mp4 \
+                  --no-playlist \
+                  -o "/tmp/clip.%(ext)s" \
+                  "${{ inputs.url }}" \
+                  2>&1 | tee -a /tmp/download_log.txt
+                EXIT_CODE=${PIPESTATUS[0]}
+              fi
+              if [ "$EXIT_CODE" != "0" ]; then
+                echo "yt-dlp exited with code $EXIT_CODE"
+                exit 1
+              fi
             fi
 
             CLIP_FILE=$(ls /tmp/clip.* 2>/dev/null | grep -v '\.txt$' | head -1)
@@ -252,7 +267,7 @@ jobs:
         if: failure()
         run: |
           # Try to get a useful error snippet from logs
-          ERR_MSG="Import failed — the URL may be unsupported, the clip unavailable, or it exceeded the 2 GB limit."
+          ERR_MSG="Import failed - the URL may be unsupported, the clip unavailable, or it exceeded the 2 GB limit."
           for LOG in /tmp/download_log.txt /tmp/meta_err.txt; do
             if [ -f "$LOG" ] && [ -s "$LOG" ]; then
               SNIPPET=$(tail -3 "$LOG" | tr '\n' ' ' | sed 's/["\]//g' | cut -c1-250)
@@ -262,6 +277,12 @@ jobs:
               fi
             fi
           done
+
+          # Normalize known provider-specific failures into user-friendly messages.
+          if grep -qi "Sign in to confirm you.?re not a bot" /tmp/download_log.txt 2>/dev/null; then
+            ERR_MSG="YouTube blocked automated download for this video (anti-bot check). Try another video, upload the file directly, or use a public clip URL."
+          fi
+
           curl -sS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/import_jobs?id=eq.${{ inputs.job_id }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
