@@ -1340,7 +1340,7 @@ export default function UploadsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
               </svg>
               Import from URL
-              <span className="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/30">Twitch · Kick · YouTube · more</span>
+              <span className="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/30">Twitch · Kick</span>
             </button>
 
             {/* Per-platform limits cheat sheet */}

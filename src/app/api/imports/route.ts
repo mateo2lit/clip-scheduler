@@ -16,7 +16,7 @@ function detectPlatform(url: string): string {
   return "unknown";
 }
 
-const BLOCKED_DOMAINS = ["instagram.com", "tiktok.com", "facebook.com"];
+const BLOCKED_DOMAINS = ["instagram.com", "tiktok.com", "facebook.com", "youtube.com", "youtu.be"];
 
 export async function POST(req: Request) {
   try {
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     // Block platforms we post TO (no point importing from them)
     if (BLOCKED_DOMAINS.some((d) => url.includes(d))) {
       return NextResponse.json(
-        { ok: false, error: "Importing from Instagram, TikTok, or Facebook is not supported." },
+        { ok: false, error: "Importing from YouTube, Instagram, TikTok, or Facebook is not supported. Use Twitch or Kick links." },
         { status: 400 }
       );
     }

@@ -182,7 +182,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-semibold text-white">Import from URL</h2>
-            <p className="text-xs text-white/40 mt-0.5">Twitch, Kick, YouTube, Reddit, and more</p>
+            <p className="text-xs text-white/40 mt-0.5">Twitch and Kick clip links</p>
           </div>
           {!isActive && (
             <button
@@ -211,12 +211,8 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
               <p className="text-xs text-red-400 px-1">{submitError}</p>
             )}
             <div className="flex gap-2 text-[11px] text-white/30 px-1 flex-wrap">
-              <span>✓ Twitch</span>
-              <span>✓ Kick</span>
-              <span>✓ YouTube</span>
-              <span>✓ Reddit</span>
-              <span>✓ Vimeo</span>
-              <span className="text-white/20">+ 1000 more via yt-dlp</span>
+              <span>Twitch</span>
+              <span>Kick</span>
             </div>
             <button
               onClick={startImport}
