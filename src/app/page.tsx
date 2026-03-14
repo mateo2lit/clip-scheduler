@@ -365,6 +365,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Twitch/Kick Import */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 lg:p-10">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
+            <div>
+              <div className="inline-block rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                New: Twitch/Kick Import
+              </div>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+                Import clips by URL in seconds
+              </h2>
+              <p className="mt-4 max-w-xl text-white/50">
+                Paste a Twitch or Kick clip link, import it instantly, then schedule cross-posts without downloading and re-uploading files.
+              </p>
+              <div className="mt-6 space-y-2 text-sm text-white/70">
+                <div>1. Paste clip URL</div>
+                <div>2. Click Import</div>
+                <div>3. Schedule everywhere</div>
+              </div>
+              <a
+                href="/login"
+                className="mt-7 inline-block rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-white/90"
+              >
+                Try it free
+              </a>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-2">
+              <img
+                src="/twitch-kick-import.png"
+                alt="Clip Dash import modal showing Twitch and Kick URL import"
+                className="w-full rounded-xl border border-white/10"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Time Savings Value Prop */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
         <div className="rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden">
@@ -631,4 +669,3 @@ export default function Home() {
     </main>
   );
 }
-
