@@ -1478,29 +1478,33 @@ export default function UploadsPage() {
             <button
               onClick={() => setShowImportModal(true)}
               disabled={planActive === false}
-              className="mt-3 w-full flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/60 hover:bg-white/[0.06] hover:border-white/20 hover:text-white/80 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group mt-3 w-full rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-8 text-center backdrop-blur-xl transition-all hover:border-blue-400/30 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-              </svg>
-              Import from URL
-              <span className="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/30">Twitch · Kick</span>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] transition-colors group-hover:border-blue-400/30 group-hover:bg-blue-400/10">
+                <svg className="w-5 h-5 text-white/50 group-hover:text-blue-300 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Import from URL</p>
+              <p className="mt-1 text-xs text-white/35">Paste a clip link and we'll fetch it for you</p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Twitch</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Kick</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">+1000 sites</span>
+              </div>
             </button>
 
             {/* Per-platform limits cheat sheet */}
-            <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/30">Platform size limits</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-4">
-                {Object.entries(PLATFORM_SIZE_LIMITS)
-                  .filter(([, { maxBytes }]) => maxBytes <= 5 * 1024 * 1024 * 1024)
-                  .map(([platform, { label }]) => (
-                  <div key={platform} className="flex items-center justify-between gap-2">
-                    <span className="text-xs capitalize text-white/40">{platform}</span>
-                    <span className="text-xs font-medium text-white/60">{label}</span>
-                  </div>
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
+              {Object.entries(PLATFORM_SIZE_LIMITS)
+                .filter(([, { maxBytes }]) => maxBytes <= 5 * 1024 * 1024 * 1024)
+                .map(([platform, { label }]) => (
+                  <span key={platform} className="text-[11px] text-white/25">
+                    <span className="capitalize">{platform}</span>
+                    <span className="ml-1 text-white/40">{label}</span>
+                  </span>
                 ))}
-              </div>
-              <p className="mt-2.5 text-[10px] text-white/20">YouTube (256 GB) and Facebook (10 GB) limits not shown — unlikely to be reached.</p>
+              <span className="text-[11px] text-white/20">· YT &amp; FB limits omitted</span>
             </div>
           </div>
         )}
