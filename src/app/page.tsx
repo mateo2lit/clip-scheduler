@@ -93,6 +93,7 @@ function FaqAccordion() {
 export default function Home() {
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [importShotError, setImportShotError] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -370,8 +371,8 @@ export default function Home() {
         <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 lg:p-10">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
             <div>
-              <div className="inline-block rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
-                New: Twitch/Kick Import
+              <div className="inline-block rounded-full border border-blue-400/30 bg-gradient-to-r from-blue-500/15 to-purple-500/15 px-3 py-1 text-xs font-medium text-blue-300">
+                Twitch/Kick Clip Import
               </div>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
                 Import clips by URL in seconds
@@ -388,16 +389,37 @@ export default function Home() {
                 href="/login"
                 className="mt-7 inline-block rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-white/90"
               >
-                Try it free
+                Start free — 7 days free
               </a>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-2">
-              <img
-                src="/twitch-kick-import.png"
-                alt="Clip Dash import modal showing Twitch and Kick URL import"
-                className="w-full rounded-xl border border-white/10"
-              />
+            <div className="rounded-2xl border border-blue-400/20 bg-gradient-to-br from-blue-500/[0.06] to-purple-500/[0.06] p-2">
+              {!importShotError ? (
+                <img
+                  src="/twitch-kick-import.png"
+                  alt="Clip Dash import modal showing Twitch and Kick URL import"
+                  className="w-full rounded-xl border border-white/10"
+                  onError={() => setImportShotError(true)}
+                />
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-[#080a12] p-4">
+                  <div className="mb-3 inline-block rounded-full border border-blue-400/25 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-300">
+                    Twitch and Kick clip links
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                    <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/30">
+                      https://clips.twitch.tv/... or kick.com/...
+                    </div>
+                    <div className="mt-2 flex gap-2 text-[10px] text-white/40">
+                      <span>Twitch</span>
+                      <span>Kick</span>
+                    </div>
+                    <button className="mt-3 w-full rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 py-2 text-xs font-semibold text-white">
+                      Import clip →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
