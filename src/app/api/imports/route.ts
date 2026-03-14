@@ -119,10 +119,13 @@ export async function POST(req: Request) {
         }
       );
 
-      if (!dispatchRes.ok && dispatchRes.status !== 204) {
+      if (!dispatchRes.ok) {
         const errText = await dispatchRes.text();
         console.error("GitHub dispatch failed:", dispatchRes.status, errText);
-        // Don't fail the request — job is created, can be retried
+        return NextResponse.json(
+          { ok: false, error: `Import worker could not be started (GitHub ${dispatchRes.status}): ${errText.slice(0, 200)}` },
+          { status: 500 }
+        );
       }
     }
 
