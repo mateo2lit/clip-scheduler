@@ -15,16 +15,18 @@ export const runtime = "nodejs";
 const MAX_BATCH = 5;
 
 function requireWorkerAuth(req: Request) {
-  const expected = process.env.WORKER_SECRET;
-  if (!expected) throw new Error("WORKER_SECRET is not configured");
+  const workerSecret = process.env.WORKER_SECRET;
+  if (!workerSecret) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
   const provided = bearer || token || "";
-  if (provided !== expected) {
-    throw new Error("Unauthorized worker request");
-  }
+
+  // Accept WORKER_SECRET (manual/external calls) or CRON_SECRET (Vercel cron auto-injection)
+  const cronSecret = process.env.CRON_SECRET;
+  const valid = provided === workerSecret || (cronSecret && provided === cronSecret);
+  if (!valid) throw new Error("Unauthorized worker request");
 }
 
 function qs(req: Request) {

@@ -6,16 +6,17 @@ import { refreshInstagramToken } from "@/lib/instagram";
 export const runtime = "nodejs";
 
 function requireWorkerAuth(req: Request) {
-  const expected = process.env.WORKER_SECRET;
-  if (!expected) throw new Error("WORKER_SECRET is not configured");
+  const workerSecret = process.env.WORKER_SECRET;
+  if (!workerSecret) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
   const provided = bearer || token || "";
-  if (provided !== expected) {
-    throw new Error("Unauthorized worker request");
-  }
+
+  const cronSecret = process.env.CRON_SECRET;
+  const valid = provided === workerSecret || (cronSecret && provided === cronSecret);
+  if (!valid) throw new Error("Unauthorized worker request");
 }
 
 /**
