@@ -392,6 +392,9 @@ export default function UploadsPage() {
   const [conversionStatus, setConversionStatus] = useState<"idle" | "pending" | "processing" | "done" | "failed">("idle");
   const [verticalUploadId, setVerticalUploadId] = useState<string | null>(null);
   const [conversionError, setConversionError] = useState<string | null>(null);
+  const [conversionProgress, setConversionProgress] = useState(0);
+  // Upload-step convert picker
+  const [showUploadConvertPicker, setShowUploadConvertPicker] = useState(false);
 
   // Instagram specific
   const [igType, setIgType] = useState<InstagramType>("reel");
@@ -749,6 +752,32 @@ export default function UploadsPage() {
     return () => clearInterval(interval);
   }, [conversionJobId, conversionStatus]);
 
+  // Drive conversion progress bar based on status
+  useEffect(() => {
+    if (conversionStatus === "idle") { setConversionProgress(0); return; }
+    if (conversionStatus === "done") { setConversionProgress(100); return; }
+    if (conversionStatus === "failed") return;
+
+    // pending: crawl 0→28, processing: crawl 30→88
+    // Each tick adds a smaller increment as we get closer to the ceiling
+    const ceiling = conversionStatus === "pending" ? 28 : 88;
+    const interval = setInterval(() => {
+      setConversionProgress((p) => {
+        if (p >= ceiling) return p;
+        const gap = ceiling - p;
+        const increment = Math.max(0.4, gap * 0.03);
+        return Math.min(p + increment, ceiling);
+      });
+    }, 400);
+
+    // Jump to 30 immediately when processing starts
+    if (conversionStatus === "processing") {
+      setConversionProgress((p) => Math.max(p, 30));
+    }
+
+    return () => clearInterval(interval);
+  }, [conversionStatus]);
+
   // Compute TikTok validation
   const ttValidationError = useMemo(() => {
     if (!selectedPlatforms.includes("tiktok")) return null;
@@ -933,7 +962,7 @@ export default function UploadsPage() {
     setAiSuggestions([]);
   }
 
-  async function doUpload() {
+  async function doUpload(convertAfter = false) {
     if (!userId || !file) return;
     setUploading(true);
     setUploadProgress(0);
@@ -972,6 +1001,12 @@ export default function UploadsPage() {
       setUploadProgress(100);
       setLastUploadId(out.id);
       setTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+
+      if (convertAfter) {
+        setVerticalEnabled(true);
+        // startConversion needs the ID immediately since state hasn't updated yet
+        await startConversion(out.id);
+      }
 
       setTimeout(() => setStep("details"), 500);
     } catch (e: any) {
@@ -1269,18 +1304,21 @@ export default function UploadsPage() {
     setConversionStatus("idle");
     setVerticalUploadId(null);
     setConversionError(null);
+    setConversionProgress(0);
+    setShowUploadConvertPicker(false);
   }
 
-  async function startConversion() {
+  async function startConversion(overrideUploadId?: string) {
     const { data: sess } = await supabase.auth.getSession();
     const token = sess.session?.access_token;
-    if (!token || !lastUploadId) return;
+    const uploadId = overrideUploadId ?? lastUploadId;
+    if (!token || !uploadId) return;
     setConversionStatus("pending");
     setConversionError(null);
     const res = await fetch("/api/conversions", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ upload_id: lastUploadId, style: verticalStyle }),
+      body: JSON.stringify({ upload_id: uploadId, style: verticalStyle }),
     });
     const json = await res.json();
     if (json.ok) {
@@ -1368,9 +1406,47 @@ export default function UploadsPage() {
                     </svg>
                   </div>
                   <div><p className="font-medium text-white">{file.name}</p><p className="mt-1 text-sm text-white/70">{(file.size / (1024 * 1024)).toFixed(2)} MB</p></div>
-                  <div className="flex items-center justify-center gap-3">
-                    <button onClick={() => setFile(null)} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10">Remove</button>
-                    <button onClick={doUpload} disabled={planActive === false} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-6 py-2 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:cursor-not-allowed disabled:opacity-50">Upload</button>
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex items-center justify-center gap-3">
+                      <button onClick={() => { setFile(null); setShowUploadConvertPicker(false); }} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/10">Remove</button>
+                      <button onClick={() => doUpload(false)} disabled={planActive === false} className="rounded-full bg-gradient-to-r from-blue-400 to-purple-400 px-6 py-2 text-sm font-semibold text-black transition-colors hover:from-blue-300 hover:to-purple-300 disabled:cursor-not-allowed disabled:opacity-50">Upload</button>
+                      {/* Only show convert option for landscape/square videos */}
+                      {(videoWidth === null || videoHeight === null || videoWidth > videoHeight) && (
+                        <button
+                          type="button"
+                          disabled={planActive === false}
+                          onClick={() => setShowUploadConvertPicker((v) => !v)}
+                          className="rounded-full border border-purple-400/40 bg-purple-400/10 px-4 py-2 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Upload &amp; Convert to 9:16
+                        </button>
+                      )}
+                    </div>
+                    {showUploadConvertPicker && (videoWidth === null || videoHeight === null || videoWidth > videoHeight) && (
+                      <div className="w-full max-w-sm space-y-2 rounded-2xl border border-purple-400/20 bg-purple-400/5 p-3">
+                        <p className="text-xs text-purple-300/80">Choose a style for vertical conversion:</p>
+                        <div className="flex gap-2">
+                          {(["blur", "crop"] as const).map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setVerticalStyle(s)}
+                              className={`flex-1 rounded-xl border px-3 py-2 text-sm transition-all ${verticalStyle === s ? "border-purple-400/50 bg-purple-400/20 text-purple-200" : "border-white/10 bg-white/5 text-white/50 hover:border-purple-300/30 hover:text-white/70"}`}
+                            >
+                              {s === "blur" ? "Blur background" : "Crop center"}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setShowUploadConvertPicker(false); doUpload(true); }}
+                          disabled={planActive === false}
+                          className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 py-2 text-sm font-semibold text-white transition-all hover:from-blue-400 hover:to-purple-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Upload &amp; Convert
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1549,82 +1625,6 @@ export default function UploadsPage() {
                 </div>
               )}
             </div>
-
-            {/* Video Format — Vertical Conversion */}
-            {lastUploadId && videoWidth !== null && videoHeight !== null && videoHeight <= videoWidth && (
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
-                <div className="mb-3 text-sm text-white/70">Video format</div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-medium text-white">Convert to vertical (9:16)</span>
-                    <p className="text-xs text-white/40 mt-0.5">For Shorts, Reels &amp; TikTok</p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={verticalEnabled}
-                    onClick={() => {
-                      const next = !verticalEnabled;
-                      setVerticalEnabled(next);
-                      if (next && conversionStatus === "idle") {
-                        startConversion();
-                      }
-                    }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${verticalEnabled ? "bg-blue-500" : "bg-white/20"}`}
-                  >
-                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${verticalEnabled ? "translate-x-5" : "translate-x-0"}`} />
-                  </button>
-                </div>
-
-                {verticalEnabled && (
-                  <div className="mt-3 space-y-3">
-                    {/* Style picker — disabled once conversion has started */}
-                    <div className="flex gap-2">
-                      {(["blur", "crop"] as const).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          disabled={conversionStatus !== "idle"}
-                          onClick={() => setVerticalStyle(s)}
-                          className={`flex-1 rounded-xl border px-3 py-2 text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${verticalStyle === s ? "border-blue-400/50 bg-blue-400/15 text-blue-200" : "border-white/10 bg-white/5 text-white/50 hover:border-white/20 hover:text-white/70"}`}
-                        >
-                          {s === "blur" ? "Blur background" : "Crop center"}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Status indicator */}
-                    {(conversionStatus === "pending" || conversionStatus === "processing") && (
-                      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                        <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-blue-400" />
-                        <span className="text-xs text-white/60">
-                          {conversionStatus === "pending" ? "Queued…" : "Converting…"}
-                        </span>
-                        <div className="ml-auto h-1.5 flex-1 max-w-24 overflow-hidden rounded-full bg-white/10">
-                          <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-400/60" />
-                        </div>
-                      </div>
-                    )}
-                    {conversionStatus === "done" && (
-                      <div className="flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2">
-                        <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-xs text-green-300">Vertical version ready</span>
-                      </div>
-                    )}
-                    {conversionStatus === "failed" && (
-                      <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2">
-                        <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        <span className="text-xs text-red-300">{conversionError || "Conversion failed."}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Main Content Area */}
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
@@ -2715,12 +2715,10 @@ export default function UploadsPage() {
 
             {/* Action Buttons */}
             {(() => {
-              const verticalPending = verticalEnabled && conversionStatus !== "done";
+              const verticalPending = verticalEnabled && conversionStatus !== "done" && conversionStatus !== "failed";
               const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || verticalPending;
               const blockReason = selectedPlatforms.length === 0
                 ? "Select at least one platform"
-                : verticalPending
-                ? "Waiting for vertical conversion…"
                 : ttValidationError || null;
               return (
                 <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950 overflow-hidden">
@@ -2732,19 +2730,48 @@ export default function UploadsPage() {
                       <p className="text-xs text-amber-300">{blockReason}</p>
                     </div>
                   )}
-                  <div className="flex items-center justify-between p-3">
-                    <button onClick={() => handleSchedule(true)} disabled={scheduling} className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50">Save as draft</button>
+
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <button onClick={() => handleSchedule(true)} disabled={scheduling} className="shrink-0 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50">Save as draft</button>
+
+                    {/* Conversion progress — sits between the two buttons */}
+                    {verticalEnabled && (conversionStatus === "pending" || conversionStatus === "processing") && (
+                      <div className="flex flex-1 flex-col gap-1.5 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border-[1.5px] border-white/20 border-t-purple-400" />
+                            <span className="text-xs text-white/60">Converting to 9:16</span>
+                          </div>
+                          <span className="text-xs font-medium text-white/50 tabular-nums">{Math.round(conversionProgress)}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-[width] duration-500 ease-out"
+                            style={{ width: `${conversionProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {verticalEnabled && conversionStatus === "failed" && (
+                      <div className="flex flex-1 items-center gap-1.5 min-w-0">
+                        <svg className="w-3.5 h-3.5 shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="truncate text-xs text-red-300">{conversionError || "Conversion failed."}</span>
+                      </div>
+                    )}
+
                     <button
                       onClick={() => handleSchedule(false)}
                       disabled={publishBlocked}
                       title={blockReason ?? undefined}
-                      className={`rounded-full px-8 py-3 text-sm font-semibold transition-all flex items-center gap-2 ${
+                      className={`shrink-0 rounded-full px-8 py-3 text-sm font-semibold transition-all flex items-center gap-2 ${
                         publishBlocked
                           ? "bg-white/10 text-white/30 cursor-not-allowed border border-white/10"
                           : "bg-gradient-to-r from-blue-400 to-purple-400 text-black hover:from-blue-300 hover:to-purple-300 shadow-[0_0_20px_rgba(96,165,250,0.3)]"
                       }`}
                     >
-                      {publishBlocked && !scheduling && (
+                      {publishBlocked && !scheduling && !verticalPending && (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
