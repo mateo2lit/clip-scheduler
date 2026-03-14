@@ -103,16 +103,12 @@ export async function POST(req: Request) {
           kickDirectUrl = d.clip_url;
           kickTitle = d.title ?? null;
           kickDuration = typeof d.duration === "number" ? d.duration : null;
-        } else {
-          console.error("Kick proxy returned:", JSON.stringify(d));
         }
-      } catch (e: any) {
-        console.error("Kick proxy fetch error:", e?.message);
-      }
+      } catch {}
 
       if (!kickDirectUrl) {
         return NextResponse.json(
-          { ok: false, error: "Could not fetch Kick clip metadata — the clip may be private, deleted, or Kick's API is temporarily unavailable. Check Vercel function logs for details." },
+          { ok: false, error: "Could not fetch Kick clip metadata — the clip may be private, deleted, or Kick's API is temporarily unavailable." },
           { status: 502 }
         );
       }

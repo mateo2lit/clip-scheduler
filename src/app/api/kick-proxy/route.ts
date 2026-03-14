@@ -23,8 +23,6 @@ export async function GET(req: Request) {
     Origin: "https://kick.com",
   };
 
-  const debug: Record<string, unknown> = {};
-
   // Strip "clip_" prefix if present — some API versions want just the ULID
   const bareId = clipId.replace(/^clip_/i, "");
 
@@ -38,11 +36,8 @@ export async function GET(req: Request) {
       const res = await fetch(apiUrl, {
         headers: { ...browserHeaders, Accept: "application/json" },
       });
-      debug[apiUrl] = res.status;
       if (res.ok) {
-        const raw = await res.text();
-        debug[`${apiUrl}:body`] = raw.slice(0, 400);
-        const d = JSON.parse(raw) as any;
+        const d = await res.json() as any;
         // Check top-level and common nested structures
         const clip_url =
           d.clip_url ?? d.video_url ?? d.url ?? d.source ??
@@ -52,7 +47,7 @@ export async function GET(req: Request) {
           return Response.json({ ok: true, clip_url, title: d.title ?? d.data?.title ?? null, duration: d.duration ?? d.data?.duration ?? null, source: "api" });
         }
       }
-    } catch (e: any) { debug[apiUrl] = e?.message; }
+    } catch {}
   }
 
   // Try page HTML (multiple URL patterns)
@@ -65,10 +60,8 @@ export async function GET(req: Request) {
   for (const targetUrl of htmlUrls) {
     try {
       const res = await fetch(targetUrl, { headers: { ...browserHeaders, Accept: "text/html,*/*" } });
-      debug[targetUrl] = res.status;
       if (!res.ok) continue;
       const html = await res.text();
-      debug[`${targetUrl}:len`] = html.length;
 
       // __NEXT_DATA__
       const ndMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
@@ -105,11 +98,8 @@ export async function GET(req: Request) {
         return Response.json({ ok: true, clip_url: mp4Match[0].replace(/\\\//g, "/"), title: null, duration: null, source: "html_mp4" });
       }
 
-      // Log a snippet around "clip_url" if present to see the actual format
-      const snippetIdx = html.indexOf("clip_url");
-      if (snippetIdx !== -1) debug[`${targetUrl}:clip_url_ctx`] = html.slice(snippetIdx, snippetIdx + 150);
-    } catch (e: any) { debug[targetUrl] = e?.message; }
+    } catch {}
   }
 
-  return Response.json({ ok: false, error: "Could not retrieve clip info", debug }, { status: 502 });
+  return Response.json({ ok: false, error: "Could not retrieve clip info" }, { status: 502 });
 }
