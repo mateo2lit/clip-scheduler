@@ -710,7 +710,7 @@ export default function ScheduledPage() {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes postingSlide {
           0% { transform: translateX(-200%); }
           100% { transform: translateX(500%); }
