@@ -23,39 +23,48 @@ export async function GET(req: Request) {
     Origin: "https://kick.com",
   };
 
-  // Try JSON API v2
+  const debug: Record<string, unknown> = {};
+
+  // Strip "clip_" prefix if present — some API versions want just the ULID
+  const bareId = clipId.replace(/^clip_/i, "");
+
+  // Try JSON API variants
   for (const apiUrl of [
     `https://kick.com/api/v2/clips/${clipId}`,
+    `https://kick.com/api/v2/clips/${bareId}`,
     `https://kick.com/api/v1/clips/${clipId}`,
   ]) {
     try {
       const res = await fetch(apiUrl, {
         headers: { ...browserHeaders, Accept: "application/json" },
       });
+      debug[apiUrl] = res.status;
       if (res.ok) {
         const d = await res.json() as any;
         const clip_url = d.clip_url ?? d.video_url ?? d.url ?? null;
         if (clip_url) {
-          return Response.json({
-            ok: true,
-            clip_url,
-            title: d.title ?? null,
-            duration: d.duration ?? null,
-            source: "api",
-          });
+          return Response.json({ ok: true, clip_url, title: d.title ?? null, duration: d.duration ?? null, source: "api" });
         }
       }
-    } catch {}
+    } catch (e: any) { debug[apiUrl] = e?.message; }
   }
 
-  // Fallback: scrape page HTML
-  const targetUrl = pageUrl ?? `https://kick.com/clips/${clipId}`;
-  try {
-    const res = await fetch(targetUrl, { headers: { ...browserHeaders, Accept: "text/html,*/*" } });
-    if (res.ok) {
-      const html = await res.text();
+  // Try page HTML (multiple URL patterns)
+  const htmlUrls = [
+    pageUrl,
+    `https://kick.com/clips/${clipId}`,
+    `https://kick.com/clips/${bareId}`,
+  ].filter(Boolean) as string[];
 
-      // Try __NEXT_DATA__ JSON blob first
+  for (const targetUrl of htmlUrls) {
+    try {
+      const res = await fetch(targetUrl, { headers: { ...browserHeaders, Accept: "text/html,*/*" } });
+      debug[targetUrl] = res.status;
+      if (!res.ok) continue;
+      const html = await res.text();
+      debug[`${targetUrl}:len`] = html.length;
+
+      // __NEXT_DATA__
       const ndMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
       if (ndMatch) {
         try {
@@ -64,30 +73,27 @@ export async function GET(req: Request) {
           const clip = pp.clip ?? pp.data?.clip ?? pp.clipData ?? null;
           const clip_url = clip?.clip_url ?? clip?.video_url ?? clip?.url ?? null;
           if (clip_url) {
-            return Response.json({
-              ok: true,
-              clip_url: clip_url.replace(/\\\//g, "/"),
-              title: clip?.title ?? null,
-              duration: clip?.duration ?? null,
-              source: "html_next",
-            });
+            return Response.json({ ok: true, clip_url: clip_url.replace(/\\\//g, "/"), title: clip?.title ?? null, duration: clip?.duration ?? null, source: "html_next" });
           }
         } catch {}
       }
 
-      // Last resort: regex scan the raw HTML for clip_url value
-      const m = html.match(/"clip_url"\s*:\s*"(https?:[^"]+)"/);
-      if (m) {
-        return Response.json({
-          ok: true,
-          clip_url: m[1].replace(/\\\//g, "/"),
-          title: null,
-          duration: null,
-          source: "html_raw",
-        });
+      // OG video tag
+      const ogMatch = html.match(/<meta[^>]+(?:property="og:video(?::url)?"[^>]+content|content[^>]+property="og:video(?::url)?")[^>]*>/i);
+      if (ogMatch) {
+        const urlMatch = ogMatch[0].match(/content="([^"]+)"/);
+        if (urlMatch?.[1]?.startsWith("http")) {
+          return Response.json({ ok: true, clip_url: urlMatch[1], title: null, duration: null, source: "html_og" });
+        }
       }
-    }
-  } catch {}
 
-  return Response.json({ ok: false, error: "Could not retrieve clip info" }, { status: 502 });
+      // Raw regex scan
+      const rawMatch = html.match(/"clip_url"\s*:\s*"(https?:[^"]+)"/);
+      if (rawMatch) {
+        return Response.json({ ok: true, clip_url: rawMatch[1].replace(/\\\//g, "/"), title: null, duration: null, source: "html_raw" });
+      }
+    } catch (e: any) { debug[targetUrl] = e?.message; }
+  }
+
+  return Response.json({ ok: false, error: "Could not retrieve clip info", debug }, { status: 502 });
 }

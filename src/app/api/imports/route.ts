@@ -109,8 +109,10 @@ export async function POST(req: Request) {
       } catch {}
 
       if (!kickDirectUrl) {
+        // Log proxy debug info server-side for diagnosis
+        console.error("Kick proxy failed for", url);
         return NextResponse.json(
-          { ok: false, error: "Could not fetch Kick clip metadata — the clip may be private, deleted, or Kick's API is temporarily unavailable." },
+          { ok: false, error: "Could not fetch Kick clip metadata — the clip may be private, deleted, or Kick's API is temporarily unavailable. Check Vercel function logs for details." },
           { status: 502 }
         );
       }
