@@ -84,18 +84,24 @@ jobs:
           # Actions IPs are blocked by Kick's API and HTML). If direct_url is empty for
           # a Kick clip, fail early with a clear message rather than a cryptic 403.
           if [ -z "$EFFECTIVE_DIRECT_URL" ] && echo "${{ inputs.url }}" | grep -qi "kick\.com"; then
-            echo "Kick import requires a direct CDN URL (not available — metadata fetch may have failed)" | tee /tmp/download_log.txt
+            echo "Kick import requires a direct CDN URL (not available - metadata fetch may have failed)" | tee /tmp/download_log.txt
             exit 1
           fi
 
           if [ -n "$EFFECTIVE_DIRECT_URL" ]; then
             echo "Using direct CDN URL" | tee -a /tmp/download_log.txt
-            curl -L --max-time 600 --retry 2 \
+            HTTP_STATUS=$(curl -L --max-time 600 --retry 2 \
               -H "Referer: https://kick.com/" \
-              -o /tmp/clip.mp4 \
+              -o /tmp/clip_source \
+              -w "%{http_code}" \
               "$EFFECTIVE_DIRECT_URL" \
-              2>&1 | tee -a /tmp/download_log.txt
-            if [ ! -f /tmp/clip.mp4 ] || [ ! -s /tmp/clip.mp4 ]; then
+              2>>/tmp/download_log.txt)
+            echo "Direct download HTTP status: $HTTP_STATUS" | tee -a /tmp/download_log.txt
+            if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
+              echo "Direct download failed with HTTP status $HTTP_STATUS" | tee -a /tmp/download_log.txt
+              exit 1
+            fi
+            if [ ! -f /tmp/clip_source ] || [ ! -s /tmp/clip_source ]; then
               echo "Direct download produced no file" | tee -a /tmp/download_log.txt
               exit 1
             fi
@@ -116,30 +122,38 @@ jobs:
 
             CLIP_FILE=$(ls /tmp/clip.* 2>/dev/null | grep -v '\.txt$' | head -1)
             if [ -z "$CLIP_FILE" ]; then
-              echo "Download failed — no output file found" | tee -a /tmp/download_log.txt
+              echo "Download failed - no output file found" | tee -a /tmp/download_log.txt
               exit 1
             fi
 
-            if [[ "$CLIP_FILE" != *.mp4 ]]; then
-              ffmpeg -i "$CLIP_FILE" -c copy /tmp/clip.mp4 -y -loglevel quiet
-              rm "$CLIP_FILE"
-            fi
+            cp "$CLIP_FILE" /tmp/clip_source
           fi
 
-          # Re-encode to H.264/AAC — Instagram and TikTok reject H.265/HEVC and
-          # non-standard codecs. yuv420p ensures broad player compatibility.
-          # faststart moves moov atom to front for streaming.
-          echo "Transcoding to H.264/AAC…" | tee -a /tmp/download_log.txt
-          ffmpeg -i /tmp/clip.mp4 \
-            -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p \
-            -c:a aac -b:a 192k \
+          # Validate source media (guards against HTML/error payloads saved as .mp4)
+          if ! ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/clip_source >/tmp/ffprobe_video.txt 2>/tmp/ffprobe_err.txt; then
+            echo "Downloaded file is not a valid video stream" | tee -a /tmp/download_log.txt
+            cat /tmp/ffprobe_err.txt | tail -3 | tee -a /tmp/download_log.txt
+            exit 1
+          fi
+          if [ ! -s /tmp/ffprobe_video.txt ]; then
+            echo "Downloaded file has no video stream" | tee -a /tmp/download_log.txt
+            exit 1
+          fi
+
+          # Re-encode to H.264/AAC for broad compatibility (TikTok/Instagram safe baseline).
+          # yuv420p + faststart improves compatibility and streaming ingest reliability.
+          echo "Transcoding to H.264/AAC..." | tee -a /tmp/download_log.txt
+          ffmpeg -i /tmp/clip_source \
+            -map 0:v:0 -map 0:a:0? \
+            -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -r 30 \
+            -c:a aac -b:a 128k -ar 48000 -ac 2 \
             -movflags +faststart \
-            /tmp/clip_h264.mp4 -y \
-            2>&1 | tail -5 | tee -a /tmp/download_log.txt
-          if [ ! -s /tmp/clip_h264.mp4 ]; then
-            echo "Transcode failed — keeping original" | tee -a /tmp/download_log.txt
-          else
-            mv /tmp/clip_h264.mp4 /tmp/clip.mp4
+            /tmp/clip.mp4 -y \
+            2>>/tmp/download_log.txt
+          if [ ! -s /tmp/clip.mp4 ]; then
+            echo "Transcode failed - output missing" | tee -a /tmp/download_log.txt
+            tail -10 /tmp/download_log.txt
+            exit 1
           fi
 
           # Enforce 2 GB limit post-transcode
@@ -150,7 +164,6 @@ jobs:
           fi
 
           echo "ACTUAL_SIZE=${ACTUAL_SIZE}" >> $GITHUB_ENV
-
       - name: Upload to Supabase Storage
         run: |
           FILE_PATH="${{ inputs.team_id }}/${{ inputs.job_id }}.mp4"
