@@ -141,6 +141,17 @@ function getGroupStatusDisplay(group: PostGroup) {
   return { text: getRelativeTime(group.scheduled_for), color: "text-blue-400", pulse: false };
 }
 
+function PostingBar({ intensity = "strong" }: { intensity?: "strong" | "soft" }) {
+  return (
+    <div className={`h-[3px] w-full overflow-hidden rounded-b-2xl ${intensity === "strong" ? "bg-amber-500/10" : "bg-amber-500/[0.05]"}`}>
+      <div
+        className={`h-full w-1/2 rounded-full ${intensity === "strong" ? "bg-gradient-to-r from-transparent via-amber-400/90 to-transparent" : "bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"}`}
+        style={{ animation: "postingSlide 1.6s ease-in-out infinite" }}
+      />
+    </div>
+  );
+}
+
 function getStoredThumbnailUrl(thumbnailPath: string | null | undefined) {
   if (!thumbnailPath) return null;
   const bucket = process.env.NEXT_PUBLIC_UPLOADS_BUCKET || process.env.NEXT_PUBLIC_STORAGE_BUCKET || "clips";
@@ -509,13 +520,19 @@ export default function ScheduledPage() {
                     const hasFailed = failedPostIds.length > 0;
                     const isEditing = editingGroupId === group.groupId;
                     const isFailed = group.groupStatus === "failed" || group.groupStatus === "partial_failure";
+                    const isPosting = group.groupStatus === "posting";
+                    const isPostingSoon = group.groupStatus === "scheduled" && new Date(group.scheduled_for) < new Date();
 
                     return (
                       <div
                         key={group.groupId}
-                        className={`rounded-2xl border transition-all ${
+                        className={`rounded-2xl border transition-all overflow-hidden ${
                           isFailed
                             ? "border-red-500/20 bg-red-500/[0.03] hover:border-red-500/30"
+                            : isPosting
+                            ? "border-amber-500/30 bg-amber-500/[0.03] shadow-[0_0_24px_rgba(245,158,11,0.06)]"
+                            : isPostingSoon
+                            ? "border-amber-500/15 bg-amber-500/[0.015]"
                             : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.035]"
                         }`}
                       >
@@ -568,6 +585,32 @@ export default function ScheduledPage() {
                                 </button>
                               </div>
                             </div>
+                          </div>
+                        )}
+
+                        {(isPosting || isPostingSoon) && (
+                          <div className={`flex items-center gap-2.5 border-b px-4 py-2.5 ${isPosting ? "border-amber-500/15 bg-amber-500/[0.05]" : "border-amber-500/08 bg-amber-500/[0.025]"}`}>
+                            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isPosting ? "bg-amber-400/20" : "bg-amber-400/10"}`}>
+                              <svg className={`h-3 w-3 text-amber-400 ${isPosting ? "animate-spin" : "animate-pulse"}`} fill="none" viewBox="0 0 24 24">
+                                {isPosting
+                                  ? <><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></>
+                                  : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} stroke="currentColor" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                }
+                              </svg>
+                            </div>
+                            <span className={`text-xs font-medium ${isPosting ? "text-amber-300" : "text-amber-300/70"}`}>
+                              {isPosting ? "Uploading to platforms…" : "Posting soon — worker starting up…"}
+                            </span>
+                            {isPosting && (
+                              <div className="ml-auto flex gap-1">
+                                {group.posts.filter((p) => p.status === "posting" || p.status === "ig_processing").map((p) => (
+                                  <span key={p.id} className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                                    <ProviderIcon provider={p.provider} className="w-2.5 h-2.5" />
+                                    {providerLabel(p.provider)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -654,7 +697,9 @@ export default function ScheduledPage() {
                               </div>
                             </div>
                           </div>
-                        </div>
+                        {(isPosting || isPostingSoon) && (
+                          <PostingBar intensity={isPosting ? "strong" : "soft"} />
+                        )}
                       </div>
                     );
                   })}
@@ -664,6 +709,13 @@ export default function ScheduledPage() {
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        @keyframes postingSlide {
+          0% { transform: translateX(-200%); }
+          100% { transform: translateX(500%); }
+        }
+      `}</style>
 
       {toast && (
         <div
