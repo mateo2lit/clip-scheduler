@@ -76,6 +76,35 @@ export async function POST(req: Request) {
 
     const sourcePlatform = detectPlatform(url);
 
+    // For Kick: prefetch clip metadata + direct CDN URL from Vercel
+    // (GitHub Actions IPs are blocked by Kick's API; Vercel IPs are not)
+    let kickDirectUrl: string | null = null;
+    let kickTitle: string | null = null;
+    let kickDuration: number | null = null;
+
+    if (sourcePlatform === "kick") {
+      const clipIdMatch = url.match(/clips\/([a-zA-Z0-9_-]+)/i);
+      const clipId = clipIdMatch?.[1];
+      if (clipId) {
+        try {
+          const kickRes = await fetch(`https://kick.com/api/v2/clips/${clipId}`, {
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              Referer: "https://kick.com/",
+              Origin: "https://kick.com",
+            },
+          });
+          if (kickRes.ok) {
+            const d = await kickRes.json();
+            kickDirectUrl = d.clip_url ?? d.video_url ?? null;
+            kickTitle = d.title ?? null;
+            kickDuration = typeof d.duration === "number" ? d.duration : null;
+          }
+        } catch {}
+      }
+    }
+
     // Create import job
     const { data: job, error: jobErr } = await supabaseAdmin
       .from("import_jobs")
@@ -85,6 +114,8 @@ export async function POST(req: Request) {
         url,
         source_platform: sourcePlatform,
         status: "pending",
+        ...(kickTitle ? { title: kickTitle } : {}),
+        ...(kickDuration ? { duration_seconds: kickDuration } : {}),
       })
       .select("id")
       .single();
@@ -114,6 +145,9 @@ export async function POST(req: Request) {
               url,
               team_id: teamId,
               user_id: userId,
+              ...(kickDirectUrl ? { direct_url: kickDirectUrl } : {}),
+              ...(kickTitle ? { prefetched_title: kickTitle } : {}),
+              ...(kickDuration != null ? { prefetched_duration: String(kickDuration) } : {}),
             },
           }),
         }
