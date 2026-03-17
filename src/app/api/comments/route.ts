@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // Load all platform accounts for this team, grouped by provider
     const { data: accounts } = await supabaseAdmin
       .from("platform_accounts")
-      .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
+      .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id, profile_name, label")
       .eq("team_id", teamId)
       .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok"]);
 
@@ -49,10 +49,11 @@ export async function GET(req: Request) {
       (acctsByProvider.get("youtube") ?? [])
         .filter((a) => a.refresh_token)
         .map(async (a) => {
+          const label = a.profile_name || a.label || "YouTube";
           const recent = await fetchRecentYouTubePosts({ refreshToken: a.refresh_token, maxResults: 20, sinceIso: sevenDaysAgo });
           if (recent.error) errors.push(recent.error);
           if (recent.posts.length === 0) return [] as UnifiedComment[];
-          const r = await fetchYouTubeComments(recent.posts, a.refresh_token);
+          const r = await fetchYouTubeComments(recent.posts, a.refresh_token, a.id, label);
           if (r.error) errors.push(r.error);
           return r.comments;
         })
@@ -67,10 +68,11 @@ export async function GET(req: Request) {
       (acctsByProvider.get("facebook") ?? [])
         .filter((a) => a.page_id && a.page_access_token)
         .map(async (a) => {
+          const label = a.profile_name || a.label || "Facebook";
           const recent = await fetchRecentFacebookPosts({ pageId: a.page_id, pageAccessToken: a.page_access_token, maxResults: 20, sinceIso: threeDaysAgo });
           if (recent.error) errors.push(recent.error);
           if (recent.posts.length === 0) return [] as UnifiedComment[];
-          const r = await fetchFacebookComments(recent.posts, a.page_access_token);
+          const r = await fetchFacebookComments(recent.posts, a.page_access_token, a.id, label);
           if (r.error) errors.push(r.error);
           return r.comments;
         })
@@ -85,10 +87,11 @@ export async function GET(req: Request) {
       (acctsByProvider.get("instagram") ?? [])
         .filter((a) => a.ig_user_id && a.access_token)
         .map(async (a) => {
+          const label = a.profile_name || a.label || "Instagram";
           const recent = await fetchRecentInstagramPosts({ igUserId: a.ig_user_id, accessToken: a.access_token, maxResults: 20, sinceIso: threeDaysAgo });
           if (recent.error) errors.push(recent.error);
           if (recent.posts.length === 0) return [] as UnifiedComment[];
-          const r = await fetchInstagramComments(recent.posts, a.access_token, a.ig_user_id);
+          const r = await fetchInstagramComments(recent.posts, a.access_token, a.ig_user_id, a.id, label);
           if (r.error) errors.push(r.error);
           return r.comments;
         })
@@ -103,10 +106,11 @@ export async function GET(req: Request) {
       (acctsByProvider.get("bluesky") ?? [])
         .filter((a) => a.platform_user_id)
         .map(async (a) => {
+          const label = a.profile_name || a.label || "Bluesky";
           const recent = await fetchRecentBlueskyPosts({ did: a.platform_user_id, maxResults: 20, sinceIso: sevenDaysAgo });
           if (recent.error) errors.push(recent.error);
           if (recent.posts.length === 0) return [] as UnifiedComment[];
-          const r = await fetchBlueskyComments(recent.posts);
+          const r = await fetchBlueskyComments(recent.posts, a.id, label);
           if (r.error) errors.push(r.error);
           return r.comments;
         })

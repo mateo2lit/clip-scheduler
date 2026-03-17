@@ -13,10 +13,11 @@ export async function POST(req: Request) {
     const { teamId } = result.ctx;
 
     const body = await req.json();
-    const { platform, commentId, text } = body as {
+    const { platform, commentId, text, platformAccountId } = body as {
       platform: string;
       commentId: string;
       text: string;
+      platformAccountId: string;
     };
 
     if (!platform || !commentId || !text?.trim()) {
@@ -26,17 +27,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Load platform account
+    if (!platformAccountId) {
+      return NextResponse.json(
+        { ok: false, error: "Missing platformAccountId" },
+        { status: 400 }
+      );
+    }
+
+    // Load platform account by ID — handles multi-account correctly
     const { data: account } = await supabaseAdmin
       .from("platform_accounts")
       .select("provider, refresh_token, access_token, page_access_token")
       .eq("team_id", teamId)
-      .eq("provider", platform)
+      .eq("id", platformAccountId)
       .maybeSingle();
 
     if (!account) {
       return NextResponse.json(
-        { ok: false, error: `No ${platform} account connected` },
+        { ok: false, error: `Account not found` },
         { status: 400 }
       );
     }

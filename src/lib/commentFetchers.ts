@@ -4,6 +4,8 @@ export type UnifiedComment = {
   id: string;
   replyId?: string;
   platform: "youtube" | "facebook" | "instagram" | "bluesky";
+  accountId: string;
+  accountLabel: string;
   postTitle: string;
   postId: string;
   postUrl?: string;
@@ -70,7 +72,9 @@ function isIgnorableYouTubeCommentsError(message: string): boolean {
 
 export async function fetchYouTubeComments(
   posts: PostInfo[],
-  refreshToken: string
+  refreshToken: string,
+  accountId: string,
+  accountLabel: string
 ): Promise<{ comments: UnifiedComment[]; error?: string }> {
   try {
     const auth = await getYouTubeOAuthClient({ refreshToken });
@@ -100,6 +104,8 @@ export async function fetchYouTubeComments(
               id: item.id ?? `yt-${videoId}-${Math.random()}`,
               replyId: topLevelCommentId || undefined,
               platform: "youtube",
+              accountId,
+              accountLabel,
               postTitle: post.title ?? "Untitled",
               postId: videoId,
               postUrl,
@@ -144,7 +150,9 @@ export async function fetchYouTubeComments(
 
 export async function fetchFacebookComments(
   posts: PostInfo[],
-  pageAccessToken: string
+  pageAccessToken: string,
+  accountId: string,
+  accountLabel: string
 ): Promise<{ comments: UnifiedComment[]; error?: string }> {
   try {
     const results = await Promise.allSettled(
@@ -173,6 +181,8 @@ export async function fetchFacebookComments(
             id: item.id ?? `fb-${postId}-${Math.random()}`,
             replyId: item.id ?? undefined,
             platform: "facebook",
+            accountId,
+            accountLabel,
             postTitle: post.title ?? "Untitled",
             postId: postId,
             postUrl,
@@ -208,7 +218,9 @@ export async function fetchFacebookComments(
 export async function fetchInstagramComments(
   posts: PostInfo[],
   accessToken: string,
-  igUserId: string
+  igUserId: string,
+  accountId: string,
+  accountLabel: string
 ): Promise<{ comments: UnifiedComment[]; error?: string }> {
   try {
     // Build permalink → media ID lookup for posts missing platform_media_id
@@ -267,6 +279,8 @@ export async function fetchInstagramComments(
           id: item.id ?? `ig-${mediaId}-${Math.random()}`,
           replyId: item.id ?? undefined,
           platform: "instagram",
+          accountId,
+          accountLabel,
           postTitle: post.title ?? "Untitled",
           postId: post.platform_post_id ?? mediaId!,
           postUrl: post.platform_post_id?.startsWith("https://") ? post.platform_post_id : undefined,
@@ -305,7 +319,9 @@ export async function fetchInstagramComments(
 // ── Bluesky ─────────────────────────────────────────────────────────
 
 export async function fetchBlueskyComments(
-  posts: PostInfo[]
+  posts: PostInfo[],
+  accountId: string,
+  accountLabel: string
 ): Promise<{ comments: UnifiedComment[]; error?: string }> {
   try {
     const results = await Promise.allSettled(
@@ -337,6 +353,8 @@ export async function fetchBlueskyComments(
               id: rPost.uri ?? `bsky-reply-${Math.random()}`,
               replyId: rPost.uri ?? undefined,
               platform: "bluesky",
+              accountId,
+              accountLabel,
               postTitle: post.title ?? "Untitled",
               postId: uri,
               postUrl,

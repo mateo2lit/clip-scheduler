@@ -8,6 +8,8 @@ type Comment = {
   id: string;
   replyId?: string;
   platform: "youtube" | "facebook" | "instagram" | "bluesky";
+  accountId: string;
+  accountLabel: string;
   postTitle: string;
   postId: string;
   postUrl?: string;
@@ -214,7 +216,7 @@ export default function CommentsPage() {
     } catch {}
   }, [sessionEmail, readCommentIds]);
 
-  async function sendReply(platform: string, commentId: string) {
+  async function sendReply(platform: string, commentId: string, platformAccountId: string) {
     if (!replyText.trim() || !authToken) return;
     setReplySending(true);
     setReplyError(null);
@@ -225,7 +227,7 @@ export default function CommentsPage() {
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ platform, commentId, text: replyText.trim() }),
+        body: JSON.stringify({ platform, commentId, text: replyText.trim(), platformAccountId }),
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Reply failed");
@@ -469,6 +471,9 @@ export default function CommentsPage() {
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${colors.badge}`}>
                             {platformLabels[comment.platform]}
                           </span>
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium border border-white/10 bg-white/[0.04] text-white/50 max-w-[140px] truncate" title={comment.accountLabel}>
+                            {comment.accountLabel}
+                          </span>
                           <span className="text-xs text-white/30">
                             {relativeTime(comment.publishedAt)}
                           </span>
@@ -530,6 +535,9 @@ export default function CommentsPage() {
                         {/* Inline reply form */}
                         {replyingTo === comment.id && (
                           <div className="mt-3 flex flex-col gap-2">
+                            <p className="text-[11px] text-white/30">
+                              Replying as <span className="text-white/50 font-medium">{comment.accountLabel}</span>
+                            </p>
                             {replySuccess === comment.id ? (
                               <div className="flex items-center gap-1.5 text-xs text-green-400">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -547,7 +555,7 @@ export default function CommentsPage() {
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" && !e.shiftKey) {
                                         e.preventDefault();
-                                        sendReply(comment.platform, comment.replyId ?? comment.id);
+                                        sendReply(comment.platform, comment.replyId ?? comment.id, comment.accountId);
                                       }
                                     }}
                                     placeholder="Write a reply..."
@@ -556,7 +564,7 @@ export default function CommentsPage() {
                                     autoFocus
                                   />
                                   <button
-                                    onClick={() => sendReply(comment.platform, comment.replyId ?? comment.id)}
+                                    onClick={() => sendReply(comment.platform, comment.replyId ?? comment.id, comment.accountId)}
                                     disabled={replySending || !replyText.trim()}
                                     className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors flex items-center gap-1.5"
                                   >
