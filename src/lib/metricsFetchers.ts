@@ -18,6 +18,7 @@ type PostInfo = {
   platform_post_id: string | null;
   platform_media_id?: string | null;
   posted_at: string | null;
+  thumbnail_url?: string | null;
 };
 
 // ── YouTube ─────────────────────────────────────────────────────────
