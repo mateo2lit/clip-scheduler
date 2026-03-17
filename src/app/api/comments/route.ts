@@ -29,7 +29,7 @@ export async function GET(req: Request) {
       .from("platform_accounts")
       .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
       .eq("team_id", teamId)
-      .in("provider", ["youtube", "facebook", "instagram", "bluesky"]);
+      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok"]);
 
     const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
@@ -121,14 +121,28 @@ export async function GET(req: Request) {
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
 
+    // TikTok note: the Content Posting API does not expose comment text — only comment counts
+    // are available via video stats. Comment reading requires the Research API (separate approval).
+    const hasTikTok = (acctsByProvider.get("tiktok") ?? []).length > 0;
+
     const debug = {
       accounts: Array.from(acctsByProvider.keys()),
       ytCount: (acctsByProvider.get("youtube") ?? []).length,
       fbCount: (acctsByProvider.get("facebook") ?? []).length,
       igCount: (acctsByProvider.get("instagram") ?? []).length,
+      ttCount: (acctsByProvider.get("tiktok") ?? []).length,
     };
 
-    return NextResponse.json({ ok: true, debug, errors, commentCount: allComments.length, comments: allComments });
+    return NextResponse.json({
+      ok: true,
+      debug,
+      errors,
+      commentCount: allComments.length,
+      comments: allComments,
+      tiktokNote: hasTikTok
+        ? "TikTok comment text is not available via the Content Posting API. View comment counts in Analytics."
+        : undefined,
+    });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },

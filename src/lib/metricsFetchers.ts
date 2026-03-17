@@ -7,6 +7,8 @@ export type UnifiedMetric = {
   views: number;
   likes: number;
   comments: number;
+  shares?: number;
+  thumbnailUrl?: string | null;
   postedAt: string;
 };
 
@@ -200,7 +202,7 @@ export async function fetchTikTokMetrics(
     for (let i = 0; i < videoIds.length; i += 20) {
       const batch = videoIds.slice(i, i + 20);
       const res = await fetch(
-        "https://open.tiktokapis.com/v2/video/query/?fields=id,title,create_time,view_count,like_count,comment_count,share_count",
+        "https://open.tiktokapis.com/v2/video/query/?fields=id,title,create_time,cover_image_url,view_count,like_count,comment_count,share_count",
         {
           method: "POST",
           headers: {
@@ -226,6 +228,8 @@ export async function fetchTikTokMetrics(
           views: item.view_count ?? 0,
           likes: item.like_count ?? 0,
           comments: item.comment_count ?? 0,
+          shares: item.share_count ?? 0,
+          thumbnailUrl: item.cover_image_url ?? post?.thumbnail_url ?? null,
           postedAt: post?.posted_at ?? (item.create_time
             ? new Date(item.create_time * 1000).toISOString()
             : new Date().toISOString()),

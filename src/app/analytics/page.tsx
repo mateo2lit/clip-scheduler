@@ -11,10 +11,12 @@ type Metric = {
   views: number;
   likes: number;
   comments: number;
+  shares?: number;
+  thumbnailUrl?: string | null;
   postedAt: string;
 };
 
-type Totals = { views: number; likes: number; comments: number };
+type Totals = { views: number; likes: number; comments: number; shares: number };
 type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
 type RangeFilter = "24h" | "1w" | "1m" | "1y";
 
@@ -69,7 +71,7 @@ export default function AnalyticsPage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [totals, setTotals] = useState<Totals>({ views: 0, likes: 0, comments: 0 });
+  const [totals, setTotals] = useState<Totals>({ views: 0, likes: 0, comments: 0, shares: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<PlatformFilter>("all");
@@ -133,7 +135,10 @@ export default function AnalyticsPage() {
         views: filtered.reduce((s, m) => s + m.views, 0),
         likes: filtered.reduce((s, m) => s + m.likes, 0),
         comments: filtered.reduce((s, m) => s + m.comments, 0),
+        shares: filtered.reduce((s, m) => s + (m.shares ?? 0), 0),
       };
+
+  const hasTikTok = filter === "tiktok" || (filter === "all" && metrics.some((m) => m.platform === "tiktok"));
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -168,11 +173,12 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className={`grid gap-4 mb-8 ${hasTikTok ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
           {[
             { label: "Total Views", value: filteredTotals.views },
             { label: "Total Likes", value: filteredTotals.likes },
             { label: "Total Comments", value: filteredTotals.comments },
+            ...(hasTikTok ? [{ label: "Total Shares", value: filteredTotals.shares }] : []),
           ].map((stat) => (
             <div
               key={stat.label}
@@ -254,10 +260,27 @@ export default function AnalyticsPage() {
                 key={`${m.platform}-${m.videoId}`}
                 className="flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition-all hover:border-white/[0.12] hover:bg-white/[0.035]"
               >
-                <span title={platformLabels[m.platform]} className="shrink-0">
-                  <PlatformIcon platform={m.platform} />
-                </span>
-                <p className="flex-1 min-w-0 truncate text-sm font-medium text-white/80">{m.title}</p>
+                {m.thumbnailUrl ? (
+                  <img
+                    src={m.thumbnailUrl}
+                    alt=""
+                    className="shrink-0 w-10 h-10 rounded-lg object-cover bg-white/[0.04]"
+                  />
+                ) : (
+                  <span title={platformLabels[m.platform]} className="shrink-0">
+                    <PlatformIcon platform={m.platform} />
+                  </span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {m.thumbnailUrl && (
+                      <span title={platformLabels[m.platform]} className="shrink-0">
+                        <PlatformIcon platform={m.platform} />
+                      </span>
+                    )}
+                    <p className="truncate text-sm font-medium text-white/80">{m.title}</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-5 shrink-0 text-right">
                   <div className="hidden sm:block text-center">
                     <p className="text-xs text-white/30 uppercase tracking-wider">Views</p>
@@ -271,6 +294,12 @@ export default function AnalyticsPage() {
                     <p className="text-xs text-white/30 uppercase tracking-wider">Comments</p>
                     <p className="text-sm font-semibold text-white/80 tabular-nums">{m.comments.toLocaleString()}</p>
                   </div>
+                  {m.shares !== undefined && (
+                    <div className="hidden sm:block text-center">
+                      <p className="text-xs text-white/30 uppercase tracking-wider">Shares</p>
+                      <p className="text-sm font-semibold text-white/80 tabular-nums">{m.shares.toLocaleString()}</p>
+                    </div>
+                  )}
                   <div className="text-right">
                     <p className="text-xs text-white/25">{new Date(m.postedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p>
                   </div>

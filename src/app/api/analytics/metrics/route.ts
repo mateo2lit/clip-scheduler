@@ -14,6 +14,7 @@ import {
   fetchRecentFacebookPosts,
   fetchRecentInstagramPosts,
   fetchRecentBlueskyPosts,
+  fetchRecentTikTokPosts,
 } from "@/lib/recentPlatformPosts";
 
 export const runtime = "nodejs";
@@ -114,32 +115,15 @@ export async function GET(req: Request) {
       else errors.push(r.reason?.message || "Instagram fetch error");
     }
 
-    // Fetch from all TikTok accounts — use our DB for the post list, TikTok API for stats
+    // Fetch from all TikTok accounts — use video.list API to discover all videos (not just Clip Dash ones)
     const ttResults = await Promise.allSettled(
       (acctsByProvider.get("tiktok") ?? [])
         .filter((a) => a.access_token)
         .map(async (a) => {
-          const { data: ttPosts } = await supabaseAdmin
-            .from("scheduled_posts")
-            .select("id, title, platform_post_id, posted_at")
-            .eq("team_id", teamId)
-            .eq("provider", "tiktok")
-            .eq("status", "posted")
-            .eq("platform_account_id", a.id)
-            .gte("posted_at", sinceIso)
-            .order("posted_at", { ascending: false })
-            .limit(maxResults);
-
-          if (!ttPosts || ttPosts.length === 0) return [] as UnifiedMetric[];
-
-          const posts = ttPosts.map((p) => ({
-            id: p.id,
-            title: p.title,
-            platform_post_id: p.platform_post_id,
-            posted_at: p.posted_at,
-          }));
-
-          const r = await fetchTikTokMetrics(posts, a.access_token);
+          const recent = await fetchRecentTikTokPosts({ accessToken: a.access_token, maxResults, sinceIso });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedMetric[];
+          const r = await fetchTikTokMetrics(recent.posts, a.access_token);
           if (r.error) errors.push(r.error);
           return r.metrics;
         })
@@ -176,6 +160,7 @@ export async function GET(req: Request) {
       views: allMetrics.reduce((sum, m) => sum + m.views, 0),
       likes: allMetrics.reduce((sum, m) => sum + m.likes, 0),
       comments: allMetrics.reduce((sum, m) => sum + m.comments, 0),
+      shares: allMetrics.reduce((sum, m) => sum + (m.shares ?? 0), 0),
     };
 
     return NextResponse.json({ ok: true, errors, range, metrics: allMetrics, totals });
