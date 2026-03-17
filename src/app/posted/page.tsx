@@ -16,7 +16,10 @@ type PostedPost = {
   group_id: string | null;
   thumbnail_path?: string | null;
   privacy_status?: string | null;
+  platform_account_id?: string | null;
 };
+
+type AccountInfo = { avatarUrl: string | null; profileName: string | null };
 
 type PostGroup = {
   groupId: string;
@@ -162,6 +165,7 @@ export default function PostedPage() {
   const [posts, setPosts] = useState<PostedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [accountMap, setAccountMap] = useState<Map<string, AccountInfo>>(new Map());
 
   useEffect(() => {
     async function load() {
@@ -181,12 +185,26 @@ export default function PostedPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status, group_id, thumbnail_path, privacy_status")
+        .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status, group_id, thumbnail_path, privacy_status, platform_account_id")
         .eq("team_id", teamId)
         .eq("status", "posted")
         .order("posted_at", { ascending: false });
 
       setPosts(data ?? []);
+
+      // Load account avatars/names for pfp pills
+      try {
+        const acctRes = await fetch("/api/platform-accounts", { headers: { Authorization: `Bearer ${token}` } });
+        const acctJson = await acctRes.json();
+        if (acctJson.ok) {
+          const map = new Map<string, AccountInfo>();
+          for (const a of acctJson.data ?? []) {
+            map.set(a.id, { avatarUrl: a.avatar_url ?? null, profileName: a.profile_name ?? a.label ?? null });
+          }
+          setAccountMap(map);
+        }
+      } catch {}
+
       setLoading(false);
     }
     load();
@@ -352,6 +370,28 @@ export default function PostedPage() {
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {group.posts.map((post) => {
                             const url = getPostUrl(post.provider, post.platform_post_id);
+                            const acct = post.platform_account_id ? accountMap.get(post.platform_account_id) : undefined;
+                            const pillLabel = acct?.profileName || providerLabel(post.provider);
+                            const pillContent = (
+                              <>
+                                {acct?.avatarUrl ? (
+                                  <img
+                                    src={acct.avatarUrl}
+                                    alt={pillLabel}
+                                    className="h-4 w-4 rounded-full object-cover shrink-0 ring-1 ring-white/10"
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                  />
+                                ) : (
+                                  <ProviderIcon provider={post.provider} className="w-3 h-3" />
+                                )}
+                                {pillLabel}
+                                {url && (
+                                  <svg className="h-2.5 w-2.5 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                  </svg>
+                                )}
+                              </>
+                            );
                             return url ? (
                               <a
                                 key={post.id}
@@ -360,19 +400,14 @@ export default function PostedPage() {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.12] bg-white/[0.05] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-all hover:border-white/20 hover:bg-white/[0.09] hover:text-white/90"
                               >
-                                <ProviderIcon provider={post.provider} className="w-3 h-3" />
-                                {providerLabel(post.provider)}
-                                <svg className="h-2.5 w-2.5 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                </svg>
+                                {pillContent}
                               </a>
                             ) : (
                               <span
                                 key={post.id}
                                 className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] px-2.5 py-1 text-[11px] text-white/25"
                               >
-                                <ProviderIcon provider={post.provider} className="w-3 h-3 opacity-50" />
-                                {providerLabel(post.provider)}
+                                {pillContent}
                               </span>
                             );
                           })}
