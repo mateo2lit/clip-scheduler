@@ -28,6 +28,15 @@ const platformLabels: Record<string, string> = {
   tiktok: "TikTok",
 };
 
+// Which stats are actually meaningful per platform (vs. always returning 0)
+const PLATFORM_STATS: Record<string, { views: boolean; likes: boolean; comments: boolean; shares: boolean }> = {
+  youtube:   { views: true,  likes: true, comments: true,  shares: false },
+  tiktok:    { views: true,  likes: true, comments: true,  shares: true  },
+  instagram: { views: false, likes: true, comments: true,  shares: false },
+  facebook:  { views: false, likes: true, comments: true,  shares: false },
+  bluesky:   { views: false, likes: true, comments: true,  shares: false },
+};
+
 function PlatformIcon({ platform }: { platform: string }) {
   if (platform === "youtube") {
     return (
@@ -140,6 +149,18 @@ export default function AnalyticsPage() {
 
   const hasTikTok = filter === "tiktok" || (filter === "all" && metrics.some((m) => m.platform === "tiktok"));
 
+  // When filtered to a specific platform, only show cards for stats that platform tracks
+  const platformSupport = filter === "all" ? null : (PLATFORM_STATS[filter] ?? null);
+  const showViews = !platformSupport || platformSupport.views;
+  const showShares = hasTikTok && (!platformSupport || platformSupport.shares);
+
+  const summaryStats = [
+    ...(showViews ? [{ label: "Total Views", value: filteredTotals.views }] : []),
+    { label: "Total Likes", value: filteredTotals.likes },
+    { label: "Total Comments", value: filteredTotals.comments },
+    ...(showShares ? [{ label: "Total Shares", value: filteredTotals.shares }] : []),
+  ];
+
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       {/* Background gradient orbs */}
@@ -173,13 +194,8 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Summary cards */}
-        <div className={`grid gap-4 mb-8 ${hasTikTok ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
-          {[
-            { label: "Total Views", value: filteredTotals.views },
-            { label: "Total Likes", value: filteredTotals.likes },
-            { label: "Total Comments", value: filteredTotals.comments },
-            ...(hasTikTok ? [{ label: "Total Shares", value: filteredTotals.shares }] : []),
-          ].map((stat) => (
+        <div className={`grid gap-4 mb-8 ${summaryStats.length === 4 ? "grid-cols-2 sm:grid-cols-4" : summaryStats.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+          {summaryStats.map((stat) => (
             <div
               key={stat.label}
               className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-5 text-center"
@@ -282,24 +298,35 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-5 shrink-0 text-right">
-                  <div className="hidden sm:block text-center">
-                    <p className="text-xs text-white/30 uppercase tracking-wider">Views</p>
-                    <p className="text-sm font-semibold text-white/80 tabular-nums">{m.views.toLocaleString()}</p>
-                  </div>
-                  <div className="hidden sm:block text-center">
-                    <p className="text-xs text-white/30 uppercase tracking-wider">Likes</p>
-                    <p className="text-sm font-semibold text-white/80 tabular-nums">{m.likes.toLocaleString()}</p>
-                  </div>
-                  <div className="hidden sm:block text-center">
-                    <p className="text-xs text-white/30 uppercase tracking-wider">Comments</p>
-                    <p className="text-sm font-semibold text-white/80 tabular-nums">{m.comments.toLocaleString()}</p>
-                  </div>
-                  {m.shares !== undefined && (
-                    <div className="hidden sm:block text-center">
-                      <p className="text-xs text-white/30 uppercase tracking-wider">Shares</p>
-                      <p className="text-sm font-semibold text-white/80 tabular-nums">{m.shares.toLocaleString()}</p>
-                    </div>
-                  )}
+                  {(() => {
+                    const s = PLATFORM_STATS[m.platform] ?? { views: true, likes: true, comments: true, shares: false };
+                    return (
+                      <>
+                        <div className="hidden sm:block text-center w-14">
+                          <p className="text-xs text-white/30 uppercase tracking-wider">Views</p>
+                          <p className={`text-sm font-semibold tabular-nums ${s.views ? "text-white/80" : "text-white/20"}`}>
+                            {s.views ? m.views.toLocaleString() : "—"}
+                          </p>
+                        </div>
+                        <div className="hidden sm:block text-center w-14">
+                          <p className="text-xs text-white/30 uppercase tracking-wider">Likes</p>
+                          <p className="text-sm font-semibold text-white/80 tabular-nums">{m.likes.toLocaleString()}</p>
+                        </div>
+                        <div className="hidden sm:block text-center w-14">
+                          <p className="text-xs text-white/30 uppercase tracking-wider">Comments</p>
+                          <p className="text-sm font-semibold text-white/80 tabular-nums">{m.comments.toLocaleString()}</p>
+                        </div>
+                        {hasTikTok && (
+                          <div className="hidden sm:block text-center w-14">
+                            <p className="text-xs text-white/30 uppercase tracking-wider">Shares</p>
+                            <p className={`text-sm font-semibold tabular-nums ${s.shares && m.shares !== undefined ? "text-white/80" : "text-white/20"}`}>
+                              {s.shares && m.shares !== undefined ? m.shares.toLocaleString() : "—"}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   <div className="text-right">
                     <p className="text-xs text-white/25">{new Date(m.postedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p>
                   </div>
