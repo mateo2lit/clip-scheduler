@@ -172,7 +172,7 @@ export default function Home() {
                 href="/login"
                 className="rounded-full bg-white px-8 py-3.5 text-base font-semibold text-black hover:bg-white/90 transition-colors"
               >
-                Start Free — 7 days free
+                Try For Free →
               </a>
             )
           )}
