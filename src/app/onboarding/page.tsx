@@ -90,6 +90,8 @@ const PLATFORMS: { key: string; label: string; icon: React.ReactNode }[] = [
 
 const CREATOR_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || "";
 const TEAM_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || "";
+const CREATOR_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_CREATOR_ANNUAL_PRICE_ID || "";
+const TEAM_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_ANNUAL_PRICE_ID || "";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -109,6 +111,7 @@ export default function OnboardingPage() {
   const [blueskyError, setBlueskyError] = useState<string | null>(null);
   const [justConnected, setJustConnected] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
 
   const fetchConnectedAccounts = useCallback(async (token?: string) => {
     let accessToken = token;
@@ -509,15 +512,32 @@ export default function OnboardingPage() {
               <h1 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-2">
                 Choose your plan
               </h1>
-              <p className="text-center text-white/40 mb-2">
+              <p className="text-center text-white/40 mb-4">
                 7-day free trial. No charge until trial ends. Cancel anytime.
               </p>
+              {/* Billing period toggle */}
+              <div className="flex justify-center mb-4">
+                <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+                  <button
+                    onClick={() => setBillingPeriod("monthly")}
+                    className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "monthly" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setBillingPeriod("annual")}
+                    className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "annual" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+                  >
+                    Annual <span className={`ml-1 text-xs font-semibold ${billingPeriod === "annual" ? "text-emerald-600" : "text-emerald-400"}`}>Save 17%</span>
+                  </button>
+                </div>
+              </div>
               {(role === "agency" || role === "brand") ? (
-                <p className="text-center text-sm text-blue-400/70 mb-8">
+                <p className="text-center text-sm text-blue-400/70 mb-6">
                   Agencies and brands typically get the most from the Team plan — shared workspace and multi-member access.
                 </p>
               ) : (
-                <div className="mb-8" />
+                <div className="mb-6" />
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Creator */}
@@ -527,8 +547,18 @@ export default function OnboardingPage() {
                   </div>
                   <h3 className="text-lg font-semibold">Creator</h3>
                   <div className="mt-3 mb-5">
-                    <span className="text-4xl font-bold">$9.99</span>
-                    <span className="text-white/40 text-sm ml-1">/month</span>
+                    {billingPeriod === "annual" ? (
+                      <>
+                        <span className="text-4xl font-bold">$8.17</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                        <div className="text-xs text-white/40 mt-0.5">$98 billed annually</div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-bold">$9.99</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                      </>
+                    )}
                   </div>
                   <ul className="space-y-2.5 text-sm text-white/60 mb-8 flex-1">
                     {[
@@ -548,11 +578,11 @@ export default function OnboardingPage() {
                     ))}
                   </ul>
                   <button
-                    onClick={() => handleCheckout(CREATOR_PRICE_ID)}
-                    disabled={checkoutLoading || !CREATOR_PRICE_ID}
+                    onClick={() => handleCheckout(billingPeriod === "annual" ? CREATOR_ANNUAL_PRICE_ID : CREATOR_PRICE_ID)}
+                    disabled={checkoutLoading || (billingPeriod === "annual" ? !CREATOR_ANNUAL_PRICE_ID : !CREATOR_PRICE_ID)}
                     className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {checkoutLoading ? "Loading…" : "Start free — 7 days, then $9.99/mo"}
+                    {checkoutLoading ? "Loading…" : billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
                   </button>
                 </div>
 
@@ -560,8 +590,18 @@ export default function OnboardingPage() {
                 <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
                   <h3 className="text-lg font-semibold">Team</h3>
                   <div className="mt-3 mb-5">
-                    <span className="text-4xl font-bold">$19.99</span>
-                    <span className="text-white/40 text-sm ml-1">/month</span>
+                    {billingPeriod === "annual" ? (
+                      <>
+                        <span className="text-4xl font-bold">$16.58</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                        <div className="text-xs text-white/40 mt-0.5">$199 billed annually</div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-bold">$19.99</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                      </>
+                    )}
                   </div>
                   <ul className="space-y-2.5 text-sm text-white/60 mb-8 flex-1">
                     {[
@@ -581,11 +621,11 @@ export default function OnboardingPage() {
                     ))}
                   </ul>
                   <button
-                    onClick={() => handleCheckout(TEAM_PRICE_ID)}
-                    disabled={checkoutLoading || !TEAM_PRICE_ID}
+                    onClick={() => handleCheckout(billingPeriod === "annual" ? TEAM_ANNUAL_PRICE_ID : TEAM_PRICE_ID)}
+                    disabled={checkoutLoading || (billingPeriod === "annual" ? !TEAM_ANNUAL_PRICE_ID : !TEAM_PRICE_ID)}
                     className="w-full rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {checkoutLoading ? "Loading…" : "Start free — 7 days, then $19.99/mo"}
+                    {checkoutLoading ? "Loading…" : billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
                   </button>
                 </div>
               </div>

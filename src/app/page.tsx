@@ -94,6 +94,7 @@ export default function Home() {
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [importShotError, setImportShotError] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -456,9 +457,26 @@ export default function Home() {
 
       {/* Pricing */}
       <section id="pricing" className="relative z-10 mx-auto max-w-4xl px-6 py-20">
-        <div className="text-center mb-14">
+        <div className="text-center mb-8">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Simple, transparent pricing</h2>
           <p className="mt-4 text-white/40 text-lg">Start with a 7-day free trial. Cancel anytime.</p>
+        </div>
+        {/* Billing period toggle */}
+        <div className="flex justify-center mb-10">
+          <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+            <button
+              onClick={() => setBillingPeriod("monthly")}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "monthly" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingPeriod("annual")}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "annual" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+            >
+              Annual <span className={`ml-1 text-xs font-semibold ${billingPeriod === "annual" ? "text-emerald-600" : "text-emerald-400"}`}>Save 17%</span>
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Creator */}
@@ -468,8 +486,18 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-semibold">Creator</h3>
             <div className="mt-3 mb-5">
-              <span className="text-4xl font-bold">$9.99</span>
-              <span className="text-white/40 text-sm ml-1">/month</span>
+              {billingPeriod === "annual" ? (
+                <>
+                  <span className="text-4xl font-bold">$8.17</span>
+                  <span className="text-white/40 text-sm ml-1">/month</span>
+                  <div className="text-xs text-white/40 mt-0.5">$98 billed annually</div>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl font-bold">$9.99</span>
+                  <span className="text-white/40 text-sm ml-1">/month</span>
+                </>
+              )}
             </div>
             <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
               <li className="flex items-start gap-2">
@@ -501,7 +529,7 @@ export default function Home() {
               href="/login"
               className="block text-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
             >
-              Start free — 7 days, then $9.99/mo
+              {billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
             </a>
           </div>
 
@@ -509,8 +537,18 @@ export default function Home() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
             <h3 className="text-lg font-semibold">Team</h3>
             <div className="mt-3 mb-5">
-              <span className="text-4xl font-bold">$19.99</span>
-              <span className="text-white/40 text-sm ml-1">/month</span>
+              {billingPeriod === "annual" ? (
+                <>
+                  <span className="text-4xl font-bold">$16.58</span>
+                  <span className="text-white/40 text-sm ml-1">/month</span>
+                  <div className="text-xs text-white/40 mt-0.5">$199 billed annually</div>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl font-bold">$19.99</span>
+                  <span className="text-white/40 text-sm ml-1">/month</span>
+                </>
+              )}
             </div>
             <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
               <li className="flex items-start gap-2">
@@ -542,7 +580,7 @@ export default function Home() {
               href="/login"
               className="block text-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors"
             >
-              Start free — 7 days, then $19.99/mo
+              {billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
             </a>
           </div>
         </div>

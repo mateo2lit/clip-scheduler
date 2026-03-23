@@ -153,6 +153,7 @@ export default function SettingsPage() {
   const [renewalDate, setRenewalDate] = useState<string | null>(null);
   const [postedCount, setPostedCount] = useState<number>(0);
   const [planLoading, setPlanLoading] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
 
   type AccountInfo = { id: string; profileName?: string; avatarUrl?: string; label?: string };
   const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo[]>>({
@@ -1200,49 +1201,88 @@ export default function SettingsPage() {
 
           {/* No plan — show plan picker */}
           {(plan === "none" && planStatus !== "canceled") && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
-                  Most Popular
+            <div>
+              {/* Billing period toggle */}
+              <div className="flex justify-center mb-5">
+                <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+                  <button
+                    onClick={() => setBillingPeriod("monthly")}
+                    className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "monthly" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setBillingPeriod("annual")}
+                    className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "annual" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+                  >
+                    Annual <span className={`ml-1 text-xs font-semibold ${billingPeriod === "annual" ? "text-emerald-600" : "text-emerald-400"}`}>Save 17%</span>
+                  </button>
                 </div>
-                <h3 className="text-lg font-semibold">Creator</h3>
-                <div className="mt-2 mb-4">
-                  <span className="text-3xl font-bold">$9.99</span>
-                  <span className="text-white/40 text-sm ml-1">/month</span>
-                </div>
-                <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>25 GB storage</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>1 team member (solo)</li>
-                </ul>
-                <button
-                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || "")}
-                  disabled={planLoading}
-                  className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50"
-                >
-                  {planLoading ? "Loading..." : "Start 7-day free trial"}
-                </button>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 flex flex-col">
-                <h3 className="text-lg font-semibold">Team</h3>
-                <div className="mt-2 mb-4">
-                  <span className="text-3xl font-bold">$19.99</span>
-                  <span className="text-white/40 text-sm ml-1">/month</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
+                    Most Popular
+                  </div>
+                  <h3 className="text-lg font-semibold">Creator</h3>
+                  <div className="mt-2 mb-4">
+                    {billingPeriod === "annual" ? (
+                      <>
+                        <span className="text-3xl font-bold">$8.17</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                        <div className="text-xs text-white/40 mt-0.5">$98 billed annually</div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold">$9.99</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                      </>
+                    )}
+                  </div>
+                  <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>25 GB storage</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>1 team member (solo)</li>
+                  </ul>
+                  <button
+                    onClick={() => handleCheckout(billingPeriod === "annual" ? (process.env.NEXT_PUBLIC_STRIPE_CREATOR_ANNUAL_PRICE_ID || "") : (process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || ""))}
+                    disabled={planLoading}
+                    className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50"
+                  >
+                    {planLoading ? "Loading..." : "Start 7-day free trial"}
+                  </button>
                 </div>
-                <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>50 GB storage</li>
-                  <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Up to 5 team members</li>
-                </ul>
-                <button
-                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || "")}
-                  disabled={planLoading}
-                  className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
-                >
-                  {planLoading ? "Loading..." : "Start 7-day free trial"}
-                </button>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 flex flex-col">
+                  <h3 className="text-lg font-semibold">Team</h3>
+                  <div className="mt-2 mb-4">
+                    {billingPeriod === "annual" ? (
+                      <>
+                        <span className="text-3xl font-bold">$16.58</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                        <div className="text-xs text-white/40 mt-0.5">$199 billed annually</div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold">$19.99</span>
+                        <span className="text-white/40 text-sm ml-1">/month</span>
+                      </>
+                    )}
+                  </div>
+                  <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>50 GB storage</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Up to 5 team members</li>
+                  </ul>
+                  <button
+                    onClick={() => handleCheckout(billingPeriod === "annual" ? (process.env.NEXT_PUBLIC_STRIPE_TEAM_ANNUAL_PRICE_ID || "") : (process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || ""))}
+                    disabled={planLoading}
+                    className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    {planLoading ? "Loading..." : "Start 7-day free trial"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
