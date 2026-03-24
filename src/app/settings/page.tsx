@@ -154,6 +154,7 @@ export default function SettingsPage() {
   const [postedCount, setPostedCount] = useState<number>(0);
   const [planLoading, setPlanLoading] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
+  const [isResubscribe, setIsResubscribe] = useState(false);
 
   type AccountInfo = { id: string; profileName?: string; avatarUrl?: string; label?: string };
   const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo[]>>({
@@ -1250,7 +1251,7 @@ export default function SettingsPage() {
                     disabled={planLoading}
                     className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50"
                   >
-                    {planLoading ? "Loading..." : "Start 7-day free trial"}
+                    {planLoading ? "Loading..." : isResubscribe ? "Subscribe — Creator" : "Start 7-day free trial"}
                   </button>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 flex flex-col">
@@ -1280,7 +1281,7 @@ export default function SettingsPage() {
                     disabled={planLoading}
                     className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50"
                   >
-                    {planLoading ? "Loading..." : "Start 7-day free trial"}
+                    {planLoading ? "Loading..." : isResubscribe ? "Subscribe — Team" : "Start 7-day free trial"}
                   </button>
                 </div>
               </div>
@@ -1396,7 +1397,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => { setPlan("none"); setPlanStatus("inactive"); }}
+                  onClick={() => { setPlan("none"); setPlanStatus("inactive"); setIsResubscribe(true); }}
                   className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 transition-colors"
                 >
                   Re-subscribe
