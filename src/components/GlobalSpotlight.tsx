@@ -1,34 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
-const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
+// CSS is embedded directly here to avoid any Tailwind processing issues
+const CSS = `
+  @keyframes dvd-bounce {
+    0%   { transform: translate(0px, 0px); }
+    25%  { transform: translate(calc(100vw - 500px), calc(100vh - 500px)); }
+    50%  { transform: translate(0px, calc(100vh - 500px)); }
+    75%  { transform: translate(calc(100vw - 500px), 0px); }
+    100% { transform: translate(0px, 0px); }
+  }
+  @keyframes dvd-color {
+    0%,  24.9% { background: radial-gradient(circle, rgba(96,165,250,0.6)  0%, rgba(96,165,250,0.3)  45%, transparent 75%); }
+    25%, 49.9% { background: radial-gradient(circle, rgba(168,85,247,0.6)  0%, rgba(168,85,247,0.3)  45%, transparent 75%); }
+    50%, 74.9% { background: radial-gradient(circle, rgba(236,72,153,0.55) 0%, rgba(236,72,153,0.28) 45%, transparent 75%); }
+    75%, 99.9% { background: radial-gradient(circle, rgba(52,211,153,0.55) 0%, rgba(52,211,153,0.28) 45%, transparent 75%); }
+    100%       { background: radial-gradient(circle, rgba(96,165,250,0.6)  0%, rgba(96,165,250,0.3)  45%, transparent 75%); }
+  }
+  .clip-dvd-orb {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.45;
+    animation: dvd-bounce 20s linear infinite, dvd-color 20s linear infinite;
+    will-change: transform;
+  }
+`;
 
 export default function GlobalSpotlight({ children }: { children: React.ReactNode }) {
-  const [enabled, setEnabled] = useState(true);
-
-  useEffect(() => {
-    const sync = () => {
-      try {
-        setEnabled(window.localStorage.getItem(SPOTLIGHT_DISABLED_KEY) !== "1");
-      } catch {
-        setEnabled(true);
-      }
-    };
-    sync();
-    window.addEventListener("storage", sync);
-    window.addEventListener(SPOTLIGHT_PREF_EVENT, sync as EventListener);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener(SPOTLIGHT_PREF_EVENT, sync as EventListener);
-    };
-  }, []);
-
   return (
-    <div className="relative min-h-screen">
-      {enabled && <div aria-hidden="true" className="dvd-orb" />}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <div aria-hidden="true" className="clip-dvd-orb" />
       <div className="relative z-0">{children}</div>
-    </div>
+    </>
   );
 }
