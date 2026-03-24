@@ -26,7 +26,7 @@ const CSS = `
     border-radius: 50%;
     pointer-events: none;
     z-index: 9999;
-    opacity: 0.55;
+    opacity: 0.3;
     animation: dvd-bounce 20s linear infinite, dvd-color 20s linear infinite;
     will-change: transform;
   }
