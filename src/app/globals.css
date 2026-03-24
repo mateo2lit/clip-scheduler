@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+/* DVD screensaver bounce — corners match the 4 keyframe stops */
+@keyframes dvd-bounce {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(calc(100vw - 500px), calc(100vh - 500px)); }
+  50%  { transform: translate(0, calc(100vh - 500px)); }
+  75%  { transform: translate(calc(100vw - 500px), 0); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Color pops at each corner hit */
+@keyframes dvd-color {
+  0%,  24.9% { background: radial-gradient(circle, rgba(96,165,250,0.55)  0%, rgba(96,165,250,0.25)  50%, transparent 78%); }
+  25%, 49.9% { background: radial-gradient(circle, rgba(168,85,247,0.55)  0%, rgba(168,85,247,0.25)  50%, transparent 78%); }
+  50%, 74.9% { background: radial-gradient(circle, rgba(236,72,153,0.50)  0%, rgba(236,72,153,0.22)  50%, transparent 78%); }
+  75%, 99.9% { background: radial-gradient(circle, rgba(52,211,153,0.50)  0%, rgba(52,211,153,0.22)  50%, transparent 78%); }
+  100%       { background: radial-gradient(circle, rgba(96,165,250,0.55)  0%, rgba(96,165,250,0.25)  50%, transparent 78%); }
+}
+
+.dvd-orb {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.38;
+  animation: dvd-bounce 20s linear infinite, dvd-color 20s linear infinite;
+  will-change: transform;
+}
+
 @keyframes postingSlide {
   0% { transform: translateX(-200%); }
   100% { transform: translateX(500%); }
