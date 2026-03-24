@@ -152,6 +152,8 @@ export default function SettingsPage() {
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [renewalDate, setRenewalDate] = useState<string | null>(null);
   const [postedCount, setPostedCount] = useState<number>(0);
+  const [planBillingInterval, setPlanBillingInterval] = useState<"month" | "year" | null>(null);
+  const [planPriceAmount, setPlanPriceAmount] = useState<number | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
   const [isResubscribe, setIsResubscribe] = useState(false);
@@ -299,6 +301,8 @@ export default function SettingsPage() {
         setTrialEndsAt(json.trial_ends_at);
         setRenewalDate(json.current_period_end ?? null);
         setPostedCount(json.posted_count ?? 0);
+        setPlanBillingInterval(json.billing_interval ?? null);
+        setPlanPriceAmount(json.price_amount ?? null);
       }
     } catch (e) {
       console.error(e);
@@ -1291,7 +1295,11 @@ export default function SettingsPage() {
           {/* Active or trialing plan */}
           {(planStatus === "trialing" || planStatus === "active") && (() => {
             const timeSavedHrs = Math.round((postedCount * 5) / 60 * 10) / 10;
-            const planPrice = plan === "team" ? "$19.99" : "$9.99";
+            const isAnnual = planBillingInterval === "year";
+            const planPrice = planPriceAmount != null
+              ? `$${(planPriceAmount / 100).toFixed(2).replace(/\.00$/, "")}`
+              : plan === "team" ? (isAnnual ? "$199" : "$19.99") : (isAnnual ? "$98" : "$9.99");
+            const planPriceLabel = isAnnual ? `${planPrice}/yr` : `${planPrice}/month`;
             const planStorage = plan === "team" ? "50 GB" : "25 GB";
             const isTrialing = planStatus === "trialing";
             const dateStr = isTrialing && trialEndsAt
@@ -1318,13 +1326,13 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">{plan === "creator" ? "Creator" : "Team"} Plan</span>
+                          <span className="font-semibold">{plan === "creator" ? "Creator" : plan === "team" ? "Team" : "Starter"} Plan</span>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${isTrialing ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>
                             {isTrialing ? "Trial" : "Active"}
                           </span>
                         </div>
                         <div className="mt-0.5 text-sm text-white/40">
-                          {planPrice}/month
+                          {planPriceLabel}
                           {dateStr && (
                             <span className="ml-2 text-white/25">·</span>
                           )}

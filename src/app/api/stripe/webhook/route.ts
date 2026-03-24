@@ -95,6 +95,7 @@ export async function POST(req: Request) {
         await supabaseAdmin
           .from("teams")
           .update({
+            stripe_subscription_id: subscription.id,
             plan,
             plan_status: planStatus,
             trial_ends_at: trialEnd,
@@ -113,7 +114,6 @@ export async function POST(req: Request) {
           .update({
             plan: "none",
             plan_status: "canceled",
-            stripe_subscription_id: null,
           })
           .eq("stripe_customer_id", customerId);
 

@@ -31,11 +31,20 @@ export async function GET(req: Request) {
     const postedCount = postsResult.count ?? 0;
 
     let currentPeriodEnd: string | null = null;
+    let billingInterval: "month" | "year" | null = null;
+    let priceAmount: number | null = null;
     if (team.stripe_subscription_id) {
       try {
         const stripe = getStripe();
-        const sub = await stripe.subscriptions.retrieve(team.stripe_subscription_id);
+        const sub = await stripe.subscriptions.retrieve(team.stripe_subscription_id, {
+          expand: ["items.data.price"],
+        });
         currentPeriodEnd = new Date((sub as any).current_period_end * 1000).toISOString();
+        const price = sub.items.data[0]?.price;
+        if (price) {
+          billingInterval = (price.recurring?.interval as "month" | "year") ?? null;
+          priceAmount = price.unit_amount;
+        }
       } catch {
         // non-critical — omit renewal date if Stripe call fails
       }
@@ -47,6 +56,8 @@ export async function GET(req: Request) {
       plan_status: team.plan_status || "inactive",
       trial_ends_at: team.trial_ends_at || null,
       current_period_end: currentPeriodEnd,
+      billing_interval: billingInterval,
+      price_amount: priceAmount,
       posted_count: postedCount,
     });
   } catch (err: any) {
