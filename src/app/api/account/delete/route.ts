@@ -77,8 +77,14 @@ export async function DELETE(req: Request) {
           await getStripe().subscriptions.cancel(team.stripe_subscription_id);
         } catch (stripeErr: any) {
           // Log but don't block deletion — subscription may already be cancelled
-          console.error("[Account Delete] Stripe cancellation failed:", stripeErr?.message);
+          console.error(
+            "[Account Delete] Stripe cancellation failed — MANUAL ACTION REQUIRED.",
+            "subscription_id:", team.stripe_subscription_id,
+            "error:", stripeErr?.message
+          );
         }
+      } else {
+        console.warn("[Account Delete] No stripe_subscription_id on team — subscription not cancelled. team_id:", teamId);
       }
 
       // Delete all team invites

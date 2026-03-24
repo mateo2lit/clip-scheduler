@@ -97,7 +97,6 @@ export default function PlatformsPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent blur-3xl" />
       </div>
 
       <nav className="border-b border-white/5">

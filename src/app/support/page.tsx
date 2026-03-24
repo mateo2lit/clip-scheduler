@@ -399,8 +399,6 @@ export default function SupportPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
       {/* Ambient glows */}
-      <div className="pointer-events-none absolute top-0 left-1/2 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full bg-gradient-to-t from-purple-500/[0.05] to-transparent blur-3xl" />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/[0.06]">

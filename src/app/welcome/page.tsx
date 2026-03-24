@@ -189,7 +189,6 @@ export default function WelcomePage() {
       <ConfettiCanvas />
 
       {/* Background glow */}
-      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.12] via-purple-500/[0.07] to-transparent rounded-full blur-3xl" />
 
       <div
         className={`relative z-10 w-full max-w-md px-6 transition-all duration-700 ease-out ${

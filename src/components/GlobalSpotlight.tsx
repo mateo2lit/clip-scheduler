@@ -5,13 +5,12 @@ import { useEffect, useRef, useState } from "react";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
 const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
-// Colors that cycle on each wall bounce — subtle but distinct
-const GLOW_COLORS = [
-  "rgba(96,165,250,0.55)",    // blue
-  "rgba(168,85,247,0.55)",    // purple
-  "rgba(236,72,153,0.50)",    // pink
-  "rgba(52,211,153,0.45)",    // teal
-  "rgba(251,146,60,0.45)",    // orange
+const COLORS = [
+  ["rgba(96,165,250,0.22)",  "rgba(96,165,250,0.18)",  "0 0 140px 80px rgba(96,165,250,0.14)"],   // blue
+  ["rgba(168,85,247,0.22)",  "rgba(168,85,247,0.18)",  "0 0 140px 80px rgba(168,85,247,0.14)"],   // purple
+  ["rgba(236,72,153,0.20)",  "rgba(236,72,153,0.16)",  "0 0 140px 80px rgba(236,72,153,0.12)"],   // pink
+  ["rgba(52,211,153,0.20)",  "rgba(52,211,153,0.16)",  "0 0 140px 80px rgba(52,211,153,0.12)"],   // teal
+  ["rgba(251,146,60,0.20)",  "rgba(251,146,60,0.16)",  "0 0 140px 80px rgba(251,146,60,0.12)"],   // orange
 ];
 
 export default function GlobalSpotlight({ children }: { children: React.ReactNode }) {
@@ -45,48 +44,47 @@ export default function GlobalSpotlight({ children }: { children: React.ReactNod
       cancelAnimationFrame(rafRef.current);
       return;
     }
-
     orb.style.opacity = "1";
 
-    // DVD-style physics — position in viewport pixels
-    const W = 500; // orb render width
-    const H = 500; // orb render height
+    const SIZE = 420;
     let colorIdx = 0;
-
-    let px = Math.random() * (window.innerWidth  - W);
-    let py = Math.random() * (window.innerHeight - H);
-    let vx =  (Math.random() > 0.5 ? 1 : -1) * 1.4; // px per ms at ~60fps ≈ ~1.4*16≈22px/frame
-    let vy =  (Math.random() > 0.5 ? 1 : -1) * 1.1;
-
-    let last = performance.now();
+    let px = window.innerWidth  * 0.3;
+    let py = window.innerHeight * 0.25;
+    let vx = 1.6;
+    let vy = 1.2;
 
     function applyColor() {
       if (!orb) return;
-      orb.style.background = GLOW_COLORS[colorIdx % GLOW_COLORS.length];
+      const [bg, inner, shadow] = COLORS[colorIdx % COLORS.length];
+      orb.style.background = `radial-gradient(circle at center, ${inner} 0%, ${bg} 20%, transparent 70%)`;
+      orb.style.boxShadow = shadow;
       colorIdx++;
     }
     applyColor();
+
+    let last = performance.now();
 
     function tick(now: number) {
       const dt = Math.min(now - last, 50);
       last = now;
 
-      px += vx * dt;
-      py += vy * dt;
+      px += vx * dt * 0.06;
+      py += vy * dt * 0.06;
 
-      const maxX = window.innerWidth  - W;
-      const maxY = window.innerHeight - H;
+      const maxX = window.innerWidth  - SIZE;
+      const maxY = window.innerHeight - SIZE;
 
       let bounced = false;
-      if (px <= 0)    { px = 0;    vx = Math.abs(vx);  bounced = true; }
+      if (px <= 0)    { px = 0;    vx =  Math.abs(vx); bounced = true; }
       if (px >= maxX) { px = maxX; vx = -Math.abs(vx); bounced = true; }
-      if (py <= 0)    { py = 0;    vy = Math.abs(vy);  bounced = true; }
+      if (py <= 0)    { py = 0;    vy =  Math.abs(vy); bounced = true; }
       if (py >= maxY) { py = maxY; vy = -Math.abs(vy); bounced = true; }
 
       if (bounced) applyColor();
 
       if (orb) {
-        orb.style.transform = `translate(${px}px, ${py}px)`;
+        orb.style.left = `${px}px`;
+        orb.style.top  = `${py}px`;
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -98,17 +96,14 @@ export default function GlobalSpotlight({ children }: { children: React.ReactNod
 
   return (
     <div className="relative min-h-screen">
-      {/* DVD-style bouncing glow orb */}
       <div
         ref={orbRef}
         aria-hidden="true"
-        className="pointer-events-none fixed top-0 left-0 z-[5] transition-[background] duration-700"
+        className="pointer-events-none fixed z-50 transition-[background,box-shadow] duration-500"
         style={{
-          width: "500px",
-          height: "500px",
+          width: "420px",
+          height: "420px",
           borderRadius: "50%",
-          filter: "blur(90px)",
-          willChange: "transform",
           opacity: 1,
         }}
       />

@@ -163,9 +163,6 @@ export default function AnalyticsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      {/* Background gradient orbs */}
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-t from-purple-500/[0.05] to-transparent rounded-full blur-3xl" />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">

@@ -18,7 +18,6 @@ export default function BlogPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white">
       {/* Background gradient */}
-      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-blue-500/[0.06] via-purple-500/[0.03] to-transparent rounded-full blur-3xl" />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">

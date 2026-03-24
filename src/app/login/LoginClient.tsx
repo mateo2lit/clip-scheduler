@@ -106,8 +106,6 @@ export default function LoginClient() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white relative overflow-hidden flex items-center justify-center">
-      {/* Background gradient orbs */}
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/[0.07] via-purple-500/[0.04] to-transparent rounded-full blur-3xl" />
 
       <div className="relative z-10 w-full max-w-md px-6">
         <div className="text-center mb-8">
