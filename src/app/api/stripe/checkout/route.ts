@@ -19,14 +19,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing priceId" }, { status: 400 });
     }
 
-    // Get team to check for existing Stripe customer
+    // Get team to check for existing Stripe customer and prior subscription history
     const { data: team } = await supabaseAdmin
       .from("teams")
-      .select("stripe_customer_id, plan_status")
+      .select("stripe_customer_id, plan_status, stripe_subscription_id")
       .eq("id", teamId)
       .single();
 
     let customerId = team?.stripe_customer_id;
+    // Only offer trial to teams that have never had a subscription
+    const hadPriorSubscription = !!team?.stripe_subscription_id;
 
     if (!customerId) {
       // Look up team owner email for customer creation
@@ -61,7 +63,8 @@ export async function POST(req: Request) {
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: { trial_period_days: 7 },
+      subscription_data: hadPriorSubscription ? {} : { trial_period_days: 7 },
+      allow_promotion_codes: true,
       success_url: `${siteUrl}/welcome`,
       cancel_url: `${siteUrl}/settings?checkout=canceled`,
       metadata: { team_id: teamId },
