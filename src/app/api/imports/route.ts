@@ -174,7 +174,7 @@ async function processKickInVercel({
           "Content-Type": isHLS ? "video/mp2t" : "video/mp4",
           "Content-Length": String(fileBuffer.length),
         },
-        body: fileBuffer,
+        body: new Uint8Array(fileBuffer),
       }
     );
     if (!uploadRes.ok) {
