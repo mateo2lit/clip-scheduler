@@ -14,7 +14,12 @@ const BSKY_SERVICE = "https://bsky.social";
 
 function hasExpiredTokenSignal(status: number, text: string) {
   const body = String(text || "");
+  if (isRevokedTokenError(body)) return false; // revoked ≠ expired; don't retry
   return status === 401 || /ExpiredToken/i.test(body) || /token has expired/i.test(body);
+}
+
+function isRevokedTokenError(text: string) {
+  return /token has been revoked/i.test(text) || /TokenRevoked/i.test(text);
 }
 
 type SessionState = {
@@ -126,8 +131,11 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     const refreshed = await refreshSession(serviceUrl, session.refreshJwt);
     session.accessJwt = refreshed.accessJwt;
     session.refreshJwt = refreshed.refreshJwt;
-  } catch {
-    // If refresh fails we still try with the stored access token once below.
+  } catch (e: any) {
+    if (isRevokedTokenError(e.message || "")) {
+      throw new Error("Bluesky session has been revoked — please reconnect your Bluesky account.");
+    }
+    // Other refresh failures: try with the stored access token once below.
   }
 
   async function callWithRefresh(
@@ -147,7 +155,15 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
         throw new Error(`${failurePrefix}: ${res.status} ${text}`);
       }
 
-      const refreshed = await refreshSession(serviceUrl, session.refreshJwt);
+      let refreshed;
+      try {
+        refreshed = await refreshSession(serviceUrl, session.refreshJwt);
+      } catch (e: any) {
+        if (isRevokedTokenError(e.message || "")) {
+          throw new Error("Bluesky session has been revoked — please reconnect your Bluesky account.");
+        }
+        throw e;
+      }
       session.accessJwt = refreshed.accessJwt;
       session.refreshJwt = refreshed.refreshJwt;
       refreshAttempts += 1;
@@ -183,7 +199,8 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   const uploadData = await uploadRes.json();
   if (uploadData.error) throw new Error(`Bluesky upload error: ${uploadData.message || uploadData.error}`);
 
-  const blob = uploadData.blob;
+  // Force video/mp4 — Bluesky rejects video/quicktime even though the file plays fine.
+  const blob = { ...uploadData.blob, mimeType: "video/mp4" };
 
   // Create post record with video embed
   const now = new Date().toISOString();
