@@ -100,7 +100,8 @@ export async function POST(req: Request) {
         clearTimeout(timeout);
         const d = await proxyRes.json() as any;
         if (d.ok && d.clip_url) {
-          kickDirectUrl = d.clip_url;
+          // Wrap in our proxy so GitHub Actions (blocked by Kick's Cloudflare CDN) downloads from us instead
+          kickDirectUrl = `${siteUrl}/api/kick-video-proxy?url=${encodeURIComponent(d.clip_url)}&token=${encodeURIComponent(workerSecret)}`;
           kickTitle = d.title ?? null;
           kickDuration = typeof d.duration === "number" ? d.duration : null;
         }
