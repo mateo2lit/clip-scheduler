@@ -7,6 +7,7 @@ const withMDX = createMDX({ options: { remarkPlugins: [remarkFrontmatter], rehyp
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   reactStrictMode: true,
+  experimental: { after: true },
   async headers() {
     return [
       {
