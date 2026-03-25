@@ -119,10 +119,11 @@ export async function POST(req: Request) {
           const cdnUrl: string = d.clip_url;
           const isHLS = cdnUrl.toLowerCase().includes(".m3u8");
           if (isHLS) {
-            // HLS stream: kick-m3u8-proxy rewrites segment URLs to go through Vercel
-            kickDirectUrl = `${siteUrl}/api/kick-m3u8-proxy?token=${encodeURIComponent(workerSecret)}&url=${encodeURIComponent(cdnUrl)}`;
+            // HLS stream: clips.kick.com is CloudFront (not Cloudflare), accessible
+            // directly from GitHub Actions — pass CDN URL straight through.
+            kickDirectUrl = cdnUrl;
           } else {
-            // Direct MP4: simple proxy through Vercel
+            // Direct MP4: proxy through Vercel in case the CDN blocks runner IPs
             kickDirectUrl = `${siteUrl}/api/kick-video-proxy?token=${encodeURIComponent(workerSecret)}&url=${encodeURIComponent(cdnUrl)}`;
           }
           kickTitle = d.title ?? null;

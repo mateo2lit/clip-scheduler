@@ -87,10 +87,10 @@ jobs:
         run: |
           EFFECTIVE_DIRECT_URL="${{ inputs.direct_url }}"
 
-          # ── Kick: direct_url is a Vercel-proxied URL (kick-video-proxy or kick-m3u8-proxy)
-          # GitHub Actions datacenter IPs are blocked by Kick's CDN; Vercel IPs are not.
-          # For HLS clips, direct_url points to kick-m3u8-proxy which rewrites every
-          # segment URL to go through kick-video-proxy — so all CDN access routes via Vercel.
+          # ── Kick: direct_url is either a direct CDN URL (clips.kick.com via CloudFront,
+          # accessible from GitHub Actions) or a Vercel-proxied URL (kick-video-proxy for
+          # direct MP4 clips). HLS m3u8 URLs are passed straight through — ffmpeg handles
+          # byte-range segment downloads natively against the CloudFront CDN.
           if [ -n "$EFFECTIVE_DIRECT_URL" ]; then
             echo "Using direct CDN URL" | tee -a /tmp/download_log.txt
             HTTP_STATUS=$(curl -L --max-time 600 --retry 2 \
