@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 // CSS is embedded directly here to avoid any Tailwind processing issues
 // NOTE: No filter:blur — Chrome clips blur on position:fixed elements. Soft radial gradient handles the glow instead.
 const CSS = `
@@ -26,17 +28,20 @@ const CSS = `
     border-radius: 50%;
     pointer-events: none;
     z-index: 9999;
-    opacity: 0.3;
     animation: dvd-bounce 20s linear infinite, dvd-color 20s linear infinite;
     will-change: transform;
   }
 `;
 
 export default function GlobalSpotlight({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isLanding = pathname === "/";
+  const opacity = isLanding ? 0.3 : 0.09;
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div aria-hidden="true" className="clip-dvd-orb" />
+      <div aria-hidden="true" className="clip-dvd-orb" style={{ opacity }} />
       {children}
     </>
   );
