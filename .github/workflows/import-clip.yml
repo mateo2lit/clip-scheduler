@@ -55,11 +55,17 @@ jobs:
       - name: Get clip metadata
         id: meta
         run: |
-          if [ -n "${{ inputs.prefetched_title }}" ]; then
-            echo "title=${{ inputs.prefetched_title }}" >> $GITHUB_OUTPUT
-            echo "duration=${{ inputs.prefetched_duration }}" >> $GITHUB_OUTPUT
+          # For raw_ts_path jobs (HLS Kick clips pre-downloaded by Vercel), skip yt-dlp
+          # entirely — the URL is empty and yt-dlp would fail under set -eo pipefail.
+          if [ -n "${{ inputs.prefetched_title }}" ] || [ -n "${{ inputs.raw_ts_path }}" ]; then
+            TITLE="${{ inputs.prefetched_title }}"
+            [ -z "$TITLE" ] && TITLE="Imported clip"
+            DURATION="${{ inputs.prefetched_duration }}"
+            [ -z "$DURATION" ] && DURATION="0"
+            echo "title=${TITLE}" >> $GITHUB_OUTPUT
+            echo "duration=${DURATION}" >> $GITHUB_OUTPUT
           else
-            JSON=$(yt-dlp --dump-json --no-playlist "${{ inputs.url }}" 2>/tmp/meta_err.txt | head -1)
+            JSON=$(yt-dlp --dump-json --no-playlist "${{ inputs.url }}" 2>/tmp/meta_err.txt | head -1) || true
             if [ -z "$JSON" ]; then
               echo "title=Imported clip" >> $GITHUB_OUTPUT
               echo "duration=0" >> $GITHUB_OUTPUT
@@ -95,7 +101,8 @@ jobs:
             HTTP_STATUS=$(curl -sS -o /tmp/clip_source -w "%{http_code}" \
               --max-time 300 \
               "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${RAW_TS_PATH}" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
             echo "Supabase download HTTP status: $HTTP_STATUS" | tee -a /tmp/download_log.txt
             if [ "$HTTP_STATUS" != "200" ]; then
               echo "Failed to download raw .ts from Supabase (HTTP $HTTP_STATUS)" | tee -a /tmp/download_log.txt
