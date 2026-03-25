@@ -42,9 +42,19 @@ jobs:
         run: |
           echo "=== Install step ===" | tee /tmp/download_log.txt
           echo "direct_url=${{ inputs.direct_url }}" | tee -a /tmp/download_log.txt
-          sudo apt-get install -y ffmpeg -qq 2>&1 | tee -a /tmp/download_log.txt
-          pip install --upgrade yt-dlp 2>&1 | tee -a /tmp/download_log.txt
-          pip install --upgrade curl_cffi 2>&1 | tee -a /tmp/download_log.txt || echo "curl_cffi optional install skipped" | tee -a /tmp/download_log.txt
+          # ffmpeg is pre-installed on ubuntu-latest runners; apt-get can silently
+          # fail to (re)install it while still exiting 0. Verify first, then install
+          # only if missing.
+          if command -v ffmpeg &>/dev/null; then
+            echo "ffmpeg already available: $(ffmpeg -version 2>&1 | head -1)" | tee -a /tmp/download_log.txt
+          else
+            echo "ffmpeg not found, installing via apt..." | tee -a /tmp/download_log.txt
+            sudo apt-get update -qq 2>&1 | tail -2 | tee -a /tmp/download_log.txt
+            sudo apt-get install -y --no-install-recommends ffmpeg 2>&1 | tail -3 | tee -a /tmp/download_log.txt
+            command -v ffmpeg | tee -a /tmp/download_log.txt
+          fi
+          pip install --upgrade yt-dlp 2>&1 | tail -3 | tee -a /tmp/download_log.txt
+          pip install --upgrade curl_cffi 2>&1 | tail -3 | tee -a /tmp/download_log.txt || echo "curl_cffi optional install skipped" | tee -a /tmp/download_log.txt
           echo "Install complete" | tee -a /tmp/download_log.txt
 
       - name: Mark job as fetching
