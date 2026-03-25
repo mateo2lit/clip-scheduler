@@ -40,8 +40,12 @@ jobs:
     steps:
       - name: Install yt-dlp and ffmpeg
         run: |
-          sudo apt-get install -y ffmpeg -qq
-          pip install --upgrade yt-dlp curl_cffi
+          echo "=== Install step ===" | tee /tmp/download_log.txt
+          echo "direct_url=${{ inputs.direct_url }}" | tee -a /tmp/download_log.txt
+          sudo apt-get install -y ffmpeg -qq 2>&1 | tee -a /tmp/download_log.txt
+          pip install --upgrade yt-dlp 2>&1 | tee -a /tmp/download_log.txt
+          pip install --upgrade curl_cffi 2>&1 | tee -a /tmp/download_log.txt || echo "curl_cffi optional install skipped" | tee -a /tmp/download_log.txt
+          echo "Install complete" | tee -a /tmp/download_log.txt
 
       - name: Mark job as fetching
         run: |
