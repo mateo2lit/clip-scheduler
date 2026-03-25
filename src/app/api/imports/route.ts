@@ -166,7 +166,7 @@ async function processKickInVercel({
       : `${teamId}/${jobId}.mp4`;
 
     const uploadRes = await fetch(
-      `${process.env.SUPABASE_URL}/storage/v1/object/clips/${storagePath}`,
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/clips/${storagePath}`,
       {
         method: "POST",
         headers: {
