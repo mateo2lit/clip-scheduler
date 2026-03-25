@@ -8,7 +8,8 @@ on:
         required: true
       url:
         description: "Source clip URL"
-        required: true
+        required: false
+        default: ""
       team_id:
         description: "Team ID"
         required: true
@@ -27,6 +28,10 @@ on:
         description: "Pre-fetched duration in seconds"
         required: false
         default: "0"
+      raw_ts_path:
+        description: "Supabase Storage path to a pre-downloaded raw .ts file (HLS Kick clips). When set, skips CDN download and only remuxes to MP4."
+        required: false
+        default: ""
 
 jobs:
   import:
@@ -79,16 +84,30 @@ jobs:
       - name: Download clip
         run: |
           EFFECTIVE_DIRECT_URL="${{ inputs.direct_url }}"
+          RAW_TS_PATH="${{ inputs.raw_ts_path }}"
 
-          # Kick clips require a direct CDN URL pre-fetched by the import route (GitHub
-          # Actions IPs are blocked by Kick's API and HTML). If direct_url is empty for
-          # a Kick clip, fail early with a clear message rather than a cryptic 403.
-          if [ -z "$EFFECTIVE_DIRECT_URL" ] && echo "${{ inputs.url }}" | grep -qi "kick\.com"; then
-            echo "Kick import requires a direct CDN URL (not available - metadata fetch may have failed)" | tee /tmp/download_log.txt
-            exit 1
-          fi
-
-          if [ -n "$EFFECTIVE_DIRECT_URL" ]; then
+          # ── Remux-only mode (HLS Kick clips pre-downloaded by Vercel) ──────────────
+          # Vercel already downloaded and concatenated the HLS segments into a raw .ts
+          # file in Supabase Storage. We just download it from Supabase (accessible
+          # from any IP) and remux to .mp4 with ffmpeg. No Kick CDN access needed.
+          if [ -n "$RAW_TS_PATH" ]; then
+            echo "Remux-only mode: downloading pre-fetched raw .ts from Supabase..." | tee /tmp/download_log.txt
+            HTTP_STATUS=$(curl -sS -o /tmp/clip_source -w "%{http_code}" \
+              --max-time 300 \
+              "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${RAW_TS_PATH}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+            echo "Supabase download HTTP status: $HTTP_STATUS" | tee -a /tmp/download_log.txt
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "Failed to download raw .ts from Supabase (HTTP $HTTP_STATUS)" | tee -a /tmp/download_log.txt
+              exit 1
+            fi
+            if [ ! -s /tmp/clip_source ]; then
+              echo "Downloaded raw .ts file is empty" | tee -a /tmp/download_log.txt
+              exit 1
+            fi
+            echo "Raw .ts downloaded ($(stat -c%s /tmp/clip_source) bytes)" | tee -a /tmp/download_log.txt
+            # Skip to transcode — jump past the CDN download block below
+          elif [ -n "$EFFECTIVE_DIRECT_URL" ]; then
             echo "Using direct CDN URL" | tee -a /tmp/download_log.txt
             HTTP_STATUS=$(curl -L --max-time 600 --retry 2 \
               -H "Referer: https://kick.com/" \
@@ -262,6 +281,14 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"done\",\"upload_id\":\"${UPLOAD_ID}\",\"updated_at\":\"${NOW}\"}"
+
+          # Clean up temp raw .ts file if this was a remux-only HLS job
+          if [ -n "${{ inputs.raw_ts_path }}" ]; then
+            curl -sS -X DELETE \
+              "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.raw_ts_path }}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" || true
+          fi
 
       - name: Mark failed on error
         if: failure()

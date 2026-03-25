@@ -19,13 +19,112 @@ function detectPlatform(url: string): string {
 
 const BLOCKED_DOMAINS = ["instagram.com", "tiktok.com", "facebook.com", "youtube.com", "youtu.be"];
 
-// ─── Kick-in-Vercel processor ────────────────────────────────────────────────
-// Kick CDN is Cloudflare-protected. GitHub Actions datacenter IPs get blocked.
-// Vercel runs on Cloudflare IPs, so we download + upload entirely within Vercel.
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function patchJob(jobId: string, fields: Record<string, unknown>) {
-  await supabaseAdmin.from("import_jobs").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", jobId);
+  await supabaseAdmin
+    .from("import_jobs")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", jobId);
 }
+
+const KICK_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Referer": "https://kick.com/",
+  "Origin": "https://kick.com",
+};
+
+function resolveHLSUrl(base: string, relative: string): string {
+  if (/^https?:\/\//i.test(relative)) return relative;
+  const u = new URL(base);
+  if (relative.startsWith("/")) return `${u.protocol}//${u.host}${relative}`;
+  const dir = u.pathname.substring(0, u.pathname.lastIndexOf("/") + 1);
+  return `${u.protocol}//${u.host}${dir}${relative}`;
+}
+
+async function fetchKick(url: string): Promise<Response> {
+  const res = await fetch(url, { headers: KICK_HEADERS });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  return res;
+}
+
+// Downloads an HLS stream by fetching every .ts segment and concatenating them.
+// Returns raw MPEG-TS bytes. Vercel IPs can reach Kick CDN; GitHub Actions IPs cannot.
+async function downloadHLSToBuffer(m3u8Url: string): Promise<Buffer> {
+  let text = await (await fetchKick(m3u8Url)).text();
+  let mediaUrl = m3u8Url;
+
+  // Follow master playlist → media playlist if needed
+  if (text.includes("#EXT-X-STREAM-INF")) {
+    const lines = text.split("\n");
+    let bestBw = -1;
+    let bestUrl = "";
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith("#EXT-X-STREAM-INF")) {
+        const bw = parseInt(line.match(/BANDWIDTH=(\d+)/i)?.[1] ?? "0");
+        const next = lines[i + 1]?.trim();
+        if (next && !next.startsWith("#") && bw > bestBw) {
+          bestBw = bw;
+          bestUrl = resolveHLSUrl(m3u8Url, next);
+        }
+      }
+    }
+    if (!bestUrl) throw new Error("No streams found in HLS master playlist.");
+    mediaUrl = bestUrl;
+    text = await (await fetchKick(bestUrl)).text();
+  }
+
+  // Parse segment URLs from media playlist
+  const segmentUrls = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"))
+    .map((l) => resolveHLSUrl(mediaUrl, l));
+
+  if (segmentUrls.length === 0) throw new Error("No segments found in HLS playlist.");
+  if (segmentUrls.length > 600) throw new Error("Clip is too long (too many HLS segments).");
+
+  // Download segments sequentially and concatenate
+  const chunks: Buffer[] = [];
+  let totalSize = 0;
+  for (const seg of segmentUrls) {
+    const buf = Buffer.from(await (await fetchKick(seg)).arrayBuffer());
+    totalSize += buf.length;
+    if (totalSize > 2 * 1024 ** 3) throw new Error("Clip exceeds the 2 GB file size limit.");
+    chunks.push(buf);
+  }
+  return Buffer.concat(chunks);
+}
+
+async function dispatchGitHubActions(inputs: Record<string, string>) {
+  if (!GITHUB_PAT) throw new Error("GITHUB_PAT not set.");
+  const res = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/import-clip.yml/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GITHUB_PAT}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ref: "main", inputs }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`GitHub dispatch failed (${res.status}): ${err.slice(0, 200)}`);
+  }
+}
+
+// ─── Kick processor ───────────────────────────────────────────────────────────
+// Architecture:
+//   Phase 1 (Vercel, this function): Download from Kick CDN — Vercel's Cloudflare
+//     IPs are not blocked. For HLS, concatenate all segments into raw MPEG-TS bytes.
+//     Upload raw bytes to Supabase as a temp file.
+//   Phase 2 (GitHub Actions, only for HLS): Download temp file from Supabase
+//     (GitHub Actions IPs can reach Supabase). Remux .ts → .mp4 with ffmpeg.
+//   For direct MP4: skip Phase 2, mark done immediately.
 
 async function processKickInVercel({
   jobId, cdnUrl, teamId, userId, title, durationSeconds,
@@ -36,32 +135,23 @@ async function processKickInVercel({
   try {
     await patchJob(jobId, { status: "fetching" });
 
-    // Fetch from Kick CDN with browser-like headers (Vercel IPs are not blocked)
-    const kickRes = await fetch(cdnUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Referer": "https://kick.com/",
-        "Origin": "https://kick.com",
-      },
-    });
+    const isHLS = cdnUrl.toLowerCase().includes(".m3u8");
+    let fileBuffer: Buffer;
 
-    if (!kickRes.ok) {
-      throw new Error(`Kick CDN returned HTTP ${kickRes.status}. The clip may be private, deleted, or expired.`);
-    }
-
-    const contentType = kickRes.headers.get("content-type") ?? "";
-    if (contentType.includes("mpegurl") || cdnUrl.includes(".m3u8")) {
-      throw new Error("This Kick clip is an HLS stream, which requires re-encoding. Direct MP4 clips only for now.");
-    }
-
-    const contentLength = kickRes.headers.get("content-length");
-    const fileSize = contentLength ? parseInt(contentLength, 10) : 0;
-    if (fileSize > 2 * 1024 ** 3) {
-      throw new Error("Clip exceeds the 2 GB file size limit.");
-    }
-
-    if (!kickRes.body) {
-      throw new Error("Kick CDN returned an empty response body.");
+    if (isHLS) {
+      // Download and concatenate all HLS segments in Vercel
+      fileBuffer = await downloadHLSToBuffer(cdnUrl);
+    } else {
+      // Direct MP4 — stream to buffer
+      const res = await fetchKick(cdnUrl);
+      const cl = res.headers.get("content-length");
+      if (cl && parseInt(cl, 10) > 2 * 1024 ** 3) {
+        throw new Error("Clip exceeds the 2 GB file size limit.");
+      }
+      fileBuffer = Buffer.from(await res.arrayBuffer());
+      if (fileBuffer.length > 2 * 1024 ** 3) {
+        throw new Error("Clip exceeds the 2 GB file size limit.");
+      }
     }
 
     await patchJob(jobId, {
@@ -70,48 +160,58 @@ async function processKickInVercel({
       ...(durationSeconds != null ? { duration_seconds: durationSeconds } : {}),
     });
 
-    // Stream directly from Kick CDN → Supabase Storage (no memory buffering)
-    const filePath = `${teamId}/${jobId}.mp4`;
+    // Upload raw bytes to Supabase Storage
+    const storagePath = isHLS
+      ? `${teamId}/${jobId}_raw.ts`  // temp; GitHub Actions will remux and replace
+      : `${teamId}/${jobId}.mp4`;
+
     const uploadRes = await fetch(
-      `${process.env.SUPABASE_URL}/storage/v1/object/clips/${filePath}`,
+      `${process.env.SUPABASE_URL}/storage/v1/object/clips/${storagePath}`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          "Content-Type": "video/mp4",
-          ...(contentLength ? { "Content-Length": contentLength } : {}),
+          "Content-Type": isHLS ? "video/mp2t" : "video/mp4",
+          "Content-Length": String(fileBuffer.length),
         },
-        body: kickRes.body,
-        // @ts-ignore — required for streaming request body in Node.js fetch
-        duplex: "half",
+        body: fileBuffer,
       }
     );
-
     if (!uploadRes.ok) {
-      const errText = await uploadRes.text().catch(() => "");
-      throw new Error(`Storage upload failed (${uploadRes.status}): ${errText.slice(0, 200)}`);
+      const err = await uploadRes.text().catch(() => "");
+      throw new Error(`Storage upload failed (${uploadRes.status}): ${err.slice(0, 200)}`);
     }
 
-    // Create uploads row
-    const uploadId = crypto.randomUUID();
-    const { error: uploadRowErr } = await supabaseAdmin.from("uploads").insert({
-      id: uploadId,
-      user_id: userId,
-      team_id: teamId,
-      bucket: "clips",
-      file_path: filePath,
-      file_size: fileSize,
-      storage_deleted: false,
-    });
-
-    if (uploadRowErr) {
-      throw new Error(`Failed to record upload: ${uploadRowErr.message}`);
+    if (!isHLS) {
+      // Direct MP4: done — create uploads row immediately
+      const uploadId = crypto.randomUUID();
+      await supabaseAdmin.from("uploads").insert({
+        id: uploadId,
+        user_id: userId,
+        team_id: teamId,
+        bucket: "clips",
+        file_path: storagePath,
+        file_size: fileBuffer.length,
+        storage_deleted: false,
+      });
+      await patchJob(jobId, { status: "done", upload_id: uploadId });
+    } else {
+      // HLS raw .ts uploaded — dispatch GitHub Actions ONLY for the ffmpeg remux step.
+      // GitHub Actions downloads from Supabase (no Kick CDN access needed).
+      await dispatchGitHubActions({
+        job_id: jobId,
+        url: "",           // not needed; raw_ts_path takes precedence
+        team_id: teamId,
+        user_id: userId,
+        raw_ts_path: storagePath,
+        ...(title ? { prefetched_title: title } : {}),
+        ...(durationSeconds != null ? { prefetched_duration: String(durationSeconds) } : {}),
+      });
+      // Job stays "uploading"; GitHub Actions marks it done after remux
     }
-
-    await patchJob(jobId, { status: "done", upload_id: uploadId });
   } catch (err: any) {
-    const msg = err?.message || "Kick import failed unexpectedly.";
-    console.error(`[kick-import] job ${jobId} failed:`, msg);
+    const msg = err?.message ?? "Kick import failed unexpectedly.";
+    console.error(`[kick-import] job ${jobId}:`, msg);
     await patchJob(jobId, { status: "failed", error: msg });
   }
 }
@@ -139,12 +239,10 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const url: string = (body.url || "").trim();
-
     if (!url) return NextResponse.json({ ok: false, error: "URL is required." }, { status: 400 });
     try { new URL(url); } catch {
       return NextResponse.json({ ok: false, error: "Invalid URL." }, { status: 400 });
     }
-
     if (BLOCKED_DOMAINS.some((d) => url.includes(d))) {
       return NextResponse.json(
         { ok: false, error: "Importing from YouTube, Instagram, TikTok, or Facebook is not supported. Use Twitch or Kick links." },
@@ -157,8 +255,7 @@ export async function POST(req: Request) {
       .select("file_size")
       .eq("team_id", teamId)
       .eq("storage_deleted", false);
-
-    const usedBytes = uploads?.reduce((sum, r) => sum + (r.file_size || 0), 0) ?? 0;
+    const usedBytes = uploads?.reduce((s, r) => s + (r.file_size || 0), 0) ?? 0;
     const limitBytes = team.plan === "team" ? 15 * 1024 ** 3 : 5 * 1024 ** 3;
     if (usedBytes > limitBytes * 0.85) {
       return NextResponse.json(
@@ -169,7 +266,7 @@ export async function POST(req: Request) {
 
     const sourcePlatform = detectPlatform(url);
 
-    // ── Kick: resolve CDN URL via kick-proxy (Vercel IPs allowed by Kick) ──
+    // ── Kick: resolve CDN URL from kick-proxy ──────────────────────────────────
     let kickCdnUrl: string | null = null;
     let kickTitle: string | null = null;
     let kickDuration: number | null = null;
@@ -184,22 +281,21 @@ export async function POST(req: Request) {
       const workerSecret = process.env.WORKER_SECRET || "";
       try {
         const abort = new AbortController();
-        const timeout = setTimeout(() => abort.abort(), 10000);
-        const proxyRes = await fetch(
+        const t = setTimeout(() => abort.abort(), 10000);
+        const r = await fetch(
           `${siteUrl}/api/kick-proxy?token=${encodeURIComponent(workerSecret)}&clipId=${encodeURIComponent(clipId)}&url=${encodeURIComponent(url)}`,
           { signal: abort.signal }
         );
-        clearTimeout(timeout);
-        const d = await proxyRes.json() as any;
+        clearTimeout(t);
+        const d = await r.json() as any;
         if (d.ok && d.clip_url) {
-          kickCdnUrl = d.clip_url; // raw CDN URL — used directly in Vercel (no proxy needed)
+          kickCdnUrl = d.clip_url;
           kickTitle = d.title ?? null;
           kickDuration = typeof d.duration === "number" ? d.duration : null;
         }
       } catch (e) {
-        console.error("[kick-proxy] fetch failed:", e);
+        console.error("[kick-proxy] failed:", e);
       }
-
       if (!kickCdnUrl) {
         return NextResponse.json(
           { ok: false, error: "Could not fetch Kick clip info — the clip may be private, deleted, or Kick's API is temporarily down." },
@@ -228,9 +324,9 @@ export async function POST(req: Request) {
     }
 
     if (sourcePlatform === "kick" && kickCdnUrl) {
-      // ── Process Kick entirely inside Vercel (synchronous, maxDuration=300s) ──
-      // No GitHub Actions needed — Vercel IPs are not blocked by Kick's CDN.
-      // The POST takes longer to respond but the modal shows a spinner during this time.
+      // Kick: download in Vercel (Cloudflare IPs not blocked by Kick CDN)
+      // This is synchronous — the POST takes ~20–120s depending on clip size.
+      // The modal shows a spinner during this time, then polling sees the result.
       await processKickInVercel({
         jobId: job.id,
         cdnUrl: kickCdnUrl,
@@ -240,39 +336,16 @@ export async function POST(req: Request) {
         durationSeconds: kickDuration,
       });
     } else {
-      // ── Non-Kick platforms: dispatch to GitHub Actions ──
+      // Non-Kick: dispatch to GitHub Actions as before
       if (!GITHUB_PAT) {
-        console.warn("GITHUB_PAT not set — import job created but workflow not dispatched");
+        console.warn("GITHUB_PAT not set — workflow not dispatched");
       } else {
-        const dispatchRes = await fetch(
-          `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/import-clip.yml/dispatches`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${GITHUB_PAT}`,
-              Accept: "application/vnd.github+json",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              ref: "main",
-              inputs: {
-                job_id: job.id,
-                url,
-                team_id: teamId,
-                user_id: userId,
-              },
-            }),
-          }
-        );
-
-        if (!dispatchRes.ok) {
-          const errText = await dispatchRes.text();
-          console.error("GitHub dispatch failed:", dispatchRes.status, errText);
-          return NextResponse.json(
-            { ok: false, error: `Import worker could not be started (GitHub ${dispatchRes.status}): ${errText.slice(0, 200)}` },
-            { status: 500 }
-          );
-        }
+        await dispatchGitHubActions({
+          job_id: job.id,
+          url,
+          team_id: teamId,
+          user_id: userId,
+        });
       }
     }
 
@@ -289,14 +362,12 @@ export async function GET(req: Request) {
     const result = await getTeamContext(req);
     if (!result.ok) return result.error;
     const { teamId } = result.ctx;
-
     const { data, error } = await supabaseAdmin
       .from("import_jobs")
       .select("id, url, source_platform, title, duration_seconds, status, error, upload_id, created_at")
       .eq("team_id", teamId)
       .order("created_at", { ascending: false })
       .limit(20);
-
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, data: data ?? [] });
   } catch (e: any) {
