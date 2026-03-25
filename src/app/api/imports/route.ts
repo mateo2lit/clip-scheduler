@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { unstable_after as after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
 
@@ -229,20 +228,16 @@ export async function POST(req: Request) {
     }
 
     if (sourcePlatform === "kick" && kickCdnUrl) {
-      // ── Process Kick entirely inside Vercel after the response is sent ──
+      // ── Process Kick entirely inside Vercel (synchronous, maxDuration=300s) ──
       // No GitHub Actions needed — Vercel IPs are not blocked by Kick's CDN.
-      const capturedCdnUrl = kickCdnUrl;
-      const capturedTitle = kickTitle;
-      const capturedDuration = kickDuration;
-      after(async () => {
-        await processKickInVercel({
-          jobId: job.id,
-          cdnUrl: capturedCdnUrl,
-          teamId,
-          userId,
-          title: capturedTitle,
-          durationSeconds: capturedDuration,
-        });
+      // The POST takes longer to respond but the modal shows a spinner during this time.
+      await processKickInVercel({
+        jobId: job.id,
+        cdnUrl: kickCdnUrl,
+        teamId,
+        userId,
+        title: kickTitle,
+        durationSeconds: kickDuration,
       });
     } else {
       // ── Non-Kick platforms: dispatch to GitHub Actions ──
