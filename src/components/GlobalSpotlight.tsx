@@ -37,7 +37,7 @@ export default function GlobalSpotlight({ children }: { children: React.ReactNod
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div aria-hidden="true" className="clip-dvd-orb" />
-      <div className="relative z-0">{children}</div>
+      {children}
     </>
   );
 }

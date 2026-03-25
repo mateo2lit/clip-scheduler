@@ -21,8 +21,9 @@ async function proxyKick(req: NextRequest, method: "GET" | "HEAD") {
 
   let targetUrl: string;
   try {
-    targetUrl = decodeURIComponent(url);
-    new URL(targetUrl); // validate
+    // searchParams.get() already URL-decodes the value — don't double-decode
+    new URL(url); // validate
+    targetUrl = url;
   } catch {
     return new Response("Invalid url", { status: 400 });
   }
