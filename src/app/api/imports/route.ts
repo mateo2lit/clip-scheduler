@@ -165,21 +165,14 @@ async function processKickInVercel({
       ? `${teamId}/${jobId}_raw.ts`  // temp; GitHub Actions will remux and replace
       : `${teamId}/${jobId}.mp4`;
 
-    const uploadRes = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/clips/${storagePath}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          "Content-Type": isHLS ? "video/mp2t" : "video/mp4",
-          "Content-Length": String(fileBuffer.length),
-        },
-        body: new Uint8Array(fileBuffer),
-      }
-    );
-    if (!uploadRes.ok) {
-      const err = await uploadRes.text().catch(() => "");
-      throw new Error(`Storage upload failed (${uploadRes.status}): ${err.slice(0, 200)}`);
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("clips")
+      .upload(storagePath, new Uint8Array(fileBuffer), {
+        contentType: isHLS ? "video/mp2t" : "video/mp4",
+        upsert: false,
+      });
+    if (uploadError) {
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
     }
 
     if (!isHLS) {
