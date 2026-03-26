@@ -126,19 +126,21 @@ jobs:
           margin_v = 30 if position == "bottom" else (30 if position == "top" else 0)
 
           # ASS header
-          ass_header = f"""[Script Info]
-ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
-ScaledBorderAndShadow: yes
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{font_size_px},{text_color},&H000000FF,&H00000000,&H80000000,{bold},0,0,0,100,100,0,0,1,{outline_width},0,{valign},10,10,{margin_v},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-"""
+          ass_header = "\n".join([
+              "[Script Info]",
+              "ScriptType: v4.00+",
+              "PlayResX: 1080",
+              "PlayResY: 1920",
+              "ScaledBorderAndShadow: yes",
+              "",
+              "[V4+ Styles]",
+              "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+              f"Style: Default,Arial,{font_size_px},{text_color},&H000000FF,&H00000000,&H80000000,{bold},0,0,0,100,100,0,0,1,{outline_width},0,{valign},10,10,{margin_v},1",
+              "",
+              "[Events]",
+              "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+              "",
+          ])
 
           def fmt_time(seconds: float) -> str:
               h = int(seconds // 3600)

@@ -166,25 +166,22 @@ jobs:
 
           client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-          prompt = f"""You are analyzing a video transcript to find the {clip_count} best moments for short-form social media clips (TikTok, Instagram Reels, YouTube Shorts).
-
-Video duration: {total_duration:.0f} seconds
-Transcript (format: [start-end] text):
-{transcript[:8000]}
-
-Find exactly {clip_count} distinct, engaging moments. Each clip must be 30-120 seconds long.
-
-Rules:
-- Clips must not overlap
-- Start/end times must be within 0 to {total_duration:.0f} seconds
-- Prefer: high energy moments, key insights, funny/surprising moments, strong hooks
-- If transcript is sparse/silent, space clips evenly across the video
-- Title should be 5-10 words, compelling, suitable for social media
-
-Respond with ONLY valid JSON (no markdown, no code blocks):
-[{{"start": 45.2, "end": 98.7, "title": "Compelling title here"}}, ...]
-
-Return exactly {clip_count} items."""
+          prompt = (
+              f"You are analyzing a video transcript to find the {clip_count} best moments for short-form social media clips (TikTok, Instagram Reels, YouTube Shorts).\n\n"
+              f"Video duration: {total_duration:.0f} seconds\n"
+              f"Transcript (format: [start-end] text):\n"
+              f"{transcript[:8000]}\n\n"
+              f"Find exactly {clip_count} distinct, engaging moments. Each clip must be 30-120 seconds long.\n\n"
+              "Rules:\n"
+              "- Clips must not overlap\n"
+              f"- Start/end times must be within 0 to {total_duration:.0f} seconds\n"
+              "- Prefer: high energy moments, key insights, funny/surprising moments, strong hooks\n"
+              "- If transcript is sparse/silent, space clips evenly across the video\n"
+              "- Title should be 5-10 words, compelling, suitable for social media\n\n"
+              "Respond with ONLY valid JSON (no markdown, no code blocks):\n"
+              '[{"start": 45.2, "end": 98.7, "title": "Compelling title here"}, ...]\n\n'
+              f"Return exactly {clip_count} items."
+          )
 
           msg = client.messages.create(
               model="claude-haiku-4-5-20251001",
