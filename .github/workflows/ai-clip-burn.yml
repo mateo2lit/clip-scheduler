@@ -1,0 +1,347 @@
+name: AI Clip Burn (Subtitle Burn-In)
+
+on:
+  workflow_dispatch:
+    inputs:
+      burn_job_id:
+        description: "ai_clip_burn_jobs row ID"
+        required: true
+      source_clip_path:
+        description: "Supabase Storage path of source clip"
+        required: true
+      output_path:
+        description: "Supabase Storage path for burned output"
+        required: true
+      subtitle_json:
+        description: "JSON array of word segments [{start, end, word}]"
+        required: true
+        default: "[]"
+      style_json:
+        description: "JSON subtitle style config"
+        required: true
+        default: "{}"
+      team_id:
+        description: "Team ID"
+        required: true
+      user_id:
+        description: "User ID"
+        required: true
+
+jobs:
+  burn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check ffmpeg
+        run: |
+          if command -v ffmpeg &>/dev/null; then
+            echo "ffmpeg ready: $(ffmpeg -version 2>&1 | head -1)"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+
+      - name: Mark burn job as burning
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"burning\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Download source clip from Supabase Storage
+        run: |
+          HTTP_STATUS=$(curl -sS -o /tmp/clip.mp4 -w "%{http_code}" \
+            --max-time 300 \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.source_clip_path }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+
+          echo "Download status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
+            echo "Download failed with status $HTTP_STATUS"
+            exit 1
+          fi
+          if [ ! -s /tmp/clip.mp4 ]; then
+            echo "Downloaded clip is empty"
+            exit 1
+          fi
+
+      - name: Generate ASS subtitle file and burn
+        env:
+          SUBTITLE_JSON: ${{ inputs.subtitle_json }}
+          STYLE_JSON: ${{ inputs.style_json }}
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+          import subprocess
+
+          subtitle_json = os.environ.get("SUBTITLE_JSON", "[]")
+          style_json = os.environ.get("STYLE_JSON", "{}")
+
+          try:
+              words = json.loads(subtitle_json)
+          except Exception:
+              words = []
+
+          try:
+              style = json.loads(style_json)
+          except Exception:
+              style = {}
+
+          animation = style.get("animation", "word_highlight")
+          color = style.get("color", "white")
+          font_size = style.get("fontSize", "medium")
+          font_weight = style.get("fontWeight", "bold")
+          outline = style.get("outline", True)
+          position = style.get("position", "bottom")
+
+          # Color map (ASS uses BGR hex)
+          color_map = {
+              "white": "&H00FFFFFF",
+              "yellow": "&H0000FFFF",
+              "green": "&H0000FF00",
+              "cyan": "&H00FFFF00",
+          }
+          highlight_map = {
+              "white": "&H00AAFFAA",
+              "yellow": "&H000099FF",
+              "green": "&H0000AA00",
+              "cyan": "&H00AAAA00",
+          }
+          text_color = color_map.get(color, "&H00FFFFFF")
+          highlight_color = highlight_map.get(color, "&H0000FF00")
+
+          size_map = {"small": 16, "medium": 22, "large": 28}
+          font_size_px = size_map.get(font_size, 22)
+          bold = 1 if font_weight == "bold" else 0
+          outline_width = 2 if outline else 0
+
+          # Vertical alignment (2=bottom, 8=top, 5=center)
+          valign_map = {"bottom": 2, "top": 8, "center": 5}
+          valign = valign_map.get(position, 2)
+
+          margin_v = 30 if position == "bottom" else (30 if position == "top" else 0)
+
+          # ASS header
+          ass_header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,{font_size_px},{text_color},&H000000FF,&H00000000,&H80000000,{bold},0,0,0,100,100,0,0,1,{outline_width},0,{valign},10,10,{margin_v},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+
+          def fmt_time(seconds: float) -> str:
+              h = int(seconds // 3600)
+              m = int((seconds % 3600) // 60)
+              s = seconds % 60
+              return f"{h}:{m:02d}:{s:06.3f}".replace(".", ",")
+
+          events = []
+
+          if not words or animation == "none":
+              # No subtitles or no word data — skip
+              ass_content = ass_header
+          elif animation == "word_highlight":
+              # Each word gets its own event; during its active window it's highlighted
+              # Group into lines of ~6 words for readability
+              LINE_SIZE = 6
+              lines = [words[i:i+LINE_SIZE] for i in range(0, len(words), LINE_SIZE)]
+
+              for line_words in lines:
+                  if not line_words:
+                      continue
+                  line_start = line_words[0]["start"]
+                  line_end = line_words[-1]["end"]
+
+                  for active_idx, active_word in enumerate(line_words):
+                      w_start = active_word["start"]
+                      w_end = active_word["end"]
+
+                      # Build line text with highlight on the active word
+                      parts = []
+                      for j, w in enumerate(line_words):
+                          word_text = w["word"].replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+                          if j == active_idx:
+                              parts.append(f"{{\\c{highlight_color}}}{word_text}{{\\c{text_color}}}")
+                          else:
+                              parts.append(word_text)
+                      text = " ".join(parts)
+
+                      events.append(
+                          f"Dialogue: 0,{fmt_time(w_start)},{fmt_time(w_end)},Default,,0,0,0,,{text}"
+                      )
+
+              ass_content = ass_header + "\n".join(events)
+
+          elif animation == "line":
+              # Group words into lines (~6 words), show each line for its duration
+              LINE_SIZE = 6
+              lines = [words[i:i+LINE_SIZE] for i in range(0, len(words), LINE_SIZE)]
+              for line_words in lines:
+                  if not line_words:
+                      continue
+                  line_start = line_words[0]["start"]
+                  line_end = line_words[-1]["end"]
+                  text = " ".join(
+                      w["word"].replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+                      for w in line_words
+                  )
+                  events.append(
+                      f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}"
+                  )
+              ass_content = ass_header + "\n".join(events)
+          else:
+              ass_content = ass_header
+
+          with open("/tmp/subtitles.ass", "w", encoding="utf-8") as f:
+              f.write(ass_content)
+
+          print(f"Generated ASS: animation={animation}, {len(events)} events", flush=True)
+
+          # If no subtitles, just copy the source
+          if animation == "none" or not words:
+              import shutil
+              shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
+              print("No subtitles — copying source as output", flush=True)
+          else:
+              # Burn subtitles via ffmpeg
+              proc = subprocess.run([
+                  "ffmpeg", "-i", "/tmp/clip.mp4",
+                  "-vf", "ass=/tmp/subtitles.ass",
+                  "-c:v", "libx264",
+                  "-preset", "fast",
+                  "-crf", "23",
+                  "-pix_fmt", "yuv420p",
+                  "-r", "30",
+                  "-c:a", "copy",
+                  "-movflags", "+faststart",
+                  "/tmp/burned.mp4", "-y"
+              ], capture_output=True, text=True)
+
+              if proc.returncode != 0:
+                  print(f"FFmpeg subtitle burn error: {proc.stderr[-500:]}", flush=True)
+                  raise RuntimeError("Subtitle burn failed")
+
+          if not os.path.exists("/tmp/burned.mp4") or os.path.getsize("/tmp/burned.mp4") == 0:
+              raise RuntimeError("Burned output missing")
+
+          print(f"Burned output: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
+          PYEOF
+
+      - name: Upload burned clip to Supabase Storage
+        run: |
+          FILE_SIZE=$(stat -c%s /tmp/burned.mp4)
+          HTTP_STATUS=$(curl -sS -o /tmp/burn_upload_resp.txt -w "%{http_code}" \
+            --max-time 300 \
+            -X POST \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.output_path }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: video/mp4" \
+            --data-binary @/tmp/burned.mp4)
+
+          echo "Upload status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
+            echo "Upload failed:"
+            cat /tmp/burn_upload_resp.txt
+            exit 1
+          fi
+          echo "BURNED_FILE_SIZE=${FILE_SIZE}" >> $GITHUB_ENV
+
+      - name: Create uploads row and mark burn done
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TEAM_ID: ${{ inputs.team_id }}
+          USER_ID: ${{ inputs.user_id }}
+          BURN_JOB_ID: ${{ inputs.burn_job_id }}
+          OUTPUT_PATH: ${{ inputs.output_path }}
+          BURNED_FILE_SIZE: ${{ env.BURNED_FILE_SIZE }}
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+          import uuid
+          import datetime
+          import urllib.request
+          import urllib.error
+
+          supabase_url = os.environ["SUPABASE_URL"]
+          service_key = os.environ["SERVICE_KEY"]
+          team_id = os.environ["TEAM_ID"]
+          user_id = os.environ["USER_ID"]
+          burn_job_id = os.environ["BURN_JOB_ID"]
+          output_path = os.environ["OUTPUT_PATH"]
+          file_size = int(os.environ.get("BURNED_FILE_SIZE", "0"))
+          now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          upload_id = str(uuid.uuid4())
+
+          # Create uploads row
+          payload = json.dumps({
+              "id": upload_id,
+              "user_id": user_id,
+              "team_id": team_id,
+              "bucket": "clips",
+              "file_path": output_path,
+              "file_size": file_size,
+              "storage_deleted": False,
+          }).encode()
+
+          req = urllib.request.Request(
+              f"{supabase_url}/rest/v1/uploads",
+              data=payload,
+              method="POST",
+              headers={
+                  "Authorization": f"Bearer {service_key}",
+                  "apikey": service_key,
+                  "Content-Type": "application/json",
+                  "Prefer": "return=minimal",
+              }
+          )
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  print(f"Created upload row: {upload_id} (HTTP {resp.status})", flush=True)
+          except urllib.error.HTTPError as e:
+              print(f"Upload row error: {e.code} {e.read()[:200]}", flush=True)
+              raise
+
+          # Mark burn job done
+          done_payload = json.dumps({
+              "status": "done",
+              "result_upload_id": upload_id,
+              "updated_at": now,
+          }).encode()
+
+          req2 = urllib.request.Request(
+              f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}",
+              data=done_payload,
+              method="PATCH",
+              headers={
+                  "Authorization": f"Bearer {service_key}",
+                  "apikey": service_key,
+                  "Content-Type": "application/json",
+              }
+          )
+          with urllib.request.urlopen(req2) as resp:
+              print(f"Marked burn done: HTTP {resp.status}", flush=True)
+          PYEOF
+
+      - name: Mark burn failed on error
+        if: failure()
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"failed\",\"error\":\"Subtitle burn failed\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"

@@ -42,3 +42,4 @@ next-env.d.ts
 .env*.local
 .claude/settings.local.json
 CLIP SCHEDULER PROJECT.txt
+CLAUDE.md
