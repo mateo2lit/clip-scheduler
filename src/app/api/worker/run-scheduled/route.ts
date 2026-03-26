@@ -158,6 +158,16 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
+  // ── Reset posts stuck in "posting" for > 30 minutes ─────────────────
+  {
+    const staleThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await supabaseAdmin
+      .from("scheduled_posts")
+      .update({ status: "failed", last_error: "Post timed out — please retry" })
+      .eq("status", "posting")
+      .lt("scheduled_for", staleThreshold);
+  }
+
   // ── Process ig_processing posts first (Instagram + Threads) ─────────
   const igProcessingResults: any[] = [];
   {
