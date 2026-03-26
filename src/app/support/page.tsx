@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import AppPageOrb from "@/components/AppPageOrb";
 
 type SupportTab = "faq" | "submit" | "tickets" | "articles";
 type TicketType = "bug" | "question" | "billing" | "feature";
@@ -398,6 +399,7 @@ export default function SupportPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
+      <AppPageOrb />
       {/* Ambient glows */}
 
       {/* Nav */}

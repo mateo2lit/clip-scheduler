@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
+import AppPageOrb from "@/components/AppPageOrb";
 
 type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
@@ -1046,6 +1047,7 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
+      <AppPageOrb />
       {/* Background gradient orbs */}
 
       {/* Nav */}

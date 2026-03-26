@@ -33,6 +33,19 @@
   will-change: transform;
 }
 
+.clip-page-orb {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.1;
+  animation: dvd-bounce 20s linear infinite, dvd-color 20s linear infinite;
+  will-change: transform;
+}
+
 @keyframes postingSlide {
   0% { transform: translateX(-200%); }
   100% { transform: translateX(500%); }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import AppPageOrb from "@/components/AppPageOrb";
 
 type DraftPost = {
   id: string;
@@ -172,6 +173,7 @@ export default function DraftsPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
+      <AppPageOrb />
 
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">

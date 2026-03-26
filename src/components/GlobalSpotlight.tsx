@@ -36,12 +36,29 @@ const CSS = `
 export default function GlobalSpotlight({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLanding = pathname === "/";
+  const appPaths = [
+    "/admin",
+    "/ai-clips",
+    "/analytics",
+    "/calendar",
+    "/comments",
+    "/dashboard",
+    "/drafts",
+    "/onboarding",
+    "/posted",
+    "/scheduled",
+    "/settings",
+    "/support",
+    "/uploads",
+    "/welcome",
+  ];
+  const useLocalBackdrop = appPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const opacity = isLanding ? 0.3 : 0.09;
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div aria-hidden="true" className="clip-dvd-orb" style={{ opacity }} />
+      {!useLocalBackdrop && <div aria-hidden="true" className="clip-dvd-orb" style={{ opacity }} />}
       {children}
     </>
   );

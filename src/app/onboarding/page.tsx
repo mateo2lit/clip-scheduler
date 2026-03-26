@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
+import AppPageOrb from "@/components/AppPageOrb";
 
 const TOTAL_STEPS = 3;
 
@@ -111,7 +112,7 @@ export default function OnboardingPage() {
   const [blueskyError, setBlueskyError] = useState<string | null>(null);
   const [justConnected, setJustConnected] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual");
 
   const fetchConnectedAccounts = useCallback(async (token?: string) => {
     let accessToken = token;
@@ -267,15 +268,19 @@ export default function OnboardingPage() {
       ? "opacity-0 translate-x-6"
       : "opacity-0 -translate-x-6"
     : "opacity-100 translate-x-0";
+  const contentWidthClass = step === 3 ? "max-w-5xl" : "max-w-2xl";
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col">
+    <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white flex flex-col">
+      <AppPageOrb />
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
-        <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
+      <header className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-5 border-b border-white/[0.06]">
+        <div className="flex justify-start">
+          <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
+        </div>
 
         {/* Step progress */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <div key={i} className="flex items-center gap-2">
               <div
@@ -307,14 +312,16 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <button onClick={finish} className="text-xs text-white/30 hover:text-white/60 transition-colors">
-          Skip →
-        </button>
+        <div className="flex justify-end">
+          <button onClick={finish} className="text-xs text-white/30 hover:text-white/60 transition-colors">
+            Skip →
+          </button>
+        </div>
       </header>
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className={`w-full max-w-2xl transition-all duration-220 ease-out ${slideClass}`}>
+        <div className={`w-full ${contentWidthClass} transition-all duration-220 ease-out ${slideClass}`}>
 
           {/* Step 1: Role */}
           {step === 1 && (
@@ -505,62 +512,66 @@ export default function OnboardingPage() {
 
           {/* Step 3: Plan Selection */}
           {step === 3 && (
-            <div>
-              <p className="text-center text-xs font-medium tracking-widest uppercase text-blue-400/80 mb-3">
+            <div className="mx-auto w-full max-w-4xl">
+              <p className="mb-4 text-center text-xs font-semibold tracking-[0.28em] uppercase text-blue-400/80">
                 Step 3 of 3
               </p>
-              <h1 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-2">
+              <h1 className="mb-3 text-center text-4xl font-bold tracking-tight sm:text-5xl">
                 Choose your plan
               </h1>
-              <p className="text-center text-white/40 mb-4">
+              <p className="mx-auto mb-8 max-w-2xl text-center text-base text-white/45">
                 7-day free trial. No charge until trial ends. Cancel anytime.
               </p>
               {/* Billing period toggle */}
-              <div className="flex justify-center mb-4">
-                <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+              <div className="mb-8 flex justify-center">
+                <div className="flex rounded-full border border-white/10 bg-white/[0.04] p-1 text-sm shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
                   <button
                     onClick={() => setBillingPeriod("monthly")}
-                    className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "monthly" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+                    className={`rounded-full px-5 py-2 font-semibold transition-all ${billingPeriod === "monthly" ? "bg-white text-black shadow-[0_8px_24px_rgba(255,255,255,0.18)]" : "text-white/55 hover:text-white/85"}`}
                   >
                     Monthly
                   </button>
                   <button
                     onClick={() => setBillingPeriod("annual")}
-                    className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "annual" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+                    className={`rounded-full px-5 py-2 font-semibold transition-all ${billingPeriod === "annual" ? "bg-white text-black shadow-[0_8px_24px_rgba(255,255,255,0.18)]" : "text-white/55 hover:text-white/85"}`}
                   >
-                    Annual <span className={`ml-1 text-xs font-semibold ${billingPeriod === "annual" ? "text-emerald-600" : "text-emerald-400"}`}>Save 17%</span>
+                    Annual <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${billingPeriod === "annual" ? "bg-emerald-500/15 text-emerald-600" : "bg-emerald-500/10 text-emerald-300"}`}>Save 17%</span>
                   </button>
                 </div>
               </div>
               {(role === "agency" || role === "brand") ? (
-                <p className="text-center text-sm text-blue-400/70 mb-6">
+                <p className="mb-8 text-center text-sm text-blue-300/75">
                   Agencies and brands typically get the most from the Team plan — shared workspace and multi-member access.
                 </p>
               ) : (
-                <div className="mb-6" />
+                <div className="mb-8" />
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Creator */}
-                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
+                <div className="relative flex flex-col overflow-hidden rounded-[30px] border border-violet-400/35 bg-[linear-gradient(180deg,rgba(17,20,33,0.98),rgba(8,9,15,0.96))] p-7 shadow-[0_24px_90px_rgba(91,33,182,0.18)]">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
                     Most Popular
                   </div>
-                  <h3 className="text-lg font-semibold">Creator</h3>
-                  <div className="mt-3 mb-5">
+                  <h3 className="mt-3 text-2xl font-semibold">Creator</h3>
+                  <div className="mt-2 text-sm leading-6 text-white/45">
+                    Everything you need to upload, schedule, and track content across all platforms.
+                  </div>
+                  <div className="mt-6 mb-5 rounded-3xl border border-white/8 bg-white/[0.03] p-5">
                     {billingPeriod === "annual" ? (
                       <>
-                        <span className="text-4xl font-bold">$8.17</span>
-                        <span className="text-white/40 text-sm ml-1">/month</span>
-                        <div className="text-xs text-white/40 mt-0.5">$98 billed annually</div>
+                        <span className="text-5xl font-bold tracking-tight">$8.17</span>
+                        <span className="ml-1 text-sm text-white/40">/month</span>
+                        <div className="mt-1 text-sm text-white/50">$98 billed annually</div>
                       </>
                     ) : (
                       <>
-                        <span className="text-4xl font-bold">$9.99</span>
-                        <span className="text-white/40 text-sm ml-1">/month</span>
+                        <span className="text-5xl font-bold tracking-tight">$9.99</span>
+                        <span className="ml-1 text-sm text-white/40">/month</span>
+                        <div className="mt-1 text-sm text-white/40">Billed monthly</div>
                       </>
                     )}
                   </div>
-                  <ul className="space-y-2.5 text-sm text-white/60 mb-8 flex-1">
+                  <ul className="mb-8 flex-1 space-y-3 border-t border-white/8 pt-6 text-sm text-white/65">
                     {[
                       "Unlimited uploads & scheduled posts",
                       "All 6 platforms",
@@ -570,7 +581,7 @@ export default function OnboardingPage() {
                       "Analytics dashboard",
                     ].map((feat) => (
                       <li key={feat} className="flex items-start gap-2">
-                        <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
                         {feat}
@@ -580,30 +591,42 @@ export default function OnboardingPage() {
                   <button
                     onClick={() => handleCheckout(billingPeriod === "annual" ? CREATOR_ANNUAL_PRICE_ID : CREATOR_PRICE_ID)}
                     disabled={checkoutLoading || (billingPeriod === "annual" ? !CREATOR_ANNUAL_PRICE_ID : !CREATOR_PRICE_ID)}
-                    className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {checkoutLoading ? "Loading…" : billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
+                    {checkoutLoading ? "Loading…" : "Start free trial"}
                   </button>
                 </div>
 
                 {/* Team */}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
-                  <h3 className="text-lg font-semibold">Team</h3>
-                  <div className="mt-3 mb-5">
+                <div className="relative flex flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,13,16,0.96),rgba(8,8,10,0.98))] p-7 shadow-[0_20px_70px_rgba(0,0,0,0.3)]">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                      Team
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-medium text-white/55">
+                      Shared workspace
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-semibold">Team</h3>
+                  <div className="mt-2 text-sm leading-6 text-white/45">
+                    Built for teams that need shared scheduling, shared assets, and role-based access.
+                  </div>
+                  <div className="mt-6 mb-5 rounded-3xl border border-white/8 bg-white/[0.03] p-5">
                     {billingPeriod === "annual" ? (
                       <>
-                        <span className="text-4xl font-bold">$16.58</span>
-                        <span className="text-white/40 text-sm ml-1">/month</span>
-                        <div className="text-xs text-white/40 mt-0.5">$199 billed annually</div>
+                        <span className="text-5xl font-bold tracking-tight">$16.58</span>
+                        <span className="ml-1 text-sm text-white/40">/month</span>
+                        <div className="mt-1 text-sm text-white/50">$199 billed annually</div>
                       </>
                     ) : (
                       <>
-                        <span className="text-4xl font-bold">$19.99</span>
-                        <span className="text-white/40 text-sm ml-1">/month</span>
+                        <span className="text-5xl font-bold tracking-tight">$19.99</span>
+                        <span className="ml-1 text-sm text-white/40">/month</span>
+                        <div className="mt-1 text-sm text-white/40">Billed monthly</div>
                       </>
                     )}
                   </div>
-                  <ul className="space-y-2.5 text-sm text-white/60 mb-8 flex-1">
+                  <ul className="mb-8 flex-1 space-y-3 border-t border-white/8 pt-6 text-sm text-white/65">
                     {[
                       "Everything in Creator",
                       "Up to 5 team members",
@@ -613,7 +636,7 @@ export default function OnboardingPage() {
                       "Priority email support",
                     ].map((feat) => (
                       <li key={feat} className="flex items-start gap-2">
-                        <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-white/45" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
                         {feat}
@@ -623,13 +646,13 @@ export default function OnboardingPage() {
                   <button
                     onClick={() => handleCheckout(billingPeriod === "annual" ? TEAM_ANNUAL_PRICE_ID : TEAM_PRICE_ID)}
                     disabled={checkoutLoading || (billingPeriod === "annual" ? !TEAM_ANNUAL_PRICE_ID : !TEAM_PRICE_ID)}
-                    className="w-full rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3.5 text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {checkoutLoading ? "Loading…" : billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
+                    {checkoutLoading ? "Loading…" : "Start free trial"}
                   </button>
                 </div>
               </div>
-              <div className="mt-6 flex items-center justify-between">
+              <div className="mt-8 flex items-center justify-between">
                 <button
                   onClick={() => goTo(2, "back")}
                   className="rounded-full border border-white/10 px-6 py-3 text-sm text-white/50 hover:text-white/80 hover:border-white/20 transition-all"

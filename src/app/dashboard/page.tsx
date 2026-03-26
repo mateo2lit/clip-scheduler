@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import AppPageOrb from "@/components/AppPageOrb";
 
 type PostCounts = {
   scheduled: number;
@@ -84,6 +85,7 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
+      <AppPageOrb />
 
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
@@ -311,6 +313,5 @@ export default function DashboardPage() {
     </main>
   );
 }
-
 
 

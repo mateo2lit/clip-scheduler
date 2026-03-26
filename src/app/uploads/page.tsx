@@ -14,6 +14,7 @@ import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
+import AppPageOrb from "@/components/AppPageOrb";
 
 const EMOJI_CATEGORIES = {
   "Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😎", "🤩"],
@@ -653,6 +654,23 @@ export default function UploadsPage() {
           alert("Failed to load draft: " + (e?.message || "Unknown error"));
           window.location.href = "/drafts";
         }
+      }
+
+      // Pre-load a specific upload from AI Clips "Schedule →" link
+      const preloadUploadId = new URLSearchParams(window.location.search).get("uploadId");
+      const preloadTitle = new URLSearchParams(window.location.search).get("title");
+      if (preloadUploadId && !draftGroupId) {
+        try {
+          const res = await fetch(`/api/uploads/${preloadUploadId}`, {
+            headers: { Authorization: `Bearer ${data.session.access_token}` },
+          });
+          const uploadJson = await res.json();
+          if (uploadJson.ok && uploadJson.upload) {
+            setLastUploadId(preloadUploadId);
+            if (preloadTitle) setTitle(decodeURIComponent(preloadTitle));
+            setStep("details");
+          }
+        } catch {}
       }
     }
     loadSession();
@@ -1331,14 +1349,15 @@ export default function UploadsPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
+      <AppPageOrb />
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
         <div className="absolute bottom-0 right-0 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-purple-500/[0.06] to-transparent blur-3xl" />
         <div className="absolute -top-20 left-[-6rem] h-64 w-64 rounded-full bg-pink-500/[0.05] blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         {/* Header */}
         <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1 text-sm text-white/40 transition-colors hover:text-white/70">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
