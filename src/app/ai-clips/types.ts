@@ -1,5 +1,3 @@
-// src/app/ai-clips/types.ts
-
 export type SubtitleStyle = {
   preset: "none" | "karaoke" | "beasty" | "deep_diver" | "youshaei" | "pod_p" | "custom";
   animation: "word_highlight" | "line" | "none";
@@ -26,7 +24,9 @@ export type SubtitleStyle = {
   lines: 1 | 3;
 };
 
-export const PRESETS: Record<string, SubtitleStyle> = {
+export type PresetKey = "none" | "karaoke" | "beasty" | "deep_diver" | "youshaei" | "pod_p";
+
+export const PRESETS: Record<PresetKey, SubtitleStyle> = {
   none: {
     preset: "none",
     animation: "none",
@@ -149,7 +149,7 @@ export const PRESETS: Record<string, SubtitleStyle> = {
   },
 };
 
-export const PRESET_LABELS: Record<string, string> = {
+export const PRESET_LABELS: Record<PresetKey, string> = {
   none: "No captions",
   karaoke: "Karaoke",
   beasty: "Beasty",
