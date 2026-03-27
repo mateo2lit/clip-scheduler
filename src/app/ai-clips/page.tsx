@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import AppPageOrb from "@/components/AppPageOrb";
+import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE } from "@/app/ai-clips/types";
+import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
+import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,27 +33,9 @@ type AiClipJob = {
   updated_at: string;
 };
 
-type SubtitleStyle = {
-  animation: "word_highlight" | "line" | "none";
-  color: "white" | "yellow" | "green" | "cyan";
-  fontSize: "small" | "medium" | "large";
-  fontWeight: "regular" | "bold";
-  outline: boolean;
-  position: "bottom" | "top" | "center";
-};
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MONTHLY_CREDIT_LIMIT = 300;
-
-const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
-  animation: "word_highlight",
-  color: "white",
-  fontSize: "medium",
-  fontWeight: "bold",
-  outline: true,
-  position: "bottom",
-};
 
 const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: number; color: string }> = {
   pending:      { label: "Queued",                min: 0,  max: 5,  color: "from-blue-500 to-purple-500" },
@@ -60,13 +45,6 @@ const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: 
   cutting:      { label: "Cutting clips…",        min: 65, max: 95, color: "from-blue-500 to-purple-500" },
   done:         { label: "Done",                  min: 100, max: 100, color: "from-emerald-400 to-teal-400" },
   failed:       { label: "Failed",                min: 100, max: 100, color: "from-red-500 to-rose-500" },
-};
-
-const SUBTITLE_COLOR_CLASS: Record<string, string> = {
-  white: "text-white",
-  yellow: "text-yellow-300",
-  green: "text-green-400",
-  cyan: "text-cyan-300",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,52 +89,6 @@ function formatMinutes(minutes: number): string {
   const h = Math.floor(m / 60);
   const rem = m % 60;
   return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
-}
-
-// ─── Subtitle Preview ─────────────────────────────────────────────────────────
-
-function SubtitlePreview({
-  style,
-  words,
-  preview = false,
-}: {
-  style: SubtitleStyle;
-  words?: { word: string }[];
-  preview?: boolean;
-}) {
-  const colorClass = SUBTITLE_COLOR_CLASS[style.color] || "text-white";
-  const sizeClass = style.fontSize === "small" ? "text-[10px]" : style.fontSize === "large" ? "text-sm" : "text-xs";
-  const weightClass = style.fontWeight === "bold" ? "font-bold" : "font-normal";
-  const outlineStyle = style.outline
-    ? { textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 6px #000" }
-    : {};
-  const posClass =
-    style.position === "top"
-      ? "top-2"
-      : style.position === "center"
-      ? "top-1/2 -translate-y-1/2"
-      : "bottom-2";
-
-  const previewText = preview
-    ? "Example subtitle text"
-    : words && words.length > 0
-    ? words.slice(0, 6).map((w) => w.word).join(" ") + (words.length > 6 ? "…" : "")
-    : style.animation === "none"
-    ? ""
-    : "AI generated subtitle";
-
-  if (!previewText) return null;
-
-  return (
-    <div className={`absolute left-0 right-0 px-2 pointer-events-none ${posClass}`}>
-      <p
-        className={`text-center leading-snug ${colorClass} ${sizeClass} ${weightClass}`}
-        style={outlineStyle}
-      >
-        {previewText}
-      </p>
-    </div>
-  );
 }
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
@@ -204,141 +136,11 @@ function useSimulatedProgress(status: AiClipJobStatus | null, uploadPct: number)
   return progress;
 }
 
-// ─── Subtitle Style Picker ────────────────────────────────────────────────────
-
-function SubtitleStylePicker({
-  style,
-  onChange,
-}: {
-  style: SubtitleStyle;
-  onChange: (s: SubtitleStyle) => void;
-}) {
-  function update<K extends keyof SubtitleStyle>(key: K, val: SubtitleStyle[K]) {
-    onChange({ ...style, [key]: val });
-  }
-
-  const btnBase = "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors";
-  const btnActive = "bg-white/15 text-white border border-white/20";
-  const btnInactive = "text-white/40 hover:text-white/70 border border-transparent";
-
-  return (
-    <div className="space-y-4">
-      {/* Animation */}
-      <div>
-        <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Style</p>
-        <div className="flex gap-2 flex-wrap">
-          {(["word_highlight", "line", "none"] as const).map((a) => (
-            <button
-              key={a}
-              onClick={() => update("animation", a)}
-              className={`${btnBase} ${style.animation === a ? btnActive : btnInactive}`}
-            >
-              {a === "word_highlight" ? "Word Highlight" : a === "line" ? "Line by Line" : "No Subtitles"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {style.animation !== "none" && (
-        <>
-          {/* Color */}
-          <div>
-            <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Color</p>
-            <div className="flex gap-3">
-              {(["white", "yellow", "green", "cyan"] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => update("color", c)}
-                  className={`w-6 h-6 rounded-full border-2 transition-all ${
-                    style.color === c ? "border-white scale-110" : "border-white/20 hover:border-white/40"
-                  } ${
-                    c === "white" ? "bg-white" :
-                    c === "yellow" ? "bg-yellow-300" :
-                    c === "green" ? "bg-green-400" :
-                    "bg-cyan-300"
-                  }`}
-                  title={c}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Size + Weight + Outline + Position */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Size</p>
-              <div className="flex gap-1">
-                {(["small", "medium", "large"] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => update("fontSize", s)}
-                    className={`${btnBase} ${style.fontSize === s ? btnActive : btnInactive}`}
-                  >
-                    {s === "small" ? "S" : s === "medium" ? "M" : "L"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Weight</p>
-              <div className="flex gap-1">
-                {(["regular", "bold"] as const).map((w) => (
-                  <button
-                    key={w}
-                    onClick={() => update("fontWeight", w)}
-                    className={`${btnBase} ${style.fontWeight === w ? btnActive : btnInactive}`}
-                  >
-                    {w === "regular" ? "Regular" : "Bold"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Outline</p>
-              <div className="flex gap-1">
-                {([true, false] as const).map((o) => (
-                  <button
-                    key={String(o)}
-                    onClick={() => update("outline", o)}
-                    className={`${btnBase} ${style.outline === o ? btnActive : btnInactive}`}
-                  >
-                    {o ? "On" : "Off"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Position</p>
-              <div className="flex gap-1">
-                {(["top", "center", "bottom"] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => update("position", p)}
-                    className={`${btnBase} ${style.position === p ? btnActive : btnInactive}`}
-                  >
-                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Mini preview */}
-          <div className="relative h-10 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <SubtitlePreview style={style} preview />
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ─── Clip Card ────────────────────────────────────────────────────────────────
 
 function ClipCard({
   index,
+  uploadId,
   title,
   subtitleWords,
   subtitleStyle,
@@ -347,6 +149,7 @@ function ClipCard({
   onScheduled,
 }: {
   index: number;
+  uploadId: string;
   title: string;
   subtitleWords: any[];
   subtitleStyle: SubtitleStyle;
@@ -356,7 +159,19 @@ function ClipCard({
 }) {
   const [burning, setBurning] = useState(false);
   const [burnError, setBurnError] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/uploads/${uploadId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled && j.signedUrl) setVideoUrl(j.signedUrl); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [uploadId, token]);
 
   async function handleSchedule(withSubtitles: boolean) {
     setBurnError(null);
@@ -444,21 +259,39 @@ function ClipCard({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden flex flex-col">
-      {/* Thumbnail area with subtitle overlay */}
-      <div className="relative bg-gradient-to-br from-violet-900/30 via-blue-900/20 to-purple-900/30 aspect-video flex items-center justify-center">
-        <svg
-          className="w-10 h-10 text-white/20"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"
+      {/* Video / thumbnail area */}
+      <div
+        className="relative bg-gradient-to-br from-violet-900/30 via-blue-900/20 to-purple-900/30 aspect-video flex items-center justify-center cursor-pointer"
+        onClick={() => {
+          if (!videoUrl || !videoRef.current) return;
+          if (playing) { videoRef.current.pause(); setPlaying(false); }
+          else { videoRef.current.play(); setPlaying(true); }
+        }}
+      >
+        {videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            onEnded={() => setPlaying(false)}
+            onClick={(e) => e.stopPropagation()}
           />
-        </svg>
+        ) : (
+          <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+          </svg>
+        )}
+        {/* Play/pause overlay */}
+        {videoUrl && !playing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+            <div className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        )}
         {subtitleStyle.animation !== "none" && firstWords.length > 0 && (
           <SubtitlePreview style={subtitleStyle} words={firstWords} />
         )}
@@ -901,6 +734,7 @@ export default function AiClipsPage() {
                 <ClipCard
                   key={uploadId}
                   index={i}
+                  uploadId={uploadId}
                   title={activeJob.result_titles?.[i] ?? `Clip ${i + 1}`}
                   subtitleWords={activeJob.result_subtitles?.[i] ?? []}
                   subtitleStyle={subtitleStyle}
