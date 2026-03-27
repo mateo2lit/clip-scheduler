@@ -25,7 +25,7 @@ export default function ThumbnailBackfillPage() {
   const [results, setResults] = useState<Result[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(7);
   const abortRef = useRef(false);
 
   useEffect(() => {
