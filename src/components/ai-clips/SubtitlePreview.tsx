@@ -25,7 +25,7 @@ export function SubtitlePreview({
     style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;
 
   // Build text-shadow for stroke effect (8 directions) + drop shadow
-  function buildTextShadow() {
+  const buildTextShadow = () => {
     const shadows: string[] = [];
     const w = style.strokeWidth;
     const c = style.strokeColor;
@@ -47,11 +47,11 @@ export function SubtitlePreview({
       );
     }
     return shadows.join(", ");
-  }
+  };
 
   const baseStyle: React.CSSProperties = {
     fontFamily: style.fontFamily + ", sans-serif",
-    fontSize: "clamp(9px, 2.5vw, 14px)",
+    fontSize: `${Math.max(8, Math.round(style.fontSize * 0.3))}px`,
     fontWeight: fontWeightNum,
     fontStyle: style.italic ? "italic" : "normal",
     textDecoration: style.underline ? "underline" : "none",
