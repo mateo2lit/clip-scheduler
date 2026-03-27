@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import { SubtitleStyle, PRESETS, PRESET_LABELS } from "@/app/ai-clips/types";
+import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 
 type Tab = "presets" | "font" | "effects";
 
@@ -448,6 +449,13 @@ export function SubtitleStylePicker({
         {tab === "font" && <FontTab style={style} onUpdate={update} />}
         {tab === "effects" && <EffectsTab style={style} onUpdate={update} />}
       </div>
+
+      {/* Live preview strip */}
+      {style.animation !== "none" && (
+        <div className="mx-4 mb-4 relative h-10 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center">
+          <SubtitlePreview style={style} preview />
+        </div>
+      )}
     </div>
   );
 }
