@@ -1325,7 +1325,7 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">{plan === "creator" ? "Creator" : plan === "team" ? "Team" : "Starter"} Plan</span>
+                          <span className="font-semibold">{plan === "creator" ? "Creator" : plan === "team" ? "Team" : "Creator"} Plan</span>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${isTrialing ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>
                             {isTrialing ? "Trial" : "Active"}
                           </span>

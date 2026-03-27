@@ -669,6 +669,7 @@ export default function UploadsPage() {
           if (uploadJson.ok && uploadJson.upload) {
             setLastUploadId(preloadUploadId);
             if (preloadTitle) setTitle(decodeURIComponent(preloadTitle));
+            if (uploadJson.signedUrl) setVideoPreviewUrl(uploadJson.signedUrl);
             setStep("details");
           }
         } catch {}
