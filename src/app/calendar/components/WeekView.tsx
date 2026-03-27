@@ -50,9 +50,9 @@ export function WeekView({ viewDate, groups, supabaseUrl, onCardClick }: Props) 
 
 
   return (
-    <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] overflow-hidden h-full">
       {/* No scroll — all 24 hours visible */}
-      <div className="overflow-hidden">
+      <div className="overflow-hidden h-full flex flex-col">
         {/* Header row — sticky inside scroll container */}
         <div className="grid sticky top-0 z-10 bg-[#0a0a0a] border-b border-white/[0.06]" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
           <div className="border-r border-white/[0.04]" /> {/* time gutter */}

@@ -35,7 +35,7 @@ export function MonthView({ year, month, groups, supabaseUrl, onCardClick, onOve
   }
 
   return (
-    <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] overflow-hidden h-full">
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-white/[0.06]">
         {DAY_NAMES.map(day => (

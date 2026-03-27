@@ -32,49 +32,63 @@ export function CalendarHeader({ view, onViewChange, viewDate, onPrev, onNext, o
     : getWeekRange(viewDate);
 
   return (
-    <div className="space-y-4 mb-6">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Link href="/dashboard" className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all shrink-0">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-          </Link>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Calendar</h1>
-            <p className="text-xs text-white/35 mt-0.5">{postCount} scheduled</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-0.5 shrink-0">
-          {(["month", "week"] as const).map(v => (
-            <button key={v} onClick={() => onViewChange(v)} className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${view === v ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"}`}>{v}</button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={onPrev} className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-          </button>
-          <button onClick={onToday} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 hover:bg-white/10 transition-colors">Today</button>
-          <span className="text-sm font-semibold min-w-[180px] text-center">{label}</span>
-          <button onClick={onNext} className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-          </button>
-        </div>
-        <div className="flex-1 flex justify-end">
-          <Link href="/uploads" className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-white/90 transition-colors">New upload</Link>
-        </div>
+    <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] shrink-0">
+      {/* Back + title */}
+      <Link href="/dashboard" className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all shrink-0">
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+      </Link>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-sm font-semibold">Calendar</span>
+        <span className="text-xs text-white/25">{postCount} scheduled</span>
       </div>
-      {activePlatforms.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => onPlatformFilter("all")} className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${platformFilter === "all" ? "border-white/20 bg-white/10 text-white" : "border-white/[0.08] text-white/40 hover:border-white/15 hover:text-white/60"}`}>
-            All platforms
+
+      <div className="w-px h-4 bg-white/[0.08] mx-1 shrink-0" />
+
+      {/* View toggle */}
+      <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.03] p-0.5 shrink-0">
+        {(["month", "week"] as const).map(v => (
+          <button key={v} onClick={() => onViewChange(v)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all capitalize ${view === v ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"}`}>{v}</button>
+        ))}
+      </div>
+
+      {/* Nav */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button onClick={onPrev} className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+        </button>
+        <button onClick={onToday} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/50 hover:bg-white/10 transition-colors">Today</button>
+        <button onClick={onNext} className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </button>
+        <span className="text-sm font-semibold min-w-[150px] text-center tabular-nums">{label}</span>
+      </div>
+
+      <div className="w-px h-4 bg-white/[0.08] mx-1 shrink-0" />
+
+      {/* Platform filters — scrollable row */}
+      <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0 scrollbar-none">
+        <button
+          onClick={() => onPlatformFilter("all")}
+          className={`flex items-center shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${platformFilter === "all" ? "border-white/20 bg-white/10 text-white" : "border-white/[0.08] text-white/40 hover:border-white/15 hover:text-white/60"}`}
+        >
+          All
+        </button>
+        {activePlatforms.map(key => (
+          <button
+            key={key}
+            onClick={() => onPlatformFilter(key === platformFilter ? "all" : key)}
+            className={`flex items-center gap-1 shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${platformFilter === key ? "border-white/20 bg-white/10 text-white" : "border-white/[0.08] text-white/40 hover:border-white/15 hover:text-white/60"}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${PROVIDER_META[key]?.dotClass ?? "bg-white/30"}`} />
+            {PROVIDER_META[key]?.label ?? key}
           </button>
-          {activePlatforms.map(key => (
-            <button key={key} onClick={() => onPlatformFilter(key === platformFilter ? "all" : key)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${platformFilter === key ? "border-white/20 bg-white/10 text-white" : "border-white/[0.08] text-white/40 hover:border-white/15 hover:text-white/60"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${PROVIDER_META[key]?.dotClass ?? "bg-white/30"}`} />
-              {PROVIDER_META[key]?.label ?? key}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
+
+      {/* New upload */}
+      <Link href="/uploads" className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-white/90 transition-colors shrink-0">
+        + New upload
+      </Link>
     </div>
   );
 }

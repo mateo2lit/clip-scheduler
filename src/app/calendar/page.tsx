@@ -164,9 +164,9 @@ export default function CalendarPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
+    <main className="h-screen flex flex-col overflow-hidden bg-[#050505] text-white relative">
       <AppPageOrb />
-      <div className="relative z-10 mx-auto max-w-7xl px-6 pt-8 pb-16">
+      <div className="relative z-10 flex flex-col h-full">
         <CalendarHeader
           view={view}
           onViewChange={setView}
@@ -180,32 +180,34 @@ export default function CalendarPage() {
           postCount={filteredGroups.filter(g => g.status === "scheduled").length}
         />
 
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <p className="text-white/30 text-sm">Loading…</p>
-          </div>
-        ) : (
-          <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-            {view === "month" ? (
-              <MonthView
-                year={viewDate.getFullYear()}
-                month={viewDate.getMonth()}
-                groups={filteredGroups}
-                supabaseUrl={SUPABASE_URL}
-                onCardClick={(group, rect) => { setOverflow(null); setPopover({ group, rect }); }}
-                onOverflow={(groups, rect) => { setPopover(null); setOverflow({ groups, rect }); }}
-              />
-            ) : (
-              <WeekView
-                viewDate={viewDate}
-                groups={filteredGroups}
-                supabaseUrl={SUPABASE_URL}
-                onCardClick={(group, rect) => { setOverflow(null); setPopover({ group, rect }); }}
-              />
-            )}
-            <CardDragOverlay activeGroup={activeGroup} supabaseUrl={SUPABASE_URL} />
-          </DndContext>
-        )}
+        <div className="flex-1 overflow-hidden px-3 pb-3">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <p className="text-white/30 text-sm">Loading…</p>
+            </div>
+          ) : (
+            <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+              {view === "month" ? (
+                <MonthView
+                  year={viewDate.getFullYear()}
+                  month={viewDate.getMonth()}
+                  groups={filteredGroups}
+                  supabaseUrl={SUPABASE_URL}
+                  onCardClick={(group, rect) => { setOverflow(null); setPopover({ group, rect }); }}
+                  onOverflow={(groups, rect) => { setPopover(null); setOverflow({ groups, rect }); }}
+                />
+              ) : (
+                <WeekView
+                  viewDate={viewDate}
+                  groups={filteredGroups}
+                  supabaseUrl={SUPABASE_URL}
+                  onCardClick={(group, rect) => { setOverflow(null); setPopover({ group, rect }); }}
+                />
+              )}
+              <CardDragOverlay activeGroup={activeGroup} supabaseUrl={SUPABASE_URL} />
+            </DndContext>
+          )}
+        </div>
       </div>
 
       {/* Overlay portals — rendered outside DndContext to avoid z-index issues */}
