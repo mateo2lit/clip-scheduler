@@ -309,17 +309,25 @@ export default function ScheduledPage() {
   async function handleRetry(groupId: string, postIds: string[]) {
     setRetrying(groupId);
     try {
-      for (const postId of postIds) {
-        const { error } = await supabase
-          .from("scheduled_posts")
-          .update({ status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() })
-          .eq("id", postId);
-        if (error) throw error;
-      }
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Not logged in");
+
+      await Promise.all(postIds.map(postId =>
+        fetch(`/api/scheduled-posts/${postId}/retry`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(async res => {
+          if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(j.error || `Retry failed (${res.status})`);
+          }
+        })
+      ));
 
       setPosts((prev) =>
         prev.map((p) =>
-          postIds.includes(p.id) ? { ...p, status: "scheduled", last_error: null, scheduled_for: new Date().toISOString() } : p
+          postIds.includes(p.id) ? { ...p, status: "scheduled", last_error: null } : p
         )
       );
     } catch (e: any) {
