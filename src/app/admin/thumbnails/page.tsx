@@ -20,6 +20,7 @@ type Result = {
 
 export default function ThumbnailBackfillPage() {
   const [token, setToken] = useState("");
+  const [teamId, setTeamId] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -30,34 +31,29 @@ export default function ThumbnailBackfillPage() {
     async function load() {
       const { data: auth } = await supabase.auth.getSession();
       if (!auth.session) { window.location.href = "/login"; return; }
-      setToken(auth.session.access_token);
+      const t = auth.session.access_token;
+      setToken(t);
+      const res = await fetch("/api/team/me", { headers: { Authorization: `Bearer ${t}` } });
+      const json = await res.json();
+      if (json.ok) setTeamId(json.teamId);
     }
     load();
   }, []);
 
   async function fetchUploadsToProcess(): Promise<UploadInfo[]> {
+    if (!teamId) return [];
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-    // Find scheduled_posts missing thumbnails in the date range
-    const { data: posts } = await supabase
-      .from("scheduled_posts")
-      .select("upload_id, scheduled_for")
-      .is("thumbnail_path", null)
-      .not("upload_id", "is", null)
-      .gte("scheduled_for", since.toISOString())
-      .order("scheduled_for", { ascending: false });
-
-    if (!posts?.length) return [];
-
-    // Deduplicate by upload_id
-    const uniqueUploadIds = [...new Set(posts.map(p => p.upload_id as string))];
-
-    // Fetch video file paths from uploads table
+    // Query uploads directly — uploads table has no thumbnail_path column,
+    // so we process all uploads and update scheduled_posts for each.
     const { data: uploads } = await supabase
       .from("uploads")
       .select("id, file_path, bucket, team_id, user_id")
-      .in("id", uniqueUploadIds);
+      .eq("team_id", teamId)
+      .eq("storage_deleted", false)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false });
 
     return (uploads ?? []).map(u => ({
       uploadId: u.id,
@@ -154,7 +150,7 @@ export default function ThumbnailBackfillPage() {
         const thumbKey = `${prefix}/thumbnails/${Date.now()}-backfill.jpg`;
         const { error: upErr } = await supabase.storage
           .from(item.bucket)
-          .upload(thumbKey, blob, { contentType: "image/jpeg", cacheControl: "3600", upsert: false });
+          .upload(thumbKey, blob, { contentType: "image/jpeg", cacheControl: "3600", upsert: true });
         if (upErr) throw new Error(upErr.message);
 
         const res = await fetch("/api/admin/set-thumbnail", {
