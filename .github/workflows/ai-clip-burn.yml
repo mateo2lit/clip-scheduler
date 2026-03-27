@@ -42,6 +42,19 @@ jobs:
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
 
+      - name: Install fonts
+        run: |
+          mkdir -p /usr/local/share/fonts/clip-dash
+          BASE="https://github.com/google/fonts/raw/main/ofl"
+          wget -q "${BASE}/montserrat/static/Montserrat-Regular.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Regular.ttf
+          wget -q "${BASE}/montserrat/static/Montserrat-Bold.ttf"    -O /usr/local/share/fonts/clip-dash/Montserrat-Bold.ttf
+          wget -q "${BASE}/montserrat/static/Montserrat-Black.ttf"   -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf
+          wget -q "${BASE}/oswald/static/Oswald-Regular.ttf"         -O /usr/local/share/fonts/clip-dash/Oswald-Regular.ttf
+          wget -q "${BASE}/oswald/static/Oswald-Bold.ttf"            -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf
+          fc-cache -f /usr/local/share/fonts/clip-dash
+          echo "Installed fonts:"
+          fc-list | grep -i "montserrat\|oswald" || true
+
       - name: Mark burn job as burning
         run: |
           curl -sS -X PATCH \
@@ -74,58 +87,55 @@ jobs:
           STYLE_JSON: ${{ inputs.style_json }}
         run: |
           python3 - <<'PYEOF'
-          import json
-          import os
-          import subprocess
+          import json, os, subprocess
 
-          subtitle_json = os.environ.get("SUBTITLE_JSON", "[]")
-          style_json = os.environ.get("STYLE_JSON", "{}")
+          words = json.loads(os.environ.get("SUBTITLE_JSON", "[]") or "[]")
+          style = json.loads(os.environ.get("STYLE_JSON", "{}") or "{}")
 
-          try:
-              words = json.loads(subtitle_json)
-          except Exception:
-              words = []
+          # ── Read style fields ──────────────────────────────────────────
+          animation    = style.get("animation", "word_highlight")
+          font_family  = style.get("fontFamily", "Montserrat")
+          font_size    = int(style.get("fontSize", 40))
+          font_weight  = style.get("fontWeight", "Black")   # Regular|Bold|Black
+          italic       = bool(style.get("italic", False))
+          underline    = bool(style.get("underline", False))
+          uppercase    = bool(style.get("uppercase", True))
+          stroke_color = style.get("strokeColor", "#000000")
+          stroke_width = int(style.get("strokeWidth", 8))
+          shadow_on    = bool(style.get("shadowEnabled", False))
+          shadow_x     = float(style.get("shadowX", 2))
+          shadow_y     = float(style.get("shadowY", 2))
+          shadow_blur  = float(style.get("shadowBlur", 2))
+          primary_hex  = style.get("primaryColor", "#FFFFFF")
+          highlight_hex= style.get("highlightColor", "#04F827")
+          position     = style.get("position", "bottom")   # auto|top|middle|bottom
+          lines        = int(style.get("lines", 1))        # 1 or 3
 
-          try:
-              style = json.loads(style_json)
-          except Exception:
-              style = {}
+          # ── Hex → ASS BGR ──────────────────────────────────────────────
+          def hex_to_ass(h):
+              h = h.lstrip("#")[:6].upper().zfill(6)
+              r, g, b = h[0:2], h[2:4], h[4:6]
+              return f"&H00{b}{g}{r}"
 
-          animation = style.get("animation", "word_highlight")
-          color = style.get("color", "white")
-          font_size = style.get("fontSize", "medium")
-          font_weight = style.get("fontWeight", "bold")
-          outline = style.get("outline", True)
-          position = style.get("position", "bottom")
+          text_color      = hex_to_ass(primary_hex)
+          highlight_color = hex_to_ass(highlight_hex)
+          outline_color   = hex_to_ass(stroke_color)
 
-          # Color map (ASS uses BGR hex)
-          color_map = {
-              "white": "&H00FFFFFF",
-              "yellow": "&H0000FFFF",
-              "green": "&H0000FF00",
-              "cyan": "&H00FFFF00",
-          }
-          highlight_map = {
-              "white": "&H00AAFFAA",
-              "yellow": "&H000099FF",
-              "green": "&H0000AA00",
-              "cyan": "&H00AAAA00",
-          }
-          text_color = color_map.get(color, "&H00FFFFFF")
-          highlight_color = highlight_map.get(color, "&H0000FF00")
+          # ── ASS style params ───────────────────────────────────────────
+          bold      = 1 if font_weight in ("Bold", "Black") else 0
+          ass_italic    = 1 if italic else 0
+          ass_underline = 1 if underline else 0
+          shadow_depth  = round(shadow_y) if shadow_on else 0
 
-          size_map = {"small": 16, "medium": 22, "large": 28}
-          font_size_px = size_map.get(font_size, 22)
-          bold = 1 if font_weight == "bold" else 0
-          outline_width = 2 if outline else 0
+          # Vertical alignment: 2=bottom, 8=top, 5=middle
+          if position in ("auto", "bottom"):
+              valign, margin_v = 2, 30
+          elif position == "top":
+              valign, margin_v = 8, 30
+          else:  # middle
+              valign, margin_v = 5, 0
 
-          # Vertical alignment (2=bottom, 8=top, 5=center)
-          valign_map = {"bottom": 2, "top": 8, "center": 5}
-          valign = valign_map.get(position, 2)
-
-          margin_v = 30 if position == "bottom" else (30 if position == "top" else 0)
-
-          # ASS header
+          # ── ASS header ─────────────────────────────────────────────────
           ass_header = "\n".join([
               "[Script Info]",
               "ScriptType: v4.00+",
@@ -135,109 +145,93 @@ jobs:
               "",
               "[V4+ Styles]",
               "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-              f"Style: Default,Arial,{font_size_px},{text_color},&H000000FF,&H00000000,&H80000000,{bold},0,0,0,100,100,0,0,1,{outline_width},0,{valign},10,10,{margin_v},1",
+              f"Style: Default,{font_family},{font_size},{text_color},&H000000FF,{outline_color},&H80000000,{bold},{ass_italic},{ass_underline},0,100,100,0,0,1,{stroke_width},{shadow_depth},{valign},10,10,{margin_v},1",
               "",
               "[Events]",
               "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
               "",
           ])
 
-          def fmt_time(seconds: float) -> str:
-              h = int(seconds // 3600)
-              m = int((seconds % 3600) // 60)
-              s = seconds % 60
-              return f"{h}:{m:02d}:{s:06.3f}".replace(".", ",")
+          def fmt_time(s):
+              h = int(s // 3600)
+              m = int((s % 3600) // 60)
+              sec = s % 60
+              return f"{h}:{m:02d}:{sec:06.3f}".replace(".", ",")
+
+          def esc(t):
+              return t.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+
+          def apply_case(t):
+              return t.upper() if uppercase else t
 
           events = []
 
+          # Words per group: 1-line mode = 4 words, 3-line mode = 8 words
+          WORDS_PER_GROUP = 4 if lines == 1 else 8
+
           if not words or animation == "none":
-              # No subtitles or no word data — skip
               ass_content = ass_header
+
           elif animation == "word_highlight":
-              # Each word gets its own event; during its active window it's highlighted
-              # Group into lines of ~6 words for readability
-              LINE_SIZE = 6
-              lines = [words[i:i+LINE_SIZE] for i in range(0, len(words), LINE_SIZE)]
-
-              for line_words in lines:
-                  if not line_words:
+              groups = [words[i:i+WORDS_PER_GROUP] for i in range(0, len(words), WORDS_PER_GROUP)]
+              for group in groups:
+                  if not group:
                       continue
-                  line_start = line_words[0]["start"]
-                  line_end = line_words[-1]["end"]
-
-                  for active_idx, active_word in enumerate(line_words):
+                  for active_idx, active_word in enumerate(group):
                       w_start = active_word["start"]
-                      w_end = active_word["end"]
-
-                      # Build line text with highlight on the active word
+                      w_end   = active_word["end"]
                       parts = []
-                      for j, w in enumerate(line_words):
-                          word_text = w["word"].replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+                      for j, w in enumerate(group):
+                          word_text = apply_case(esc(w["word"]))
                           if j == active_idx:
                               parts.append(f"{{\\c{highlight_color}}}{word_text}{{\\c{text_color}}}")
                           else:
                               parts.append(word_text)
                       text = " ".join(parts)
-
-                      events.append(
-                          f"Dialogue: 0,{fmt_time(w_start)},{fmt_time(w_end)},Default,,0,0,0,,{text}"
-                      )
-
+                      events.append(f"Dialogue: 0,{fmt_time(w_start)},{fmt_time(w_end)},Default,,0,0,0,,{text}")
               ass_content = ass_header + "\n".join(events)
 
           elif animation == "line":
-              # Group words into lines (~6 words), show each line for its duration
-              LINE_SIZE = 6
-              lines = [words[i:i+LINE_SIZE] for i in range(0, len(words), LINE_SIZE)]
-              for line_words in lines:
-                  if not line_words:
+              groups = [words[i:i+WORDS_PER_GROUP] for i in range(0, len(words), WORDS_PER_GROUP)]
+              for group in groups:
+                  if not group:
                       continue
-                  line_start = line_words[0]["start"]
-                  line_end = line_words[-1]["end"]
-                  text = " ".join(
-                      w["word"].replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
-                      for w in line_words
-                  )
-                  events.append(
-                      f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}"
-                  )
+                  line_start = group[0]["start"]
+                  line_end   = group[-1]["end"]
+                  text = " ".join(apply_case(esc(w["word"])) for w in group)
+                  events.append(f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}")
               ass_content = ass_header + "\n".join(events)
+
           else:
               ass_content = ass_header
 
           with open("/tmp/subtitles.ass", "w", encoding="utf-8") as f:
               f.write(ass_content)
 
-          print(f"Generated ASS: animation={animation}, {len(events)} events", flush=True)
+          print(f"Generated ASS: animation={animation}, font={font_family} {font_weight}, {len(events)} events", flush=True)
 
-          # If no subtitles, just copy the source
           if animation == "none" or not words:
               import shutil
               shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
-              print("No subtitles — copying source as output", flush=True)
+              print("No subtitles — copying source", flush=True)
           else:
-              # Burn subtitles via ffmpeg
               proc = subprocess.run([
                   "ffmpeg", "-i", "/tmp/clip.mp4",
                   "-vf", "ass=/tmp/subtitles.ass",
-                  "-c:v", "libx264",
-                  "-preset", "fast",
-                  "-crf", "23",
-                  "-pix_fmt", "yuv420p",
-                  "-r", "30",
-                  "-c:a", "copy",
-                  "-movflags", "+faststart",
+                  "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                  "-pix_fmt", "yuv420p", "-r", "30",
+                  "-c:a", "copy", "-movflags", "+faststart",
                   "/tmp/burned.mp4", "-y"
               ], capture_output=True, text=True)
 
               if proc.returncode != 0:
-                  print(f"FFmpeg subtitle burn error: {proc.stderr[-500:]}", flush=True)
+                  print(f"FFmpeg error: {proc.stderr[-800:]}", flush=True)
                   raise RuntimeError("Subtitle burn failed")
 
           if not os.path.exists("/tmp/burned.mp4") or os.path.getsize("/tmp/burned.mp4") == 0:
-              raise RuntimeError("Burned output missing")
+              raise RuntimeError("Burned output missing or empty")
 
-          print(f"Burned output: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
+          print(f"Output: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
           PYEOF
 
       - name: Upload burned clip to Supabase Storage
