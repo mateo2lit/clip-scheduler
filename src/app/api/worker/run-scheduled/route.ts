@@ -166,7 +166,7 @@ async function runWorker(req: Request) {
       .from("scheduled_posts")
       .update({ status: "failed", last_error: "Post timed out — please retry" })
       .eq("status", "posting")
-      .lt("scheduled_for", staleThreshold);
+      .lt("ig_container_created_at", staleThreshold);
   }
 
   // ── Process ig_processing posts first (Instagram + Threads) ─────────
@@ -449,7 +449,7 @@ async function runWorker(req: Request) {
 
       const { data: claimedRows, error: claimErr } = await supabaseAdmin
         .from("scheduled_posts")
-        .update({ status: "posting", last_error: null })
+        .update({ status: "posting", last_error: null, ig_container_created_at: new Date().toISOString() })
         .eq("id", post.id)
         .in("status", claimStatuses)
         .select("id");
