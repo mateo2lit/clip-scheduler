@@ -305,10 +305,7 @@ function FontTab({
 
       {/* AI keywords highlighter */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">AI keywords highlighter</span>
-          <div className="w-4 h-4 rounded-full bg-green-500 flex-shrink-0" />
-        </div>
+        <p className="text-xs text-white/40">AI keywords highlighter</p>
         <div className="ml-2">
           <ColorInput
             value={style.highlightColor}

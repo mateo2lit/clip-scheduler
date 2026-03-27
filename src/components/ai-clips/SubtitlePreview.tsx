@@ -1,6 +1,7 @@
 // src/components/ai-clips/SubtitlePreview.tsx
 "use client";
 
+import type { CSSProperties } from "react";
 import { SubtitleStyle } from "@/app/ai-clips/types";
 
 export function SubtitlePreview({
@@ -49,7 +50,7 @@ export function SubtitlePreview({
     return shadows.join(", ");
   };
 
-  const baseStyle: React.CSSProperties = {
+  const baseStyle: CSSProperties = {
     fontFamily: style.fontFamily + ", sans-serif",
     fontSize: `${Math.max(8, Math.round(style.fontSize * 0.3))}px`,
     fontWeight: fontWeightNum,
