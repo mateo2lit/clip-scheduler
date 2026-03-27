@@ -16,7 +16,7 @@ function ColorInput({
   onChange: (v: string) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
-  const display = value.replace("#", "").toUpperCase().padEnd(6, "0") + "FF";
+  const display = value.replace("#", "").toUpperCase().padEnd(6, "0");
   return (
     <div className="flex items-center gap-2 cursor-pointer" onClick={() => ref.current?.click()}>
       <div
@@ -135,11 +135,11 @@ function PresetsTab({
   style: SubtitleStyle;
   onSelect: (key: string) => void;
 }) {
-  const keys = ["none", "karaoke", "beasty", "deep_diver", "youshaei", "pod_p"];
+  const keys = Object.keys(PRESETS) as Array<keyof typeof PRESETS>;
   return (
     <div className="grid grid-cols-2 gap-2">
       {keys.map((key) => {
-        const preset = PRESETS[key as keyof typeof PRESETS];
+        const preset = PRESETS[key];
         const isSelected = style.preset === key;
         return (
           <button
@@ -153,7 +153,7 @@ function PresetsTab({
               <PresetCardText preset={preset} />
             </div>
             <div className="py-1.5 px-2 bg-[#111116] text-center">
-              <span className="text-[11px] text-white/70">{PRESET_LABELS[key as keyof typeof PRESET_LABELS]}</span>
+              <span className="text-[11px] text-white/70">{PRESET_LABELS[key]}</span>
             </div>
           </button>
         );
@@ -274,7 +274,6 @@ function FontTab({
         </div>
         {style.shadowEnabled && (
           <div className="flex items-center gap-1.5 ml-2">
-            <div className="w-5 h-5 rounded-full bg-black border border-white/20 flex-shrink-0" />
             <NumInput
               value={style.shadowX}
               onChange={(v) => onUpdate("shadowX", v)}
@@ -307,7 +306,7 @@ function FontTab({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs text-white/40">AI keywords highlighter</span>
-          <Toggle value={true} onChange={() => {}} />
+          <div className="w-4 h-4 rounded-full bg-green-500 flex-shrink-0" />
         </div>
         <div className="ml-2">
           <ColorInput
