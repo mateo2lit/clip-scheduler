@@ -3,8 +3,10 @@ import { getTeamContext } from "@/lib/teamAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: NextRequest) {
-  const ctx = await getTeamContext(req);
-  if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await getTeamContext(req);
+  if (!result.ok) return result.error;
+
+  const { userId: _userId, teamId } = result.ctx;
 
   const { uploadId, thumbnailPath } = await req.json();
   if (!uploadId || !thumbnailPath) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -14,7 +16,7 @@ export async function POST(req: NextRequest) {
     .from("uploads")
     .select("id, team_id")
     .eq("id", uploadId)
-    .eq("team_id", ctx.teamId)
+    .eq("team_id", teamId)
     .maybeSingle();
 
   if (!upload) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
