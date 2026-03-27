@@ -12,6 +12,7 @@ import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGrou
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const MAX_BATCH = 5;
 
@@ -159,17 +160,7 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
-  // ── Reset posts stuck in "posting" for > 30 minutes ─────────────────
-  {
-    const staleThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    await supabaseAdmin
-      .from("scheduled_posts")
-      .update({ status: "failed", last_error: "Post timed out — please retry" })
-      .eq("status", "posting")
-      .lt("ig_container_created_at", staleThreshold);
-  }
-
-  // ── Process ig_processing posts first (Instagram + Threads) ─────────
+  // ── Process ig_processing posts first (Instagram + Threads + TikTok) ─
   const igProcessingResults: any[] = [];
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
