@@ -315,6 +315,7 @@ export default function UploadsPage() {
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [lastThumbnailPath, setLastThumbnailPath] = useState<string | null>(null);
+  const [autoThumb, setAutoThumb] = useState<Blob | null>(null);
 
   // YouTube specific
   const [ytIsShort, setYtIsShort] = useState(false);
@@ -811,9 +812,53 @@ export default function UploadsPage() {
     return null;
   }, [selectedPlatforms, ttCreatorError, ttCreatorInfo, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked, ttContentRightsChecked]);
 
+  async function extractVideoThumbnail(file: File): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      const url = URL.createObjectURL(file);
+      video.src = url;
+
+      video.onloadedmetadata = () => {
+        video.currentTime = Math.min(1, video.duration * 0.1);
+      };
+
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const maxDim = 640;
+          const ratio = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
+          canvas.width = Math.round(video.videoWidth * ratio);
+          canvas.height = Math.round(video.videoHeight * ratio);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { URL.revokeObjectURL(url); resolve(null); return; }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            resolve(blob);
+          }, "image/jpeg", 0.82);
+        } catch {
+          URL.revokeObjectURL(url);
+          resolve(null);
+        }
+      };
+
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+    });
+  }
+
   function handleFileSelect(f: File | null) {
     setFileSizeError(null);
     setFile(f);
+    setAutoThumb(null);
+    if (f) {
+      extractVideoThumbnail(f).then((blob) => setAutoThumb(blob ?? null));
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -1000,6 +1045,24 @@ export default function UploadsPage() {
 
       clearInterval(progressInterval);
       if (storage.error) throw new Error(storage.error.message);
+
+      // Auto-upload extracted thumbnail if no manual thumbnail selected
+      if (autoThumb && !lastThumbnailPath) {
+        try {
+          const pathPrefix = teamId || userId;
+          const autoThumbKey = `${pathPrefix}/thumbnails/${Date.now()}-auto.jpg`;
+          const thumbResult = await supabase.storage.from(BUCKET).upload(autoThumbKey, autoThumb, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: "image/jpeg",
+          });
+          if (!thumbResult.error) {
+            setLastThumbnailPath(autoThumbKey);
+          }
+        } catch {
+          // Non-fatal — thumbnail generation is best-effort
+        }
+      }
 
       setUploadProgress(95);
 
