@@ -51,9 +51,10 @@ jobs:
           wget -q "${BASE}/montserrat/static/Montserrat-Black.ttf"   -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf
           wget -q "${BASE}/oswald/static/Oswald-Regular.ttf"         -O /usr/local/share/fonts/clip-dash/Oswald-Regular.ttf
           wget -q "${BASE}/oswald/static/Oswald-Bold.ttf"            -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf
-          fc-cache -f /usr/local/share/fonts/clip-dash
+          sudo apt-get install -y --no-install-recommends fonts-liberation 2>/dev/null || true
+          fc-cache -fv
           echo "Installed fonts:"
-          fc-list | grep -i "montserrat\|oswald" || true
+          fc-list | grep -i "montserrat\|oswald\|liberation" || true
 
       - name: Mark burn job as burning
         run: |
@@ -95,21 +96,30 @@ jobs:
           # ── Read style fields ──────────────────────────────────────────
           animation    = style.get("animation", "word_highlight")
           font_family  = style.get("fontFamily", "Montserrat")
-          font_size    = int(style.get("fontSize", 40))
+          try:
+              font_size = int(style.get("fontSize", 40))
+          except (TypeError, ValueError):
+              font_size = 40
           font_weight  = style.get("fontWeight", "Black")   # Regular|Bold|Black
           italic       = bool(style.get("italic", False))
           underline    = bool(style.get("underline", False))
           uppercase    = bool(style.get("uppercase", True))
           stroke_color = style.get("strokeColor", "#000000")
-          stroke_width = int(style.get("strokeWidth", 8))
           shadow_on    = bool(style.get("shadowEnabled", False))
-          shadow_x     = float(style.get("shadowX", 2))
+          _shadow_x    = float(style.get("shadowX", 2))   # ASS shadow is 1-axis; x/blur unused
           shadow_y     = float(style.get("shadowY", 2))
-          shadow_blur  = float(style.get("shadowBlur", 2))
+          _shadow_blur = float(style.get("shadowBlur", 2)) # ASS shadow is 1-axis; blur unused
           primary_hex  = style.get("primaryColor", "#FFFFFF")
           highlight_hex= style.get("highlightColor", "#04F827")
           position     = style.get("position", "bottom")   # auto|top|middle|bottom
-          lines        = int(style.get("lines", 1))        # 1 or 3
+          try:
+              stroke_width = int(style.get("strokeWidth", 8))
+          except (TypeError, ValueError):
+              stroke_width = 8
+          try:
+              lines = int(style.get("lines", 1))        # 1 or 3
+          except (TypeError, ValueError):
+              lines = 1
 
           # ── Hex → ASS BGR ──────────────────────────────────────────────
           def hex_to_ass(h):
