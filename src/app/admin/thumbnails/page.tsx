@@ -20,7 +20,6 @@ type Result = {
 
 export default function ThumbnailBackfillPage() {
   const [token, setToken] = useState("");
-  const [teamId, setTeamId] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -31,31 +30,18 @@ export default function ThumbnailBackfillPage() {
     async function load() {
       const { data: auth } = await supabase.auth.getSession();
       if (!auth.session) { window.location.href = "/login"; return; }
-      const t = auth.session.access_token;
-      setToken(t);
-      const res = await fetch("/api/team/me", { headers: { Authorization: `Bearer ${t}` } });
-      const json = await res.json();
-      if (json.ok) setTeamId(json.teamId);
+      setToken(auth.session.access_token);
     }
     load();
   }, []);
 
   async function fetchUploadsToProcess(): Promise<UploadInfo[]> {
-    if (!teamId) return [];
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-
-    // Query uploads directly — uploads table has no thumbnail_path column,
-    // so we process all uploads and update scheduled_posts for each.
-    const { data: uploads } = await supabase
-      .from("uploads")
-      .select("id, file_path, bucket, team_id, user_id")
-      .eq("team_id", teamId)
-      .eq("storage_deleted", false)
-      .gte("created_at", since.toISOString())
-      .order("created_at", { ascending: false });
-
-    return (uploads ?? []).map(u => ({
+    if (!token) return [];
+    const res = await fetch(`/api/admin/uploads-for-backfill?days=${days}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    return (json.uploads ?? []).map((u: any) => ({
       uploadId: u.id,
       filePath: u.file_path,
       bucket: u.bucket || "clips",

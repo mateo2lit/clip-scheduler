@@ -88,7 +88,7 @@ export function WeekView({ viewDate, groups, supabaseUrl, onCardClick }: Props) 
                 const isPastHour = isToday && hour < currentHour;
 
                 return (
-                  <div key={i} className={`relative border-r border-white/[0.04] last:border-r-0 ${isPastCol ? "opacity-50" : ""}`}>
+                  <div key={i} className={`relative border-r border-white/[0.04] last:border-r-0 min-w-0 overflow-hidden ${isPastCol ? "opacity-50" : ""}`}>
                     <TimeSlot
                       date={day}
                       hour={hour}
