@@ -21,13 +21,7 @@ export async function POST(req: NextRequest) {
 
   if (!upload) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
 
-  // Update uploads row
-  await supabaseAdmin
-    .from("uploads")
-    .update({ thumbnail_path: thumbnailPath })
-    .eq("id", uploadId);
-
-  // Update all scheduled_posts for this upload
+  // Update thumbnail_path on all scheduled_posts for this upload
   await supabaseAdmin
     .from("scheduled_posts")
     .update({ thumbnail_path: thumbnailPath })

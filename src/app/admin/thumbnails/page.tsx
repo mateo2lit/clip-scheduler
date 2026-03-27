@@ -3,25 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 
-type UploadRow = {
-  id: string;
-  file_path: string;
+type UploadInfo = {
+  uploadId: string;
+  filePath: string;
   bucket: string;
-  team_id: string | null;
-  user_id: string;
-  thumbnail_path: string | null;
+  teamId: string | null;
+  userId: string;
 };
 
 type Result = {
   uploadId: string;
   title: string;
-  status: "pending" | "processing" | "done" | "failed" | "skipped";
+  status: "pending" | "processing" | "done" | "failed";
   error?: string;
 };
 
 export default function ThumbnailBackfillPage() {
   const [token, setToken] = useState("");
-  const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -37,16 +35,37 @@ export default function ThumbnailBackfillPage() {
     load();
   }, []);
 
-  async function fetchUploads() {
+  async function fetchUploadsToProcess(): Promise<UploadInfo[]> {
     const since = new Date();
     since.setDate(since.getDate() - days);
-    const { data } = await supabase
-      .from("uploads")
-      .select("id, file_path, bucket, team_id, user_id, thumbnail_path")
+
+    // Find scheduled_posts missing thumbnails in the date range
+    const { data: posts } = await supabase
+      .from("scheduled_posts")
+      .select("upload_id, scheduled_for")
       .is("thumbnail_path", null)
-      .gte("created_at", since.toISOString())
-      .order("created_at", { ascending: false });
-    return (data ?? []) as UploadRow[];
+      .not("upload_id", "is", null)
+      .gte("scheduled_for", since.toISOString())
+      .order("scheduled_for", { ascending: false });
+
+    if (!posts?.length) return [];
+
+    // Deduplicate by upload_id
+    const uniqueUploadIds = [...new Set(posts.map(p => p.upload_id as string))];
+
+    // Fetch video file paths from uploads table
+    const { data: uploads } = await supabase
+      .from("uploads")
+      .select("id, file_path, bucket, team_id, user_id")
+      .in("id", uniqueUploadIds);
+
+    return (uploads ?? []).map(u => ({
+      uploadId: u.id,
+      filePath: u.file_path,
+      bucket: u.bucket || "clips",
+      teamId: u.team_id,
+      userId: u.user_id,
+    }));
   }
 
   async function extractFrame(videoUrl: string): Promise<Blob | null> {
@@ -100,58 +119,57 @@ export default function ThumbnailBackfillPage() {
     abortRef.current = false;
     setRunning(true);
     setDone(false);
+    setResults([]);
 
-    const rows = await fetchUploads();
-    setUploads(rows);
+    const items = await fetchUploadsToProcess();
 
-    if (rows.length === 0) {
+    if (items.length === 0) {
       setRunning(false);
       setDone(true);
       return;
     }
 
-    setResults(rows.map(r => ({ uploadId: r.id, title: r.file_path.split("/").pop() ?? r.id, status: "pending" })));
+    setResults(items.map(u => ({
+      uploadId: u.uploadId,
+      title: u.filePath.split("/").pop() ?? u.uploadId,
+      status: "pending",
+    })));
 
-    for (let i = 0; i < rows.length; i++) {
+    for (const item of items) {
       if (abortRef.current) break;
-      const row = rows[i];
-      const title = row.file_path.split("/").pop() ?? row.id;
+      const title = item.filePath.split("/").pop() ?? item.uploadId;
 
-      setResults(prev => prev.map(r => r.uploadId === row.id ? { ...r, status: "processing" } : r));
+      setResults(prev => prev.map(r => r.uploadId === item.uploadId ? { ...r, status: "processing" } : r));
 
       try {
-        // Get a signed URL for the video
         const { data: signed, error: signErr } = await supabase.storage
-          .from(row.bucket || "clips")
-          .createSignedUrl(row.file_path, 120);
-
+          .from(item.bucket)
+          .createSignedUrl(item.filePath, 120);
         if (signErr || !signed?.signedUrl) throw new Error("Could not get signed URL");
 
         const blob = await extractFrame(signed.signedUrl);
         if (!blob) throw new Error("Frame extraction failed");
 
-        // Upload thumbnail
-        const prefix = row.team_id || row.user_id;
+        const prefix = item.teamId || item.userId;
         const thumbKey = `${prefix}/thumbnails/${Date.now()}-backfill.jpg`;
         const { error: upErr } = await supabase.storage
-          .from(row.bucket || "clips")
+          .from(item.bucket)
           .upload(thumbKey, blob, { contentType: "image/jpeg", cacheControl: "3600", upsert: false });
         if (upErr) throw new Error(upErr.message);
 
-        // Update DB via API route
         const res = await fetch("/api/admin/set-thumbnail", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ uploadId: row.id, thumbnailPath: thumbKey }),
+          body: JSON.stringify({ uploadId: item.uploadId, thumbnailPath: thumbKey }),
         });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
           throw new Error(j.error || "DB update failed");
         }
 
-        setResults(prev => prev.map(r => r.uploadId === row.id ? { ...r, status: "done" } : r));
+        setResults(prev => prev.map(r => r.uploadId === item.uploadId ? { ...r, status: "done" } : r));
       } catch (e: any) {
-        setResults(prev => prev.map(r => r.uploadId === row.id ? { ...r, status: "failed", error: e?.message } : r));
+        setResults(prev => prev.map(r => r.uploadId === item.uploadId ? { ...r, status: "failed", error: e?.message } : r));
       }
     }
 
@@ -213,13 +231,11 @@ export default function ThumbnailBackfillPage() {
               <p className="text-xs text-white/40 mt-1">{processed} / {results.length}</p>
             </div>
           )}
-
           {done && (
             <p className="text-sm text-white/60 mb-4">
               Done — {counts.done ?? 0} succeeded, {counts.failed ?? 0} failed
             </p>
           )}
-
           <div className="space-y-1">
             {results.map(r => (
               <div key={r.uploadId} className="flex items-center gap-3 py-1.5 border-b border-white/[0.04]">
