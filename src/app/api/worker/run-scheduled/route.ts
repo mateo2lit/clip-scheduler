@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { uploadSupabaseVideoToYouTube, CATEGORY_IDS } from "@/lib/youtubeUpload";
-import { uploadSupabaseVideoToTikTok } from "@/lib/tiktokUpload";
+import { uploadSupabaseVideoToTikTok, checkTikTokPublishStatus } from "@/lib/tiktokUpload";
+import { getTikTokAccessToken } from "@/lib/tiktok";
 import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
@@ -175,15 +176,92 @@ async function runWorker(req: Request) {
       .from("scheduled_posts")
       .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, group_id, title, platform_account_id")
       .eq("status", "ig_processing")
-      .in("provider", ["instagram", "threads"])
+      .in("provider", ["instagram", "threads", "tiktok"])
       .limit(5);
 
     if (!igErr && igPosts && igPosts.length > 0) {
       for (const igPost of igPosts) {
         try {
+          const isTikTok = igPost.provider === "tiktok";
           const isThreads = igPost.provider === "threads";
           if (isThreads && !isThreadsEnabledForUserId(igPost.user_id)) {
             throw new Error("Threads is not available for this account.");
+          }
+
+          if (!igPost.ig_container_id) {
+            throw new Error("Missing publish/container ID");
+          }
+
+          // ── TikTok async publish check ──────────────────────────────
+          if (isTikTok) {
+            const { data: ttAcct } = await supabaseAdmin
+              .from("platform_accounts")
+              .select("id, access_token, refresh_token, expiry")
+              .eq("id", igPost.platform_account_id)
+              .maybeSingle();
+
+            if (!ttAcct?.refresh_token) {
+              throw new Error("TikTok account not found or missing refresh token. Please reconnect.");
+            }
+
+            const tokens = await getTikTokAccessToken({
+              refreshToken: ttAcct.refresh_token,
+              accessToken: ttAcct.access_token,
+              expiresAt: ttAcct.expiry,
+            });
+            await supabaseAdmin
+              .from("platform_accounts")
+              .update({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken, expiry: tokens.expiresAt.toISOString() })
+              .eq("id", ttAcct.id);
+
+            const ttResult = await checkTikTokPublishStatus(igPost.ig_container_id, tokens.accessToken);
+
+            if (ttResult.status === "posted") {
+              await supabaseAdmin.from("scheduled_posts").update({
+                status: "posted", posted_at: new Date().toISOString(),
+                platform_post_id: igPost.ig_container_id, last_error: null,
+              }).eq("id", igPost.id);
+              igProcessingResults.push({ id: igPost.id, ok: true });
+              if (igPost.group_id) {
+                await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+              } else {
+                const info = await getNotificationInfo(igPost.user_id);
+                if (info?.notifySuccess) await sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", ["tiktok"]);
+              }
+              if (igPost.upload_id) {
+                const { data: ttUpload } = await supabaseAdmin.from("uploads").select("bucket, file_path, storage_path, path, object_path").eq("id", igPost.upload_id).maybeSingle();
+                if (ttUpload) {
+                  const ttProbed = pickFirstNonEmpty(ttUpload, ["file_path", "storage_path", "path", "object_path"]);
+                  if (ttProbed.value) await checkAndMaybeDeleteFile(igPost.group_id, ttUpload.bucket?.trim() || DEFAULT_BUCKET, ttProbed.value, igPost.upload_id);
+                }
+              }
+            } else if (ttResult.status === "failed") {
+              const errMsg = `TikTok publish failed: ${ttResult.failReason}`;
+              await supabaseAdmin.from("scheduled_posts").update({ status: "failed", last_error: errMsg }).eq("id", igPost.id);
+              igProcessingResults.push({ id: igPost.id, ok: false, error: errMsg });
+              if (igPost.group_id) {
+                await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+              } else {
+                const info = await getNotificationInfo(igPost.user_id);
+                if (info?.notifyFailed) await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "tiktok", errMsg);
+              }
+            } else {
+              // Still processing — check timeout (15 min)
+              const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
+              if (createdAt < Date.now() - 15 * 60 * 1000) {
+                const timeoutMsg = "TikTok processing timed out — please retry";
+                await supabaseAdmin.from("scheduled_posts").update({ status: "failed", last_error: timeoutMsg }).eq("id", igPost.id);
+                igProcessingResults.push({ id: igPost.id, ok: false, error: timeoutMsg });
+                if (igPost.group_id) {
+                  await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+                } else {
+                  const info = await getNotificationInfo(igPost.user_id);
+                  if (info?.notifyFailed) await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "tiktok", timeoutMsg);
+                }
+              }
+              // else: still within window, next tick will check again
+            }
+            continue;
           }
 
           // Load platform account — prefer platform_account_id, fall back to team+provider
@@ -194,7 +272,7 @@ async function runWorker(req: Request) {
             ? await igAcctQ.eq("id", igPost.platform_account_id).maybeSingle()
             : await igAcctQ.eq("team_id", igPost.team_id).eq("provider", isThreads ? "threads" : "instagram").maybeSingle();
 
-          if (!acct?.access_token || !acct?.ig_user_id || !igPost.ig_container_id) {
+          if (!acct?.access_token || !acct?.ig_user_id) {
             throw new Error(`Missing ${isThreads ? "Threads" : "Instagram"} account or container ID`);
           }
 
@@ -478,7 +556,15 @@ async function runWorker(req: Request) {
           brandOrganicToggle: ttSettings.brand_organic_toggle ?? false,
           brandContentToggle: ttSettings.brand_content_toggle ?? false,
         });
-        platformPostId = tt.publishId;
+        // TikTok processes asynchronously — store publish_id and poll on next worker ticks
+        await supabaseAdmin.from("scheduled_posts").update({
+          status: "ig_processing",
+          ig_container_id: tt.publishId,
+          ig_container_created_at: new Date().toISOString(),
+          last_error: null,
+        }).eq("id", post.id);
+        results.push({ id: post.id, ok: true, status: "ig_processing", publishId: tt.publishId });
+        continue;
       } else if (provider === "facebook") {
         if (!acct.page_id || !acct.page_access_token) {
           throw new Error("Facebook Page not configured. Please reconnect your Facebook account.");

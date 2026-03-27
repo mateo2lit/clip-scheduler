@@ -122,43 +122,34 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     throw new Error("TikTok upload init did not return publish_id");
   }
 
-  // 4) Poll /v2/post/publish/status/fetch/ until TikTok finishes fetching and processing.
-  //    Large files can take several minutes — poll for up to 10 minutes.
-  const maxPolls = 120;
-  const pollInterval = 5000;
-
-  for (let i = 0; i < maxPolls; i++) {
-    await sleep(pollInterval);
-
-    const statusRes = await fetch(
-      "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tokens.accessToken}`,
-          "Content-Type": "application/json; charset=UTF-8",
-        },
-        body: JSON.stringify({ publish_id: publishId }),
-      }
-    );
-
-    if (!statusRes.ok) continue;
-
-    const statusData = await statusRes.json();
-    const status = statusData.data?.status;
-
-    if (status === "PUBLISH_COMPLETE") {
-      return { publishId };
-    }
-
-    if (status === "FAILED") {
-      const failReason = statusData.data?.fail_reason || "Unknown reason";
-      throw new Error(`TikTok publish failed: ${failReason}`);
-    }
-
-    // PROCESSING_UPLOAD or PROCESSING_DOWNLOAD — keep polling
-  }
-
-  // Exhausted polls — TikTok may still be processing in the background
+  // Return immediately — caller stores publish_id and polls on subsequent worker ticks
   return { publishId };
+}
+
+export async function checkTikTokPublishStatus(
+  publishId: string,
+  accessToken: string,
+): Promise<{ status: "processing" | "posted" | "failed"; failReason?: string }> {
+  const statusRes = await fetch(
+    "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+      },
+      body: JSON.stringify({ publish_id: publishId }),
+    }
+  );
+
+  if (!statusRes.ok) return { status: "processing" };
+
+  const data = await statusRes.json();
+  const tiktokStatus = data.data?.status;
+
+  if (tiktokStatus === "PUBLISH_COMPLETE") return { status: "posted" };
+  if (tiktokStatus === "FAILED") {
+    return { status: "failed", failReason: data.data?.fail_reason || "Unknown reason" };
+  }
+  return { status: "processing" };
 }
