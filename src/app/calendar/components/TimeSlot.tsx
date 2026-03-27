@@ -53,7 +53,7 @@ export function TimeSlot({ date, hour, groups, supabaseUrl, onCardClick, isPast 
   return (
     <div
       ref={setNodeRef}
-      className={`relative border-b border-white/[0.04] h-[60px] overflow-hidden p-1 flex flex-col gap-0.5 transition-colors
+      className={`relative border-b border-white/[0.04] h-[30px] overflow-hidden px-0.5 py-[3px] flex flex-col gap-0.5 transition-colors
         ${isPast ? "opacity-40" : ""}
         ${isOver ? "bg-blue-500/[0.08]" : ""}`}
     >

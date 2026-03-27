@@ -11,6 +11,16 @@ type Props = {
   dimmed?: boolean;
 };
 
+const PLATFORM_BORDER: Record<string, string> = {
+  youtube:   "border-red-500/70",
+  tiktok:    "border-white/40",
+  instagram: "border-pink-500/70",
+  facebook:  "border-blue-500/70",
+  linkedin:  "border-sky-500/70",
+  bluesky:   "border-cyan-500/70",
+  threads:   "border-zinc-400/60",
+};
+
 const PLATFORM_GRADIENT: Record<string, string> = {
   youtube:   "bg-gradient-to-br from-red-950 to-red-900/60",
   tiktok:    "bg-gradient-to-br from-zinc-900 to-zinc-800",
@@ -73,29 +83,26 @@ export function PostCard({ group, variant, supabaseUrl, onClick, dimmed }: Props
     );
   }
 
-  // ── Week (week view) ──────────────────────────────────────────────────────
+  // ── Week (week view) — compact chip, Metricool-style ─────────────────────
   if (variant === "week") {
+    const borderColor = PLATFORM_BORDER[primaryProvider] ?? "border-white/20";
     return (
       <div
         onClick={handleClick}
-        className={`w-full h-[52px] flex items-center gap-1.5 rounded-md px-1.5 cursor-pointer select-none bg-white/[0.06] hover:bg-white/[0.10] transition-colors border border-white/[0.06] ${dimmed ? "opacity-40" : ""}`}
+        className={`w-full h-[22px] flex items-center gap-1 rounded-sm border-l-2 ${borderColor} px-1 cursor-pointer select-none bg-white/[0.07] hover:bg-white/[0.13] transition-colors overflow-hidden ${dimmed ? "opacity-40" : ""}`}
       >
-        <ThumbnailBox thumb={thumb} provider={primaryProvider} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-px mb-0.5">
-            {providers.slice(0, 4).map(p => (
-              <ProviderIcon key={p} provider={p} className="w-2.5 h-2.5" />
+        <ProviderIcon provider={primaryProvider} className="w-2.5 h-2.5 shrink-0" />
+        {providers.length > 1 && (
+          <div className="flex items-center gap-px shrink-0">
+            {providers.slice(1, 3).map(p => (
+              <ProviderIcon key={p} provider={p} className="w-2 h-2 opacity-70" />
             ))}
-            {providers.length > 4 && (
-              <span className="text-[8px] text-white/30 ml-0.5">+{providers.length - 4}</span>
-            )}
+            {providers.length > 3 && <span className="text-[7px] text-white/30">+{providers.length - 3}</span>}
           </div>
-          <p className="text-[10px] font-medium text-white/85 leading-tight truncate">{group.title || "Untitled"}</p>
-        </div>
-        <div className="flex flex-col items-end gap-0.5 shrink-0">
-          <span className="text-[9px] text-white/35 tabular-nums">{time}</span>
-          <span className={`w-1.5 h-1.5 rounded-full ${status.dotClass}`} />
-        </div>
+        )}
+        <span className="flex-1 truncate text-[9px] font-medium text-white/80 leading-none">{group.title || "Untitled"}</span>
+        <span className="text-[8px] text-white/40 tabular-nums shrink-0 ml-0.5">{time}</span>
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ml-0.5 ${status.dotClass}`} />
       </div>
     );
   }

@@ -48,15 +48,11 @@ export function WeekView({ viewDate, groups, supabaseUrl, onCardClick }: Props) 
     return () => clearInterval(interval);
   }, []);
 
-  // Scroll to current time on mount
-  useEffect(() => {
-    nowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, []);
 
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
-      {/* Scrollable container — header inside so columns align with scrollbar */}
-      <div className="overflow-y-auto max-h-[calc(100vh-240px)]">
+      {/* No scroll — all 24 hours visible */}
+      <div className="overflow-hidden">
         {/* Header row — sticky inside scroll container */}
         <div className="grid sticky top-0 z-10 bg-[#0a0a0a] border-b border-white/[0.06]" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
           <div className="border-r border-white/[0.04]" /> {/* time gutter */}
@@ -77,8 +73,8 @@ export function WeekView({ viewDate, groups, supabaseUrl, onCardClick }: Props) 
           return (
             <div key={hour} style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }} className="grid relative">
               {/* Hour label */}
-              <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
-                <span className="text-[10px] text-white/25 tabular-nums">{formatHour(hour)}</span>
+              <div className="border-r border-white/[0.04] flex items-center justify-end pr-2">
+                <span className="text-[8px] text-white/20 tabular-nums">{formatHour(hour)}</span>
               </div>
 
               {/* Day columns */}
@@ -88,7 +84,7 @@ export function WeekView({ viewDate, groups, supabaseUrl, onCardClick }: Props) 
                 const isPastHour = isToday && hour < currentHour;
 
                 return (
-                  <div key={i} className={`relative border-r border-white/[0.04] last:border-r-0 min-w-0 overflow-hidden ${isPastCol ? "opacity-50" : ""}`}>
+                  <div key={i} className={`relative border-r border-white/[0.04] last:border-r-0 min-w-0 overflow-hidden ${isPastCol ? "opacity-40" : ""} ${isToday ? "bg-blue-500/[0.03]" : ""}`}>
                     <TimeSlot
                       date={day}
                       hour={hour}
@@ -102,7 +98,7 @@ export function WeekView({ viewDate, groups, supabaseUrl, onCardClick }: Props) 
                       <div
                         ref={nowRef}
                         className="absolute left-0 right-0 pointer-events-none z-10"
-                        style={{ top: `${(currentMinute / 60) * 60}px` }}
+                        style={{ top: `${(currentMinute / 60) * 30}px` }}
                       >
                         <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 -mt-1 absolute" />
                         <div className="h-px bg-red-500 w-full" />
