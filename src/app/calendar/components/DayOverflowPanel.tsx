@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { PostGroup, PROVIDER_META, formatTime, thumbnailUrl } from "../types";
+import { PostGroup, formatTime, thumbnailUrl } from "../types";
+import { ProviderIcon } from "./ProviderIcon";
 
 type Props = {
   groups: PostGroup[];
@@ -58,7 +59,7 @@ export function DayOverflowPanel({ groups, anchorRect, supabaseUrl, onCardClick,
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] text-white/80 truncate">{group.title || "Untitled"}</p>
                 <div className="flex items-center gap-1 mt-0.5">
-                  {providers.slice(0, 3).map(p => <span key={p} className={`w-1.5 h-1.5 rounded-full ${PROVIDER_META[p]?.dotClass ?? "bg-white/30"}`} />)}
+                  {providers.slice(0, 3).map(p => <ProviderIcon key={p} provider={p} className="w-3 h-3" />)}
                   <span className="text-[9px] text-white/30 ml-0.5">{formatTime(group.scheduled_for)}</span>
                 </div>
               </div>

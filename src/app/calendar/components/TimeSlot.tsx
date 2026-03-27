@@ -14,7 +14,7 @@ export function toSlotId(date: Date, hour: number): string {
   return `slot-${y}${m}${d}:${h}`;
 }
 
-function DraggableFullCard({ group, supabaseUrl, onCardClick }: { group: PostGroup; supabaseUrl: string; onCardClick: (g: PostGroup, r: DOMRect) => void }) {
+function DraggableWeekCard({ group, supabaseUrl, onCardClick }: { group: PostGroup; supabaseUrl: string; onCardClick: (g: PostGroup, r: DOMRect) => void }) {
   const canDrag = group.status === "scheduled";
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `group-${group.groupId}`,
@@ -24,7 +24,7 @@ function DraggableFullCard({ group, supabaseUrl, onCardClick }: { group: PostGro
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
   return (
     <div ref={setNodeRef} style={style} {...(canDrag ? { ...attributes, ...listeners } : {})}>
-      <PostCard group={group} variant="full" supabaseUrl={supabaseUrl} onClick={onCardClick} dimmed={isDragging} />
+      <PostCard group={group} variant="week" supabaseUrl={supabaseUrl} onClick={onCardClick} dimmed={isDragging} />
     </div>
   );
 }
@@ -47,16 +47,22 @@ export function TimeSlot({ date, hour, groups, supabaseUrl, onCardClick, isPast 
     return isSameDay(d, date) && d.getHours() === hour;
   });
 
+  const visible = slotGroups[0] ? [slotGroups[0]] : [];
+  const overflow = slotGroups.length - 1;
+
   return (
     <div
       ref={setNodeRef}
-      className={`relative border-b border-white/[0.04] min-h-[48px] p-1 flex flex-col gap-1 transition-colors
+      className={`relative border-b border-white/[0.04] h-[60px] overflow-hidden p-1 flex flex-col gap-0.5 transition-colors
         ${isPast ? "opacity-40" : ""}
         ${isOver ? "bg-blue-500/[0.08]" : ""}`}
     >
-      {slotGroups.map(group => (
-        <DraggableFullCard key={group.groupId} group={group} supabaseUrl={supabaseUrl} onCardClick={onCardClick} />
+      {visible.map(group => (
+        <DraggableWeekCard key={group.groupId} group={group} supabaseUrl={supabaseUrl} onCardClick={onCardClick} />
       ))}
+      {overflow > 0 && (
+        <span className="text-[9px] text-white/30 px-1">+{overflow} more</span>
+      )}
     </div>
   );
 }
