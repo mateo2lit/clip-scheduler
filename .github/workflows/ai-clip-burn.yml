@@ -61,21 +61,45 @@ jobs:
             -d "{\"status\":\"burning\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Download source clip
+        env:
+          SOURCE_CLIP_URL: ${{ inputs.source_clip_url }}
         run: |
-          HTTP_STATUS=$(curl -sS -o /tmp/clip.mp4 -w "%{http_code}" \
-            --max-time 300 \
-            "${{ inputs.source_clip_url }}")
+          python3 - <<'PYEOF'
+          import os, urllib.request, urllib.error
 
-          echo "Download status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
-            echo "Download failed with status $HTTP_STATUS"
-            exit 1
-          fi
-          if [ ! -s /tmp/clip.mp4 ]; then
-            echo "Downloaded clip is empty"
-            exit 1
-          fi
-          echo "Downloaded: $(stat -c%s /tmp/clip.mp4) bytes"
+          url = os.environ.get("SOURCE_CLIP_URL", "").strip()
+          if not url:
+              raise RuntimeError("source_clip_url input is empty — dispatch may have used old route code")
+
+          print(f"Downloading: {url[:100]}...", flush=True)
+          status_file = "/tmp/dl_status.txt"
+
+          try:
+              req = urllib.request.Request(url)
+              with urllib.request.urlopen(req, timeout=300) as resp:
+                  print(f"HTTP {resp.status}", flush=True)
+                  with open(status_file, "w") as sf:
+                      sf.write(str(resp.status))
+                  with open("/tmp/clip.mp4", "wb") as f:
+                      while True:
+                          chunk = resp.read(8 * 1024 * 1024)
+                          if not chunk:
+                              break
+                          f.write(chunk)
+          except urllib.error.HTTPError as e:
+              with open(status_file, "w") as sf:
+                  sf.write(str(e.code))
+              raise RuntimeError(f"HTTP {e.code}: {e.reason}")
+          except Exception as e:
+              with open(status_file, "w") as sf:
+                  sf.write(type(e).__name__)
+              raise RuntimeError(f"{type(e).__name__}: {e}")
+
+          size = os.path.getsize("/tmp/clip.mp4")
+          if size == 0:
+              raise RuntimeError("Downloaded file is empty")
+          print(f"Downloaded: {size:,} bytes", flush=True)
+          PYEOF
 
       - name: Fetch subtitle data from Supabase
         env:
@@ -454,7 +478,8 @@ jobs:
         if: failure()
         run: |
           if [ ! -s /tmp/clip.mp4 ]; then
-            ERR_MSG="Failed to download source clip from storage."
+            DL_STATUS=$(cat /tmp/dl_status.txt 2>/dev/null || echo "no-response")
+            ERR_MSG="Failed to download source clip (status: ${DL_STATUS}). Check Actions log."
           elif [ ! -s /tmp/burned.mp4 ]; then
             ERR_MSG="FFmpeg processing failed. Check Actions log for details."
           else
