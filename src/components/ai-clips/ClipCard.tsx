@@ -54,7 +54,9 @@ export function ClipCard({
   }
 
   const firstWords = subtitleWords?.slice(0, 6) ?? [];
-  const hasSubtitles = subtitleStyle.animation !== "none";
+  const hasRealWords = subtitleWords.length > 0;
+  // Only consider subtitles "active" if there are actual transcribed words to burn
+  const hasSubtitles = subtitleStyle.animation !== "none" && hasRealWords;
   const needsBurn = hasSubtitles || blurBackground;
 
   async function handleDownload() {
@@ -154,7 +156,7 @@ export function ClipCard({
   async function handleSchedule(withSubtitles: boolean) {
     setBurnError(null);
 
-    if (!withSubtitles || subtitleStyle.animation === "none") {
+    if (!withSubtitles || subtitleStyle.animation === "none" || !hasRealWords) {
       try {
         const res = await fetch(`/api/ai-clips/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -265,12 +267,14 @@ export function ClipCard({
         )}
 
         {/* Subtitle preview */}
-        {hasSubtitles && (
-          <SubtitlePreview
-            style={subtitleStyle}
-            words={firstWords.length > 0 ? firstWords : undefined}
-            preview={firstWords.length === 0}
-          />
+        {subtitleStyle.animation !== "none" && (
+          hasRealWords ? (
+            <SubtitlePreview style={subtitleStyle} words={firstWords} preview={false} />
+          ) : (
+            <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
+              <span className="text-[9px] text-white/40 bg-black/50 rounded px-1.5 py-0.5">No speech detected</span>
+            </div>
+          )
         )}
 
         {/* Clip number badge */}
