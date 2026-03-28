@@ -77,6 +77,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Clip upload not found." }, { status: 404 });
     }
 
+    // Generate a signed URL for the source clip (valid 2h — enough for any queue wait + run time)
+    const { data: signedData, error: signErr } = await supabaseAdmin.storage
+      .from(upload.bucket)
+      .createSignedUrl(upload.file_path, 7200);
+
+    if (signErr || !signedData?.signedUrl) {
+      return NextResponse.json({ ok: false, error: "Failed to generate signed URL for source clip." }, { status: 500 });
+    }
+
     const burnJobId = crypto.randomUUID();
     const burnedPath = `${teamId}/ai_burned_${burnJobId}.mp4`;
 
@@ -97,11 +106,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Failed to create burn job." }, { status: 500 });
     }
 
-    // Dispatch burn workflow — only pass minimal inputs, no subtitle_json or style_json
+    // Dispatch burn workflow — pass signed URL so the runner doesn't need Storage auth
     if (GITHUB_PAT) {
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
-        source_clip_path: upload.file_path,
+        source_clip_url: signedData.signedUrl,
         output_path: burnedPath,
         mode: mode,
         team_id: teamId,
