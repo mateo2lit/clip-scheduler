@@ -62,10 +62,30 @@ jobs:
 
       - name: Download source clip from Supabase Storage
         run: |
+          # Generate a signed URL first (mirrors how the frontend fetches clip URLs)
+          SIGN_RESP=$(curl -sS \
+            -X POST \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/sign/clips/${{ inputs.source_clip_path }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"expiresIn": 3600}')
+
+          echo "Sign response: ${SIGN_RESP:0:200}"
+
+          SIGNED_PATH=$(echo "$SIGN_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('signedURL',''))" 2>/dev/null || echo "")
+
+          if [ -z "$SIGNED_PATH" ]; then
+            echo "Failed to obtain signed URL for source clip. Response: $SIGN_RESP"
+            exit 1
+          fi
+
+          DOWNLOAD_URL="${{ secrets.SUPABASE_URL }}${SIGNED_PATH}"
+          echo "Downloading clip..."
+
           HTTP_STATUS=$(curl -sS -o /tmp/clip.mp4 -w "%{http_code}" \
             --max-time 300 \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.source_clip_path }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+            "$DOWNLOAD_URL")
 
           echo "Download status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
@@ -76,6 +96,7 @@ jobs:
             echo "Downloaded clip is empty"
             exit 1
           fi
+          echo "Downloaded: $(stat -c%s /tmp/clip.mp4) bytes"
 
       - name: Fetch subtitle data from Supabase
         env:
