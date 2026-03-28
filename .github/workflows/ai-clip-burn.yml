@@ -7,8 +7,9 @@ on:
         description: "ai_clip_burn_jobs row ID"
         required: true
       source_clip_url:
-        description: "Signed URL to download the source clip"
-        required: true
+        description: "Unused — workflow fetches path from DB directly"
+        required: false
+        default: ""
       output_path:
         description: "Supabase Storage path for burned output"
         required: true
@@ -62,23 +63,62 @@ jobs:
 
       - name: Download source clip
         env:
-          SOURCE_CLIP_URL: ${{ inputs.source_clip_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BURN_JOB_ID: ${{ inputs.burn_job_id }}
         run: |
           python3 - <<'PYEOF'
-          import os, urllib.request, urllib.error
+          import os, json, urllib.request, urllib.error
 
-          url = os.environ.get("SOURCE_CLIP_URL", "").strip()
-          if not url:
-              raise RuntimeError("source_clip_url input is empty — dispatch may have used old route code")
+          supabase_url = os.environ["SUPABASE_URL"]
+          service_key  = os.environ["SERVICE_KEY"]
+          burn_job_id  = os.environ["BURN_JOB_ID"]
 
-          print(f"Downloading: {url[:100]}...", flush=True)
-          status_file = "/tmp/dl_status.txt"
+          # 1. Fetch source_clip_path from the burn job row
+          req = urllib.request.Request(
+              f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=source_clip_path",
+              headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+          )
+          with urllib.request.urlopen(req) as resp:
+              rows = json.loads(resp.read().decode())
 
+          if not rows or not rows[0].get("source_clip_path"):
+              raise RuntimeError(f"source_clip_path missing in burn job {burn_job_id}")
+
+          clip_path = rows[0]["source_clip_path"]
+          print(f"Clip path: {clip_path}", flush=True)
+
+          # 2. Generate a signed URL via Supabase Storage REST API
+          sign_req = urllib.request.Request(
+              f"{supabase_url}/storage/v1/object/sign/clips/{clip_path}",
+              data=json.dumps({"expiresIn": 3600}).encode(),
+              method="POST",
+              headers={
+                  "Authorization": f"Bearer {service_key}",
+                  "apikey": service_key,
+                  "Content-Type": "application/json",
+              }
+          )
           try:
-              req = urllib.request.Request(url)
-              with urllib.request.urlopen(req, timeout=300) as resp:
-                  print(f"HTTP {resp.status}", flush=True)
-                  with open(status_file, "w") as sf:
+              with urllib.request.urlopen(sign_req) as resp:
+                  sign_data = json.loads(resp.read().decode())
+          except urllib.error.HTTPError as e:
+              body = e.read().decode()[:300]
+              raise RuntimeError(f"Sign URL failed HTTP {e.code}: {body}")
+
+          signed_path = sign_data.get("signedURL", "")
+          if not signed_path:
+              raise RuntimeError(f"No signedURL in response: {sign_data}")
+
+          download_url = f"{supabase_url}{signed_path}"
+          print("Downloading clip...", flush=True)
+
+          # 3. Download clip from signed URL
+          with open("/tmp/dl_status.txt", "w") as sf:
+              sf.write("connecting")
+          try:
+              with urllib.request.urlopen(urllib.request.Request(download_url), timeout=300) as resp:
+                  with open("/tmp/dl_status.txt", "w") as sf:
                       sf.write(str(resp.status))
                   with open("/tmp/clip.mp4", "wb") as f:
                       while True:
@@ -87,13 +127,13 @@ jobs:
                               break
                           f.write(chunk)
           except urllib.error.HTTPError as e:
-              with open(status_file, "w") as sf:
+              with open("/tmp/dl_status.txt", "w") as sf:
                   sf.write(str(e.code))
-              raise RuntimeError(f"HTTP {e.code}: {e.reason}")
+              raise RuntimeError(f"Download failed HTTP {e.code}: {e.reason}")
           except Exception as e:
-              with open(status_file, "w") as sf:
+              with open("/tmp/dl_status.txt", "w") as sf:
                   sf.write(type(e).__name__)
-              raise RuntimeError(f"{type(e).__name__}: {e}")
+              raise RuntimeError(f"Download error: {e}")
 
           size = os.path.getsize("/tmp/clip.mp4")
           if size == 0:
