@@ -133,6 +133,7 @@ export default function AiClipProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
   const [expandedCaption, setExpandedCaption] = useState(false);
+  const [blurBackground, setBlurBackground] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -326,6 +327,24 @@ export default function AiClipProjectPage() {
               onToggleExpand={() => setExpandedCaption((v) => !v)}
             />
 
+            {/* Blur background toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-white/40">9:16 Portrait mode</span>
+              <button
+                onClick={() => setBlurBackground((v) => !v)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                  blurBackground ? "bg-violet-500" : "bg-white/20"
+                }`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                  blurBackground ? "translate-x-4" : "translate-x-0.5"
+                }`} />
+              </button>
+              <span className="text-xs text-white/30">
+                {blurBackground ? "Blurred background fill" : "Original 16:9"}
+              </span>
+            </div>
+
             {/* Horizontal scroll area */}
             <div className="relative">
               {/* Scroll hint gradient edges */}
@@ -343,6 +362,7 @@ export default function AiClipProjectPage() {
                     subtitleStyle={subtitleStyle}
                     jobId={job.id}
                     token={authToken}
+                    blurBackground={blurBackground}
                     onScheduled={handleScheduled}
                   />
                 ))}

@@ -54,6 +54,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const body = await req.json().catch(() => ({}));
     const clip_index = Number(body.clip_index ?? 0);
     const subtitle_style = body.subtitle_style ?? {};
+    const mode = (body.mode as string) || "landscape";
 
     const uploadIds: string[] = job.result_upload_ids ?? [];
     if (clip_index < 0 || clip_index >= uploadIds.length) {
@@ -79,7 +80,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const burnJobId = crypto.randomUUID();
     const burnedPath = `${teamId}/ai_burned_${burnJobId}.mp4`;
 
-    // Create burn job row
+    // Create burn job row — store subtitle_data, subtitle_style, and mode in DB
     const { error: insertErr } = await supabaseAdmin.from("ai_clip_burn_jobs").insert({
       id: burnJobId,
       team_id: teamId,
@@ -87,20 +88,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       clip_index,
       source_clip_path: upload.file_path,
       status: "pending",
+      subtitle_data: clipSubtitles,
+      subtitle_style: subtitle_style,
+      mode: mode,
     });
 
     if (insertErr) {
       return NextResponse.json({ ok: false, error: "Failed to create burn job." }, { status: 500 });
     }
 
-    // Dispatch burn workflow
+    // Dispatch burn workflow — only pass minimal inputs, no subtitle_json or style_json
     if (GITHUB_PAT) {
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
         source_clip_path: upload.file_path,
         output_path: burnedPath,
-        subtitle_json: JSON.stringify(clipSubtitles),
-        style_json: JSON.stringify(subtitle_style),
+        mode: mode,
         team_id: teamId,
         user_id: userId,
       });

@@ -12,14 +12,10 @@ on:
       output_path:
         description: "Supabase Storage path for burned output"
         required: true
-      subtitle_json:
-        description: "JSON array of word segments [{start, end, word}]"
-        required: true
-        default: "[]"
-      style_json:
-        description: "JSON subtitle style config"
-        required: true
-        default: "{}"
+      mode:
+        description: "portrait_blur or landscape"
+        required: false
+        default: "landscape"
       team_id:
         description: "Team ID"
         required: true
@@ -44,17 +40,16 @@ jobs:
 
       - name: Install fonts
         run: |
+          sudo apt-get install -y --no-install-recommends fonts-liberation fonts-noto-core 2>/dev/null || true
+          # Also try to download Montserrat as a bonus (non-fatal)
           mkdir -p /usr/local/share/fonts/clip-dash
           BASE="https://github.com/google/fonts/raw/main/ofl"
-          wget -q "${BASE}/montserrat/static/Montserrat-Regular.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Regular.ttf
-          wget -q "${BASE}/montserrat/static/Montserrat-Bold.ttf"    -O /usr/local/share/fonts/clip-dash/Montserrat-Bold.ttf
-          wget -q "${BASE}/montserrat/static/Montserrat-Black.ttf"   -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf
-          wget -q "${BASE}/oswald/static/Oswald-Regular.ttf"         -O /usr/local/share/fonts/clip-dash/Oswald-Regular.ttf
-          wget -q "${BASE}/oswald/static/Oswald-Bold.ttf"            -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf
-          sudo apt-get install -y --no-install-recommends fonts-liberation 2>/dev/null || true
-          fc-cache -fv
-          echo "Installed fonts:"
-          fc-list | grep -i "montserrat\|oswald\|liberation" || true
+          wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Bold.ttf || true
+          wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Black.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf || true
+          wget -q --timeout=15 "${BASE}/oswald/static/Oswald-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf || true
+          fc-cache -f 2>/dev/null || true
+          echo "Available fonts (first 10):"
+          fc-list | head -10
 
       - name: Mark burn job as burning
         run: |
@@ -82,46 +77,130 @@ jobs:
             exit 1
           fi
 
+      - name: Fetch subtitle data from Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BURN_JOB_ID: ${{ inputs.burn_job_id }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+          supabase_url = os.environ["SUPABASE_URL"]
+          service_key  = os.environ["SERVICE_KEY"]
+          burn_job_id  = os.environ["BURN_JOB_ID"]
+
+          req = urllib.request.Request(
+              f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
+              headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+          )
+          with urllib.request.urlopen(req) as resp:
+              rows = json.load(resp)
+          if not rows:
+              raise RuntimeError(f"Burn job {burn_job_id} not found in DB")
+
+          row = rows[0]
+          words = row.get("subtitle_data") or []
+          style = row.get("subtitle_style") or {}
+
+          with open("/tmp/subtitle_data.json", "w") as f:
+              json.dump(words, f)
+          with open("/tmp/subtitle_style.json", "w") as f:
+              json.dump(style, f)
+
+          db_mode = row.get("mode") or "landscape"
+          with open("/tmp/burn_mode.txt", "w") as f:
+              f.write(db_mode)
+
+          print(f"Fetched: mode={db_mode}, words={len(words)}, style_keys={list(style.keys())}", flush=True)
+          PYEOF
+
       - name: Generate ASS subtitle file and burn
         env:
-          SUBTITLE_JSON: ${{ inputs.subtitle_json }}
-          STYLE_JSON: ${{ inputs.style_json }}
+          BURN_MODE: ${{ inputs.mode }}
         run: |
           python3 - <<'PYEOF'
           import json, os, subprocess
 
-          words = json.loads(os.environ.get("SUBTITLE_JSON", "[]") or "[]")
-          style = json.loads(os.environ.get("STYLE_JSON", "{}") or "{}")
+          with open("/tmp/subtitle_data.json") as f:
+              words = json.load(f)
+          with open("/tmp/subtitle_style.json") as f:
+              style = json.load(f)
 
-          # ── Read style fields ──────────────────────────────────────────
+          # mode: prefer file (set by fetch step), fall back to workflow input env
+          try:
+              with open("/tmp/burn_mode.txt") as f:
+                  mode = f.read().strip() or "landscape"
+          except FileNotFoundError:
+              mode = os.environ.get("BURN_MODE", "landscape") or "landscape"
+
+          # ── Read style fields ───────────────────────────────────────────────────
           animation    = style.get("animation", "word_highlight")
-          font_family  = style.get("fontFamily", "Montserrat")
+          font_family  = style.get("fontFamily", "Liberation Sans")
           try:
               font_size = int(style.get("fontSize", 40))
           except (TypeError, ValueError):
               font_size = 40
-          font_weight  = style.get("fontWeight", "Black")   # Regular|Bold|Black
+          font_weight  = style.get("fontWeight", "Black")
           italic       = bool(style.get("italic", False))
           underline    = bool(style.get("underline", False))
           uppercase    = bool(style.get("uppercase", True))
           stroke_color = style.get("strokeColor", "#000000")
           shadow_on    = bool(style.get("shadowEnabled", False))
-          _shadow_x    = float(style.get("shadowX", 2))   # ASS shadow is 1-axis; x/blur unused
           shadow_y     = float(style.get("shadowY", 2))
-          _shadow_blur = float(style.get("shadowBlur", 2)) # ASS shadow is 1-axis; blur unused
           primary_hex  = style.get("primaryColor", "#FFFFFF")
           highlight_hex= style.get("highlightColor", "#04F827")
-          position     = style.get("position", "bottom")   # auto|top|middle|bottom
+          position     = style.get("position", "bottom")
           try:
               stroke_width = int(style.get("strokeWidth", 8))
           except (TypeError, ValueError):
               stroke_width = 8
           try:
-              lines = int(style.get("lines", 1))        # 1 or 3
+              lines = int(style.get("lines", 1))
           except (TypeError, ValueError):
               lines = 1
 
-          # ── Hex → ASS BGR ──────────────────────────────────────────────
+          # ── Get source video dimensions ─────────────────────────────────────────
+          probe = subprocess.run(
+              ["ffprobe", "-v", "error", "-select_streams", "v:0",
+               "-show_entries", "stream=width,height",
+               "-of", "csv=p=0", "/tmp/clip.mp4"],
+              capture_output=True, text=True
+          )
+          dims_str = probe.stdout.strip().split(",")
+          try:
+              src_w, src_h = int(dims_str[0]), int(dims_str[1])
+          except (ValueError, IndexError):
+              src_w, src_h = 1920, 1080
+          print(f"Source dimensions: {src_w}x{src_h}, mode: {mode}", flush=True)
+
+          # ── Compute portrait dimensions for portrait_blur mode ──────────────────
+          TW, TH = 1080, 1920  # target 9:16
+
+          if mode == "portrait_blur":
+              # Background: scale to fill TW×TH (maintaining aspect), crop center
+              # Need: both width >= TW and height >= TH
+              scale_by_h_w = int(src_w * TH / src_h)
+              scale_by_w_h = int(src_h * TW / src_w)
+              if scale_by_h_w >= TW:
+                  bg_w = scale_by_h_w + (scale_by_h_w % 2)
+                  bg_h = TH
+              else:
+                  bg_w = TW
+                  bg_h = scale_by_w_h + (scale_by_w_h % 2)
+              bg_crop_x = max(0, (bg_w - TW) // 2)
+              bg_crop_y = max(0, (bg_h - TH) // 2)
+
+              # Foreground: fit width to TW, height proportional
+              fg_w = TW
+              fg_h = int(src_h * TW / src_w)
+              fg_h = fg_h - (fg_h % 2)  # ensure even
+
+              play_res_x, play_res_y = TW, TH
+              print(f"Portrait blur: bg={bg_w}x{bg_h} crop_x={bg_crop_x} crop_y={bg_crop_y}, fg={fg_w}x{fg_h}", flush=True)
+          else:
+              play_res_x, play_res_y = src_w, src_h
+
+          # ── Hex → ASS BGR ───────────────────────────────────────────────────────
           def hex_to_ass(h):
               h = h.lstrip("#")[:6].upper().zfill(6)
               r, g, b = h[0:2], h[2:4], h[4:6]
@@ -131,26 +210,23 @@ jobs:
           highlight_color = hex_to_ass(highlight_hex)
           outline_color   = hex_to_ass(stroke_color)
 
-          # ── ASS style params ───────────────────────────────────────────
-          bold      = 1 if font_weight in ("Bold", "Black") else 0
-          ass_italic    = 1 if italic else 0
-          ass_underline = 1 if underline else 0
-          shadow_depth  = round(shadow_y) if shadow_on else 0
+          bold         = 1 if font_weight in ("Bold", "Black") else 0
+          ass_italic   = 1 if italic else 0
+          ass_underline= 1 if underline else 0
+          shadow_depth = round(shadow_y) if shadow_on else 0
 
-          # Vertical alignment: 2=bottom, 8=top, 5=middle
           if position in ("auto", "bottom"):
               valign, margin_v = 2, 30
           elif position == "top":
               valign, margin_v = 8, 30
-          else:  # middle
+          else:
               valign, margin_v = 5, 0
 
-          # ── ASS header ─────────────────────────────────────────────────
           ass_header = "\n".join([
               "[Script Info]",
               "ScriptType: v4.00+",
-              "PlayResX: 1080",
-              "PlayResY: 1920",
+              f"PlayResX: {play_res_x}",
+              f"PlayResY: {play_res_y}",
               "ScaledBorderAndShadow: yes",
               "",
               "[V4+ Styles]",
@@ -175,14 +251,9 @@ jobs:
               return t.upper() if uppercase else t
 
           events = []
-
-          # Words per group: 1-line mode = 4 words, 3-line mode = 8 words
           WORDS_PER_GROUP = 4 if lines == 1 else 8
 
-          if not words or animation == "none":
-              ass_content = ass_header
-
-          elif animation == "word_highlight":
+          if words and animation == "word_highlight":
               groups = [words[i:i+WORDS_PER_GROUP] for i in range(0, len(words), WORDS_PER_GROUP)]
               for group in groups:
                   if not group:
@@ -199,9 +270,8 @@ jobs:
                               parts.append(word_text)
                       text = " ".join(parts)
                       events.append(f"Dialogue: 0,{fmt_time(w_start)},{fmt_time(w_end)},Default,,0,0,0,,{text}")
-              ass_content = ass_header + "\n".join(events)
 
-          elif animation == "line":
+          elif words and animation == "line":
               groups = [words[i:i+WORDS_PER_GROUP] for i in range(0, len(words), WORDS_PER_GROUP)]
               for group in groups:
                   if not group:
@@ -210,21 +280,46 @@ jobs:
                   line_end   = group[-1]["end"]
                   text = " ".join(apply_case(esc(w["word"])) for w in group)
                   events.append(f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}")
-              ass_content = ass_header + "\n".join(events)
 
-          else:
-              ass_content = ass_header
-
+          ass_content = ass_header + "\n".join(events)
           with open("/tmp/subtitles.ass", "w", encoding="utf-8") as f:
               f.write(ass_content)
 
-          print(f"Generated ASS: animation={animation}, font={font_family} {font_weight}, {len(events)} events", flush=True)
+          print(f"ASS: animation={animation}, {len(events)} events, font={font_family}", flush=True)
 
-          if animation == "none" or not words:
-              import shutil
-              shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
-              print("No subtitles — copying source", flush=True)
+          has_subs = bool(events) and animation != "none"
+
+          # ── Build FFmpeg command ────────────────────────────────────────────────
+          if mode == "portrait_blur":
+              # Build filter_complex for 9:16 blur background conversion
+              bg_chain = f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg]"
+              fg_chain = f"[0:v]scale={fg_w}:{fg_h}[fg]"
+              if has_subs:
+                  compose = f"[bg][fg]overlay=(W-w)/2:(H-h)/2,ass=/tmp/subtitles.ass[out]"
+              else:
+                  compose = f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
+
+              filter_complex = f"{bg_chain};{fg_chain};{compose}"
+
+              proc = subprocess.run([
+                  "ffmpeg", "-i", "/tmp/clip.mp4",
+                  "-filter_complex", filter_complex,
+                  "-map", "[out]",
+                  "-map", "0:a:0?",
+                  "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                  "-pix_fmt", "yuv420p", "-r", "30",
+                  "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+                  "-movflags", "+faststart",
+                  "/tmp/burned.mp4", "-y"
+              ], capture_output=True, text=True)
           else:
+              # Landscape: just burn subtitles (or copy if none)
+              if not has_subs:
+                  import shutil
+                  shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
+                  print("No subtitles — copying source", flush=True)
+                  exit(0)
+
               proc = subprocess.run([
                   "ffmpeg", "-i", "/tmp/clip.mp4",
                   "-vf", "ass=/tmp/subtitles.ass",
@@ -234,12 +329,12 @@ jobs:
                   "/tmp/burned.mp4", "-y"
               ], capture_output=True, text=True)
 
-              if proc.returncode != 0:
-                  print(f"FFmpeg error: {proc.stderr[-800:]}", flush=True)
-                  raise RuntimeError("Subtitle burn failed")
+          if proc.returncode != 0:
+              print(f"FFmpeg stderr (last 1000 chars):\n{proc.stderr[-1000:]}", flush=True)
+              raise RuntimeError(f"FFmpeg processing failed (rc={proc.returncode})")
 
           if not os.path.exists("/tmp/burned.mp4") or os.path.getsize("/tmp/burned.mp4") == 0:
-              raise RuntimeError("Burned output missing or empty")
+              raise RuntimeError("Output file missing or empty")
 
           print(f"Output: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
           PYEOF
@@ -345,9 +440,17 @@ jobs:
       - name: Mark burn failed on error
         if: failure()
         run: |
+          # Try to get a useful error message
+          ERR_MSG="Burn processing failed."
+          for LOG in /tmp/burn_ffmpeg_log.txt; do
+            if [ -f "$LOG" ] && [ -s "$LOG" ]; then
+              SNIPPET=$(tail -5 "$LOG" | tr '\n' ' ' | sed 's/["\]//g' | cut -c1-300)
+              [ -n "$SNIPPET" ] && ERR_MSG="$SNIPPET"
+            fi
+          done
           curl -sS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\":\"failed\",\"error\":\"Subtitle burn failed\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"status\":\"failed\",\"error\":\"${ERR_MSG}\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"

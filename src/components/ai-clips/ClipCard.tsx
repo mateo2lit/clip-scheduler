@@ -13,6 +13,7 @@ export function ClipCard({
   subtitleStyle,
   jobId,
   token,
+  blurBackground,
   onScheduled,
 }: {
   index: number;
@@ -22,6 +23,7 @@ export function ClipCard({
   subtitleStyle: SubtitleStyle;
   jobId: string;
   token: string;
+  blurBackground: boolean;
   onScheduled: (uploadId: string, title: string) => void;
 }) {
   const [burning, setBurning] = useState(false);
@@ -51,22 +53,100 @@ export function ClipCard({
     else { videoRef.current.play().catch(() => {}); setPlaying(true); }
   }
 
+  const firstWords = subtitleWords?.slice(0, 6) ?? [];
+  const hasSubtitles = subtitleStyle.animation !== "none";
+  const needsBurn = hasSubtitles || blurBackground;
+
   async function handleDownload() {
-    if (!videoUrl || downloading) return;
+    if (downloading) return;
     setDownloading(true);
+    setBurnError(null);
+
+    if (!needsBurn) {
+      // Raw download
+      if (!videoUrl) { setDownloading(false); return; }
+      try {
+        const response = await fetch(videoUrl);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${title.replace(/[^a-zA-Z0-9 \-]/g, "").trim() || `clip-${index + 1}`}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        if (videoUrl) window.open(videoUrl, "_blank");
+      }
+      setDownloading(false);
+      return;
+    }
+
+    // Need to burn first, then download
     try {
-      const response = await fetch(videoUrl);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${title.replace(/[^a-zA-Z0-9 \-]/g, "").trim() || `clip-${index + 1}`}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      if (videoUrl) window.open(videoUrl, "_blank");
+      const res = await fetch(`/api/ai-clips/${jobId}/burn-clip`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clip_index: index,
+          subtitle_style: subtitleStyle,
+          mode: blurBackground ? "portrait_blur" : "landscape",
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setBurnError(json.error || "Failed to start burn.");
+        setDownloading(false);
+        return;
+      }
+
+      const burnJobId = json.burnJobId;
+      const startTime = Date.now();
+
+      await new Promise<void>((resolve, reject) => {
+        const poll = setInterval(async () => {
+          if (Date.now() - startTime > 4 * 60 * 1000) {
+            clearInterval(poll);
+            reject(new Error("Burn timed out."));
+            return;
+          }
+          try {
+            const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const pollJson = await pollRes.json();
+            if (pollJson.ok && pollJson.job) {
+              if (pollJson.job.status === "done" && pollJson.job.result_upload_id) {
+                clearInterval(poll);
+                // Fetch signed URL for burned file
+                const uploadRes = await fetch(`/api/uploads/${pollJson.job.result_upload_id}`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                const uploadJson = await uploadRes.json();
+                if (uploadJson.signedUrl) {
+                  const response = await fetch(uploadJson.signedUrl);
+                  const blob = await response.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${title.replace(/[^a-zA-Z0-9 \-]/g, "").trim() || `clip-${index + 1}`}.mp4`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }
+                resolve();
+              } else if (pollJson.job.status === "failed") {
+                clearInterval(poll);
+                reject(new Error(pollJson.job.error || "Burn failed."));
+              }
+            }
+          } catch {}
+        }, 2000);
+      });
+    } catch (e: any) {
+      setBurnError(e?.message || "Download failed.");
     }
     setDownloading(false);
   }
@@ -97,7 +177,11 @@ export function ClipCard({
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ clip_index: index, subtitle_style: subtitleStyle }),
+        body: JSON.stringify({
+          clip_index: index,
+          subtitle_style: subtitleStyle,
+          mode: blurBackground ? "portrait_blur" : "landscape",
+        }),
       });
       const json = await res.json();
       if (!json.ok) {
@@ -140,9 +224,6 @@ export function ClipCard({
       setBurnError(e?.message || "Unknown error");
     }
   }
-
-  const firstWords = subtitleWords?.slice(0, 6) ?? [];
-  const hasSubtitles = subtitleStyle.animation !== "none";
 
   return (
     <div className="flex-shrink-0" style={{ width: "185px" }}>
@@ -220,8 +301,8 @@ export function ClipCard({
         {/* Download */}
         <button
           onClick={handleDownload}
-          disabled={!videoUrl || downloading}
-          title="Download clip"
+          disabled={(!videoUrl && !needsBurn) || downloading}
+          title={needsBurn ? "Download with effects" : "Download clip"}
           className="p-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-white/50 hover:text-white/80 transition-colors disabled:opacity-30"
         >
           {downloading ? (
