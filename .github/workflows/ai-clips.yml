@@ -7,12 +7,17 @@ on:
         description: "ai_clip_jobs row ID"
         required: true
       source_file_path:
-        description: "Supabase Storage path of source video"
-        required: true
+        description: "Supabase Storage path of source video (leave empty if using source_url)"
+        required: false
+        default: ""
       source_bucket:
         description: "Storage bucket name"
-        required: true
+        required: false
         default: "clips"
+      source_url:
+        description: "YouTube or Twitch URL (alternative to source_file_path)"
+        required: false
+        default: ""
       team_id:
         description: "Team ID"
         required: true
@@ -43,7 +48,51 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
-          pip install faster-whisper anthropic 2>&1 | tail -5
+          pip install faster-whisper anthropic yt-dlp 2>&1 | tail -5
+
+      - name: Acquire source video
+        run: |
+          SOURCE_URL="${{ inputs.source_url }}"
+
+          if [ -n "$SOURCE_URL" ]; then
+            echo "Downloading from URL: $SOURCE_URL"
+            yt-dlp \
+              -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
+              --merge-output-format mp4 \
+              --max-filesize 4G \
+              -o /tmp/source.mp4 \
+              "$SOURCE_URL"
+          else
+            echo "Downloading from Supabase Storage: ${{ inputs.source_file_path }}"
+            HTTP_STATUS=$(curl -sS -o /tmp/source.mp4 -w "%{http_code}" \
+              --max-time 600 \
+              "${{ secrets.SUPABASE_URL }}/storage/v1/object/${{ inputs.source_bucket }}/${{ inputs.source_file_path }}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+
+            echo "Download HTTP status: $HTTP_STATUS"
+            if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
+              echo "Download failed with HTTP status $HTTP_STATUS"
+              exit 1
+            fi
+          fi
+
+          if [ ! -s /tmp/source.mp4 ]; then
+            echo "Source file is empty or missing"
+            exit 1
+          fi
+          echo "Source size: $(stat -c%s /tmp/source.mp4) bytes"
+
+          # Update actual duration in DB (important for URL-sourced jobs)
+          DURATION_SECS=$(ffprobe -v quiet -show_entries format=duration \
+            -of default=noprint_wrappers=1:nokey=1 /tmp/source.mp4 2>/dev/null || echo "0")
+          DURATION_MINS=$(python3 -c "d=float('${DURATION_SECS}' or '0'); print(round(d/60,1))")
+          echo "Duration: ${DURATION_MINS} min"
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"source_duration_minutes\":${DURATION_MINS},\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Mark job as transcribing
         run: |
@@ -53,24 +102,6 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"transcribing\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
-
-      - name: Download source video from Supabase Storage
-        run: |
-          HTTP_STATUS=$(curl -sS -o /tmp/source.mp4 -w "%{http_code}" \
-            --max-time 600 \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/${{ inputs.source_bucket }}/${{ inputs.source_file_path }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
-
-          echo "Download HTTP status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
-            echo "Download failed with HTTP status $HTTP_STATUS"
-            exit 1
-          fi
-          if [ ! -s /tmp/source.mp4 ]; then
-            echo "Downloaded file is empty"
-            exit 1
-          fi
-          echo "Source size: $(stat -c%s /tmp/source.mp4) bytes"
 
       - name: Extract audio and transcribe with word timestamps
         env:

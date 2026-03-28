@@ -25,10 +25,17 @@ export function SubtitlePreview({
   const fontWeightNum =
     style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;
 
+  // Scale visual properties for preview mode (font is 0.3x, so stroke/shadow must scale too)
+  const scale = preview ? 0.3 : 1;
+  const strokeW = Math.max(preview ? 0.3 : 0, style.strokeWidth * scale);
+  const shadowX = style.shadowX * scale;
+  const shadowY = style.shadowY * scale;
+  const shadowBlur = style.shadowBlur * scale;
+
   // Build text-shadow for stroke effect (8 directions) + drop shadow
   const buildTextShadow = () => {
     const shadows: string[] = [];
-    const w = style.strokeWidth;
+    const w = strokeW;
     const c = style.strokeColor;
     if (w > 0) {
       shadows.push(
@@ -43,16 +50,14 @@ export function SubtitlePreview({
       );
     }
     if (style.shadowEnabled) {
-      shadows.push(
-        `${style.shadowX}px ${style.shadowY}px ${style.shadowBlur}px rgba(0,0,0,0.8)`
-      );
+      shadows.push(`${shadowX}px ${shadowY}px ${shadowBlur}px rgba(0,0,0,0.8)`);
     }
     return shadows.join(", ");
   };
 
   const baseStyle: CSSProperties = {
     fontFamily: style.fontFamily + ", sans-serif",
-    fontSize: `${Math.max(8, Math.round(style.fontSize * 0.3))}px`,
+    fontSize: `${Math.max(8, Math.round(style.fontSize * scale))}px`,
     fontWeight: fontWeightNum,
     fontStyle: style.italic ? "italic" : "normal",
     textDecoration: style.underline ? "underline" : "none",

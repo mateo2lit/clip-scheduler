@@ -182,11 +182,11 @@ function FontTab({
         onChange={(e) =>
           onUpdate("fontFamily", e.target.value as SubtitleStyle["fontFamily"])
         }
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+        className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
       >
-        <option value="Montserrat">Montserrat</option>
-        <option value="Oswald">Oswald</option>
-        <option value="Arial">Arial</option>
+        <option value="Montserrat" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Montserrat</option>
+        <option value="Oswald" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Oswald</option>
+        <option value="Arial" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Arial</option>
       </select>
 
       {/* Color + size + weight row */}
@@ -208,11 +208,11 @@ function FontTab({
           onChange={(e) =>
             onUpdate("fontWeight", e.target.value as SubtitleStyle["fontWeight"])
           }
-          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white"
+          className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white"
         >
-          <option value="Regular">Regular</option>
-          <option value="Bold">Bold</option>
-          <option value="Black">Black</option>
+          <option value="Regular" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Regular</option>
+          <option value="Bold" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Bold</option>
+          <option value="Black" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Black</option>
         </select>
       </div>
 
@@ -357,11 +357,11 @@ function EffectsTab({
           onChange={(e) =>
             onUpdate("animation", e.target.value as SubtitleStyle["animation"])
           }
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+          className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
         >
-          <option value="word_highlight">Bounce (Word Highlight)</option>
-          <option value="line">Line by Line</option>
-          <option value="none">None</option>
+          <option value="word_highlight" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Bounce (Word Highlight)</option>
+          <option value="line" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Line by Line</option>
+          <option value="none" style={{ backgroundColor: "#1a1a1a", color: "white" }}>None</option>
         </select>
       </div>
 

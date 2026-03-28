@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Fetch job and verify ownership
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")
-      .select("id, team_id, status, source_file_path, source_bucket, clip_count")
+      .select("id, team_id, status, source_file_path, source_bucket, clip_count, source_url")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
@@ -52,19 +52,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       );
     }
 
-    // Verify source file exists in Storage
-    const { data: fileList } = await supabaseAdmin.storage
-      .from(job.source_bucket)
-      .list(job.source_file_path.split("/").slice(0, -1).join("/"), {
-        search: job.source_file_path.split("/").pop(),
-        limit: 1,
-      });
+    // For file-based jobs, verify source file exists in Storage
+    if (!job.source_url && job.source_file_path) {
+      const { data: fileList } = await supabaseAdmin.storage
+        .from(job.source_bucket)
+        .list(job.source_file_path.split("/").slice(0, -1).join("/"), {
+          search: job.source_file_path.split("/").pop(),
+          limit: 1,
+        });
 
-    if (!fileList || fileList.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "Source file not found in storage. Please re-upload." },
-        { status: 400 }
-      );
+      if (!fileList || fileList.length === 0) {
+        return NextResponse.json(
+          { ok: false, error: "Source file not found in storage. Please re-upload." },
+          { status: 400 }
+        );
+      }
     }
 
     // Update status to uploading (workflow will update further)
@@ -77,8 +79,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (GITHUB_PAT) {
       await dispatchWorkflow({
         job_id: job.id,
-        source_file_path: job.source_file_path,
-        source_bucket: job.source_bucket,
+        source_file_path: job.source_file_path || "",
+        source_bucket: job.source_bucket || "clips",
+        source_url: job.source_url || "",
         team_id: teamId,
         user_id: userId,
         clip_count: String(job.clip_count),
