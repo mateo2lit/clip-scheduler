@@ -82,36 +82,52 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BURN_JOB_ID: ${{ inputs.burn_job_id }}
+          BURN_MODE_INPUT: ${{ inputs.mode }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, urllib.request
+          import json, os, urllib.request, urllib.error
+
           supabase_url = os.environ["SUPABASE_URL"]
           service_key  = os.environ["SERVICE_KEY"]
           burn_job_id  = os.environ["BURN_JOB_ID"]
 
-          req = urllib.request.Request(
-              f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
-              headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
-          )
-          with urllib.request.urlopen(req) as resp:
-              rows = json.load(resp)
-          if not rows:
-              raise RuntimeError(f"Burn job {burn_job_id} not found in DB")
+          words = []
+          style = {}
+          db_mode = os.environ.get("BURN_MODE_INPUT", "landscape") or "landscape"
 
-          row = rows[0]
-          words = row.get("subtitle_data") or []
-          style = row.get("subtitle_style") or {}
+          try:
+              req = urllib.request.Request(
+                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
+                  headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+              )
+              with urllib.request.urlopen(req) as resp:
+                  body = resp.read()
+              rows = json.loads(body)
+
+              if not rows:
+                  print(f"WARNING: Burn job {burn_job_id} not found — using empty subtitle data", flush=True)
+              else:
+                  row = rows[0]
+                  words = row.get("subtitle_data") or []
+                  style = row.get("subtitle_style") or {}
+                  db_mode = row.get("mode") or db_mode
+                  print(f"Fetched: mode={db_mode}, words={len(words)}, style_keys={list(style.keys())}", flush=True)
+
+          except urllib.error.HTTPError as e:
+              err_body = e.read().decode("utf-8", errors="replace")[:400]
+              print(f"WARNING: DB fetch HTTP {e.code}: {err_body}", flush=True)
+              print("If columns are missing, run: ALTER TABLE ai_clip_burn_jobs ADD COLUMN IF NOT EXISTS subtitle_data JSONB, ADD COLUMN IF NOT EXISTS subtitle_style JSONB, ADD COLUMN IF NOT EXISTS mode TEXT DEFAULT 'landscape';", flush=True)
+          except Exception as e:
+              print(f"WARNING: DB fetch failed: {e} — continuing without subtitle data", flush=True)
 
           with open("/tmp/subtitle_data.json", "w") as f:
               json.dump(words, f)
           with open("/tmp/subtitle_style.json", "w") as f:
               json.dump(style, f)
-
-          db_mode = row.get("mode") or "landscape"
           with open("/tmp/burn_mode.txt", "w") as f:
               f.write(db_mode)
 
-          print(f"Fetched: mode={db_mode}, words={len(words)}, style_keys={list(style.keys())}", flush=True)
+          print(f"Using: mode={db_mode}, words={len(words)}", flush=True)
           PYEOF
 
       - name: Generate ASS subtitle file and burn
@@ -440,14 +456,15 @@ jobs:
       - name: Mark burn failed on error
         if: failure()
         run: |
-          # Try to get a useful error message
           ERR_MSG="Burn processing failed."
-          for LOG in /tmp/burn_ffmpeg_log.txt; do
-            if [ -f "$LOG" ] && [ -s "$LOG" ]; then
-              SNIPPET=$(tail -5 "$LOG" | tr '\n' ' ' | sed 's/["\]//g' | cut -c1-300)
-              [ -n "$SNIPPET" ] && ERR_MSG="$SNIPPET"
-            fi
-          done
+          # Check if download failed (storage path issue)
+          if [ ! -s /tmp/clip.mp4 ]; then
+            ERR_MSG="Failed to download source clip from storage."
+          fi
+          # Check if subtitle fetch failed (migration not run)
+          if [ ! -f /tmp/subtitle_data.json ]; then
+            ERR_MSG="DB error — have you run the ai_clip_burn_jobs migration? (ALTER TABLE ai_clip_burn_jobs ADD COLUMN IF NOT EXISTS subtitle_data JSONB, ...)"
+          fi
           curl -sS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
