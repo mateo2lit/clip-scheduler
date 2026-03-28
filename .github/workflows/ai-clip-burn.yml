@@ -108,6 +108,9 @@ jobs:
 
           clip_path = rows[0]["source_clip_path"]
           print(f"Clip path: {clip_path}", flush=True)
+          # Save path separately so failure handler can include it
+          with open("/tmp/clip_path.txt", "w") as f:
+              f.write(clip_path)
           write_status("signing")
 
           # 2. Generate signed URL
@@ -545,7 +548,8 @@ jobs:
         run: |
           if [ ! -s /tmp/clip.mp4 ]; then
             DL_STATUS=$(cat /tmp/dl_status.txt 2>/dev/null || echo "no-response")
-            ERR_MSG="Failed to download source clip (status: ${DL_STATUS}). Check Actions log."
+            CLIP_PATH=$(cat /tmp/clip_path.txt 2>/dev/null || echo "")
+            ERR_MSG="Download failed (status: ${DL_STATUS}${CLIP_PATH:+, path: ${CLIP_PATH}}). Check Actions log."
           elif [ ! -s /tmp/burned.mp4 ]; then
             ERR_MSG="FFmpeg processing failed. Check Actions log for details."
           else
