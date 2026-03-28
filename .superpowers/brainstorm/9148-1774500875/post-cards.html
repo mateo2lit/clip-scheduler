@@ -1,0 +1,81 @@
+<h2>How much detail on each post card?</h2>
+<p class="subtitle">This applies to both month and week views. More detail = taller cells.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111; padding: 12px; display:flex; flex-direction:column; gap:5px; min-height:100px;">
+      <!-- Minimal pill style -->
+      <div style="background:#1a1a1a; border-radius:6px; padding:4px 8px; display:flex; align-items:center; gap:6px; font-size:11px; color:#ccc;">
+        <span style="width:8px;height:8px;background:#f00;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+        <span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">Summer Vlog Highlights</span>
+        <span style="color:#555;font-size:10px;flex-shrink:0;">3pm</span>
+      </div>
+      <div style="background:#1a1a1a; border-radius:6px; padding:4px 8px; display:flex; align-items:center; gap:6px; font-size:11px; color:#ccc;">
+        <span style="display:flex;gap:2px;flex-shrink:0;">
+          <span style="width:8px;height:8px;background:#E1306C;border-radius:50%;display:inline-block;"></span>
+          <span style="width:8px;height:8px;background:#0866FF;border-radius:50%;display:inline-block;"></span>
+        </span>
+        <span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">Product Launch Teaser</span>
+        <span style="color:#555;font-size:10px;flex-shrink:0;">5pm</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Compact pills</h3>
+      <p>Platform dots + title + time. Fits many posts per day without scrolling. Clean.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="medium" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111; padding: 12px; display:flex; flex-direction:column; gap:6px; min-height:100px;">
+      <!-- Medium card style -->
+      <div style="background:#1a1a1a; border-radius:8px; padding:6px 8px; display:flex; gap:8px; align-items:center;">
+        <div style="width:36px;height:36px;background:#222;border-radius:6px;flex-shrink:0;overflow:hidden;">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#f06,#a0f);opacity:0.6;"></div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Summer Vlog Highlights</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+            <span style="width:6px;height:6px;background:#f00;border-radius:50%;"></span>
+            <span style="font-size:10px;color:#888;">YouTube · 3:00 PM</span>
+          </div>
+        </div>
+        <span style="font-size:9px;background:#1e3a1e;color:#4ade80;border-radius:4px;padding:2px 5px;flex-shrink:0;">scheduled</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Thumbnail + status</h3>
+      <p>Small thumbnail, title, platform, time, and status badge. Good balance of info and density.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="rich" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111; padding: 12px; min-height:100px;">
+      <!-- Rich card style -->
+      <div style="background:#1a1a1a; border-radius:10px; overflow:hidden;">
+        <div style="height:60px;background:linear-gradient(135deg,#1a0533,#330066);position:relative;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.4;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.5 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+          </div>
+        </div>
+        <div style="padding:8px;">
+          <div style="font-size:11px;color:#ddd;font-weight:500;">Summer Vlog Highlights</div>
+          <div style="font-size:10px;color:#666;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Behind the scenes of our biggest shoot yet...</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;">
+            <span style="font-size:9px;color:#888;">3:00 PM · YouTube</span>
+            <span style="font-size:9px;background:#1e3a1e;color:#4ade80;border-radius:4px;padding:1px 5px;">scheduled</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Full cards (week view)</h3>
+      <p>Large thumbnail preview, title, excerpt, platform, time, status. Great in week view but cells need to be taller.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:1.5rem;">
+  <p class="subtitle">Tip: many tools use B in month view and C in week view automatically.</p>
+</div>

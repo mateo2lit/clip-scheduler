@@ -79,6 +79,19 @@ function formatMinutes(minutes: number): string {
   return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
 }
 
+function parseYoutubeId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("?")[0] || null;
+    if (u.hostname.endsWith("youtube.com")) {
+      if (u.pathname.startsWith("/watch")) return u.searchParams.get("v");
+      const m = u.pathname.match(/^\/(shorts|live|embed)\/([^/?]+)/);
+      if (m) return m[2];
+    }
+  } catch {}
+  return null;
+}
+
 // ─── Progress hook ────────────────────────────────────────────────────────────
 
 function useSimulatedProgress(status: AiClipJobStatus | null, uploadPct: number) {
@@ -111,7 +124,7 @@ function useSimulatedProgress(status: AiClipJobStatus | null, uploadPct: number)
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
-function ProjectCard({ job }: { job: AiClipJob }) {
+function ProjectCard({ job, token }: { job: AiClipJob; token: string | null }) {
   const gradients = [
     "from-violet-900/50 via-purple-900/40 to-indigo-900/50",
     "from-blue-900/50 via-indigo-900/40 to-violet-900/50",
@@ -121,32 +134,65 @@ function ProjectCard({ job }: { job: AiClipJob }) {
   // Pick deterministic gradient based on job id
   const gradientIdx = job.id.charCodeAt(0) % gradients.length;
   const gradient = gradients[gradientIdx];
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPreview() {
+      if (!token || job.status !== "done" || !job.result_upload_ids?.[0]) return;
+
+      try {
+        const res = await fetch(`/api/uploads/${job.result_upload_ids[0]}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (!cancelled && json.ok && json.signedUrl) {
+          setPreviewUrl(json.signedUrl);
+        }
+      } catch {}
+    }
+
+    loadPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [job.result_upload_ids, job.status, token]);
 
   return (
     <Link href={`/ai-clips/${job.id}`} className="group block">
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden hover:border-white/20 transition-all">
         <div className={`relative aspect-video bg-gradient-to-br ${gradient} flex items-center justify-center`}>
+          {previewUrl && job.status === "done" && (
+            <video
+              src={previewUrl}
+              className="absolute inset-0 h-full w-full object-cover"
+              preload="metadata"
+              muted
+              playsInline
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
           {job.status === "done" ? (
             <>
-              <div className="text-center">
+              <div className="relative z-10 text-center">
                 <div className="text-3xl font-bold text-white/80 mb-1">
                   {job.clips_generated ?? job.clip_count}
                 </div>
                 <div className="text-xs text-white/40">clips</div>
               </div>
-              <div className="absolute top-2 right-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-400 font-medium">
+              <div className="absolute top-2 right-2 z-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-400 font-medium">
                 Ready
               </div>
             </>
           ) : (
             <>
-              <div className="text-center">
+              <div className="relative z-10 text-center">
                 <div className="text-2xl mb-1">❌</div>
                 <div className="text-xs text-white/30">Failed</div>
               </div>
             </>
           )}
-          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
         <div className="p-3">
           <p className="text-sm font-medium text-white/80 group-hover:text-white transition-colors">
@@ -179,6 +225,10 @@ export default function AiClipsPage() {
   const [inputMode, setInputMode] = useState<"url" | "file">("url");
   const [urlInput, setUrlInput] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlPreview, setUrlPreview] = useState<{ videoId: string; thumbnailUrl: string } | null>(null);
+  const [urlMeta, setUrlMeta] = useState<{ title: string; authorName: string } | null>(null);
+  const [urlMetaLoading, setUrlMetaLoading] = useState(false);
+  const urlMetaAbortRef = useRef<AbortController | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileDurationMinutes, setFileDurationMinutes] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -273,6 +323,39 @@ export default function AiClipsPage() {
     }, 2500);
   }, []);
 
+  // ── URL preview ──────────────────────────────────────────────────────────
+
+  async function fetchUrlMeta(rawUrl: string) {
+    if (urlMetaAbortRef.current) urlMetaAbortRef.current.abort();
+    const ctrl = new AbortController();
+    urlMetaAbortRef.current = ctrl;
+    setUrlMetaLoading(true);
+    try {
+      const res = await fetch(`/api/ai-clips/url-meta?url=${encodeURIComponent(rawUrl)}`, { signal: ctrl.signal });
+      const json = await res.json();
+      if (!ctrl.signal.aborted && json.ok) {
+        setUrlMeta({ title: json.title, authorName: json.authorName });
+      }
+    } catch {}
+    if (!ctrl.signal.aborted) setUrlMetaLoading(false);
+  }
+
+  function handleUrlChange(val: string) {
+    setUrlInput(val);
+    setUrlError(null);
+    const ytId = parseYoutubeId(val.trim());
+    if (ytId) {
+      setUrlPreview({ videoId: ytId, thumbnailUrl: `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` });
+      setUrlMeta(null);
+      fetchUrlMeta(val.trim());
+    } else {
+      setUrlPreview(null);
+      setUrlMeta(null);
+      if (urlMetaAbortRef.current) { urlMetaAbortRef.current.abort(); urlMetaAbortRef.current = null; }
+      setUrlMetaLoading(false);
+    }
+  }
+
   // ── File handling ────────────────────────────────────────────────────────
 
   async function handleFileSelected(selectedFile: File) {
@@ -327,6 +410,8 @@ export default function AiClipsPage() {
       };
       setActiveJob(optimisticJob);
       setUrlInput("");
+      setUrlPreview(null);
+      setUrlMeta(null);
       setSubmitting(false);
       startPolling(json.jobId, authToken);
     } catch (e: any) {
@@ -478,7 +563,7 @@ export default function AiClipsPage() {
             {/* URL input — primary */}
             <div>
               <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">Paste a link</label>
-              <div className="flex gap-2">
+              <div className={urlPreview ? "" : "flex gap-2"}>
                 <div className="relative flex-1">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -489,28 +574,90 @@ export default function AiClipsPage() {
                     type="url"
                     placeholder="https://youtube.com/watch?v=... or Twitch VOD URL"
                     value={urlInput}
-                    onChange={(e) => { setUrlInput(e.target.value); setUrlError(null); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleGenerateFromUrl(); }}
+                    onChange={(e) => handleUrlChange(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !urlPreview) handleGenerateFromUrl(); }}
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-colors"
                   />
                 </div>
-                <button
-                  onClick={handleGenerateFromUrl}
-                  disabled={submitting || !urlInput.trim() || hasActiveJob || planOk !== true}
-                  className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  {submitting && inputMode === "url" ? (
-                    <span className="flex items-center gap-2">
-                      <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      Starting…
-                    </span>
-                  ) : (
-                    "Generate clips →"
-                  )}
-                </button>
+                {/* Inline button only when no YouTube preview */}
+                {!urlPreview && (
+                  <button
+                    onClick={handleGenerateFromUrl}
+                    disabled={submitting || !urlInput.trim() || hasActiveJob || planOk !== true}
+                    className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {submitting && inputMode === "url" ? (
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Starting…
+                      </span>
+                    ) : (
+                      "Generate clips →"
+                    )}
+                  </button>
+                )}
               </div>
               {urlError && <p className="mt-1.5 text-xs text-red-400">{urlError}</p>}
-              <p className="mt-1.5 text-xs text-white/25">YouTube and Twitch VODs supported</p>
+              {!urlPreview && <p className="mt-1.5 text-xs text-white/25">YouTube and Twitch VODs supported</p>}
+
+              {/* YouTube preview card */}
+              {urlPreview && (
+                <div className="mt-3 rounded-2xl overflow-hidden border border-white/10 bg-black">
+                  <div className="relative" style={{ aspectRatio: "16/9" }}>
+                    <img
+                      src={urlPreview.thumbnailUrl}
+                      alt="Video preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        if (img.src.includes("maxresdefault")) {
+                          img.src = `https://img.youtube.com/vi/${urlPreview.videoId}/hqdefault.jpg`;
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
+                    {/* Play icon */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="rounded-full bg-black/50 backdrop-blur-sm p-4">
+                        <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                    </div>
+                    {/* Title + channel overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      {urlMetaLoading ? (
+                        <div className="space-y-1.5">
+                          <div className="h-3.5 w-3/4 rounded bg-white/20 animate-pulse" />
+                          <div className="h-2.5 w-1/2 rounded bg-white/10 animate-pulse" />
+                        </div>
+                      ) : urlMeta ? (
+                        <>
+                          <p className="text-sm font-semibold text-white line-clamp-2 leading-snug">{urlMeta.title}</p>
+                          <p className="text-xs text-white/50 mt-0.5">{urlMeta.authorName}</p>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  {/* Generate button attached to preview */}
+                  <div className="p-3">
+                    <button
+                      onClick={handleGenerateFromUrl}
+                      disabled={submitting || hasActiveJob || planOk !== true}
+                      className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {submitting && inputMode === "url" ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                          Starting…
+                        </span>
+                      ) : (
+                        "✨ Generate clips →"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Divider */}
@@ -820,7 +967,7 @@ export default function AiClipsPage() {
             <h2 className="text-base font-semibold text-white mb-4">Projects</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {pastJobs.map((job) => (
-                <ProjectCard key={job.id} job={job} />
+                <ProjectCard key={job.id} job={job} token={authToken} />
               ))}
             </div>
           </div>

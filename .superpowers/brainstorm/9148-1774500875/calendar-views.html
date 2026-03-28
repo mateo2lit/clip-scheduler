@@ -1,0 +1,35 @@
+<h2>Which calendar views should we build?</h2>
+<p class="subtitle">Metricool offers both — which do you want for Clip Dash?</p>
+
+<div class="options">
+  <div class="option" data-choice="month-only" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Month view only — improved</h3>
+      <p>Rebuild the existing monthly calendar with richer post cards (thumbnails, platform icons, status badges, time). Simpler to build, great at-a-glance overview.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="week-only" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Week view only — time-based grid</h3>
+      <p>7-column layout with hour rows on the left (like Metricool's detailed view). Each post card sits at its scheduled time. Best for day-by-day scheduling precision.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="both" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Both views — toggle between them</h3>
+      <p>Month view for the big picture, week view for time precision. Toggle in the header. This is what Metricool, Buffer, and Later all do. Most complete experience.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem;">
+  <div class="label">Context — what exists today</div>
+  <p style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.5rem;">
+    There's already a basic month view at <code>/calendar</code> — it shows posts as small pills with platform color dots. We'd either improve it or replace it with something richer.
+  </p>
+</div>
