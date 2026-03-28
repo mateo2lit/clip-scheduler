@@ -23,6 +23,10 @@ on:
       user_id:
         description: "User ID"
         required: true
+      clip_title:
+        description: "Clip title for overlay"
+        required: false
+        default: ""
 
 jobs:
   burn:
@@ -154,13 +158,14 @@ jobs:
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BURN_JOB_ID: ${{ inputs.burn_job_id }}
           BURN_MODE_INPUT: ${{ inputs.mode }}
+          CLIP_TITLE_INPUT: ${{ inputs.clip_title }}
         run: |
           python3 - <<'PYEOF'
           import json, os, urllib.request
 
           words = []
           style = {}
-          clip_title = ""
+          clip_title = os.environ.get("CLIP_TITLE_INPUT", "") or ""
           db_mode = os.environ.get("BURN_MODE_INPUT", "landscape") or "landscape"
 
           try:
@@ -169,7 +174,7 @@ jobs:
               burn_job_id  = os.environ["BURN_JOB_ID"]
 
               req = urllib.request.Request(
-                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode,source_job_id,clip_index",
+                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
                   headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
               )
               with urllib.request.urlopen(req) as resp:
@@ -181,32 +186,13 @@ jobs:
                   words = row.get("subtitle_data") or []
                   style = row.get("subtitle_style") or {}
                   db_mode = row.get("mode") or db_mode
-
-                  # Fetch clip title from source job
-                  source_job_id = row.get("source_job_id") or ""
-                  clip_index = int(row.get("clip_index") or 0)
-                  if source_job_id:
-                      try:
-                          title_req = urllib.request.Request(
-                              f"{supabase_url}/rest/v1/ai_clip_jobs?id=eq.{source_job_id}&select=result_titles",
-                              headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
-                          )
-                          with urllib.request.urlopen(title_req, timeout=15) as resp2:
-                              title_rows = json.loads(resp2.read().decode())
-                          if title_rows and title_rows[0].get("result_titles"):
-                              titles = title_rows[0]["result_titles"]
-                              if 0 <= clip_index < len(titles):
-                                  clip_title = titles[clip_index] or ""
-                      except Exception as te:
-                          print(f"Warning: could not fetch title: {te}", flush=True)
-
                   print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={clip_title[:60]!r}", flush=True)
               else:
                   print(f"WARNING: burn job not found in DB, proceeding without subtitle data", flush=True)
 
           except Exception as e:
               print(f"WARNING: DB fetch failed ({type(e).__name__}: {e})", flush=True)
-              print("Continuing without subtitle data (landscape mode). Run migration if subtitles are missing.", flush=True)
+              print("Continuing without subtitle data. Mode from workflow input.", flush=True)
 
           finally:
               with open("/tmp/subtitle_data.json", "w") as f:

@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")
-      .select("id, team_id, status, result_upload_ids, result_subtitles")
+      .select("id, team_id, status, result_upload_ids, result_subtitles, result_titles")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
@@ -63,6 +63,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const subtitles: any[] = job.result_subtitles ?? [];
     const clipSubtitles = subtitles[clip_index] ?? [];
+    const clipTitle = (job.result_titles as string[] | null)?.[clip_index] ?? `Clip ${clip_index + 1}`;
 
     // Look up the source clip's storage path from the uploads row
     const uploadId = uploadIds[clip_index];
@@ -115,6 +116,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         mode: mode,
         team_id: teamId,
         user_id: userId,
+        clip_title: clipTitle,
       });
     } else {
       console.warn("GITHUB_PAT not set — burn workflow not dispatched");
