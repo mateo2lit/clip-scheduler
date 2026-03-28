@@ -133,7 +133,7 @@ export default function AiClipProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
   const [expandedCaption, setExpandedCaption] = useState(false);
-  const [blurBackground, setBlurBackground] = useState(false);
+  const [blurBackground, setBlurBackground] = useState(true);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

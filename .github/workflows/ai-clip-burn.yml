@@ -160,6 +160,7 @@ jobs:
 
           words = []
           style = {}
+          clip_title = ""
           db_mode = os.environ.get("BURN_MODE_INPUT", "landscape") or "landscape"
 
           try:
@@ -168,7 +169,7 @@ jobs:
               burn_job_id  = os.environ["BURN_JOB_ID"]
 
               req = urllib.request.Request(
-                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
+                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode,source_job_id,clip_index",
                   headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
               )
               with urllib.request.urlopen(req) as resp:
@@ -180,7 +181,26 @@ jobs:
                   words = row.get("subtitle_data") or []
                   style = row.get("subtitle_style") or {}
                   db_mode = row.get("mode") or db_mode
-                  print(f"Fetched OK: mode={db_mode}, words={len(words)}", flush=True)
+
+                  # Fetch clip title from source job
+                  source_job_id = row.get("source_job_id") or ""
+                  clip_index = int(row.get("clip_index") or 0)
+                  if source_job_id:
+                      try:
+                          title_req = urllib.request.Request(
+                              f"{supabase_url}/rest/v1/ai_clip_jobs?id=eq.{source_job_id}&select=result_titles",
+                              headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+                          )
+                          with urllib.request.urlopen(title_req, timeout=15) as resp2:
+                              title_rows = json.loads(resp2.read().decode())
+                          if title_rows and title_rows[0].get("result_titles"):
+                              titles = title_rows[0]["result_titles"]
+                              if 0 <= clip_index < len(titles):
+                                  clip_title = titles[clip_index] or ""
+                      except Exception as te:
+                          print(f"Warning: could not fetch title: {te}", flush=True)
+
+                  print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={clip_title[:60]!r}", flush=True)
               else:
                   print(f"WARNING: burn job not found in DB, proceeding without subtitle data", flush=True)
 
@@ -195,6 +215,8 @@ jobs:
                   json.dump(style, f)
               with open("/tmp/burn_mode.txt", "w") as f:
                   f.write(db_mode)
+              with open("/tmp/clip_title.txt", "w") as f:
+                  f.write(clip_title)
               print(f"Written files: mode={db_mode}, words={len(words)}", flush=True)
           PYEOF
 
@@ -209,6 +231,11 @@ jobs:
               words = json.load(f)
           with open("/tmp/subtitle_style.json") as f:
               style = json.load(f)
+          try:
+              with open("/tmp/clip_title.txt") as f:
+                  clip_title = f.read().strip()
+          except FileNotFoundError:
+              clip_title = ""
 
           # mode: prefer file (set by fetch step), fall back to workflow input env
           try:
@@ -255,7 +282,18 @@ jobs:
               src_w, src_h = int(dims_str[0]), int(dims_str[1])
           except (ValueError, IndexError):
               src_w, src_h = 1920, 1080
-          print(f"Source dimensions: {src_w}x{src_h}, mode: {mode}", flush=True)
+
+          dur_probe = subprocess.run(
+              ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+               "-of", "csv=p=0", "/tmp/clip.mp4"],
+              capture_output=True, text=True
+          )
+          try:
+              clip_duration = float(dur_probe.stdout.strip())
+          except (ValueError, AttributeError):
+              clip_duration = 9999.0
+
+          print(f"Source dimensions: {src_w}x{src_h}, duration: {clip_duration:.1f}s, mode: {mode}", flush=True)
 
           # ── Compute portrait dimensions for portrait_blur mode ──────────────────
           TW, TH = 1080, 1920  # target 9:16
@@ -316,6 +354,7 @@ jobs:
               "[V4+ Styles]",
               "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
               f"Style: Default,{font_family},{font_size},{text_color},&H000000FF,{outline_color},&H80000000,{bold},{ass_italic},{ass_underline},0,100,100,0,0,1,{stroke_width},{shadow_depth},{valign},10,10,{margin_v},1",
+              "Style: Title,Montserrat,48,&H00000000,&H000000FF,&H00FFFFFF,&H00FFFFFF,1,0,0,0,100,100,0,0,3,15,0,8,25,25,25,1",
               "",
               "[Events]",
               "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -365,13 +404,25 @@ jobs:
                   text = " ".join(apply_case(esc(w["word"])) for w in group)
                   events.append(f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}")
 
-          ass_content = ass_header + "\n".join(events)
+          # Title overlay — white box with black text, shown for full clip duration
+          def esc_title(t):
+              return t.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}").replace("\n", "\\N")
+
+          title_events = []
+          if clip_title:
+              title_events.append(
+                  f"Dialogue: 0,{fmt_time(0)},{fmt_time(clip_duration)},Title,,0,0,0,,{esc_title(clip_title)}"
+              )
+
+          all_events = title_events + events
+          ass_content = ass_header + "\n".join(all_events)
           with open("/tmp/subtitles.ass", "w", encoding="utf-8") as f:
               f.write(ass_content)
 
-          print(f"ASS: animation={animation}, {len(events)} events, font={font_family}", flush=True)
+          print(f"ASS: animation={animation}, {len(events)} word-events, title={'yes' if title_events else 'no'}, font={font_family}", flush=True)
 
-          has_subs = bool(events) and animation != "none"
+          has_word_subs = bool(events) and animation != "none"
+          has_subs = has_word_subs or bool(title_events)
 
           # ── Build FFmpeg command ────────────────────────────────────────────────
           if mode == "portrait_blur":
