@@ -32,28 +32,30 @@ jobs:
     steps:
       - name: Check ffmpeg
         run: |
+          echo "step:ffmpeg" > /tmp/dl_status.txt
           if command -v ffmpeg &>/dev/null; then
             echo "ffmpeg ready: $(ffmpeg -version 2>&1 | head -1)"
           else
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends ffmpeg
+            sudo apt-get update -qq || true
+            sudo apt-get install -y --no-install-recommends ffmpeg || true
           fi
+          # Verify we actually have ffmpeg
+          ffmpeg -version 2>&1 | head -1
 
       - name: Install fonts
         run: |
+          echo "step:fonts" > /tmp/dl_status.txt
           sudo apt-get install -y --no-install-recommends fonts-liberation fonts-noto-core 2>/dev/null || true
-          # Also try to download Montserrat as a bonus (non-fatal)
           mkdir -p /usr/local/share/fonts/clip-dash
           BASE="https://github.com/google/fonts/raw/main/ofl"
           wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Bold.ttf || true
           wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Black.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf || true
           wget -q --timeout=15 "${BASE}/oswald/static/Oswald-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf || true
           fc-cache -f 2>/dev/null || true
-          echo "Available fonts (first 10):"
-          fc-list | head -10
 
       - name: Mark burn job as burning
         run: |
+          echo "step:marking" > /tmp/dl_status.txt
           curl -sS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
