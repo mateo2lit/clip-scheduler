@@ -65,6 +65,10 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const clip_count = Math.min(10, Math.max(3, Number(body.clip_count) || 5));
     const source_url: string = (body.source_url || "").trim();
+    const genre = body.genre || "auto";
+    const clip_length = body.clip_length || "auto";
+    const auto_hook = body.auto_hook !== false;
+    const moment_prompt = String(body.moment_prompt || "").slice(0, 500);
 
     if (!source_url) {
       return NextResponse.json({ ok: false, error: "URL is required." }, { status: 400 });
@@ -104,8 +108,12 @@ export async function POST(req: Request) {
         source_bucket: "clips",
         source_duration_minutes: 0,
         clip_count,
-        status: "uploading", // show as uploading while yt-dlp downloads
+        status: "uploading",
         source_url,
+        genre,
+        clip_length,
+        auto_hook,
+        moment_prompt,
       });
 
     if (insertErr) {
@@ -122,6 +130,10 @@ export async function POST(req: Request) {
         team_id: teamId,
         user_id: userId,
         clip_count: String(clip_count),
+        genre,
+        clip_length,
+        auto_hook: String(auto_hook),
+        moment_prompt,
       });
     } else {
       console.warn("GITHUB_PAT not set — ai-clips workflow not dispatched");

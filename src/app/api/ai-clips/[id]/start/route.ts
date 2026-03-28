@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Fetch job and verify ownership
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")
-      .select("id, team_id, status, source_file_path, source_bucket, clip_count, source_url")
+      .select("id, team_id, status, source_file_path, source_bucket, clip_count, source_url, genre, clip_length, auto_hook, moment_prompt")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
@@ -85,6 +85,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         team_id: teamId,
         user_id: userId,
         clip_count: String(job.clip_count),
+        genre: job.genre || "auto",
+        clip_length: job.clip_length || "auto",
+        auto_hook: String(job.auto_hook !== false),
+        moment_prompt: job.moment_prompt || "",
       });
     } else {
       console.warn("GITHUB_PAT not set — ai-clips workflow not dispatched");

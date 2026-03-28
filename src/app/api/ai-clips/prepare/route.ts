@@ -34,6 +34,10 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const clip_count = Math.min(10, Math.max(3, Number(body.clip_count) || 5));
     const source_duration_minutes = Number(body.source_duration_minutes) || 0;
+    const genre = body.genre || "auto";
+    const clip_length = body.clip_length || "auto";
+    const auto_hook = body.auto_hook !== false;
+    const moment_prompt = String(body.moment_prompt || "").slice(0, 500);
 
     if (source_duration_minutes <= 0) {
       return NextResponse.json(
@@ -119,6 +123,10 @@ export async function POST(req: Request) {
         source_duration_minutes,
         clip_count,
         status: "pending",
+        genre,
+        clip_length,
+        auto_hook,
+        moment_prompt,
       });
 
     if (insertErr) {

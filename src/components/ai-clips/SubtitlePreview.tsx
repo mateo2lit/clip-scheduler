@@ -15,58 +15,42 @@ export function SubtitlePreview({
 }) {
   if (style.animation === "none") return null;
 
+  const scale = preview ? 0.3 : 1;
+  const fontSize = Math.max(8, Math.round(style.fontSize * scale));
+  // Scale stroke proportionally but cap it so it looks clean at preview size
+  const strokeW = preview
+    ? Math.min(2, Math.max(0.5, style.strokeWidth * scale))
+    : style.strokeWidth;
+
+  const fontWeightNum =
+    style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;
+
   const posClass =
     style.position === "top"
       ? "top-2"
       : style.position === "middle"
       ? "top-1/2 -translate-y-1/2"
-      : "bottom-2"; // "auto" and "bottom" both go bottom
+      : "bottom-2";
 
-  const fontWeightNum =
-    style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;
-
-  // Scale visual properties for preview mode (font is 0.3x, so stroke/shadow must scale too)
-  const scale = preview ? 0.3 : 1;
-  const strokeW = Math.max(preview ? 0.3 : 0, style.strokeWidth * scale);
-  const shadowX = style.shadowX * scale;
-  const shadowY = style.shadowY * scale;
-  const shadowBlur = style.shadowBlur * scale;
-
-  // Build text-shadow for stroke effect (8 directions) + drop shadow
-  const buildTextShadow = () => {
-    const shadows: string[] = [];
-    const w = strokeW;
-    const c = style.strokeColor;
-    if (w > 0) {
-      shadows.push(
-        `-${w}px -${w}px 0 ${c}`,
-        `${w}px -${w}px 0 ${c}`,
-        `-${w}px ${w}px 0 ${c}`,
-        `${w}px ${w}px 0 ${c}`,
-        `0 -${w}px 0 ${c}`,
-        `0 ${w}px 0 ${c}`,
-        `-${w}px 0 0 ${c}`,
-        `${w}px 0 0 ${c}`
-      );
-    }
-    if (style.shadowEnabled) {
-      shadows.push(`${shadowX}px ${shadowY}px ${shadowBlur}px rgba(0,0,0,0.8)`);
-    }
-    return shadows.join(", ");
-  };
+  // Use WebkitTextStroke for clean outline (no ghost artifacts)
+  // paintOrder: "stroke fill" renders stroke behind fill for readability
+  const dropShadow = style.shadowEnabled
+    ? `${style.shadowX * scale}px ${style.shadowY * scale}px ${style.shadowBlur * scale}px rgba(0,0,0,0.85)`
+    : undefined;
 
   const baseStyle: CSSProperties = {
     fontFamily: style.fontFamily + ", sans-serif",
-    fontSize: `${Math.max(8, Math.round(style.fontSize * scale))}px`,
+    fontSize: `${fontSize}px`,
     fontWeight: fontWeightNum,
     fontStyle: style.italic ? "italic" : "normal",
     textDecoration: style.underline ? "underline" : "none",
     textTransform: style.uppercase ? "uppercase" : "none",
-    textShadow: buildTextShadow(),
+    WebkitTextStroke: strokeW > 0 ? `${strokeW}px ${style.strokeColor}` : undefined,
+    textShadow: dropShadow,
     lineHeight: 1.3,
+    paintOrder: "stroke fill" as any,
   };
 
-  // Word highlight mode: show first word highlighted, rest in primary
   if (style.animation === "word_highlight") {
     const displayWords = preview
       ? ["Example", "subtitle", "text"]
@@ -91,14 +75,10 @@ export function SubtitlePreview({
     );
   }
 
-  // Line mode
   const lineText = preview
     ? "Example subtitle text"
     : words && words.length > 0
-    ? words
-        .slice(0, style.lines === 1 ? 4 : 8)
-        .map((w) => w.word)
-        .join(" ")
+    ? words.slice(0, style.lines === 1 ? 4 : 8).map((w) => w.word).join(" ")
     : "AI generated subtitle";
 
   return (

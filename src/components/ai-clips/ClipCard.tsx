@@ -25,6 +25,7 @@ export function ClipCard({
   onScheduled: (uploadId: string, title: string) => void;
 }) {
   const [burning, setBurning] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [burnError, setBurnError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -39,6 +40,36 @@ export function ClipCard({
       .catch(() => {});
     return () => { cancelled = true; };
   }, [uploadId, token]);
+
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  function togglePlay() {
+    if (!videoRef.current) return;
+    if (playing) { videoRef.current.pause(); setPlaying(false); }
+    else { videoRef.current.play().catch(() => {}); setPlaying(true); }
+  }
+
+  async function handleDownload() {
+    if (!videoUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title.replace(/[^a-zA-Z0-9 \-]/g, "").trim() || `clip-${index + 1}`}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      if (videoUrl) window.open(videoUrl, "_blank");
+    }
+    setDownloading(false);
+  }
 
   async function handleSchedule(withSubtitles: boolean) {
     setBurnError(null);
@@ -110,27 +141,17 @@ export function ClipCard({
     }
   }
 
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
-
   const firstWords = subtitleWords?.slice(0, 6) ?? [];
-
-  function togglePlay() {
-    if (!videoRef.current) return;
-    if (playing) {
-      videoRef.current.pause();
-      setPlaying(false);
-    } else {
-      videoRef.current.play().catch(() => {});
-      setPlaying(true);
-    }
-  }
+  const hasSubtitles = subtitleStyle.animation !== "none";
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden flex flex-col">
-      {/* Video / thumbnail area */}
-      <div className="relative bg-gradient-to-br from-violet-900/30 via-blue-900/20 to-purple-900/30 aspect-video flex items-center justify-center">
+    <div className="flex-shrink-0" style={{ width: "185px" }}>
+      {/* 9:16 portrait card */}
+      <div
+        className="relative rounded-2xl overflow-hidden bg-black border border-white/10"
+        style={{ aspectRatio: "9 / 16" }}
+      >
+        {/* Video */}
         {videoUrl ? (
           <video
             ref={videoRef}
@@ -141,66 +162,96 @@ export function ClipCard({
             onClick={togglePlay}
           />
         ) : (
-          <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-          </svg>
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-900/40 via-blue-900/30 to-purple-900/40 flex items-center justify-center">
+            <div className="h-6 w-6 rounded-full border-2 border-violet-400/30 border-t-violet-400 animate-spin" />
+          </div>
         )}
-        {/* Play overlay */}
+
+        {/* Title caption box — top of card */}
+        <div className="absolute top-2 left-2 right-2 z-20 bg-white rounded-lg px-2 py-1.5 shadow-md">
+          <p className="text-black text-[10px] font-bold leading-tight line-clamp-3">{title}</p>
+        </div>
+
+        {/* Play button overlay */}
         {videoUrl && !playing && (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer pointer-events-none"
-          >
-            <div className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 flex items-center justify-center">
               <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>
           </div>
         )}
-        {subtitleStyle.animation !== "none" && firstWords.length > 0 && (
-          <SubtitlePreview style={subtitleStyle} words={firstWords} />
+
+        {/* Subtitle preview */}
+        {hasSubtitles && (
+          <SubtitlePreview
+            style={subtitleStyle}
+            words={firstWords.length > 0 ? firstWords : undefined}
+            preview={firstWords.length === 0}
+          />
         )}
-        {subtitleStyle.animation !== "none" && firstWords.length === 0 && (
-          <SubtitlePreview style={subtitleStyle} preview />
-        )}
-        <div className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/60 pointer-events-none">
+
+        {/* Clip number badge */}
+        <div className="absolute bottom-2 left-2 z-20 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] text-white/50 font-medium pointer-events-none">
           Clip {index + 1}
         </div>
       </div>
 
-      {/* Info + actions */}
-      <div className="p-3 flex flex-col gap-2 flex-1">
-        <p className="text-sm font-semibold text-white leading-snug line-clamp-2">{title}</p>
-
-        {burnError && <p className="text-xs text-red-400">{burnError}</p>}
-
-        <div className="flex gap-2 mt-auto pt-1">
-          <button
-            onClick={() => handleSchedule(true)}
-            disabled={burning}
-            className="flex-1 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {burning ? (
-              <span className="flex items-center justify-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                Burning…
-              </span>
-            ) : (
-              "Schedule →"
-            )}
-          </button>
-          {subtitleStyle.animation !== "none" && (
-            <button
-              onClick={() => handleSchedule(false)}
-              disabled={burning}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/50 hover:text-white/70 transition-colors disabled:opacity-40"
-              title="Schedule without subtitles"
-            >
-              No subs
-            </button>
+      {/* Action row */}
+      <div className="flex items-center justify-center gap-2 mt-2.5">
+        {/* Schedule */}
+        <button
+          onClick={() => handleSchedule(true)}
+          disabled={burning}
+          title={burning ? "Burning subtitles…" : "Schedule to publish"}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300 hover:bg-violet-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {burning ? (
+            <span className="inline-block h-3 w-3 rounded-full border-2 border-violet-300/30 border-t-violet-300 animate-spin" />
+          ) : (
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           )}
-        </div>
+          <span>Post</span>
+        </button>
+
+        {/* Download */}
+        <button
+          onClick={handleDownload}
+          disabled={!videoUrl || downloading}
+          title="Download clip"
+          className="p-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-white/50 hover:text-white/80 transition-colors disabled:opacity-30"
+        >
+          {downloading ? (
+            <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+          ) : (
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          )}
+        </button>
+
+        {/* No subs / post without subtitles */}
+        {hasSubtitles && (
+          <button
+            onClick={() => handleSchedule(false)}
+            disabled={burning}
+            title="Post without subtitles"
+            className="p-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-white/50 hover:text-white/80 transition-colors disabled:opacity-30"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          </button>
+        )}
       </div>
+
+      {burnError && <p className="text-[10px] text-red-400 text-center mt-1 px-1">{burnError}</p>}
+
+      {/* Clip title */}
+      <p className="text-[11px] text-white/50 text-center mt-1 px-1 line-clamp-2 leading-tight">{title}</p>
     </div>
   );
 }

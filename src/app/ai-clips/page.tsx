@@ -187,6 +187,13 @@ export default function AiClipsPage() {
   const [showSubtitleConfig, setShowSubtitleConfig] = useState(false);
   const [showFileOptions, setShowFileOptions] = useState(false);
 
+  // Settings panel state
+  const [settingsTab, setSettingsTab] = useState<"ai" | "none">("ai");
+  const [genre, setGenre] = useState("auto");
+  const [clipLength, setClipLength] = useState("auto");
+  const [autoHook, setAutoHook] = useState(true);
+  const [momentPrompt, setMomentPrompt] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -300,7 +307,7 @@ export default function AiClipsPage() {
       const res = await fetch("/api/ai-clips/prepare-url", {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ source_url: url, clip_count: clipCount }),
+        body: JSON.stringify({ source_url: url, clip_count: clipCount, genre, clip_length: clipLength, auto_hook: autoHook, moment_prompt: momentPrompt }),
       });
       const json = await res.json();
       if (!json.ok) { setSubmitError(json.error || "Failed to start job."); setSubmitting(false); return; }
@@ -340,7 +347,7 @@ export default function AiClipsPage() {
       const prepRes = await fetch("/api/ai-clips/prepare", {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ clip_count: clipCount, source_duration_minutes: fileDurationMinutes }),
+        body: JSON.stringify({ clip_count: clipCount, source_duration_minutes: fileDurationMinutes, genre, clip_length: clipLength, auto_hook: autoHook, moment_prompt: momentPrompt }),
       });
       const prepJson = await prepRes.json();
       if (!prepJson.ok) { setSubmitError(prepJson.error || "Failed to create job."); setSubmitting(false); return; }
@@ -612,34 +619,140 @@ export default function AiClipsPage() {
               )}
             </div>
 
-            {/* Clip count + subtitle style */}
-            <div className="pt-2 border-t border-white/[0.06] space-y-4">
-              <div>
-                <label className="flex items-center justify-between text-xs text-white/40 uppercase tracking-wider mb-2">
-                  <span>Clips to generate</span>
-                  <span className="text-white font-semibold text-sm normal-case tracking-normal">{clipCount} clips</span>
-                </label>
-                <input type="range" min={3} max={10} value={clipCount} onChange={(e) => setClipCount(Number(e.target.value))} className="w-full accent-violet-400" />
-                <div className="flex justify-between text-[10px] text-white/20 mt-1"><span>3</span><span>10</span></div>
+            {/* Settings panel — OpusClip style */}
+            <div className="pt-2 border-t border-white/[0.06]">
+              {/* Tabs */}
+              <div className="flex gap-1 border-b border-white/[0.06] mb-4">
+                <button
+                  onClick={() => setSettingsTab("ai")}
+                  className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                    settingsTab === "ai"
+                      ? "text-white border-white"
+                      : "text-white/40 border-transparent hover:text-white/60"
+                  }`}
+                >
+                  AI clipping
+                </button>
+                <button
+                  onClick={() => setSettingsTab("none")}
+                  className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                    settingsTab === "none"
+                      ? "text-white border-white"
+                      : "text-white/40 border-transparent hover:text-white/60"
+                  }`}
+                >
+                  Don't clip
+                </button>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-                <button
-                  onClick={() => setShowSubtitleConfig((v) => !v)}
-                  className="flex items-center gap-2 text-sm text-white/60 hover:text-white/80 transition-colors w-full"
-                >
-                  <span>Subtitle style</span>
-                  <span className="ml-1 text-xs text-white/30">
-                    ({subtitleStyle.animation === "none" ? "Off" : subtitleStyle.animation === "word_highlight" ? "Word Highlight" : "Line by Line"})
-                  </span>
-                  <span className="ml-auto text-white/30">{showSubtitleConfig ? "▲" : "▼"}</span>
-                </button>
-                {showSubtitleConfig && (
-                  <div className="mt-4">
-                    <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} />
+              {settingsTab === "ai" && (
+                <div className="space-y-4">
+                  {/* Settings row */}
+                  <div className="flex items-center gap-x-5 gap-y-3 flex-wrap text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/40 text-xs">Genre</span>
+                      <select
+                        value={genre}
+                        onChange={(e) => setGenre(e.target.value)}
+                        className="bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-xs text-white"
+                      >
+                        <option value="auto" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Auto</option>
+                        <option value="podcast" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Podcast</option>
+                        <option value="gaming" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Gaming</option>
+                        <option value="sports" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Sports</option>
+                        <option value="education" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Education</option>
+                        <option value="interview" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Interview</option>
+                        <option value="news" style={{ backgroundColor: "#1a1a1a", color: "white" }}>News</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/40 text-xs">Clip Length</span>
+                      <select
+                        value={clipLength}
+                        onChange={(e) => setClipLength(e.target.value)}
+                        className="bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-xs text-white"
+                      >
+                        <option value="auto" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Auto (30s–2m)</option>
+                        <option value="short" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Short (15–45s)</option>
+                        <option value="medium" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Medium (45s–1.5m)</option>
+                        <option value="long" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Long (1.5–3m)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/40 text-xs">Clips</span>
+                      <select
+                        value={String(clipCount)}
+                        onChange={(e) => setClipCount(Number(e.target.value))}
+                        className="bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-xs text-white"
+                      >
+                        {[3,4,5,6,7,8,9,10].map(n => (
+                          <option key={n} value={n} style={{ backgroundColor: "#1a1a1a", color: "white" }}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto">
+                      <span className="text-white/40 text-xs">Auto hook</span>
+                      <button
+                        onClick={() => setAutoHook((v) => !v)}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                          autoHook ? "bg-green-500" : "bg-white/20"
+                        }`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                          autoHook ? "translate-x-4" : "translate-x-0.5"
+                        }`} />
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Moment prompt */}
+                  <div>
+                    <p className="text-xs text-white/40 mb-1.5">Include specific moments</p>
+                    <input
+                      type="text"
+                      placeholder="Example: find moments when we talked about the best plays"
+                      value={momentPrompt}
+                      onChange={(e) => setMomentPrompt(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-400/40 transition-colors"
+                    />
+                  </div>
+
+                  {/* Subtitle style */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                    <button
+                      onClick={() => setShowSubtitleConfig((v) => !v)}
+                      className="flex items-center gap-2 text-sm text-white/50 hover:text-white/70 transition-colors w-full"
+                    >
+                      <span>Caption style</span>
+                      <span className="ml-1 text-xs text-white/25">
+                        ({subtitleStyle.animation === "none" ? "Off" : subtitleStyle.animation === "word_highlight" ? "Word Highlight" : "Line by Line"})
+                      </span>
+                      <span className="ml-auto text-white/25">{showSubtitleConfig ? "▲" : "▼"}</span>
+                    </button>
+                    {showSubtitleConfig && (
+                      <div className="mt-4">
+                        <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === "none" && (
+                <div className="text-center py-6">
+                  <p className="text-sm text-white/40">AI clipping disabled.</p>
+                  <p className="text-xs text-white/25 mt-1">
+                    Upload a file and go to the{" "}
+                    <Link href="/uploads" className="text-violet-400 hover:text-violet-300 underline">
+                      Uploads page
+                    </Link>{" "}
+                    to schedule it directly.
+                  </p>
+                </div>
+              )}
             </div>
 
             {submitError && <p className="text-sm text-red-400">{submitError}</p>}
