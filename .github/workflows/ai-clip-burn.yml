@@ -111,43 +111,20 @@ jobs:
           # Save path separately so failure handler can include it
           with open("/tmp/clip_path.txt", "w") as f:
               f.write(clip_path)
-          write_status("signing")
+          # 2. Direct authenticated download — service role key has full storage access
+          download_url = f"{supabase_url}/storage/v1/object/authenticated/clips/{clip_path}"
+          write_status("downloading")
+          print(f"Downloading (authenticated): {download_url[:80]}...", flush=True)
 
-          # 2. Generate signed URL
           try:
-              sign_req = urllib.request.Request(
-                  f"{supabase_url}/storage/v1/object/sign/clips/{clip_path}",
-                  data=json.dumps({"expiresIn": 3600}).encode(),
-                  method="POST",
+              dl_req = urllib.request.Request(
+                  download_url,
                   headers={
                       "Authorization": f"Bearer {service_key}",
                       "apikey": service_key,
-                      "Content-Type": "application/json",
                   }
               )
-              with urllib.request.urlopen(sign_req, timeout=15) as resp:
-                  sign_data = json.loads(resp.read().decode())
-              print(f"Sign response keys: {list(sign_data.keys())}", flush=True)
-          except urllib.error.HTTPError as e:
-              body = e.read().decode()[:200]
-              write_status(f"sign-http-{e.code}")
-              raise RuntimeError(f"Sign URL HTTP {e.code}: {body}")
-          except Exception as e:
-              write_status(f"sign-err-{type(e).__name__}")
-              raise RuntimeError(f"Sign URL error: {e}")
-
-          signed_path = sign_data.get("signedURL", "")
-          if not signed_path:
-              write_status("sign-no-url")
-              raise RuntimeError(f"No signedURL in response: {sign_data}")
-
-          download_url = f"{supabase_url}{signed_path}"
-          write_status("downloading")
-          print("Downloading...", flush=True)
-
-          # 3. Download
-          try:
-              with urllib.request.urlopen(urllib.request.Request(download_url), timeout=300) as resp:
+              with urllib.request.urlopen(dl_req, timeout=300) as resp:
                   write_status(str(resp.status))
                   with open("/tmp/clip.mp4", "wb") as f:
                       while True:
@@ -156,8 +133,9 @@ jobs:
                               break
                           f.write(chunk)
           except urllib.error.HTTPError as e:
+              body = e.read().decode()[:300]
               write_status(str(e.code))
-              raise RuntimeError(f"Download HTTP {e.code}: {e.reason}")
+              raise RuntimeError(f"Download HTTP {e.code}: {e.reason} — {body}")
           except Exception as e:
               write_status(f"dl-err-{type(e).__name__}")
               raise RuntimeError(f"Download error: {e}")
