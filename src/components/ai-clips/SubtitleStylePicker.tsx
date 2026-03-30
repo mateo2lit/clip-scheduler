@@ -273,6 +273,63 @@ function PresetsTab({
   );
 }
 
+// ── Font picker bar ───────────────────────────────────────────────────────────
+
+type FontFamily = SubtitleStyle["fontFamily"];
+
+const FONT_OPTIONS: Array<{ value: FontFamily; label: string; weight: number }> = [
+  { value: "Montserrat", label: "Montserrat", weight: 700 },
+  { value: "Oswald",     label: "Oswald",     weight: 700 },
+  { value: "Arial",      label: "Arial",      weight: 700 },
+];
+
+function FontPicker({
+  value,
+  onChange,
+}: {
+  value: FontFamily;
+  onChange: (v: FontFamily) => void;
+}) {
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+      {FONT_OPTIONS.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={`flex-1 min-w-[80px] flex flex-col items-center justify-center gap-1 rounded-xl border py-3 px-2 transition-all ${
+              active
+                ? "border-violet-400 bg-violet-400/10"
+                : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.06]"
+            }`}
+          >
+            <span
+              className="text-sm leading-tight font-bold tracking-tight"
+              style={{
+                fontFamily: `${opt.value}, sans-serif`,
+                fontWeight: opt.weight,
+                color: active ? "#a78bfa" : "rgba(255,255,255,0.85)",
+              }}
+            >
+              {opt.label}
+            </span>
+            <span
+              className="text-[10px] leading-tight"
+              style={{
+                fontFamily: `${opt.value}, sans-serif`,
+                color: "rgba(255,255,255,0.3)",
+              }}
+            >
+              Aa Bb 123
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Font tab ──────────────────────────────────────────────────────────────────
 
 function FontTab({
@@ -286,16 +343,11 @@ function FontTab({
     <div className="space-y-4">
       <p className="text-sm font-medium text-white">Caption font</p>
 
-      {/* Font family */}
-      <select
+      {/* Font family picker */}
+      <FontPicker
         value={style.fontFamily}
-        onChange={(e) => onUpdate("fontFamily", e.target.value as SubtitleStyle["fontFamily"])}
-        className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-      >
-        <option value="Montserrat" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Montserrat</option>
-        <option value="Oswald" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Oswald</option>
-        <option value="Arial" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Arial</option>
-      </select>
+        onChange={(v) => onUpdate("fontFamily", v)}
+      />
 
       {/* Color + size + weight */}
       <div className="space-y-1.5">
@@ -569,15 +621,10 @@ function TitleTab({
           {/* Font */}
           <div className="space-y-3">
             <p className="text-xs text-white/40">Font</p>
-            <select
-              value={style.titleFontFamily ?? "Montserrat"}
-              onChange={(e) => onUpdate("titleFontFamily", e.target.value as SubtitleStyle["titleFontFamily"])}
-              className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-            >
-              <option value="Montserrat" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Montserrat</option>
-              <option value="Oswald" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Oswald</option>
-              <option value="Arial" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Arial</option>
-            </select>
+            <FontPicker
+              value={(style.titleFontFamily ?? "Montserrat") as FontFamily}
+              onChange={(v) => onUpdate("titleFontFamily", v)}
+            />
 
             {/* Text color + size + bold */}
             <div className="space-y-1.5">
