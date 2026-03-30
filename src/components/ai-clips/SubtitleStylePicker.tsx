@@ -195,13 +195,24 @@ function FontTab({
           value={style.primaryColor}
           onChange={(v) => onUpdate("primaryColor", v)}
         />
-        <NumInput
-          value={style.fontSize}
-          onChange={(v) => onUpdate("fontSize", v)}
-          min={12}
-          max={80}
-          className="w-14 px-2 py-1.5"
-        />
+        {/* Size with +/- steppers */}
+        <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
+          <button
+            onClick={() => onUpdate("fontSize", Math.max(8, style.fontSize - 1))}
+            className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
+          >▼</button>
+          <NumInput
+            value={style.fontSize}
+            onChange={(v) => onUpdate("fontSize", v)}
+            min={8}
+            max={120}
+            className="w-10 px-1 py-1 border-0 rounded-none"
+          />
+          <button
+            onClick={() => onUpdate("fontSize", Math.min(120, style.fontSize + 1))}
+            className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
+          >▲</button>
+        </div>
         <span className="text-xs text-white/40">px</span>
         <select
           value={style.fontWeight}

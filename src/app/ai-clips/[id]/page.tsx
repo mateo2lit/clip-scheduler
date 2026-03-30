@@ -45,34 +45,44 @@ function formatMinutes(minutes: number): string {
 
 // ── Subtitle quick bar ───────────────────────────────────────────────────────
 
+type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
+
+const MODE_OPTIONS: { value: ConvertMode; label: string }[] = [
+  { value: "portrait_blur", label: "9:16 Blur" },
+  { value: "portrait_crop", label: "9:16 Crop" },
+  { value: "landscape",     label: "16:9" },
+];
+
 function SubtitleQuickBar({
   style,
   onChange,
+  convertMode,
+  onConvertMode,
   expanded,
   onToggleExpand,
 }: {
   style: SubtitleStyle;
   onChange: (s: SubtitleStyle) => void;
+  convertMode: ConvertMode;
+  onConvertMode: (m: ConvertMode) => void;
   expanded: boolean;
   onToggleExpand: () => void;
 }) {
   const presets = Object.keys(PRESETS) as PresetKey[];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      {/* Top row: presets + size + expand */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs text-white/40 uppercase tracking-wider flex-shrink-0">Captions</span>
-
-        {/* Preset pills */}
-        <div className="flex gap-1.5 flex-wrap">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
+      {/* Row 1: Caption presets + size slider */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] text-white/30 uppercase tracking-wider flex-shrink-0 w-16">Caption</span>
+        <div className="flex gap-1 flex-wrap">
           {presets.map((key) => {
             const isActive = style.preset === key || (key === "none" && style.animation === "none");
             return (
               <button
                 key={key}
-                onClick={() => onChange({ ...PRESETS[key] })}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border ${
+                onClick={() => onChange({ ...PRESETS[key], titleEnabled: style.titleEnabled ?? true, titleText: style.titleText, titlePosition: style.titlePosition, titleBg: style.titleBg, titleBgColor: style.titleBgColor, titleBgOpacity: style.titleBgOpacity, titleFontFamily: style.titleFontFamily, titleFontSize: style.titleFontSize, titleColor: style.titleColor, titleBold: style.titleBold })}
+                className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all border ${
                   isActive
                     ? "bg-white text-black border-white"
                     : "bg-white/5 text-white/50 border-white/10 hover:border-white/25 hover:text-white/70"
@@ -83,40 +93,55 @@ function SubtitleQuickBar({
             );
           })}
         </div>
+        {style.animation !== "none" && (
+          <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+            <input
+              type="range" min={8} max={120} value={style.fontSize}
+              onChange={(e) => onChange({ ...style, fontSize: Number(e.target.value), preset: "custom" })}
+              className="w-24 accent-violet-400"
+            />
+            <span className="text-[11px] text-white/40 w-6 tabular-nums text-right">{style.fontSize}</span>
+          </div>
+        )}
+      </div>
 
-        {/* Title toggle pill */}
+      {/* Row 2: Mode selector + Title toggle + More */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] text-white/30 uppercase tracking-wider flex-shrink-0 w-16">Format</span>
+
+        {/* 3-way mode pills */}
+        <div className="flex rounded-lg overflow-hidden border border-white/10">
+          {MODE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => onConvertMode(opt.value)}
+              className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                convertMode === opt.value
+                  ? "bg-violet-500 text-white"
+                  : "bg-white/[0.04] text-white/40 hover:text-white/70"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Title toggle */}
         <button
           onClick={() => onChange({ ...style, titleEnabled: !(style.titleEnabled ?? true) })}
           className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border flex-shrink-0 ${
             (style.titleEnabled ?? true)
               ? "bg-violet-500/20 text-violet-300 border-violet-500/30"
-              : "bg-white/5 text-white/50 border-white/10 hover:border-white/25 hover:text-white/70"
+              : "bg-white/5 text-white/40 border-white/10 hover:text-white/60"
           }`}
         >
           Title
         </button>
 
-        {/* Font size slider — always visible */}
-        {style.animation !== "none" && (
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-[11px] text-white/30 flex-shrink-0">Size</span>
-            <input
-              type="range"
-              min={20}
-              max={80}
-              value={style.fontSize}
-              onChange={(e) =>
-                onChange({ ...style, fontSize: Number(e.target.value), preset: "custom" })
-              }
-              className="w-28 accent-violet-400"
-            />
-            <span className="text-[11px] text-white/40 w-5 tabular-nums">{style.fontSize}</span>
-          </div>
-        )}
-
+        {/* More button */}
         <button
           onClick={onToggleExpand}
-          className="flex-shrink-0 text-[11px] text-white/30 hover:text-white/60 transition-colors ml-1"
+          className="ml-auto flex-shrink-0 text-[11px] text-white/30 hover:text-white/60 transition-colors"
         >
           {expanded ? "Less ▲" : "More ▼"}
         </button>
@@ -124,7 +149,7 @@ function SubtitleQuickBar({
 
       {/* Expanded full picker */}
       {expanded && (
-        <div className="mt-4 border-t border-white/[0.06] pt-4">
+        <div className="border-t border-white/[0.06] pt-3">
           <SubtitleStylePicker style={style} onChange={onChange} />
         </div>
       )}
@@ -145,7 +170,7 @@ export default function AiClipProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
   const [expandedCaption, setExpandedCaption] = useState(false);
-  const [blurBackground, setBlurBackground] = useState(true);
+  const [convertMode, setConvertMode] = useState<"portrait_blur" | "portrait_crop" | "landscape">("portrait_blur");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -331,31 +356,15 @@ export default function AiClipProjectPage() {
         {/* Clips */}
         {job.status === "done" && job.result_upload_ids && authToken && (
           <>
-            {/* Subtitle quick controls */}
+            {/* Subtitle quick controls + format selector */}
             <SubtitleQuickBar
               style={subtitleStyle}
               onChange={setSubtitleStyle}
+              convertMode={convertMode}
+              onConvertMode={setConvertMode}
               expanded={expandedCaption}
               onToggleExpand={() => setExpandedCaption((v) => !v)}
             />
-
-            {/* Blur background toggle */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-white/40">9:16 Portrait mode</span>
-              <button
-                onClick={() => setBlurBackground((v) => !v)}
-                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-                  blurBackground ? "bg-violet-500" : "bg-white/20"
-                }`}
-              >
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                  blurBackground ? "translate-x-4" : "translate-x-0.5"
-                }`} />
-              </button>
-              <span className="text-xs text-white/30">
-                {blurBackground ? "Blurred background fill" : "Original 16:9"}
-              </span>
-            </div>
 
             {/* Horizontal scroll area */}
             <div className="relative">
@@ -374,7 +383,7 @@ export default function AiClipProjectPage() {
                     subtitleStyle={subtitleStyle}
                     jobId={job.id}
                     token={authToken}
-                    blurBackground={blurBackground}
+                    convertMode={convertMode}
                     onScheduled={handleScheduled}
                   />
                 ))}

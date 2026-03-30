@@ -46,13 +46,18 @@ jobs:
 
       - name: Install fonts
         run: |
-          sudo apt-get install -y --no-install-recommends fonts-liberation fonts-noto-core 2>/dev/null || true
+          sudo apt-get install -y --no-install-recommends fonts-liberation fonts-noto-core fontconfig 2>/dev/null || true
           sudo mkdir -p /usr/local/share/fonts/clip-dash || true
           BASE="https://github.com/google/fonts/raw/main/ofl"
           wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Bold.ttf || true
           wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Black.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf || true
           wget -q --timeout=15 "${BASE}/oswald/static/Oswald-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf || true
+          fc-cache -f /usr/local/share/fonts/clip-dash 2>/dev/null || true
           fc-cache -f 2>/dev/null || true
+          echo "Installed fonts:"
+          ls /usr/local/share/fonts/clip-dash/ 2>/dev/null || echo "No clip-dash fonts dir"
+          echo "libass check:"
+          ffmpeg -filters 2>&1 | grep -i "ass" || echo "No ass filter found"
 
       - name: Mark burn job as burning
         run: |
@@ -300,7 +305,7 @@ jobs:
 
           print(f"Source dimensions: {src_w}x{src_h}, duration: {clip_duration:.1f}s, mode: {mode}", flush=True)
 
-          # ── Compute portrait dimensions for portrait_blur mode ───────────────────
+          # ── Compute portrait dimensions ──────────────────────────────────────────
           TW, TH = 1080, 1920  # target 9:16
 
           if mode == "portrait_blur":
@@ -321,6 +326,25 @@ jobs:
 
               play_res_x, play_res_y = TW, TH
               print(f"Portrait blur: bg={bg_w}x{bg_h} crop_x={bg_crop_x} crop_y={bg_crop_y}, fg={fg_w}x{fg_h}", flush=True)
+
+          elif mode == "portrait_crop":
+              # Scale to fill 9:16, center crop — no blur
+              if src_w * TH > src_h * TW:   # source wider than 9:16 → scale by height, crop sides
+                  pc_scale_h = TH
+                  pc_scale_w = int(src_w * TH / src_h)
+                  pc_scale_w += pc_scale_w % 2
+                  pc_crop_x  = (pc_scale_w - TW) // 2
+                  pc_crop_y  = 0
+              else:                          # source taller than 9:16 → scale by width, crop top/bottom
+                  pc_scale_w = TW
+                  pc_scale_h = int(src_h * TW / src_w)
+                  pc_scale_h += pc_scale_h % 2
+                  pc_crop_x  = 0
+                  pc_crop_y  = (pc_scale_h - TH) // 2
+
+              play_res_x, play_res_y = TW, TH
+              print(f"Portrait crop: scale={pc_scale_w}x{pc_scale_h} crop_x={pc_crop_x} crop_y={pc_crop_y}", flush=True)
+
           else:
               play_res_x, play_res_y = src_w, src_h
 
@@ -398,10 +422,15 @@ jobs:
           ])
 
           def fmt_time(s):
-              h = int(s // 3600)
-              m = int((s % 3600) // 60)
-              sec = s % 60
-              return f"{h}:{m:02d}:{sec:06.3f}".replace(".", ",")
+              # ASS format: H:MM:SS.cs (centiseconds, NOT milliseconds; period NOT comma)
+              # Using commas breaks field parsing since ASS Dialogue lines are comma-delimited
+              s = max(0.0, float(s))
+              total_cs = int(round(s * 100))
+              h   = total_cs // 360000
+              m   = (total_cs % 360000) // 6000
+              sec = (total_cs % 6000) // 100
+              cs  = total_cs % 100
+              return f"{h}:{m:02d}:{sec:02d}.{cs:02d}"
 
           def esc(t):
               return t.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
@@ -459,71 +488,80 @@ jobs:
           has_subs = has_word_subs or bool(title_events)
 
           print(f"ASS: animation={animation}, {len(events)} word-events, title={'yes' if title_events else 'no'}, font={font_family}", flush=True)
+          # Debug: print first ASS event to verify timestamp format
+          if all_events:
+              print(f"First ASS event: {all_events[0][:120]}", flush=True)
+
+          FONTS_DIR = "/usr/local/share/fonts/clip-dash"
+          ASS_VF = f"ass=/tmp/subtitles.ass:fontsdir={FONTS_DIR}"
 
           # ── FFmpeg processing ────────────────────────────────────────────────────
-          if mode == "portrait_blur":
-              # Pass 1: Portrait blur conversion only (no subtitle filter in filter_complex)
-              bg_chain = f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg]"
-              fg_chain = f"[0:v]scale={fg_w}:{fg_h}[fg]"
-              compose  = "[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
-              filter_complex = f"{bg_chain};{fg_chain};{compose}"
+          import shutil
 
-              proc1 = subprocess.run([
-                  "ffmpeg", "-i", "/tmp/clip.mp4",
-                  "-filter_complex", filter_complex,
-                  "-map", "[out]",
-                  "-map", "0:a:0?",
-                  "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                  "-pix_fmt", "yuv420p", "-r", "30",
-                  "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
-                  "-movflags", "+faststart",
-                  "/tmp/portrait.mp4", "-y"
-              ], capture_output=True, text=True)
+          if mode in ("portrait_blur", "portrait_crop"):
+              # Pass 1: Convert to 9:16 portrait (no subtitles yet)
+              if mode == "portrait_blur":
+                  bg_chain  = f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg]"
+                  fg_chain  = f"[0:v]scale={fg_w}:{fg_h}[fg]"
+                  compose   = "[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
+                  fc        = f"{bg_chain};{fg_chain};{compose}"
+                  p1_cmd = [
+                      "ffmpeg", "-i", "/tmp/clip.mp4",
+                      "-filter_complex", fc, "-map", "[out]", "-map", "0:a:0?",
+                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                      "-pix_fmt", "yuv420p", "-r", "30",
+                      "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+                      "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
+                  ]
+              else:  # portrait_crop
+                  crop_vf = f"scale={pc_scale_w}:{pc_scale_h},crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
+                  p1_cmd = [
+                      "ffmpeg", "-i", "/tmp/clip.mp4",
+                      "-vf", crop_vf, "-map", "0:v:0", "-map", "0:a:0?",
+                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                      "-pix_fmt", "yuv420p", "-r", "30",
+                      "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+                      "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
+                  ]
 
+              proc1 = subprocess.run(p1_cmd, capture_output=True, text=True)
               if proc1.returncode != 0:
                   print(f"FFmpeg pass 1 stderr:\n{proc1.stderr[-1000:]}", flush=True)
                   raise RuntimeError(f"FFmpeg portrait conversion failed (rc={proc1.returncode})")
-
               print(f"Pass 1 done: {os.path.getsize('/tmp/portrait.mp4'):,} bytes", flush=True)
 
-              # Pass 2: Burn subtitles/title onto portrait video via separate -vf pass
+              # Pass 2: Burn subtitles/title via a clean separate -vf ass= pass
               if has_subs:
                   proc2 = subprocess.run([
                       "ffmpeg", "-i", "/tmp/portrait.mp4",
-                      "-vf", "ass=/tmp/subtitles.ass",
+                      "-vf", ASS_VF,
                       "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                       "-pix_fmt", "yuv420p",
-                      "-c:a", "copy",
-                      "-movflags", "+faststart",
+                      "-c:a", "copy", "-movflags", "+faststart",
                       "/tmp/burned.mp4", "-y"
                   ], capture_output=True, text=True)
-
                   if proc2.returncode != 0:
                       print(f"FFmpeg pass 2 stderr:\n{proc2.stderr[-1000:]}", flush=True)
                       raise RuntimeError(f"FFmpeg subtitle burn failed (rc={proc2.returncode})")
-
                   print(f"Pass 2 done: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
               else:
-                  import shutil
                   shutil.copy("/tmp/portrait.mp4", "/tmp/burned.mp4")
                   print("No subtitles — using portrait output directly", flush=True)
 
           else:
-              # Landscape: burn subtitles or copy if none
+              # Landscape: burn subtitles directly or copy if none
               if not has_subs:
-                  import shutil
                   shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
                   print("No subtitles — copying source", flush=True)
               else:
                   proc = subprocess.run([
                       "ffmpeg", "-i", "/tmp/clip.mp4",
-                      "-vf", "ass=/tmp/subtitles.ass",
+                      "-vf", ASS_VF,
                       "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                       "-pix_fmt", "yuv420p", "-r", "30",
                       "-c:a", "copy", "-movflags", "+faststart",
                       "/tmp/burned.mp4", "-y"
                   ], capture_output=True, text=True)
-
                   if proc.returncode != 0:
                       print(f"FFmpeg stderr (last 1000 chars):\n{proc.stderr[-1000:]}", flush=True)
                       raise RuntimeError(f"FFmpeg processing failed (rc={proc.returncode})")

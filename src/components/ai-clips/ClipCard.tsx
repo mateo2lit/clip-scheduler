@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { SubtitleStyle } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 
+type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
+
 export function ClipCard({
   index,
   uploadId,
@@ -13,7 +15,7 @@ export function ClipCard({
   subtitleStyle,
   jobId,
   token,
-  blurBackground,
+  convertMode,
   onScheduled,
 }: {
   index: number;
@@ -23,7 +25,7 @@ export function ClipCard({
   subtitleStyle: SubtitleStyle;
   jobId: string;
   token: string;
-  blurBackground: boolean;
+  convertMode: ConvertMode;
   onScheduled: (uploadId: string, title: string) => void;
 }) {
   const [burning, setBurning] = useState(false);
@@ -57,7 +59,7 @@ export function ClipCard({
   const hasRealWords = subtitleWords.length > 0;
   const hasSubtitles = subtitleStyle.animation !== "none" && hasRealWords;
   const titleEnabled = subtitleStyle.titleEnabled ?? true;
-  const needsBurn = hasSubtitles || blurBackground || titleEnabled;
+  const needsBurn = hasSubtitles || convertMode !== "landscape" || titleEnabled;
 
   async function handleDownload() {
     if (downloading) return;
@@ -93,7 +95,7 @@ export function ClipCard({
         body: JSON.stringify({
           clip_index: index,
           subtitle_style: subtitleStyle,
-          mode: blurBackground ? "portrait_blur" : "landscape",
+          mode: convertMode,
         }),
       });
       const json = await res.json();
@@ -182,7 +184,7 @@ export function ClipCard({
         body: JSON.stringify({
           clip_index: index,
           subtitle_style: subtitleStyle,
-          mode: blurBackground ? "portrait_blur" : "landscape",
+          mode: convertMode,
         }),
       });
       const json = await res.json();
