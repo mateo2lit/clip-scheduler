@@ -295,21 +295,21 @@ function FontPicker({
   onChange: (v: FontFamily) => void;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
       {FONT_OPTIONS.map((opt) => {
         const active = value === opt.value;
         return (
           <button
             key={opt.value}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 min-w-[80px] flex flex-col items-center justify-center gap-1 rounded-xl border py-3 px-2 transition-all ${
+            className={`flex-shrink-0 w-[96px] flex flex-col items-center justify-center gap-1 rounded-xl border py-3 px-2 transition-all ${
               active
                 ? "border-violet-400 bg-violet-400/10"
                 : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.06]"
             }`}
           >
             <span
-              className="text-sm leading-tight font-bold tracking-tight"
+              className="text-xs leading-tight font-bold tracking-tight whitespace-nowrap"
               style={{
                 fontFamily: `${opt.value}, sans-serif`,
                 fontWeight: opt.weight,
@@ -319,7 +319,7 @@ function FontPicker({
               {opt.label}
             </span>
             <span
-              className="text-[10px] leading-tight"
+              className="text-[10px] leading-tight whitespace-nowrap"
               style={{
                 fontFamily: `${opt.value}, sans-serif`,
                 color: "rgba(255,255,255,0.3)",
@@ -353,32 +353,32 @@ function FontTab({
         onChange={(v) => onUpdate("fontFamily", v)}
       />
 
-      {/* Color + size + weight */}
+      {/* Size slider */}
       <div className="space-y-1.5">
-        <p className="text-xs text-white/40">Size &amp; weight</p>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
-            <button
-              onClick={() => onUpdate("fontSize", Math.max(8, style.fontSize - 1))}
-              className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
-            >▼</button>
-            <NumInput value={style.fontSize} onChange={(v) => onUpdate("fontSize", v)} min={8} max={120} className="w-10 px-1 py-1 border-0 rounded-none" />
-            <button
-              onClick={() => onUpdate("fontSize", Math.min(120, style.fontSize + 1))}
-              className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
-            >▲</button>
-          </div>
-          <span className="text-xs text-white/40">px</span>
-          <select
-            value={style.fontWeight}
-            onChange={(e) => onUpdate("fontWeight", e.target.value as SubtitleStyle["fontWeight"])}
-            className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white"
-          >
-            <option value="Regular" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Regular</option>
-            <option value="Bold" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Bold</option>
-            <option value="Black" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Extra Bold</option>
-          </select>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-white/40">Size</p>
+          <span className="text-[11px] text-white/40 tabular-nums">{style.fontSize}px</span>
         </div>
+        <input
+          type="range" min={8} max={120} step={1}
+          value={style.fontSize}
+          onChange={(e) => onUpdate("fontSize", Number(e.target.value))}
+          className="w-full accent-violet-400"
+        />
+      </div>
+
+      {/* Weight */}
+      <div className="space-y-1.5">
+        <p className="text-xs text-white/40">Weight</p>
+        <select
+          value={style.fontWeight}
+          onChange={(e) => onUpdate("fontWeight", e.target.value as SubtitleStyle["fontWeight"])}
+          className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white"
+        >
+          <option value="Regular" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Regular</option>
+          <option value="Bold" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Bold</option>
+          <option value="Black" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Extra Bold</option>
+        </select>
       </div>
 
       {/* Text color */}
@@ -630,34 +630,30 @@ function TitleTab({
               onChange={(v) => onUpdate("titleFontFamily", v)}
             />
 
-            {/* Text color + size + bold */}
+            {/* Text color + bold */}
             <div className="space-y-1.5">
-              <p className="text-xs text-white/40">Text color &amp; size</p>
-              <div className="flex items-center gap-2">
+              <p className="text-xs text-white/40">Text color</p>
+              <div className="flex items-center gap-3">
                 <ColorInput value={style.titleColor ?? "#000000"} onChange={(v) => onUpdate("titleColor", v)} />
-                {/* Size stepper */}
-                <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => onUpdate("titleFontSize", Math.max(12, (style.titleFontSize ?? 48) - 1))}
-                    className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
-                  >▼</button>
-                  <NumInput
-                    value={style.titleFontSize ?? 48}
-                    onChange={(v) => onUpdate("titleFontSize", v)}
-                    min={12} max={120}
-                    className="w-10 px-1 py-1 border-0 rounded-none"
-                  />
-                  <button
-                    onClick={() => onUpdate("titleFontSize", Math.min(120, (style.titleFontSize ?? 48) + 1))}
-                    className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
-                  >▲</button>
-                </div>
-                <span className="text-xs text-white/40">px</span>
                 <div className="flex items-center gap-1.5 ml-auto">
                   <Toggle value={style.titleBold ?? true} onChange={(v) => onUpdate("titleBold", v)} />
                   <span className="text-xs text-white/40">Bold</span>
                 </div>
               </div>
+            </div>
+
+            {/* Title size slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-white/40">Size</p>
+                <span className="text-[11px] text-white/40 tabular-nums">{style.titleFontSize ?? 48}px</span>
+              </div>
+              <input
+                type="range" min={12} max={120} step={1}
+                value={style.titleFontSize ?? 48}
+                onChange={(e) => onUpdate("titleFontSize", Number(e.target.value))}
+                className="w-full accent-violet-400"
+              />
             </div>
 
             {/* Title stroke/outline */}
