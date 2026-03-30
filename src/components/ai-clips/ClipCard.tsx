@@ -55,9 +55,9 @@ export function ClipCard({
 
   const firstWords = subtitleWords?.slice(0, 6) ?? [];
   const hasRealWords = subtitleWords.length > 0;
-  // Only consider subtitles "active" if there are actual transcribed words to burn
   const hasSubtitles = subtitleStyle.animation !== "none" && hasRealWords;
-  const needsBurn = hasSubtitles || blurBackground;
+  const titleEnabled = subtitleStyle.titleEnabled ?? true;
+  const needsBurn = hasSubtitles || blurBackground || titleEnabled;
 
   async function handleDownload() {
     if (downloading) return;
@@ -156,7 +156,7 @@ export function ClipCard({
   async function handleSchedule(withSubtitles: boolean) {
     setBurnError(null);
 
-    if (!withSubtitles || subtitleStyle.animation === "none" || !hasRealWords) {
+    if (!withSubtitles || (subtitleStyle.animation === "none" && !titleEnabled) || (!hasRealWords && !titleEnabled)) {
       try {
         const res = await fetch(`/api/ai-clips/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },

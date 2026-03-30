@@ -84,6 +84,18 @@ function SubtitleQuickBar({
           })}
         </div>
 
+        {/* Title toggle pill */}
+        <button
+          onClick={() => onChange({ ...style, titleEnabled: !(style.titleEnabled ?? true) })}
+          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border flex-shrink-0 ${
+            (style.titleEnabled ?? true)
+              ? "bg-violet-500/20 text-violet-300 border-violet-500/30"
+              : "bg-white/5 text-white/50 border-white/10 hover:border-white/25 hover:text-white/70"
+          }`}
+        >
+          Title
+        </button>
+
         {/* Font size slider — always visible */}
         {style.animation !== "none" && (
           <div className="flex items-center gap-2 ml-auto">

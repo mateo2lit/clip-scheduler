@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { SubtitleStyle, PRESETS, PRESET_LABELS } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 
-type Tab = "presets" | "font" | "effects";
+type Tab = "presets" | "font" | "effects" | "title";
 
 // ── Color input ───────────────────────────────────────────────────────────────
 
@@ -400,6 +400,110 @@ function EffectsTab({
   );
 }
 
+// ── Title tab ─────────────────────────────────────────────────────────────────
+
+function TitleTab({
+  style,
+  onUpdate,
+}: {
+  style: SubtitleStyle;
+  onUpdate: <K extends keyof SubtitleStyle>(key: K, val: SubtitleStyle[K]) => void;
+}) {
+  const segBtn = (active: boolean) =>
+    `px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+      active ? "bg-white text-black" : "text-white/50 hover:text-white/80"
+    }`;
+
+  const titleEnabled = style.titleEnabled ?? true;
+
+  return (
+    <div className="space-y-4">
+      {/* On/off */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-white/70 font-medium">Title card</span>
+        <Toggle value={titleEnabled} onChange={(v) => onUpdate("titleEnabled", v)} />
+      </div>
+
+      {titleEnabled && (
+        <>
+          {/* Custom text */}
+          <div className="space-y-1.5">
+            <p className="text-xs text-white/40">Custom text (blank = AI title)</p>
+            <input
+              type="text"
+              value={style.titleText ?? ""}
+              onChange={(e) => onUpdate("titleText", e.target.value)}
+              placeholder="Leave blank to use AI-generated title"
+              className="w-full bg-[#111111] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-white/25"
+            />
+          </div>
+
+          {/* Position */}
+          <div className="space-y-2">
+            <p className="text-xs text-white/40">Position</p>
+            <div className="flex gap-1">
+              {(["top", "bottom"] as const).map((p) => (
+                <button key={p} onClick={() => onUpdate("titlePosition", p)}
+                  className={segBtn((style.titlePosition ?? "top") === p)}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Background */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-white/40">Background box</p>
+              <Toggle value={style.titleBg ?? true} onChange={(v) => onUpdate("titleBg", v)} />
+            </div>
+            {(style.titleBg ?? true) && (
+              <div className="flex items-center gap-3 ml-2">
+                <ColorInput value={style.titleBgColor ?? "#FFFFFF"} onChange={(v) => onUpdate("titleBgColor", v)} />
+                <input
+                  type="range" min={10} max={100}
+                  value={style.titleBgOpacity ?? 100}
+                  onChange={(e) => onUpdate("titleBgOpacity", Number(e.target.value))}
+                  className="w-24 accent-violet-400"
+                />
+                <span className="text-[11px] text-white/40 w-7 tabular-nums">{style.titleBgOpacity ?? 100}%</span>
+              </div>
+            )}
+          </div>
+
+          {/* Font */}
+          <div className="space-y-3">
+            <p className="text-xs text-white/40">Font</p>
+            <select
+              value={style.titleFontFamily ?? "Montserrat"}
+              onChange={(e) => onUpdate("titleFontFamily", e.target.value as SubtitleStyle["titleFontFamily"])}
+              className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+            >
+              <option value="Montserrat" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Montserrat</option>
+              <option value="Oswald" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Oswald</option>
+              <option value="Arial" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Arial</option>
+            </select>
+            <div className="flex items-center gap-3">
+              <ColorInput value={style.titleColor ?? "#000000"} onChange={(v) => onUpdate("titleColor", v)} />
+              <NumInput
+                value={style.titleFontSize ?? 48}
+                onChange={(v) => onUpdate("titleFontSize", v)}
+                min={12} max={100}
+                className="w-14 px-2 py-1.5"
+              />
+              <span className="text-xs text-white/40">px</span>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <Toggle value={style.titleBold ?? true} onChange={(v) => onUpdate("titleBold", v)} />
+                <span className="text-xs text-white/40">Bold</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function SubtitleStylePicker({
@@ -420,7 +524,7 @@ export function SubtitleStylePicker({
   }
 
   const tabCls = (t: Tab) =>
-    `px-4 py-2.5 text-sm font-medium transition-colors ${
+    `px-3 py-2.5 text-sm font-medium transition-colors ${
       tab === t
         ? "text-white border-b-2 border-white"
         : "text-white/40 hover:text-white/60 border-b-2 border-transparent"
@@ -439,12 +543,16 @@ export function SubtitleStylePicker({
         <button className={tabCls("effects")} onClick={() => setTab("effects")}>
           Effects
         </button>
+        <button className={tabCls("title")} onClick={() => setTab("title")}>
+          Title
+        </button>
       </div>
 
       <div className="p-4">
         {tab === "presets" && <PresetsTab style={style} onSelect={applyPreset} />}
         {tab === "font" && <FontTab style={style} onUpdate={update} />}
         {tab === "effects" && <EffectsTab style={style} onUpdate={update} />}
+        {tab === "title" && <TitleTab style={style} onUpdate={update} />}
       </div>
 
       {/* Live preview strip */}

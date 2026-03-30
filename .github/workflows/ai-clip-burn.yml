@@ -230,7 +230,7 @@ jobs:
           except FileNotFoundError:
               mode = os.environ.get("BURN_MODE", "landscape") or "landscape"
 
-          # ── Read style fields ───────────────────────────────────────────────────
+          # ── Read caption style fields ────────────────────────────────────────────
           animation    = style.get("animation", "word_highlight")
           font_family  = style.get("fontFamily", "Liberation Sans")
           try:
@@ -256,7 +256,26 @@ jobs:
           except (TypeError, ValueError):
               lines = 1
 
-          # ── Get source video dimensions ─────────────────────────────────────────
+          # ── Read title overlay fields ────────────────────────────────────────────
+          title_enabled  = bool(style.get("titleEnabled", True))
+          title_position = style.get("titlePosition", "top") or "top"
+          title_text_raw = (style.get("titleText") or "").strip()
+          title_text     = title_text_raw if title_text_raw else clip_title
+          title_bg       = bool(style.get("titleBg", True))
+          title_bg_color = style.get("titleBgColor", "#FFFFFF") or "#FFFFFF"
+          try:
+              title_bg_opacity = float(style.get("titleBgOpacity", 100) or 100)
+          except (TypeError, ValueError):
+              title_bg_opacity = 100.0
+          title_font_fam = style.get("titleFontFamily", "Montserrat") or "Montserrat"
+          try:
+              title_font_size = int(style.get("titleFontSize", 48) or 48)
+          except (TypeError, ValueError):
+              title_font_size = 48
+          title_color    = style.get("titleColor", "#000000") or "#000000"
+          title_bold_val = bool(style.get("titleBold", True))
+
+          # ── Get source video dimensions ──────────────────────────────────────────
           probe = subprocess.run(
               ["ffprobe", "-v", "error", "-select_streams", "v:0",
                "-show_entries", "stream=width,height",
@@ -281,12 +300,10 @@ jobs:
 
           print(f"Source dimensions: {src_w}x{src_h}, duration: {clip_duration:.1f}s, mode: {mode}", flush=True)
 
-          # ── Compute portrait dimensions for portrait_blur mode ──────────────────
+          # ── Compute portrait dimensions for portrait_blur mode ───────────────────
           TW, TH = 1080, 1920  # target 9:16
 
           if mode == "portrait_blur":
-              # Background: scale to fill TW×TH (maintaining aspect), crop center
-              # Need: both width >= TW and height >= TH
               scale_by_h_w = int(src_w * TH / src_h)
               scale_by_w_h = int(src_h * TW / src_w)
               if scale_by_h_w >= TW:
@@ -298,30 +315,34 @@ jobs:
               bg_crop_x = max(0, (bg_w - TW) // 2)
               bg_crop_y = max(0, (bg_h - TH) // 2)
 
-              # Foreground: fit width to TW, height proportional
               fg_w = TW
               fg_h = int(src_h * TW / src_w)
-              fg_h = fg_h - (fg_h % 2)  # ensure even
+              fg_h = fg_h - (fg_h % 2)
 
               play_res_x, play_res_y = TW, TH
               print(f"Portrait blur: bg={bg_w}x{bg_h} crop_x={bg_crop_x} crop_y={bg_crop_y}, fg={fg_w}x{fg_h}", flush=True)
           else:
               play_res_x, play_res_y = src_w, src_h
 
-          # ── Hex → ASS BGR ───────────────────────────────────────────────────────
+          # ── Hex → ASS BGR ────────────────────────────────────────────────────────
           def hex_to_ass(h):
               h = h.lstrip("#")[:6].upper().zfill(6)
               r, g, b = h[0:2], h[2:4], h[4:6]
               return f"&H00{b}{g}{r}"
 
+          def hex_to_ass_alpha(h, alpha_byte):
+              h = h.lstrip("#")[:6].upper().zfill(6)
+              r, g, b = h[0:2], h[2:4], h[4:6]
+              return f"&H{alpha_byte:02X}{b}{g}{r}"
+
           text_color      = hex_to_ass(primary_hex)
           highlight_color = hex_to_ass(highlight_hex)
           outline_color   = hex_to_ass(stroke_color)
 
-          bold         = 1 if font_weight in ("Bold", "Black") else 0
-          ass_italic   = 1 if italic else 0
-          ass_underline= 1 if underline else 0
-          shadow_depth = round(shadow_y) if shadow_on else 0
+          bold          = 1 if font_weight in ("Bold", "Black") else 0
+          ass_italic    = 1 if italic else 0
+          ass_underline = 1 if underline else 0
+          shadow_depth  = round(shadow_y) if shadow_on else 0
 
           if position in ("auto", "bottom"):
               valign, margin_v = 2, 30
@@ -329,6 +350,35 @@ jobs:
               valign, margin_v = 8, 30
           else:
               valign, margin_v = 5, 0
+
+          # ── Build dynamic Title ASS style ────────────────────────────────────────
+          title_primary_ass   = hex_to_ass(title_color)
+          title_bg_alpha_byte = max(0, min(255, round((1 - title_bg_opacity / 100) * 255)))
+          title_bold_num      = 1 if title_bold_val else 0
+          title_valign        = 8 if title_position == "top" else 2
+          title_margin_v      = 25
+
+          if title_bg:
+              title_back_ass     = hex_to_ass_alpha(title_bg_color, title_bg_alpha_byte)
+              title_border_style = 3   # opaque box
+              title_outline_px   = 0
+              title_shadow_depth = 0
+              title_outline_ass  = "&H00000000"
+          else:
+              title_back_ass     = "&H00000000"
+              title_border_style = 1   # outline
+              title_outline_px   = 2
+              title_shadow_depth = 0
+              title_outline_ass  = "&H00000000"
+
+          title_style_line = (
+              f"Style: Title,{title_font_fam},{title_font_size},"
+              f"{title_primary_ass},&H000000FF,"
+              f"{title_outline_ass},{title_back_ass},"
+              f"{title_bold_num},0,0,0,100,100,0,0,"
+              f"{title_border_style},{title_outline_px},{title_shadow_depth},"
+              f"{title_valign},{title_margin_v},{title_margin_v},{title_margin_v},1"
+          )
 
           ass_header = "\n".join([
               "[Script Info]",
@@ -340,7 +390,7 @@ jobs:
               "[V4+ Styles]",
               "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
               f"Style: Default,{font_family},{font_size},{text_color},&H000000FF,{outline_color},&H80000000,{bold},{ass_italic},{ass_underline},0,100,100,0,0,1,{stroke_width},{shadow_depth},{valign},10,10,{margin_v},1",
-              "Style: Title,Montserrat,48,&H00000000,&H000000FF,&H00FFFFFF,&H00FFFFFF,1,0,0,0,100,100,0,0,3,15,0,8,25,25,25,1",
+              title_style_line,
               "",
               "[Events]",
               "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -390,14 +440,14 @@ jobs:
                   text = " ".join(apply_case(esc(w["word"])) for w in group)
                   events.append(f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}")
 
-          # Title overlay — white box with black text, shown for full clip duration
+          # ── Title overlay ────────────────────────────────────────────────────────
           def esc_title(t):
               return t.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}").replace("\n", "\\N")
 
           title_events = []
-          if clip_title:
+          if title_enabled and title_text:
               title_events.append(
-                  f"Dialogue: 0,{fmt_time(0)},{fmt_time(clip_duration)},Title,,0,0,0,,{esc_title(clip_title)}"
+                  f"Dialogue: 0,{fmt_time(0)},{fmt_time(clip_duration)},Title,,0,0,0,,{esc_title(title_text)}"
               )
 
           all_events = title_events + events
@@ -405,24 +455,20 @@ jobs:
           with open("/tmp/subtitles.ass", "w", encoding="utf-8") as f:
               f.write(ass_content)
 
-          print(f"ASS: animation={animation}, {len(events)} word-events, title={'yes' if title_events else 'no'}, font={font_family}", flush=True)
-
           has_word_subs = bool(events) and animation != "none"
           has_subs = has_word_subs or bool(title_events)
 
-          # ── Build FFmpeg command ────────────────────────────────────────────────
+          print(f"ASS: animation={animation}, {len(events)} word-events, title={'yes' if title_events else 'no'}, font={font_family}", flush=True)
+
+          # ── FFmpeg processing ────────────────────────────────────────────────────
           if mode == "portrait_blur":
-              # Build filter_complex for 9:16 blur background conversion
+              # Pass 1: Portrait blur conversion only (no subtitle filter in filter_complex)
               bg_chain = f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg]"
               fg_chain = f"[0:v]scale={fg_w}:{fg_h}[fg]"
-              if has_subs:
-                  compose = f"[bg][fg]overlay=(W-w)/2:(H-h)/2,ass=/tmp/subtitles.ass[out]"
-              else:
-                  compose = f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
-
+              compose  = "[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
               filter_complex = f"{bg_chain};{fg_chain};{compose}"
 
-              proc = subprocess.run([
+              proc1 = subprocess.run([
                   "ffmpeg", "-i", "/tmp/clip.mp4",
                   "-filter_complex", filter_complex,
                   "-map", "[out]",
@@ -431,28 +477,56 @@ jobs:
                   "-pix_fmt", "yuv420p", "-r", "30",
                   "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
                   "-movflags", "+faststart",
-                  "/tmp/burned.mp4", "-y"
+                  "/tmp/portrait.mp4", "-y"
               ], capture_output=True, text=True)
+
+              if proc1.returncode != 0:
+                  print(f"FFmpeg pass 1 stderr:\n{proc1.stderr[-1000:]}", flush=True)
+                  raise RuntimeError(f"FFmpeg portrait conversion failed (rc={proc1.returncode})")
+
+              print(f"Pass 1 done: {os.path.getsize('/tmp/portrait.mp4'):,} bytes", flush=True)
+
+              # Pass 2: Burn subtitles/title onto portrait video via separate -vf pass
+              if has_subs:
+                  proc2 = subprocess.run([
+                      "ffmpeg", "-i", "/tmp/portrait.mp4",
+                      "-vf", "ass=/tmp/subtitles.ass",
+                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                      "-pix_fmt", "yuv420p",
+                      "-c:a", "copy",
+                      "-movflags", "+faststart",
+                      "/tmp/burned.mp4", "-y"
+                  ], capture_output=True, text=True)
+
+                  if proc2.returncode != 0:
+                      print(f"FFmpeg pass 2 stderr:\n{proc2.stderr[-1000:]}", flush=True)
+                      raise RuntimeError(f"FFmpeg subtitle burn failed (rc={proc2.returncode})")
+
+                  print(f"Pass 2 done: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
+              else:
+                  import shutil
+                  shutil.copy("/tmp/portrait.mp4", "/tmp/burned.mp4")
+                  print("No subtitles — using portrait output directly", flush=True)
+
           else:
-              # Landscape: just burn subtitles (or copy if none)
+              # Landscape: burn subtitles or copy if none
               if not has_subs:
                   import shutil
                   shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
                   print("No subtitles — copying source", flush=True)
-                  exit(0)
+              else:
+                  proc = subprocess.run([
+                      "ffmpeg", "-i", "/tmp/clip.mp4",
+                      "-vf", "ass=/tmp/subtitles.ass",
+                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                      "-pix_fmt", "yuv420p", "-r", "30",
+                      "-c:a", "copy", "-movflags", "+faststart",
+                      "/tmp/burned.mp4", "-y"
+                  ], capture_output=True, text=True)
 
-              proc = subprocess.run([
-                  "ffmpeg", "-i", "/tmp/clip.mp4",
-                  "-vf", "ass=/tmp/subtitles.ass",
-                  "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                  "-pix_fmt", "yuv420p", "-r", "30",
-                  "-c:a", "copy", "-movflags", "+faststart",
-                  "/tmp/burned.mp4", "-y"
-              ], capture_output=True, text=True)
-
-          if proc.returncode != 0:
-              print(f"FFmpeg stderr (last 1000 chars):\n{proc.stderr[-1000:]}", flush=True)
-              raise RuntimeError(f"FFmpeg processing failed (rc={proc.returncode})")
+                  if proc.returncode != 0:
+                      print(f"FFmpeg stderr (last 1000 chars):\n{proc.stderr[-1000:]}", flush=True)
+                      raise RuntimeError(f"FFmpeg processing failed (rc={proc.returncode})")
 
           if not os.path.exists("/tmp/burned.mp4") or os.path.getsize("/tmp/burned.mp4") == 0:
               raise RuntimeError("Output file missing or empty")

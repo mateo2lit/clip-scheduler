@@ -22,6 +22,17 @@ export type SubtitleStyle = {
   // Effects
   position: "auto" | "top" | "middle" | "bottom";
   lines: 1 | 3;
+  // Title overlay (optional — workflow and UI default if absent)
+  titleEnabled?: boolean;
+  titlePosition?: "top" | "bottom";
+  titleText?: string;
+  titleBg?: boolean;
+  titleBgColor?: string;
+  titleBgOpacity?: number;
+  titleFontFamily?: "Montserrat" | "Oswald" | "Arial";
+  titleFontSize?: number;
+  titleColor?: string;
+  titleBold?: boolean;
 };
 
 export type PresetKey = "none" | "karaoke" | "beasty" | "deep_diver" | "youshaei" | "pod_p";
@@ -158,4 +169,16 @@ export const PRESET_LABELS: Record<PresetKey, string> = {
   pod_p: "Pod P",
 };
 
-export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { ...PRESETS.karaoke };
+export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
+  ...PRESETS.karaoke,
+  titleEnabled: true,
+  titlePosition: "top",
+  titleText: "",
+  titleBg: true,
+  titleBgColor: "#FFFFFF",
+  titleBgOpacity: 100,
+  titleFontFamily: "Montserrat",
+  titleFontSize: 48,
+  titleColor: "#000000",
+  titleBold: true,
+};
