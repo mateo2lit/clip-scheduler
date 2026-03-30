@@ -7,7 +7,7 @@ import { supabase } from "@/app/login/supabaseClient";
 import AppPageOrb from "@/components/AppPageOrb";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
-import { ClipCard } from "@/components/ai-clips/ClipCard";
+import { ClipCard, type DownloadInfo } from "@/components/ai-clips/ClipCard";
 
 type AiClipJobStatus =
   | "pending" | "uploading" | "transcribing" | "detecting" | "cutting" | "done" | "failed";
@@ -174,6 +174,7 @@ export default function AiClipProjectPage() {
   const [previewClipIndex, setPreviewClipIndex] = useState<number | null>(null);
   // Tracks last non-null previewClipIndex so modal ClipCard stays mounted during close (preserves download state)
   const [modalIndex, setModalIndex] = useState(0);
+  const [downloadInfo, setDownloadInfo] = useState<DownloadInfo>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -440,6 +441,7 @@ export default function AiClipProjectPage() {
                   convertMode={convertMode}
                   onScheduled={(uid, t) => { handleScheduled(uid, t); setPreviewClipIndex(null); }}
                   onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
+                  onDownloadChange={setDownloadInfo}
                   cardWidth={320}
                 />
 
@@ -480,6 +482,55 @@ export default function AiClipProjectPage() {
           </div>
         );
       })()}
+
+      {/* Floating download indicator — visible when modal is closed but download is still running */}
+      {downloadInfo && previewClipIndex === null && (
+        <div className="fixed bottom-6 right-6 z-50 w-72 rounded-2xl border border-violet-400/25 bg-[#0d0d0d]/95 backdrop-blur-md shadow-2xl overflow-hidden">
+          {/* Top strip */}
+          <div className="h-0.5 w-full bg-gradient-to-r from-violet-500 via-blue-500 to-violet-500 opacity-60" />
+          <div className="p-4 space-y-3">
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-3.5 w-3.5 flex-shrink-0 rounded-full border-2 border-violet-400/40 border-t-violet-400 animate-spin" />
+              <p className="text-sm font-semibold text-white leading-tight">
+                Downloading Clip {modalIndex + 1}
+              </p>
+              <button
+                onClick={() => setPreviewClipIndex(modalIndex)}
+                className="ml-auto text-[10px] text-violet-400 hover:text-violet-300 transition-colors whitespace-nowrap"
+              >
+                View →
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300 ease-out"
+                style={{
+                  width: `${downloadInfo.progress}%`,
+                  background: "linear-gradient(90deg, #7c3aed, #2563eb)",
+                }}
+              />
+            </div>
+
+            {/* Stage text */}
+            <p className="text-[11px] text-white/50">{downloadInfo.stage}</p>
+
+            {/* Step dots */}
+            <div className="flex gap-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                    i <= downloadInfo.stageIdx ? "bg-violet-400" : "bg-white/10"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

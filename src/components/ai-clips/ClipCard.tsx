@@ -306,36 +306,9 @@ function CaptionDragHandle({
 
 // ── DownloadOverlay ───────────────────────────────────────────────────────────
 
-function DownloadOverlay({ active }: { active: boolean }) {
-  const [progress, setProgress] = useState(0);
-  const [stageIdx, setStageIdx] = useState(0);
+export type DownloadInfo = { stage: string; stageIdx: number; progress: number } | null;
 
-  useEffect(() => {
-    if (!active) {
-      setProgress(0);
-      setStageIdx(0);
-      return;
-    }
-    // Fake progress: fast to 30%, then slow to 85%, stall near end
-    const MILESTONES = [30, 55, 72, 83, 87];
-    let current = 0;
-    let stage = 0;
-
-    const interval = setInterval(() => {
-      const target = MILESTONES[stage] ?? 90;
-      if (current < target) {
-        current += Math.max(0.4, (target - current) * 0.06);
-        setProgress(Math.min(current, 90));
-      }
-      if (current >= target - 2 && stage < MILESTONES.length - 1) {
-        stage++;
-        setStageIdx(stage);
-      }
-    }, 300);
-
-    return () => clearInterval(interval);
-  }, [active]);
-
+function DownloadOverlay({ active, progress, stageIdx }: { active: boolean; progress: number; stageIdx: number }) {
   if (!active) return null;
 
   return (
@@ -381,6 +354,7 @@ export function ClipCard({
   onStyleChange,
   cardWidth = 185,
   onExpand,
+  onDownloadChange,
 }: {
   index: number;
   uploadId: string;
@@ -394,11 +368,14 @@ export function ClipCard({
   onStyleChange?: (updates: Partial<SubtitleStyle>) => void;
   cardWidth?: number;
   onExpand?: () => void;
+  onDownloadChange?: (info: DownloadInfo) => void;
 }) {
   const cardScale = cardWidth / 1080;
 
   const [burning, setBurning] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [dlProgress, setDlProgress] = useState(0);
+  const [dlStageIdx, setDlStageIdx] = useState(0);
   const [burnError, setBurnError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -420,6 +397,39 @@ export function ClipCard({
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  // Progress simulation — drives both the in-card overlay and the parent indicator
+  useEffect(() => {
+    if (!downloading) {
+      setDlProgress(0);
+      setDlStageIdx(0);
+      return;
+    }
+    const MILESTONES = [30, 55, 72, 83, 87];
+    let current = 0;
+    let stage = 0;
+    const interval = setInterval(() => {
+      const target = MILESTONES[stage] ?? 90;
+      if (current < target) {
+        current += Math.max(0.4, (target - current) * 0.06);
+        setDlProgress(Math.min(current, 90));
+      }
+      if (current >= target - 2 && stage < MILESTONES.length - 1) {
+        stage++;
+        setDlStageIdx(stage);
+      }
+    }, 300);
+    return () => clearInterval(interval);
+  }, [downloading]);
+
+  // Report download state to parent (used for page-level indicator)
+  useEffect(() => {
+    onDownloadChange?.(
+      downloading
+        ? { stage: DOWNLOAD_STAGES[dlStageIdx], stageIdx: dlStageIdx, progress: dlProgress }
+        : null
+    );
+  }, [downloading, dlProgress, dlStageIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!playing) {
@@ -705,7 +715,7 @@ export function ClipCard({
         </div>
 
         {/* Download loading overlay */}
-        <DownloadOverlay active={downloading} />
+        <DownloadOverlay active={downloading} progress={dlProgress} stageIdx={dlStageIdx} />
       </div>
 
       {/* Action row */}
