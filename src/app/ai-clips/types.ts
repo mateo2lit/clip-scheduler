@@ -177,7 +177,7 @@ export const PRESET_LABELS: Record<PresetKey, string> = {
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   ...PRESETS.karaoke,
-  fontSize: 70,
+  fontSize: 80,
   titleEnabled: true,
   titlePosition: "top",
   titleText: "",

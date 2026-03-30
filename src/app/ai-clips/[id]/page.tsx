@@ -171,6 +171,7 @@ export default function AiClipProjectPage() {
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
   const [expandedCaption, setExpandedCaption] = useState(false);
   const [convertMode, setConvertMode] = useState<"portrait_blur" | "portrait_crop" | "landscape">("portrait_blur");
+  const [previewClipIndex, setPreviewClipIndex] = useState<number | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -366,39 +367,93 @@ export default function AiClipProjectPage() {
               onToggleExpand={() => setExpandedCaption((v) => !v)}
             />
 
-            {/* Horizontal scroll area */}
-            <div className="relative">
-              {/* Scroll hint gradient edges */}
-              <div className="absolute left-0 top-0 bottom-4 w-8 bg-gradient-to-r from-[#050505] to-transparent z-10 pointer-events-none" />
-              <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-[#050505] to-transparent z-10 pointer-events-none" />
-
-              <div className="flex gap-5 overflow-x-auto pb-4 scroll-smooth" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
-                {job.result_upload_ids.map((uploadId, i) => (
-                  <ClipCard
-                    key={uploadId}
-                    index={i}
-                    uploadId={uploadId}
-                    title={job.result_titles?.[i] ?? `Clip ${i + 1}`}
-                    subtitleWords={job.result_subtitles?.[i] ?? []}
-                    subtitleStyle={subtitleStyle}
-                    jobId={job.id}
-                    token={authToken}
-                    convertMode={convertMode}
-                    onScheduled={handleScheduled}
-                    onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
-                  />
-                ))}
-                {/* Spacer at end for scroll */}
-                <div className="flex-shrink-0 w-2" />
-              </div>
+            {/* Clips grid */}
+            <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(185px, 1fr))" }}>
+              {job.result_upload_ids.map((uploadId, i) => (
+                <ClipCard
+                  key={uploadId}
+                  index={i}
+                  uploadId={uploadId}
+                  title={job.result_titles?.[i] ?? `Clip ${i + 1}`}
+                  subtitleWords={job.result_subtitles?.[i] ?? []}
+                  subtitleStyle={subtitleStyle}
+                  jobId={job.id}
+                  token={authToken}
+                  convertMode={convertMode}
+                  onScheduled={handleScheduled}
+                  onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
+                  onExpand={() => setPreviewClipIndex(i)}
+                />
+              ))}
             </div>
 
             <p className="text-xs text-white/20 text-center">
-              Scroll to see all {job.clips_generated} clips · Click a clip to play · "Post" schedules to your connected accounts
+              Click a clip to play · "Post" schedules to your connected accounts
             </p>
           </>
         )}
       </div>
+
+      {/* Large preview modal */}
+      {previewClipIndex !== null && job.status === "done" && job.result_upload_ids && authToken && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewClipIndex(null)}
+        >
+          <div
+            className="relative flex gap-4 items-start max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setPreviewClipIndex(null)}
+              className="absolute -top-10 right-0 text-white/60 hover:text-white transition-colors text-sm flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Close
+            </button>
+
+            {/* Large clip card */}
+            <ClipCard
+              index={previewClipIndex}
+              uploadId={job.result_upload_ids[previewClipIndex]}
+              title={job.result_titles?.[previewClipIndex] ?? `Clip ${previewClipIndex + 1}`}
+              subtitleWords={job.result_subtitles?.[previewClipIndex] ?? []}
+              subtitleStyle={subtitleStyle}
+              jobId={job.id}
+              token={authToken}
+              convertMode={convertMode}
+              onScheduled={(uid, t) => { handleScheduled(uid, t); setPreviewClipIndex(null); }}
+              onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
+              cardWidth={320}
+            />
+
+            {/* Nav arrows if multiple clips */}
+            {job.result_upload_ids.length > 1 && (
+              <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-2">
+                <button
+                  onClick={() => setPreviewClipIndex((i: number | null) => i === null || i === 0 ? (job.result_upload_ids!.length - 1) : i - 1)}
+                  className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setPreviewClipIndex((i: number | null) => i === null ? 0 : (i + 1) % job.result_upload_ids!.length)}
+                  className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

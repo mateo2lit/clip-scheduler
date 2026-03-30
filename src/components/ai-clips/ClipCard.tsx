@@ -8,9 +8,6 @@ import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
 type TimedWord = { start: number; end: number; word: string };
 
-// Clip card is always 185px wide; portrait output is 1080px wide.
-const CARD_SCALE = 185 / 1080;
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function hexToRgba(hex: string, opacity: number): string {
@@ -43,11 +40,13 @@ function TitleOverlay({
   fallbackText,
   cardRef,
   onDragEnd,
+  cardScale,
 }: {
   style: SubtitleStyle;
   fallbackText: string;
   cardRef: React.RefObject<HTMLDivElement>;
   onDragEnd?: (y: number) => void;
+  cardScale: number;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [localY, setLocalY] = useState<number | null>(null);
@@ -62,8 +61,8 @@ function TitleOverlay({
   const color = style.titleColor ?? "#000000";
   const bold = style.titleBold ?? true;
   const fontFamily = style.titleFontFamily ?? "Montserrat";
-  const scaledFontSize = Math.max(6, Math.round((style.titleFontSize ?? 48) * CARD_SCALE));
-  const strokeWidth = (style.titleStrokeWidth ?? 0) * CARD_SCALE;
+  const scaledFontSize = Math.max(6, Math.round((style.titleFontSize ?? 48) * cardScale));
+  const strokeWidth = (style.titleStrokeWidth ?? 0) * cardScale;
   const strokeColor = style.titleStrokeColor ?? "#000000";
 
   const isTop = (style.titlePosition ?? "top") === "top";
@@ -134,11 +133,13 @@ function LiveCaption({
   currentTime,
   style,
   positionY,
+  cardScale,
 }: {
   words: TimedWord[];
   currentTime: number;
   style: SubtitleStyle;
   positionY?: number;
+  cardScale: number;
 }) {
   if (style.animation === "none" || !words.length) return null;
 
@@ -178,11 +179,11 @@ function LiveCaption({
     : {};
 
   const dropShadow = style.shadowEnabled
-    ? `${style.shadowX * CARD_SCALE}px ${style.shadowY * CARD_SCALE}px ${style.shadowBlur * CARD_SCALE}px rgba(0,0,0,0.85)`
+    ? `${style.shadowX * cardScale}px ${style.shadowY * cardScale}px ${style.shadowBlur * cardScale}px rgba(0,0,0,0.85)`
     : undefined;
 
-  const scaledFontSize = Math.max(6, Math.round(style.fontSize * CARD_SCALE));
-  const scaledStroke = Math.max(0.3, style.strokeWidth * CARD_SCALE);
+  const scaledFontSize = Math.max(6, Math.round(style.fontSize * cardScale));
+  const scaledStroke = Math.max(0.3, style.strokeWidth * cardScale);
   const baseStyle: CSSProperties = {
     fontFamily: style.fontFamily + ", sans-serif",
     fontSize: `${scaledFontSize}px`,
@@ -273,7 +274,6 @@ function CaptionDragHandle({
 
   // Compute if custom position is set
   const useCustomPos = style.customCaptionY !== undefined || localY !== null;
-  const captionPositionY = useCustomPos ? posY : undefined;
 
   return (
     <div
@@ -379,6 +379,8 @@ export function ClipCard({
   convertMode,
   onScheduled,
   onStyleChange,
+  cardWidth = 185,
+  onExpand,
 }: {
   index: number;
   uploadId: string;
@@ -390,7 +392,11 @@ export function ClipCard({
   convertMode: ConvertMode;
   onScheduled: (uploadId: string, title: string) => void;
   onStyleChange?: (updates: Partial<SubtitleStyle>) => void;
+  cardWidth?: number;
+  onExpand?: () => void;
 }) {
+  const cardScale = cardWidth / 1080;
+
   const [burning, setBurning] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [burnError, setBurnError] = useState<string | null>(null);
@@ -596,7 +602,7 @@ export function ClipCard({
   }
 
   return (
-    <div className="flex-shrink-0" style={{ width: "185px" }}>
+    <div className="flex-shrink-0" style={{ width: `${cardWidth}px` }}>
       {/* 9:16 portrait card */}
       <div
         ref={cardRef}
@@ -625,6 +631,7 @@ export function ClipCard({
           fallbackText={title}
           cardRef={cardRef}
           onDragEnd={onStyleChange ? (y) => onStyleChange({ titleCustomY: y }) : undefined}
+          cardScale={cardScale}
         />
 
         {/* Play button overlay */}
@@ -647,12 +654,13 @@ export function ClipCard({
                 currentTime={currentTime}
                 style={subtitleStyle}
                 positionY={captionPositionY}
+                cardScale={cardScale}
               />
             ) : (
               <SubtitlePreview
                 style={subtitleStyle}
                 words={firstWords}
-                scale={CARD_SCALE}
+                scale={cardScale}
                 positionY={captionPositionY}
               />
             )
@@ -742,6 +750,18 @@ export function ClipCard({
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          </button>
+        )}
+
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            title="Larger preview"
+            className="p-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-white/50 hover:text-white/80 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
             </svg>
           </button>
         )}

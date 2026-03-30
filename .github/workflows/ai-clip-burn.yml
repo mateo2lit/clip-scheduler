@@ -397,11 +397,12 @@ jobs:
               title_shadow_depth = 0
               title_outline_ass  = title_stroke_ass
           else:
-              title_back_ass     = "&H00000000"
-              title_border_style = 1   # outline
-              title_outline_px   = max(2, title_stroke_width_val)
+              # No background — just text with optional stroke, no forced box/shadow
+              title_back_ass     = "&HFF000000"   # fully transparent back (alpha=FF)
+              title_border_style = 1
+              title_outline_px   = title_stroke_width_val   # 0 = no outline unless user set it
               title_shadow_depth = 0
-              title_outline_ass  = title_stroke_ass if title_stroke_width_val > 0 else "&H00000000"
+              title_outline_ass  = title_stroke_ass
 
           title_style_line = (
               f"Style: Title,{title_font_fam},{title_font_size},"
