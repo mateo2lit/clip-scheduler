@@ -497,9 +497,9 @@ export default function Home() {
             Pricing
           </div>
           <h2 className="mt-5 text-4xl sm:text-5xl font-bold tracking-tight">
-            Friendly pricing for <span className="bg-gradient-to-r from-blue-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">video creators</span>
+            Friendly pricing for <span className="bg-gradient-to-r from-blue-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">creators</span>
           </h2>
-          <p className="mt-4 text-white/45 text-lg max-w-2xl mx-auto">Start with a 7-day free trial, choose yearly pricing by default, and pick the plan that matches whether you post solo or with a team.</p>
+          <p className="mt-4 text-white/45 text-lg max-w-2xl mx-auto">Start saving time immediately with Clip Dash.</p>
         </div>
         {/* Billing period toggle */}
         <div className="flex flex-col items-center gap-4 mb-10">
