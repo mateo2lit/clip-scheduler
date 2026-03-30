@@ -2,7 +2,7 @@ export type SubtitleStyle = {
   preset: "none" | "karaoke" | "beasty" | "deep_diver" | "youshaei" | "pod_p" | "custom";
   animation: "word_highlight" | "line" | "none";
   // Font
-  fontFamily: "Montserrat" | "Oswald" | "Arial";
+  fontFamily: "Montserrat" | "Oswald" | "Arial" | "Anton" | "Bebas Neue" | "Poppins" | "Rubik";
   fontSize: number;
   fontWeight: "Regular" | "Bold" | "Black";
   italic: boolean;
@@ -29,7 +29,7 @@ export type SubtitleStyle = {
   titleBg?: boolean;
   titleBgColor?: string;
   titleBgOpacity?: number;
-  titleFontFamily?: "Montserrat" | "Oswald" | "Arial";
+  titleFontFamily?: "Montserrat" | "Oswald" | "Arial" | "Anton" | "Bebas Neue" | "Poppins" | "Rubik";
   titleFontSize?: number;
   titleColor?: string;
   titleBold?: boolean;

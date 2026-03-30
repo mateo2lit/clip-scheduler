@@ -172,6 +172,8 @@ export default function AiClipProjectPage() {
   const [expandedCaption, setExpandedCaption] = useState(false);
   const [convertMode, setConvertMode] = useState<"portrait_blur" | "portrait_crop" | "landscape">("portrait_blur");
   const [previewClipIndex, setPreviewClipIndex] = useState<number | null>(null);
+  // Tracks last non-null previewClipIndex so modal ClipCard stays mounted during close (preserves download state)
+  const [modalIndex, setModalIndex] = useState(0);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -208,6 +210,10 @@ export default function AiClipProjectPage() {
     boot();
     return () => { cancelled = true; if (pollRef.current) clearInterval(pollRef.current); };
   }, [jobId]);
+
+  useEffect(() => {
+    if (previewClipIndex !== null) setModalIndex(previewClipIndex);
+  }, [previewClipIndex]);
 
   function startPolling(token: string) {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -394,80 +400,86 @@ export default function AiClipProjectPage() {
         )}
       </div>
 
-      {/* Large preview modal */}
-      {previewClipIndex !== null && job.status === "done" && job.result_upload_ids && authToken && (
-        <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
-          onClick={() => setPreviewClipIndex(null)}
-        >
+      {/* Large preview modal — always mounted once job is done so ClipCard download state survives close */}
+      {job.status === "done" && job.result_upload_ids && authToken && (() => {
+        // Use previewClipIndex when open, fall back to modalIndex when closed so ClipCard stays mounted
+        const mi = previewClipIndex ?? modalIndex;
+        return (
           <div
-            className="relative flex gap-5 items-start"
-            style={{ maxHeight: "calc(100vh - 3rem)" }}
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 items-center justify-center p-6"
+            style={{ display: previewClipIndex !== null ? "flex" : "none" }}
+            onClick={() => setPreviewClipIndex(null)}
           >
-            {/* Close button */}
-            <button
-              onClick={() => setPreviewClipIndex(null)}
-              className="absolute -top-9 right-0 text-white/60 hover:text-white transition-colors text-sm flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Close
-            </button>
-
-            {/* Left: clip card + nav */}
-            <div className="flex flex-col items-center gap-3 flex-shrink-0">
-              <ClipCard
-                index={previewClipIndex}
-                uploadId={job.result_upload_ids[previewClipIndex]}
-                title={job.result_titles?.[previewClipIndex] ?? `Clip ${previewClipIndex + 1}`}
-                subtitleWords={job.result_subtitles?.[previewClipIndex] ?? []}
-                subtitleStyle={subtitleStyle}
-                jobId={job.id}
-                token={authToken}
-                convertMode={convertMode}
-                onScheduled={(uid, t) => { handleScheduled(uid, t); setPreviewClipIndex(null); }}
-                onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
-                cardWidth={320}
-              />
-
-              {/* Prev / next */}
-              {job.result_upload_ids.length > 1 && (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setPreviewClipIndex((i: number | null) => i === null || i === 0 ? (job.result_upload_ids!.length - 1) : i - 1)}
-                    className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <span className="text-xs text-white/30 tabular-nums">
-                    {previewClipIndex + 1} / {job.result_upload_ids.length}
-                  </span>
-                  <button
-                    onClick={() => setPreviewClipIndex((i: number | null) => i === null ? 0 : (i + 1) % job.result_upload_ids!.length)}
-                    className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Right: settings panel */}
             <div
-              className="w-80 flex-shrink-0 overflow-y-auto"
+              className="relative flex gap-5 items-start"
               style={{ maxHeight: "calc(100vh - 3rem)" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} />
+              {/* Close button */}
+              <button
+                onClick={() => setPreviewClipIndex(null)}
+                className="absolute -top-9 right-0 text-white/60 hover:text-white transition-colors text-sm flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Close
+              </button>
+
+              {/* Left: clip card + nav */}
+              <div className="flex flex-col items-center gap-3 flex-shrink-0">
+                <ClipCard
+                  key={`modal-${mi}`}
+                  index={mi}
+                  uploadId={job.result_upload_ids[mi]}
+                  title={job.result_titles?.[mi] ?? `Clip ${mi + 1}`}
+                  subtitleWords={job.result_subtitles?.[mi] ?? []}
+                  subtitleStyle={subtitleStyle}
+                  jobId={job.id}
+                  token={authToken}
+                  convertMode={convertMode}
+                  onScheduled={(uid, t) => { handleScheduled(uid, t); setPreviewClipIndex(null); }}
+                  onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
+                  cardWidth={320}
+                />
+
+                {/* Prev / next */}
+                {job.result_upload_ids.length > 1 && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setPreviewClipIndex((i: number | null) => i === null || i === 0 ? (job.result_upload_ids!.length - 1) : i - 1)}
+                      className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="text-xs text-white/30 tabular-nums">
+                      {mi + 1} / {job.result_upload_ids.length}
+                    </span>
+                    <button
+                      onClick={() => setPreviewClipIndex((i: number | null) => i === null ? 0 : (i + 1) % job.result_upload_ids!.length)}
+                      className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: settings panel */}
+              <div
+                className="w-80 flex-shrink-0 overflow-y-auto"
+                style={{ maxHeight: "calc(100vh - 3rem)" }}
+              >
+                <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </main>
   );
 }

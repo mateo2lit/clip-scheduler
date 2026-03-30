@@ -49,9 +49,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends fonts-liberation fonts-noto-core fontconfig 2>/dev/null || true
           sudo mkdir -p /usr/local/share/fonts/clip-dash || true
           BASE="https://github.com/google/fonts/raw/main/ofl"
+          wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Regular.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Regular.ttf || true
           wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Bold.ttf || true
           wget -q --timeout=15 "${BASE}/montserrat/static/Montserrat-Black.ttf" -O /usr/local/share/fonts/clip-dash/Montserrat-Black.ttf || true
+          wget -q --timeout=15 "${BASE}/oswald/static/Oswald-Regular.ttf" -O /usr/local/share/fonts/clip-dash/Oswald-Regular.ttf || true
           wget -q --timeout=15 "${BASE}/oswald/static/Oswald-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Oswald-Bold.ttf || true
+          wget -q --timeout=15 "${BASE}/anton/Anton-Regular.ttf" -O /usr/local/share/fonts/clip-dash/Anton-Regular.ttf || true
+          wget -q --timeout=15 "${BASE}/bebasneuethin/BebasNeue-Regular.ttf" -O /usr/local/share/fonts/clip-dash/BebasNeue-Regular.ttf || true
+          wget -q --timeout=15 "${BASE}/poppins/Poppins-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Poppins-Bold.ttf || true
+          wget -q --timeout=15 "${BASE}/poppins/Poppins-ExtraBold.ttf" -O /usr/local/share/fonts/clip-dash/Poppins-ExtraBold.ttf || true
+          wget -q --timeout=15 "${BASE}/rubik/static/Rubik-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Rubik-Bold.ttf || true
+          wget -q --timeout=15 "${BASE}/rubik/static/Rubik-ExtraBold.ttf" -O /usr/local/share/fonts/clip-dash/Rubik-ExtraBold.ttf || true
           fc-cache -f /usr/local/share/fonts/clip-dash 2>/dev/null || true
           fc-cache -f 2>/dev/null || true
           echo "Installed fonts:"

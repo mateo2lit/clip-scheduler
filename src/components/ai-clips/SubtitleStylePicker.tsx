@@ -280,6 +280,10 @@ type FontFamily = SubtitleStyle["fontFamily"];
 const FONT_OPTIONS: Array<{ value: FontFamily; label: string; weight: number }> = [
   { value: "Montserrat", label: "Montserrat", weight: 700 },
   { value: "Oswald",     label: "Oswald",     weight: 700 },
+  { value: "Anton",      label: "Anton",      weight: 400 },
+  { value: "Bebas Neue", label: "Bebas Neue", weight: 400 },
+  { value: "Poppins",    label: "Poppins",    weight: 700 },
+  { value: "Rubik",      label: "Rubik",      weight: 700 },
   { value: "Arial",      label: "Arial",      weight: 700 },
 ];
 
