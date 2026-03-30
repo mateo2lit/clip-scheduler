@@ -385,6 +385,7 @@ export default function AiClipProjectPage() {
                     token={authToken}
                     convertMode={convertMode}
                     onScheduled={handleScheduled}
+                    onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
                   />
                 ))}
                 {/* Spacer at end for scroll */}

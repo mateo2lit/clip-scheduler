@@ -33,6 +33,12 @@ export type SubtitleStyle = {
   titleFontSize?: number;
   titleColor?: string;
   titleBold?: boolean;
+  // Custom drag positions (0–1, fraction of video height from top; overrides position/titlePosition)
+  customCaptionY?: number;
+  titleCustomY?: number;
+  // Title stroke/outline
+  titleStrokeColor?: string;
+  titleStrokeWidth?: number;
 };
 
 export type PresetKey = "none" | "karaoke" | "beasty" | "deep_diver" | "youshaei" | "pod_p";
@@ -171,6 +177,7 @@ export const PRESET_LABELS: Record<PresetKey, string> = {
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   ...PRESETS.karaoke,
+  fontSize: 70,
   titleEnabled: true,
   titlePosition: "top",
   titleText: "",
@@ -181,4 +188,6 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   titleFontSize: 48,
   titleColor: "#000000",
   titleBold: true,
+  titleStrokeColor: "#000000",
+  titleStrokeWidth: 0,
 };

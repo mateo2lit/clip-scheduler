@@ -279,6 +279,11 @@ jobs:
               title_font_size = 48
           title_color    = style.get("titleColor", "#000000") or "#000000"
           title_bold_val = bool(style.get("titleBold", True))
+          title_stroke_color_raw = style.get("titleStrokeColor", "#000000") or "#000000"
+          try:
+              title_stroke_width_val = int(style.get("titleStrokeWidth", 0) or 0)
+          except (TypeError, ValueError):
+              title_stroke_width_val = 0
 
           # ── Get source video dimensions ──────────────────────────────────────────
           probe = subprocess.run(
@@ -384,18 +389,19 @@ jobs:
 
           # Treat opacity=0 as no background
           title_bg_effective = title_bg and title_bg_opacity > 0
+          title_stroke_ass = hex_to_ass(title_stroke_color_raw) if title_stroke_width_val > 0 else "&H00000000"
           if title_bg_effective:
               title_back_ass     = hex_to_ass_alpha(title_bg_color, title_bg_alpha_byte)
               title_border_style = 3   # opaque box
-              title_outline_px   = 0
+              title_outline_px   = title_stroke_width_val
               title_shadow_depth = 0
-              title_outline_ass  = "&H00000000"
+              title_outline_ass  = title_stroke_ass
           else:
               title_back_ass     = "&H00000000"
               title_border_style = 1   # outline
-              title_outline_px   = 2
+              title_outline_px   = max(2, title_stroke_width_val)
               title_shadow_depth = 0
-              title_outline_ass  = "&H00000000"
+              title_outline_ass  = title_stroke_ass if title_stroke_width_val > 0 else "&H00000000"
 
           title_style_line = (
               f"Style: Title,{title_font_fam},{title_font_size},"
@@ -457,6 +463,21 @@ jobs:
           events = []
           WORDS_PER_GROUP = 4 if lines == 1 else 8
 
+          # Custom Y positions for drag-to-reposition feature
+          custom_caption_y = style.get("customCaptionY")
+          custom_title_y   = style.get("titleCustomY")
+
+          def make_pos_tag(custom_y, play_res_x, play_res_y):
+              """Return ASS \an5\pos() tag for absolute positioning, or empty string."""
+              if custom_y is None:
+                  return ""
+              cx = play_res_x // 2
+              cy = max(50, min(play_res_y - 50, int(float(custom_y) * play_res_y)))
+              return f"{{\\an5\\pos({cx},{cy})}}"
+
+          CAPTION_POS = make_pos_tag(custom_caption_y, play_res_x, play_res_y)
+          TITLE_POS   = make_pos_tag(custom_title_y, play_res_x, play_res_y)
+
           if words and animation == "word_highlight":
               groups = [words[i:i+WORDS_PER_GROUP] for i in range(0, len(words), WORDS_PER_GROUP)]
               for group in groups:
@@ -473,7 +494,7 @@ jobs:
                           else:
                               parts.append(word_text)
                       text = " ".join(parts)
-                      events.append(f"Dialogue: 0,{fmt_time(w_start)},{fmt_time(w_end)},Default,,0,0,0,,{text}")
+                      events.append(f"Dialogue: 0,{fmt_time(w_start)},{fmt_time(w_end)},Default,,0,0,0,,{CAPTION_POS}{text}")
 
           elif words and animation == "line":
               groups = [words[i:i+WORDS_PER_GROUP] for i in range(0, len(words), WORDS_PER_GROUP)]
@@ -483,7 +504,7 @@ jobs:
                   line_start = group[0]["start"]
                   line_end   = group[-1]["end"]
                   text = " ".join(apply_case(esc(w["word"])) for w in group)
-                  events.append(f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{text}")
+                  events.append(f"Dialogue: 0,{fmt_time(line_start)},{fmt_time(line_end)},Default,,0,0,0,,{CAPTION_POS}{text}")
 
           # ── Title overlay ────────────────────────────────────────────────────────
           def esc_title(t):
@@ -492,7 +513,7 @@ jobs:
           title_events = []
           if title_enabled and title_text:
               title_events.append(
-                  f"Dialogue: 0,{fmt_time(0)},{fmt_time(clip_duration)},Title,,0,0,0,,{esc_title(title_text)}"
+                  f"Dialogue: 0,{fmt_time(0)},{fmt_time(clip_duration)},Title,,0,0,0,,{TITLE_POS}{esc_title(title_text)}"
               )
 
           all_events = title_events + events

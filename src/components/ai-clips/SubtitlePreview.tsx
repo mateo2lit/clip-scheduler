@@ -9,11 +9,13 @@ export function SubtitlePreview({
   words,
   preview = false,
   scale: scaleProp,
+  positionY,
 }: {
   style: SubtitleStyle;
   words?: { word: string }[];
   preview?: boolean;
   scale?: number;
+  positionY?: number;
 }) {
   if (style.animation === "none") return null;
 
@@ -30,6 +32,10 @@ export function SubtitlePreview({
       : style.position === "middle"
       ? "top-1/2 -translate-y-1/2"
       : "bottom-2";
+
+  const posStyle: CSSProperties = positionY !== undefined
+    ? { top: `${positionY * 100}%`, transform: "translateY(-50%)", bottom: "auto" }
+    : {};
 
   // Use WebkitTextStroke for clean outline (no ghost artifacts)
   // paintOrder: "stroke fill" renders stroke behind fill for readability
@@ -58,7 +64,10 @@ export function SubtitlePreview({
       : ["AI", "generated", "subtitle"];
 
     return (
-      <div className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${posClass}`}>
+      <div
+        className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${positionY !== undefined ? "" : posClass}`}
+        style={posStyle}
+      >
         <p style={baseStyle}>
           {displayWords.map((word, i) => (
             <span
@@ -81,7 +90,10 @@ export function SubtitlePreview({
     : "AI generated subtitle";
 
   return (
-    <div className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${posClass}`}>
+    <div
+      className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${positionY !== undefined ? "" : posClass}`}
+      style={posStyle}
+    >
       <p style={{ ...baseStyle, color: style.primaryColor }}>{lineText}</p>
     </div>
   );

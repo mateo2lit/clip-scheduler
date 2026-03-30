@@ -1,7 +1,7 @@
 // src/components/ai-clips/ClipCard.tsx
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { SubtitleStyle } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 
@@ -9,7 +9,6 @@ type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
 type TimedWord = { start: number; end: number; word: string };
 
 // Clip card is always 185px wide; portrait output is 1080px wide.
-// Use this scale so preview font sizes match the burned-in video proportionally.
 const CARD_SCALE = 185 / 1080;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -22,7 +21,6 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, opacity / 100))})`;
 }
 
-/** Strip Whisper artifacts: [Music], (laughter), and leading/trailing punctuation. */
 function cleanWord(word: string): string {
   const t = word.trim();
   if (!t) return "";
@@ -30,13 +28,34 @@ function cleanWord(word: string): string {
   return t.replace(/^[.,!?;:"'""''`—–…\-]+|[.,!?;:"'""''`—–…\-]+$/g, "").trim();
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+const DOWNLOAD_STAGES = [
+  "Starting burn job…",
+  "Processing video…",
+  "Applying captions & effects…",
+  "Optimizing output…",
+  "Finalizing…",
+];
 
-function TitleOverlay({ style, fallbackText }: { style: SubtitleStyle; fallbackText: string }) {
+// ── TitleOverlay ──────────────────────────────────────────────────────────────
+
+function TitleOverlay({
+  style,
+  fallbackText,
+  cardRef,
+  onDragEnd,
+}: {
+  style: SubtitleStyle;
+  fallbackText: string;
+  cardRef: React.RefObject<HTMLDivElement>;
+  onDragEnd?: (y: number) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [localY, setLocalY] = useState<number | null>(null);
+
   if (!(style.titleEnabled ?? true)) return null;
   const text = style.titleText?.trim() || fallbackText;
   if (!text) return null;
-  const isTop = (style.titlePosition ?? "top") === "top";
+
   const bg = style.titleBg ?? true;
   const bgColor = style.titleBgColor ?? "#FFFFFF";
   const bgOpacity = style.titleBgOpacity ?? 100;
@@ -44,29 +63,82 @@ function TitleOverlay({ style, fallbackText }: { style: SubtitleStyle; fallbackT
   const bold = style.titleBold ?? true;
   const fontFamily = style.titleFontFamily ?? "Montserrat";
   const scaledFontSize = Math.max(6, Math.round((style.titleFontSize ?? 48) * CARD_SCALE));
+  const strokeWidth = (style.titleStrokeWidth ?? 0) * CARD_SCALE;
+  const strokeColor = style.titleStrokeColor ?? "#000000";
+
+  const isTop = (style.titlePosition ?? "top") === "top";
+  const defaultY = isTop ? 0.04 : 0.88;
+  const posY = localY ?? (style.titleCustomY ?? defaultY);
+
+  const getY = (clientY: number) => {
+    if (!cardRef.current) return posY;
+    const rect = cardRef.current.getBoundingClientRect();
+    return Math.max(0.01, Math.min(0.98, (clientY - rect.top) / rect.height));
+  };
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!onDragEnd) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setIsDragging(true);
+  }
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!isDragging) return;
+    setLocalY(getY(e.clientY));
+  }
+  function handlePointerUp(e: React.PointerEvent) {
+    if (!isDragging) return;
+    const y = getY(e.clientY);
+    setIsDragging(false);
+    setLocalY(null);
+    onDragEnd?.(y);
+  }
+
   return (
     <div
-      className={`absolute ${isTop ? "top-2" : "bottom-10"} left-2 right-2 z-20 rounded-lg px-2 py-1 shadow-md`}
-      style={bg && bgOpacity > 0 ? { backgroundColor: hexToRgba(bgColor, bgOpacity) } : {}}
+      className={`absolute left-2 right-2 z-20 rounded-lg px-2 py-1 shadow-md select-none ${onDragEnd ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{
+        top: `${posY * 100}%`,
+        transform: "translateY(-50%)",
+        ...(bg && bgOpacity > 0 ? { backgroundColor: hexToRgba(bgColor, bgOpacity) } : {}),
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
     >
       <p
-        className="text-center leading-tight line-clamp-3"
-        style={{ color, fontWeight: bold ? 900 : 400, fontFamily, fontSize: `${scaledFontSize}px` }}
+        className="text-center leading-tight line-clamp-2"
+        style={{
+          color,
+          fontWeight: bold ? 900 : 400,
+          fontFamily,
+          fontSize: `${scaledFontSize}px`,
+          WebkitTextStroke: strokeWidth > 0 ? `${strokeWidth}px ${strokeColor}` : undefined,
+          paintOrder: "stroke fill" as any,
+        }}
       >
         {text}
       </p>
+      {onDragEnd && (
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-white/20" />
+      )}
     </div>
   );
 }
+
+// ── LiveCaption ───────────────────────────────────────────────────────────────
 
 function LiveCaption({
   words,
   currentTime,
   style,
+  positionY,
 }: {
   words: TimedWord[];
   currentTime: number;
   style: SubtitleStyle;
+  positionY?: number;
 }) {
   if (style.animation === "none" || !words.length) return null;
 
@@ -93,12 +165,18 @@ function LiveCaption({
   if (!activeGroup) return null;
 
   const fontWeightNum = style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;
+
   const posClass =
     style.position === "top"
       ? "top-2"
       : style.position === "middle"
       ? "top-1/2 -translate-y-1/2"
       : "bottom-2";
+
+  const posStyle: CSSProperties = positionY !== undefined
+    ? { top: `${positionY * 100}%`, transform: "translateY(-50%)", bottom: "auto" }
+    : {};
+
   const dropShadow = style.shadowEnabled
     ? `${style.shadowX * CARD_SCALE}px ${style.shadowY * CARD_SCALE}px ${style.shadowBlur * CARD_SCALE}px rgba(0,0,0,0.85)`
     : undefined;
@@ -122,7 +200,10 @@ function LiveCaption({
 
   if (style.animation === "word_highlight") {
     return (
-      <div className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${posClass}`}>
+      <div
+        className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${positionY !== undefined ? "" : posClass}`}
+        style={posStyle}
+      >
         <p style={baseStyle}>
           {displayWords.map((word, i) => (
             <span key={i} style={{ color: i === activeWordIdx ? style.highlightColor : style.primaryColor }}>
@@ -135,8 +216,152 @@ function LiveCaption({
   }
 
   return (
-    <div className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${posClass}`}>
+    <div
+      className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${positionY !== undefined ? "" : posClass}`}
+      style={posStyle}
+    >
       <p style={{ ...baseStyle, color: style.primaryColor }}>{displayWords.join(" ")}</p>
+    </div>
+  );
+}
+
+// ── CaptionDragHandle ─────────────────────────────────────────────────────────
+
+function CaptionDragHandle({
+  style,
+  cardRef,
+  children,
+  onDragEnd,
+}: {
+  style: SubtitleStyle;
+  cardRef: React.RefObject<HTMLDivElement>;
+  children: React.ReactNode;
+  onDragEnd?: (y: number) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [localY, setLocalY] = useState<number | null>(null);
+
+  const isTop = style.position === "top";
+  const isMid = style.position === "middle";
+  const defaultY = isTop ? 0.05 : isMid ? 0.5 : 0.88;
+  const posY = localY ?? (style.customCaptionY ?? defaultY);
+
+  const getY = (clientY: number) => {
+    if (!cardRef.current) return posY;
+    const rect = cardRef.current.getBoundingClientRect();
+    return Math.max(0.01, Math.min(0.98, (clientY - rect.top) / rect.height));
+  };
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!onDragEnd) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setIsDragging(true);
+  }
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!isDragging) return;
+    setLocalY(getY(e.clientY));
+  }
+  function handlePointerUp(e: React.PointerEvent) {
+    if (!isDragging) return;
+    const y = getY(e.clientY);
+    setIsDragging(false);
+    setLocalY(null);
+    onDragEnd?.(y);
+  }
+
+  // Compute if custom position is set
+  const useCustomPos = style.customCaptionY !== undefined || localY !== null;
+  const captionPositionY = useCustomPos ? posY : undefined;
+
+  return (
+    <div
+      className={`absolute inset-x-0 z-10 ${onDragEnd ? "cursor-ns-resize" : "pointer-events-none"}`}
+      style={
+        useCustomPos
+          ? { top: `${posY * 100}%`, transform: "translateY(-50%)" }
+          : style.position === "top"
+          ? { top: "8px" }
+          : style.position === "middle"
+          ? { top: "50%", transform: "translateY(-50%)" }
+          : { bottom: "8px" }
+      }
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    >
+      {/* Drag hint bar */}
+      {onDragEnd && isDragging && (
+        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-10 h-0.5 rounded-full bg-white/40" />
+      )}
+      {/* Render children with position override */}
+      <div className="relative">
+        {/* Clone children with positionY=0 so they render at top of this wrapper */}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── DownloadOverlay ───────────────────────────────────────────────────────────
+
+function DownloadOverlay({ active }: { active: boolean }) {
+  const [progress, setProgress] = useState(0);
+  const [stageIdx, setStageIdx] = useState(0);
+
+  useEffect(() => {
+    if (!active) {
+      setProgress(0);
+      setStageIdx(0);
+      return;
+    }
+    // Fake progress: fast to 30%, then slow to 85%, stall near end
+    const MILESTONES = [30, 55, 72, 83, 87];
+    let current = 0;
+    let stage = 0;
+
+    const interval = setInterval(() => {
+      const target = MILESTONES[stage] ?? 90;
+      if (current < target) {
+        current += Math.max(0.4, (target - current) * 0.06);
+        setProgress(Math.min(current, 90));
+      }
+      if (current >= target - 2 && stage < MILESTONES.length - 1) {
+        stage++;
+        setStageIdx(stage);
+      }
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [active]);
+
+  if (!active) return null;
+
+  return (
+    <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center gap-3 px-4 rounded-2xl">
+      <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-300 ease-out"
+          style={{
+            width: `${progress}%`,
+            background: "linear-gradient(90deg, #7c3aed, #2563eb)",
+          }}
+        />
+      </div>
+      <p className="text-[10px] text-white/70 text-center font-medium">
+        {DOWNLOAD_STAGES[stageIdx]}
+      </p>
+      <div className="flex gap-1">
+        {DOWNLOAD_STAGES.map((_, i) => (
+          <div
+            key={i}
+            className={`w-1 h-1 rounded-full transition-all duration-300 ${
+              i <= stageIdx ? "bg-violet-400" : "bg-white/15"
+            }`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -153,6 +378,7 @@ export function ClipCard({
   token,
   convertMode,
   onScheduled,
+  onStyleChange,
 }: {
   index: number;
   uploadId: string;
@@ -163,6 +389,7 @@ export function ClipCard({
   token: string;
   convertMode: ConvertMode;
   onScheduled: (uploadId: string, title: string) => void;
+  onStyleChange?: (updates: Partial<SubtitleStyle>) => void;
 }) {
   const [burning, setBurning] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -171,6 +398,7 @@ export function ClipCard({
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -187,7 +415,6 @@ export function ClipCard({
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  // RAF-driven currentTime for live caption sync
   useEffect(() => {
     if (!playing) {
       if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
@@ -207,7 +434,6 @@ export function ClipCard({
     else { videoRef.current.play().catch(() => {}); setPlaying(true); }
   }
 
-  // Clean Whisper artifacts for display
   const cleanedWords: TimedWord[] = (subtitleWords ?? [])
     .map((w: any) => ({ start: w.start, end: w.end, word: cleanWord(w.word) }))
     .filter((w) => w.word);
@@ -217,13 +443,18 @@ export function ClipCard({
   const titleEnabled = subtitleStyle.titleEnabled ?? true;
   const needsBurn = hasSubtitles || convertMode !== "landscape" || titleEnabled;
 
+  // Caption custom position
+  const isTop = subtitleStyle.position === "top";
+  const isMid = subtitleStyle.position === "middle";
+  const defaultCaptionY = isTop ? 0.05 : isMid ? 0.5 : 0.88;
+  const captionPositionY = subtitleStyle.customCaptionY ?? defaultCaptionY;
+
   async function handleDownload() {
     if (downloading) return;
     setDownloading(true);
     setBurnError(null);
 
     if (!needsBurn) {
-      // Raw download
       if (!videoUrl) { setDownloading(false); return; }
       try {
         const response = await fetch(videoUrl);
@@ -243,16 +474,11 @@ export function ClipCard({
       return;
     }
 
-    // Need to burn first, then download
     try {
       const res = await fetch(`/api/ai-clips/${jobId}/burn-clip`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clip_index: index,
-          subtitle_style: subtitleStyle,
-          mode: convertMode,
-        }),
+        body: JSON.stringify({ clip_index: index, subtitle_style: subtitleStyle, mode: convertMode }),
       });
       const json = await res.json();
       if (!json.ok) {
@@ -272,17 +498,12 @@ export function ClipCard({
             return;
           }
           try {
-            const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, { headers: { Authorization: `Bearer ${token}` } });
             const pollJson = await pollRes.json();
             if (pollJson.ok && pollJson.job) {
               if (pollJson.job.status === "done" && pollJson.job.result_upload_id) {
                 clearInterval(poll);
-                // Fetch signed URL for burned file
-                const uploadRes = await fetch(`/api/uploads/${pollJson.job.result_upload_id}`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                });
+                const uploadRes = await fetch(`/api/uploads/${pollJson.job.result_upload_id}`, { headers: { Authorization: `Bearer ${token}` } });
                 const uploadJson = await uploadRes.json();
                 if (uploadJson.signedUrl) {
                   const response = await fetch(uploadJson.signedUrl);
@@ -316,9 +537,7 @@ export function ClipCard({
 
     if (!withSubtitles || (subtitleStyle.animation === "none" && !titleEnabled) || (!hasRealWords && !titleEnabled)) {
       try {
-        const res = await fetch(`/api/ai-clips/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(`/api/ai-clips/${jobId}`, { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
         if (json.ok && json.job?.result_upload_ids?.[index]) {
           onScheduled(json.job.result_upload_ids[index], title);
@@ -333,15 +552,8 @@ export function ClipCard({
     try {
       const res = await fetch(`/api/ai-clips/${jobId}/burn-clip`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          clip_index: index,
-          subtitle_style: subtitleStyle,
-          mode: convertMode,
-        }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ clip_index: index, subtitle_style: subtitleStyle, mode: convertMode }),
       });
       const json = await res.json();
       if (!json.ok) {
@@ -361,9 +573,7 @@ export function ClipCard({
           return;
         }
         try {
-          const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, { headers: { Authorization: `Bearer ${token}` } });
           const pollJson = await pollRes.json();
           if (pollJson.ok && pollJson.job) {
             const job = pollJson.job;
@@ -389,6 +599,7 @@ export function ClipCard({
     <div className="flex-shrink-0" style={{ width: "185px" }}>
       {/* 9:16 portrait card */}
       <div
+        ref={cardRef}
         className="relative rounded-2xl overflow-hidden bg-black border border-white/10"
         style={{ aspectRatio: "9 / 16" }}
       >
@@ -408,8 +619,13 @@ export function ClipCard({
           </div>
         )}
 
-        {/* Title overlay — respects titleEnabled, position, bg color, opacity, font */}
-        <TitleOverlay style={subtitleStyle} fallbackText={title} />
+        {/* Title overlay — draggable */}
+        <TitleOverlay
+          style={subtitleStyle}
+          fallbackText={title}
+          cardRef={cardRef}
+          onDragEnd={onStyleChange ? (y) => onStyleChange({ titleCustomY: y }) : undefined}
+        />
 
         {/* Play button overlay */}
         {videoUrl && !playing && (
@@ -426,9 +642,19 @@ export function ClipCard({
         {subtitleStyle.animation !== "none" && (
           hasRealWords ? (
             playing ? (
-              <LiveCaption words={cleanedWords} currentTime={currentTime} style={subtitleStyle} />
+              <LiveCaption
+                words={cleanedWords}
+                currentTime={currentTime}
+                style={subtitleStyle}
+                positionY={captionPositionY}
+              />
             ) : (
-              <SubtitlePreview style={subtitleStyle} words={firstWords} scale={CARD_SCALE} />
+              <SubtitlePreview
+                style={subtitleStyle}
+                words={firstWords}
+                scale={CARD_SCALE}
+                positionY={captionPositionY}
+              />
             )
           ) : (
             <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
@@ -437,15 +663,45 @@ export function ClipCard({
           )
         )}
 
+        {/* Drag hint when style change is enabled and not playing */}
+        {onStyleChange && !playing && hasRealWords && subtitleStyle.animation !== "none" && (
+          <div
+            className="absolute inset-x-0 h-6 z-10 cursor-ns-resize flex items-center justify-center"
+            style={{
+              top: `${captionPositionY * 100}%`,
+              transform: "translateY(-50%)",
+            }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (!cardRef.current || e.buttons === 0) return;
+              const rect = cardRef.current.getBoundingClientRect();
+              const y = Math.max(0.01, Math.min(0.98, (e.clientY - rect.top) / rect.height));
+              onStyleChange({ customCaptionY: y });
+            }}
+            onPointerUp={(e) => {
+              if (!cardRef.current) return;
+              const rect = cardRef.current.getBoundingClientRect();
+              const y = Math.max(0.01, Math.min(0.98, (e.clientY - rect.top) / rect.height));
+              onStyleChange({ customCaptionY: y });
+            }}
+          />
+        )}
+
         {/* Clip number badge */}
         <div className="absolute bottom-2 left-2 z-20 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] text-white/50 font-medium pointer-events-none">
           Clip {index + 1}
         </div>
+
+        {/* Download loading overlay */}
+        <DownloadOverlay active={downloading} />
       </div>
 
       {/* Action row */}
       <div className="flex items-center justify-center gap-2 mt-2.5">
-        {/* Schedule */}
         <button
           onClick={() => handleSchedule(true)}
           disabled={burning}
@@ -462,7 +718,6 @@ export function ClipCard({
           <span>Post</span>
         </button>
 
-        {/* Download */}
         <button
           onClick={handleDownload}
           disabled={(!videoUrl && !needsBurn) || downloading}
@@ -478,7 +733,6 @@ export function ClipCard({
           )}
         </button>
 
-        {/* No subs / post without subtitles */}
         {hasSubtitles && (
           <button
             onClick={() => handleSchedule(false)}
@@ -494,8 +748,6 @@ export function ClipCard({
       </div>
 
       {burnError && <p className="text-[10px] text-red-400 text-center mt-1 px-1">{burnError}</p>}
-
-      {/* Clip title */}
       <p className="text-[11px] text-white/50 text-center mt-1 px-1 line-clamp-2 leading-tight">{title}</p>
     </div>
   );
