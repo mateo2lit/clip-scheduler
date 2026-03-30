@@ -8,6 +8,10 @@ import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
 type TimedWord = { start: number; end: number; word: string };
 
+// Clip card is always 185px wide; portrait output is 1080px wide.
+// Use this scale so preview font sizes match the burned-in video proportionally.
+const CARD_SCALE = 185 / 1080;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function hexToRgba(hex: string, opacity: number): string {
@@ -39,14 +43,15 @@ function TitleOverlay({ style, fallbackText }: { style: SubtitleStyle; fallbackT
   const color = style.titleColor ?? "#000000";
   const bold = style.titleBold ?? true;
   const fontFamily = style.titleFontFamily ?? "Montserrat";
+  const scaledFontSize = Math.max(6, Math.round((style.titleFontSize ?? 48) * CARD_SCALE));
   return (
     <div
-      className={`absolute ${isTop ? "top-2" : "bottom-10"} left-2 right-2 z-20 rounded-lg px-2 py-1.5 shadow-md`}
-      style={bg ? { backgroundColor: hexToRgba(bgColor, bgOpacity) } : {}}
+      className={`absolute ${isTop ? "top-2" : "bottom-10"} left-2 right-2 z-20 rounded-lg px-2 py-1 shadow-md`}
+      style={bg && bgOpacity > 0 ? { backgroundColor: hexToRgba(bgColor, bgOpacity) } : {}}
     >
       <p
-        className="text-[10px] leading-tight line-clamp-3"
-        style={{ color, fontWeight: bold ? 900 : 400, fontFamily }}
+        className="text-center leading-tight line-clamp-3"
+        style={{ color, fontWeight: bold ? 900 : 400, fontFamily, fontSize: `${scaledFontSize}px` }}
       >
         {text}
       </p>
@@ -95,17 +100,19 @@ function LiveCaption({
       ? "top-1/2 -translate-y-1/2"
       : "bottom-2";
   const dropShadow = style.shadowEnabled
-    ? `${style.shadowX}px ${style.shadowY}px ${style.shadowBlur}px rgba(0,0,0,0.85)`
+    ? `${style.shadowX * CARD_SCALE}px ${style.shadowY * CARD_SCALE}px ${style.shadowBlur * CARD_SCALE}px rgba(0,0,0,0.85)`
     : undefined;
 
+  const scaledFontSize = Math.max(6, Math.round(style.fontSize * CARD_SCALE));
+  const scaledStroke = Math.max(0.3, style.strokeWidth * CARD_SCALE);
   const baseStyle: CSSProperties = {
     fontFamily: style.fontFamily + ", sans-serif",
-    fontSize: `${style.fontSize}px`,
+    fontSize: `${scaledFontSize}px`,
     fontWeight: fontWeightNum,
     fontStyle: style.italic ? "italic" : "normal",
     textDecoration: style.underline ? "underline" : "none",
     textTransform: style.uppercase ? "uppercase" : "none",
-    WebkitTextStroke: style.strokeWidth > 0 ? `${style.strokeWidth}px ${style.strokeColor}` : undefined,
+    WebkitTextStroke: scaledStroke > 0 ? `${scaledStroke}px ${style.strokeColor}` : undefined,
     textShadow: dropShadow,
     lineHeight: 1.3,
     paintOrder: "stroke fill" as any,
@@ -421,7 +428,7 @@ export function ClipCard({
             playing ? (
               <LiveCaption words={cleanedWords} currentTime={currentTime} style={subtitleStyle} />
             ) : (
-              <SubtitlePreview style={subtitleStyle} words={firstWords} preview={false} />
+              <SubtitlePreview style={subtitleStyle} words={firstWords} scale={CARD_SCALE} />
             )
           ) : (
             <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">

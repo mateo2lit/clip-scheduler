@@ -8,19 +8,18 @@ export function SubtitlePreview({
   style,
   words,
   preview = false,
+  scale: scaleProp,
 }: {
   style: SubtitleStyle;
   words?: { word: string }[];
   preview?: boolean;
+  scale?: number;
 }) {
   if (style.animation === "none") return null;
 
-  const scale = preview ? 0.3 : 1;
-  const fontSize = Math.max(8, Math.round(style.fontSize * scale));
-  // Scale stroke proportionally but cap it so it looks clean at preview size
-  const strokeW = preview
-    ? Math.min(2, Math.max(0.5, style.strokeWidth * scale))
-    : style.strokeWidth;
+  const scale = scaleProp !== undefined ? scaleProp : preview ? 0.3 : 1;
+  const fontSize = Math.max(6, Math.round(style.fontSize * scale));
+  const strokeW = Math.max(0.3, style.strokeWidth * scale);
 
   const fontWeightNum =
     style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;

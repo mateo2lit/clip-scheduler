@@ -96,9 +96,9 @@ function SubtitleQuickBar({
         {style.animation !== "none" && (
           <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
             <input
-              type="range" min={8} max={120} value={style.fontSize}
+              type="range" min={8} max={120} step={2} value={style.fontSize}
               onChange={(e) => onChange({ ...style, fontSize: Number(e.target.value), preset: "custom" })}
-              className="w-24 accent-violet-400"
+              className="w-32 accent-violet-400"
             />
             <span className="text-[11px] text-white/40 w-6 tabular-nums text-right">{style.fontSize}</span>
           </div>

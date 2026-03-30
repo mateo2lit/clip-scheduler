@@ -87,42 +87,38 @@ function NumInput({
 function PresetCardText({ preset }: { preset: SubtitleStyle }) {
   if (preset.animation === "none") {
     return (
-      <div className="flex items-center justify-center w-full h-full">
-        <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-          />
+      <div className="flex flex-col items-center justify-center gap-1.5">
+        <svg className="w-6 h-6 text-white/25" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
         </svg>
+        <span className="text-[10px] text-white/25">No captions</span>
       </div>
     );
   }
 
-  const w = Math.max(1, Math.round(preset.strokeWidth / 3));
+  const strokeW = Math.max(0.5, Math.round(preset.strokeWidth / 2.5));
   const baseTextStyle: React.CSSProperties = {
     fontFamily: preset.fontFamily + ", sans-serif",
-    fontSize: "11px",
-    fontWeight:
-      preset.fontWeight === "Black" ? 900 : preset.fontWeight === "Bold" ? 700 : 400,
+    fontSize: "15px",
+    fontWeight: preset.fontWeight === "Black" ? 900 : preset.fontWeight === "Bold" ? 700 : 400,
     textTransform: preset.uppercase ? "uppercase" : "none",
-    WebkitTextStroke: `${w}px ${preset.strokeColor}`,
-    lineHeight: 1.2,
+    WebkitTextStroke: strokeW > 0 ? `${strokeW}px ${preset.strokeColor}` : undefined,
+    lineHeight: 1.3,
+    paintOrder: "stroke fill" as any,
   };
 
   if (preset.animation === "word_highlight") {
     return (
-      <p style={baseTextStyle} className="text-center px-1">
-        <span style={{ color: preset.highlightColor }}>TO </span>
-        <span style={{ color: preset.primaryColor }}>GET</span>
+      <p style={baseTextStyle} className="text-center px-1 leading-snug">
+        <span style={{ color: preset.highlightColor }}>Caption </span>
+        <span style={{ color: preset.primaryColor }}>Style</span>
       </p>
     );
   }
 
   return (
-    <p style={{ ...baseTextStyle, color: preset.primaryColor }} className="text-center px-1">
-      TO GET
+    <p style={{ ...baseTextStyle, color: preset.primaryColor }} className="text-center px-1 leading-snug">
+      Caption Style
     </p>
   );
 }
@@ -147,14 +143,14 @@ function PresetsTab({
             key={key}
             onClick={() => onSelect(key)}
             className={`rounded-xl overflow-hidden border-2 transition-all text-left ${
-              isSelected ? "border-white" : "border-white/10 hover:border-white/30"
+              isSelected ? "border-violet-400" : "border-white/10 hover:border-white/30"
             }`}
           >
-            <div className="bg-[#1a1a2e] h-16 flex items-end justify-center pb-2">
+            <div className="bg-gradient-to-b from-[#0d0d1a] to-[#111120] h-20 flex items-center justify-center px-2">
               <PresetCardText preset={preset} />
             </div>
             <div className="py-1.5 px-2 bg-[#111116] text-center">
-              <span className="text-[11px] text-white/70">{PRESET_LABELS[key]}</span>
+              <span className={`text-[11px] font-medium ${isSelected ? "text-violet-300" : "text-white/60"}`}>{PRESET_LABELS[key]}</span>
             </div>
           </button>
         );
@@ -174,14 +170,12 @@ function FontTab({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium text-white">Font settings</p>
+      <p className="text-sm font-medium text-white">Caption font</p>
 
       {/* Font family */}
       <select
         value={style.fontFamily}
-        onChange={(e) =>
-          onUpdate("fontFamily", e.target.value as SubtitleStyle["fontFamily"])
-        }
+        onChange={(e) => onUpdate("fontFamily", e.target.value as SubtitleStyle["fontFamily"])}
         className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
       >
         <option value="Montserrat" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Montserrat</option>
@@ -189,141 +183,112 @@ function FontTab({
         <option value="Arial" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Arial</option>
       </select>
 
-      {/* Color + size + weight row */}
-      <div className="flex items-center gap-2">
-        <ColorInput
-          value={style.primaryColor}
-          onChange={(v) => onUpdate("primaryColor", v)}
-        />
-        {/* Size with +/- steppers */}
-        <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
-          <button
-            onClick={() => onUpdate("fontSize", Math.max(8, style.fontSize - 1))}
-            className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
-          >▼</button>
-          <NumInput
-            value={style.fontSize}
-            onChange={(v) => onUpdate("fontSize", v)}
-            min={8}
-            max={120}
-            className="w-10 px-1 py-1 border-0 rounded-none"
-          />
-          <button
-            onClick={() => onUpdate("fontSize", Math.min(120, style.fontSize + 1))}
-            className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
-          >▲</button>
+      {/* Color + size + weight */}
+      <div className="space-y-1.5">
+        <p className="text-xs text-white/40">Size &amp; weight</p>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
+            <button
+              onClick={() => onUpdate("fontSize", Math.max(8, style.fontSize - 1))}
+              className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
+            >▼</button>
+            <NumInput value={style.fontSize} onChange={(v) => onUpdate("fontSize", v)} min={8} max={120} className="w-10 px-1 py-1 border-0 rounded-none" />
+            <button
+              onClick={() => onUpdate("fontSize", Math.min(120, style.fontSize + 1))}
+              className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
+            >▲</button>
+          </div>
+          <span className="text-xs text-white/40">px</span>
+          <select
+            value={style.fontWeight}
+            onChange={(e) => onUpdate("fontWeight", e.target.value as SubtitleStyle["fontWeight"])}
+            className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white"
+          >
+            <option value="Regular" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Regular</option>
+            <option value="Bold" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Bold</option>
+            <option value="Black" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Extra Bold</option>
+          </select>
         </div>
-        <span className="text-xs text-white/40">px</span>
-        <select
-          value={style.fontWeight}
-          onChange={(e) =>
-            onUpdate("fontWeight", e.target.value as SubtitleStyle["fontWeight"])
-          }
-          className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white"
-        >
-          <option value="Regular" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Regular</option>
-          <option value="Bold" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Bold</option>
-          <option value="Black" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Black</option>
-        </select>
       </div>
 
-      {/* Decoration */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-white/40 w-24 flex-shrink-0">Decoration</span>
-        <button
-          onClick={() => onUpdate("italic", !style.italic)}
-          className={`px-2 py-1 rounded text-xs border transition-colors italic ${
-            style.italic
-              ? "bg-white/15 border-white/20 text-white"
-              : "border-transparent text-white/40"
-          }`}
-        >
-          I
-        </button>
-        <button
-          onClick={() => onUpdate("underline", !style.underline)}
-          className={`px-2 py-1 rounded text-xs border transition-colors underline ${
-            style.underline
-              ? "bg-white/15 border-white/20 text-white"
-              : "border-transparent text-white/40"
-          }`}
-        >
-          U
-        </button>
+      {/* Text color */}
+      <div className="space-y-1.5">
+        <p className="text-xs text-white/40">Text color</p>
+        <ColorInput value={style.primaryColor} onChange={(v) => onUpdate("primaryColor", v)} />
       </div>
 
-      {/* Uppercase */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-white/40">Uppercase</span>
-        <Toggle value={style.uppercase} onChange={(v) => onUpdate("uppercase", v)} />
+      {/* Style toggles */}
+      <div className="space-y-1.5">
+        <p className="text-xs text-white/40">Style</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onUpdate("italic", !style.italic)}
+            className={`px-3 py-1.5 rounded-lg text-xs border transition-colors italic font-medium ${
+              style.italic ? "bg-white/15 border-white/20 text-white" : "border-white/10 text-white/40 hover:text-white/60"
+            }`}
+          >
+            Italic
+          </button>
+          <button
+            onClick={() => onUpdate("underline", !style.underline)}
+            className={`px-3 py-1.5 rounded-lg text-xs border transition-colors underline font-medium ${
+              style.underline ? "bg-white/15 border-white/20 text-white" : "border-white/10 text-white/40 hover:text-white/60"
+            }`}
+          >
+            Underline
+          </button>
+          <button
+            onClick={() => onUpdate("uppercase", !style.uppercase)}
+            className={`px-3 py-1.5 rounded-lg text-xs border transition-colors font-medium ${
+              style.uppercase ? "bg-white/15 border-white/20 text-white" : "border-white/10 text-white/40 hover:text-white/60"
+            }`}
+          >
+            ALL CAPS
+          </button>
+        </div>
       </div>
 
-      {/* Font stroke */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-white/40 w-24 flex-shrink-0">Font stroke</span>
-        <ColorInput
-          value={style.strokeColor}
-          onChange={(v) => onUpdate("strokeColor", v)}
-        />
-        <NumInput
-          value={style.strokeWidth}
-          onChange={(v) => onUpdate("strokeWidth", v)}
-          min={0}
-          max={20}
-          className="w-12 px-1.5 py-1"
-        />
-        <span className="text-xs text-white/40">px</span>
+      {/* Outline */}
+      <div className="space-y-1.5">
+        <p className="text-xs text-white/40">Outline (stroke)</p>
+        <div className="flex items-center gap-2">
+          <ColorInput value={style.strokeColor} onChange={(v) => onUpdate("strokeColor", v)} />
+          <NumInput value={style.strokeWidth} onChange={(v) => onUpdate("strokeWidth", v)} min={0} max={20} className="w-12 px-1.5 py-1" />
+          <span className="text-xs text-white/40">thickness</span>
+        </div>
       </div>
 
-      {/* Font shadows */}
+      {/* Drop shadow */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Font shadows</span>
-          <Toggle
-            value={style.shadowEnabled}
-            onChange={(v) => onUpdate("shadowEnabled", v)}
-          />
+          <div>
+            <p className="text-xs text-white/40">Drop shadow</p>
+            <p className="text-[10px] text-white/25">Adds shadow behind text for readability</p>
+          </div>
+          <Toggle value={style.shadowEnabled} onChange={(v) => onUpdate("shadowEnabled", v)} />
         </div>
         {style.shadowEnabled && (
-          <div className="flex items-center gap-1.5 ml-2">
-            <NumInput
-              value={style.shadowX}
-              onChange={(v) => onUpdate("shadowX", v)}
-              min={-20}
-              max={20}
-              className="w-10 px-1 py-1 text-xs"
-            />
-            <span className="text-[10px] text-white/30">x</span>
-            <NumInput
-              value={style.shadowY}
-              onChange={(v) => onUpdate("shadowY", v)}
-              min={-20}
-              max={20}
-              className="w-10 px-1 py-1 text-xs"
-            />
-            <span className="text-[10px] text-white/30">y</span>
-            <NumInput
-              value={style.shadowBlur}
-              onChange={(v) => onUpdate("shadowBlur", v)}
-              min={0}
-              max={20}
-              className="w-10 px-1 py-1 text-xs"
-            />
-            <span className="text-[10px] text-white/30">blur</span>
+          <div className="flex items-center gap-4 ml-2">
+            <div className="flex flex-col items-center gap-0.5">
+              <NumInput value={style.shadowY} onChange={(v) => onUpdate("shadowY", v)} min={0} max={20} className="w-10 px-1 py-1 text-xs" />
+              <span className="text-[9px] text-white/30">depth</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <NumInput value={style.shadowBlur} onChange={(v) => onUpdate("shadowBlur", v)} min={0} max={20} className="w-10 px-1 py-1 text-xs" />
+              <span className="text-[9px] text-white/30">softness</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* AI keywords highlighter */}
-      <div className="space-y-2">
-        <p className="text-xs text-white/40">AI keywords highlighter</p>
-        <div className="ml-2">
-          <ColorInput
-            value={style.highlightColor}
-            onChange={(v) => onUpdate("highlightColor", v)}
-          />
+      {/* Highlight color */}
+      {style.animation === "word_highlight" && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-white/40">Highlight color</p>
+          <p className="text-[10px] text-white/25">Color of the active spoken word</p>
+          <ColorInput value={style.highlightColor} onChange={(v) => onUpdate("highlightColor", v)} />
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -439,7 +404,7 @@ function TitleTab({
         <>
           {/* Custom text */}
           <div className="space-y-1.5">
-            <p className="text-xs text-white/40">Custom text (blank = AI title)</p>
+            <p className="text-xs text-white/40">Title text</p>
             <input
               type="text"
               value={style.titleText ?? ""}
@@ -464,22 +429,20 @@ function TitleTab({
 
           {/* Background */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-white/40">Background box</p>
-              <Toggle value={style.titleBg ?? true} onChange={(v) => onUpdate("titleBg", v)} />
-            </div>
-            {(style.titleBg ?? true) && (
-              <div className="flex items-center gap-3 ml-2">
-                <ColorInput value={style.titleBgColor ?? "#FFFFFF"} onChange={(v) => onUpdate("titleBgColor", v)} />
+            <p className="text-xs text-white/40">Background</p>
+            <div className="flex items-center gap-3">
+              <ColorInput value={style.titleBgColor ?? "#FFFFFF"} onChange={(v) => onUpdate("titleBgColor", v)} />
+              <div className="flex items-center gap-1.5 flex-1">
                 <input
-                  type="range" min={10} max={100}
+                  type="range" min={0} max={100}
                   value={style.titleBgOpacity ?? 100}
                   onChange={(e) => onUpdate("titleBgOpacity", Number(e.target.value))}
-                  className="w-24 accent-violet-400"
+                  className="flex-1 accent-violet-400"
                 />
-                <span className="text-[11px] text-white/40 w-7 tabular-nums">{style.titleBgOpacity ?? 100}%</span>
+                <span className="text-[11px] text-white/40 w-8 tabular-nums text-right">{style.titleBgOpacity ?? 100}%</span>
               </div>
-            )}
+            </div>
+            <p className="text-[10px] text-white/25 ml-0.5">Set opacity to 0% to remove the background box</p>
           </div>
 
           {/* Font */}
@@ -494,18 +457,34 @@ function TitleTab({
               <option value="Oswald" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Oswald</option>
               <option value="Arial" style={{ backgroundColor: "#1a1a1a", color: "white" }}>Arial</option>
             </select>
-            <div className="flex items-center gap-3">
-              <ColorInput value={style.titleColor ?? "#000000"} onChange={(v) => onUpdate("titleColor", v)} />
-              <NumInput
-                value={style.titleFontSize ?? 48}
-                onChange={(v) => onUpdate("titleFontSize", v)}
-                min={12} max={100}
-                className="w-14 px-2 py-1.5"
-              />
-              <span className="text-xs text-white/40">px</span>
-              <div className="flex items-center gap-1.5 ml-auto">
-                <Toggle value={style.titleBold ?? true} onChange={(v) => onUpdate("titleBold", v)} />
-                <span className="text-xs text-white/40">Bold</span>
+
+            {/* Text color + size + bold */}
+            <div className="space-y-1.5">
+              <p className="text-xs text-white/40">Text color &amp; size</p>
+              <div className="flex items-center gap-2">
+                <ColorInput value={style.titleColor ?? "#000000"} onChange={(v) => onUpdate("titleColor", v)} />
+                {/* Size stepper */}
+                <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => onUpdate("titleFontSize", Math.max(12, (style.titleFontSize ?? 48) - 1))}
+                    className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                  >▼</button>
+                  <NumInput
+                    value={style.titleFontSize ?? 48}
+                    onChange={(v) => onUpdate("titleFontSize", v)}
+                    min={12} max={120}
+                    className="w-10 px-1 py-1 border-0 rounded-none"
+                  />
+                  <button
+                    onClick={() => onUpdate("titleFontSize", Math.min(120, (style.titleFontSize ?? 48) + 1))}
+                    className="w-6 h-7 flex items-center justify-center bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                  >▲</button>
+                </div>
+                <span className="text-xs text-white/40">px</span>
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <Toggle value={style.titleBold ?? true} onChange={(v) => onUpdate("titleBold", v)} />
+                  <span className="text-xs text-white/40">Bold</span>
+                </div>
               </div>
             </div>
           </div>
@@ -531,7 +510,19 @@ export function SubtitleStylePicker({
   }
 
   function applyPreset(key: string) {
-    onChange({ ...PRESETS[key as keyof typeof PRESETS] });
+    onChange({
+      ...PRESETS[key as keyof typeof PRESETS],
+      titleEnabled: style.titleEnabled ?? true,
+      titleText: style.titleText,
+      titlePosition: style.titlePosition,
+      titleBg: style.titleBg,
+      titleBgColor: style.titleBgColor,
+      titleBgOpacity: style.titleBgOpacity,
+      titleFontFamily: style.titleFontFamily,
+      titleFontSize: style.titleFontSize,
+      titleColor: style.titleColor,
+      titleBold: style.titleBold,
+    });
   }
 
   const tabCls = (t: Tab) =>
