@@ -517,10 +517,26 @@ export default function Home() {
               Yearly <span className={`ml-1 text-xs font-bold ${billingPeriod === "annual" ? "text-black/70" : "text-emerald-400"}`}>Save 17%</span>
             </button>
           </div>
-          <div className="grid w-full max-w-3xl grid-cols-1 gap-2 text-sm text-white/55 sm:grid-cols-3">
-            {["7-day free trial", "Cancel anytime", "Unlimited scheduling on both plans"].map((item) => (
-              <div key={item} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-center">
-                {item}
+          <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+            {[
+              { label: "7-day free trial", icon: "01" },
+              { label: "Cancel anytime", icon: "02" },
+              { label: "Unlimited scheduling on both plans", icon: "03" },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="group relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.015))] px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.24)] backdrop-blur"
+              >
+                <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_52%)] opacity-80" />
+                <div className="relative z-10 flex items-center justify-center gap-3">
+                  <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-white/12 bg-black/45 px-2 text-[10px] font-semibold tracking-[0.2em] text-white/55">
+                    {item.icon}
+                  </span>
+                  <span className="text-sm font-medium leading-5 text-white/72">
+                    {item.label}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
