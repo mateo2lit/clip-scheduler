@@ -397,17 +397,18 @@ export default function AiClipProjectPage() {
       {/* Large preview modal */}
       {previewClipIndex !== null && job.status === "done" && job.result_upload_ids && authToken && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
           onClick={() => setPreviewClipIndex(null)}
         >
           <div
-            className="relative flex gap-4 items-start max-h-[90vh]"
+            className="relative flex gap-5 items-start"
+            style={{ maxHeight: "calc(100vh - 3rem)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
             <button
               onClick={() => setPreviewClipIndex(null)}
-              className="absolute -top-10 right-0 text-white/60 hover:text-white transition-colors text-sm flex items-center gap-1"
+              className="absolute -top-9 right-0 text-white/60 hover:text-white transition-colors text-sm flex items-center gap-1"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -415,42 +416,55 @@ export default function AiClipProjectPage() {
               Close
             </button>
 
-            {/* Large clip card */}
-            <ClipCard
-              index={previewClipIndex}
-              uploadId={job.result_upload_ids[previewClipIndex]}
-              title={job.result_titles?.[previewClipIndex] ?? `Clip ${previewClipIndex + 1}`}
-              subtitleWords={job.result_subtitles?.[previewClipIndex] ?? []}
-              subtitleStyle={subtitleStyle}
-              jobId={job.id}
-              token={authToken}
-              convertMode={convertMode}
-              onScheduled={(uid, t) => { handleScheduled(uid, t); setPreviewClipIndex(null); }}
-              onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
-              cardWidth={320}
-            />
+            {/* Left: clip card + nav */}
+            <div className="flex flex-col items-center gap-3 flex-shrink-0">
+              <ClipCard
+                index={previewClipIndex}
+                uploadId={job.result_upload_ids[previewClipIndex]}
+                title={job.result_titles?.[previewClipIndex] ?? `Clip ${previewClipIndex + 1}`}
+                subtitleWords={job.result_subtitles?.[previewClipIndex] ?? []}
+                subtitleStyle={subtitleStyle}
+                jobId={job.id}
+                token={authToken}
+                convertMode={convertMode}
+                onScheduled={(uid, t) => { handleScheduled(uid, t); setPreviewClipIndex(null); }}
+                onStyleChange={(updates) => setSubtitleStyle((s) => ({ ...s, ...updates }))}
+                cardWidth={320}
+              />
 
-            {/* Nav arrows if multiple clips */}
-            {job.result_upload_ids.length > 1 && (
-              <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-2">
-                <button
-                  onClick={() => setPreviewClipIndex((i: number | null) => i === null || i === 0 ? (job.result_upload_ids!.length - 1) : i - 1)}
-                  className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setPreviewClipIndex((i: number | null) => i === null ? 0 : (i + 1) % job.result_upload_ids!.length)}
-                  className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            )}
+              {/* Prev / next */}
+              {job.result_upload_ids.length > 1 && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setPreviewClipIndex((i: number | null) => i === null || i === 0 ? (job.result_upload_ids!.length - 1) : i - 1)}
+                    className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <span className="text-xs text-white/30 tabular-nums">
+                    {previewClipIndex + 1} / {job.result_upload_ids.length}
+                  </span>
+                  <button
+                    onClick={() => setPreviewClipIndex((i: number | null) => i === null ? 0 : (i + 1) % job.result_upload_ids!.length)}
+                    className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Right: settings panel */}
+            <div
+              className="w-80 flex-shrink-0 overflow-y-auto"
+              style={{ maxHeight: "calc(100vh - 3rem)" }}
+            >
+              <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} />
+            </div>
           </div>
         </div>
       )}

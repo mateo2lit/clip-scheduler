@@ -1,11 +1,23 @@
 // src/components/ai-clips/SubtitleStylePicker.tsx
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SubtitleStyle, PRESETS, PRESET_LABELS } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 
 type Tab = "presets" | "font" | "effects" | "title";
+
+// ── Custom preset storage ─────────────────────────────────────────────────────
+
+type CustomPreset = { id: string; name: string; style: SubtitleStyle };
+const CUSTOM_PRESETS_KEY = "ai-clips-custom-presets";
+
+function loadCustomPresets(): CustomPreset[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_PRESETS_KEY) ?? "[]");
+  } catch { return []; }
+}
 
 // ── Color input ───────────────────────────────────────────────────────────────
 
@@ -128,33 +140,135 @@ function PresetCardText({ preset }: { preset: SubtitleStyle }) {
 function PresetsTab({
   style,
   onSelect,
+  customPresets,
+  onSaveCustom,
+  onDeleteCustom,
 }: {
   style: SubtitleStyle;
-  onSelect: (key: string) => void;
+  onSelect: (key: string, customStyle?: SubtitleStyle) => void;
+  customPresets: CustomPreset[];
+  onSaveCustom: (name: string) => void;
+  onDeleteCustom: (id: string) => void;
 }) {
+  const [showSave, setShowSave] = useState(false);
+  const [saveName, setSaveName] = useState("");
+
   const keys = Object.keys(PRESETS) as Array<keyof typeof PRESETS>;
+
+  function handleSave() {
+    if (!saveName.trim()) return;
+    onSaveCustom(saveName.trim());
+    setShowSave(false);
+    setSaveName("");
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {keys.map((key) => {
-        const preset = PRESETS[key];
-        const isSelected = style.preset === key;
-        return (
-          <button
-            key={key}
-            onClick={() => onSelect(key)}
-            className={`rounded-xl overflow-hidden border-2 transition-all text-left ${
-              isSelected ? "border-violet-400" : "border-white/10 hover:border-white/30"
-            }`}
-          >
-            <div className="bg-gradient-to-b from-[#0d0d1a] to-[#111120] h-20 flex items-center justify-center px-2">
-              <PresetCardText preset={preset} />
-            </div>
-            <div className="py-1.5 px-2 bg-[#111116] text-center">
-              <span className={`text-[11px] font-medium ${isSelected ? "text-violet-300" : "text-white/60"}`}>{PRESET_LABELS[key]}</span>
-            </div>
-          </button>
-        );
-      })}
+    <div className="space-y-5">
+      {/* Built-in presets */}
+      <div className="grid grid-cols-2 gap-2">
+        {keys.map((key) => {
+          const preset = PRESETS[key];
+          const isSelected = style.preset === key;
+          return (
+            <button
+              key={key}
+              onClick={() => onSelect(key)}
+              className={`rounded-xl overflow-hidden border-2 transition-all text-left ${
+                isSelected ? "border-violet-400" : "border-white/10 hover:border-white/30"
+              }`}
+            >
+              <div className="bg-gradient-to-b from-[#0d0d1a] to-[#111120] h-20 flex items-center justify-center px-2">
+                <PresetCardText preset={preset} />
+              </div>
+              <div className="py-1.5 px-2 bg-[#111116] text-center">
+                <span className={`text-[11px] font-medium ${isSelected ? "text-violet-300" : "text-white/60"}`}>{PRESET_LABELS[key]}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-white/[0.06]" />
+
+      {/* Custom presets section */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-white/40 font-medium">Custom Presets</p>
+          {!showSave && (
+            <button
+              onClick={() => { setShowSave(true); setSaveName(""); }}
+              className="text-[11px] text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-0.5"
+            >
+              <span className="text-base leading-none">+</span> Save current
+            </button>
+          )}
+        </div>
+
+        {/* Save name input */}
+        {showSave && (
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="Name this preset…"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave();
+                if (e.key === "Escape") setShowSave(false);
+              }}
+              className="flex-1 bg-[#111] border border-white/15 rounded-lg px-2 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-violet-400/50"
+            />
+            <button
+              onClick={handleSave}
+              disabled={!saveName.trim()}
+              className="px-2.5 py-1 rounded-lg text-xs bg-violet-500 text-white hover:bg-violet-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setShowSave(false)}
+              className="px-2 py-1 rounded-lg text-xs bg-white/5 text-white/40 hover:text-white/60 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {customPresets.length === 0 && !showSave && (
+          <p className="text-[11px] text-white/20 italic">No saved presets yet — tweak any style and save it here.</p>
+        )}
+
+        {/* Custom preset list */}
+        <div className="space-y-1.5">
+          {customPresets.map((cp) => {
+            const isSelected = style.preset === "custom" && false; // custom presets don't track selection
+            return (
+              <div
+                key={cp.id}
+                onClick={() => onSelect("custom", cp.style)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-2 bg-white/[0.03] border border-white/10 hover:border-white/25 hover:bg-white/[0.05] transition-all cursor-pointer group"
+              >
+                {/* Color dot */}
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-white/20"
+                  style={{ backgroundColor: cp.style.highlightColor ?? "#ffffff" }}
+                />
+                <p className="flex-1 text-xs text-white/70 truncate">{cp.name}</p>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDeleteCustom(cp.id); }}
+                  className="opacity-0 group-hover:opacity-100 text-white/25 hover:text-red-400 transition-all text-xs leading-none flex-shrink-0"
+                  title="Delete preset"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -526,12 +640,21 @@ export function SubtitleStylePicker({
   onChange: (s: SubtitleStyle) => void;
 }) {
   const [tab, setTab] = useState<Tab>("presets");
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+
+  useEffect(() => {
+    setCustomPresets(loadCustomPresets());
+  }, []);
 
   function update<K extends keyof SubtitleStyle>(key: K, val: SubtitleStyle[K]) {
     onChange({ ...style, [key]: val, preset: "custom" });
   }
 
-  function applyPreset(key: string) {
+  function applyPreset(key: string, customStyle?: SubtitleStyle) {
+    if (customStyle) {
+      onChange({ ...customStyle, preset: "custom" });
+      return;
+    }
     onChange({
       ...PRESETS[key as keyof typeof PRESETS],
       titleEnabled: style.titleEnabled ?? true,
@@ -544,7 +667,26 @@ export function SubtitleStylePicker({
       titleFontSize: style.titleFontSize,
       titleColor: style.titleColor,
       titleBold: style.titleBold,
+      titleStrokeColor: style.titleStrokeColor,
+      titleStrokeWidth: style.titleStrokeWidth,
     });
+  }
+
+  function saveCustomPreset(name: string) {
+    const newPreset: CustomPreset = {
+      id: Date.now().toString(),
+      name,
+      style: { ...style },
+    };
+    const updated = [...customPresets, newPreset];
+    setCustomPresets(updated);
+    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updated));
+  }
+
+  function deleteCustomPreset(id: string) {
+    const updated = customPresets.filter((p) => p.id !== id);
+    setCustomPresets(updated);
+    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updated));
   }
 
   const tabCls = (t: Tab) =>
@@ -573,7 +715,15 @@ export function SubtitleStylePicker({
       </div>
 
       <div className="p-4">
-        {tab === "presets" && <PresetsTab style={style} onSelect={applyPreset} />}
+        {tab === "presets" && (
+          <PresetsTab
+            style={style}
+            onSelect={applyPreset}
+            customPresets={customPresets}
+            onSaveCustom={saveCustomPreset}
+            onDeleteCustom={deleteCustomPreset}
+          />
+        )}
         {tab === "font" && <FontTab style={style} onUpdate={update} />}
         {tab === "effects" && <EffectsTab style={style} onUpdate={update} />}
         {tab === "title" && <TitleTab style={style} onUpdate={update} />}
