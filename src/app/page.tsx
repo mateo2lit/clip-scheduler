@@ -58,6 +58,53 @@ const FAQ_ITEMS = [
   },
 ];
 
+const PRICING_PLANS = {
+  creator: {
+    name: "Creator",
+    eyebrow: "For solo creators",
+    monthly: 9.99,
+    annualMonthly: 8.17,
+    annualTotal: 98,
+    annualSavings: 22,
+    highlight: "Most popular for solo posting",
+    ctaMonthly: "Start free trial",
+    ctaAnnual: "Start free trial",
+    included: [
+      "Unlimited uploads and scheduled posts",
+      "All 6 supported platforms",
+      "Multiple accounts per platform",
+      "AI tag suggestions and analytics",
+      "Unified comments inbox",
+      "Smart queue scheduling",
+    ],
+    locked: [
+      "AI Clips workspace",
+      "Up to 5 team members",
+      "Shared uploads and permissions",
+    ],
+  },
+  team: {
+    name: "Team",
+    eyebrow: "For editors, brands, and operators",
+    monthly: 19.99,
+    annualMonthly: 16.58,
+    annualTotal: 199,
+    annualSavings: 41,
+    highlight: "Best for teams running multiple channels",
+    ctaMonthly: "Start team trial",
+    ctaAnnual: "Start team trial",
+    included: [
+      "Everything in Creator",
+      "Up to 5 team members",
+      "Shared platform connections",
+      "Role-based permissions",
+      "Shared uploads library and comments inbox",
+      "AI Clips access and team workflows",
+      "Priority email support",
+    ],
+  },
+} as const;
+
 function FaqAccordion() {
   const [open, setOpen] = useState<number | null>(null);
   return (
@@ -94,7 +141,7 @@ export default function Home() {
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [importShotError, setImportShotError] = useState(false);
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -444,57 +491,78 @@ export default function Home() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="relative z-10 mx-auto max-w-4xl px-6 py-20">
+      <section id="pricing" className="relative z-10 mx-auto max-w-6xl px-6 py-24">
         <div className="text-center mb-8">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Simple, transparent pricing</h2>
-          <p className="mt-4 text-white/40 text-lg">Start with a 7-day free trial. Cancel anytime.</p>
+          <div className="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">
+            Pricing
+          </div>
+          <h2 className="mt-5 text-4xl sm:text-5xl font-bold tracking-tight">
+            Friendly pricing for <span className="bg-gradient-to-r from-blue-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">video creators</span>
+          </h2>
+          <p className="mt-4 text-white/45 text-lg max-w-2xl mx-auto">Start with a 7-day free trial, choose yearly pricing by default, and pick the plan that matches whether you post solo or with a team.</p>
         </div>
         {/* Billing period toggle */}
-        <div className="flex justify-center mb-10">
-          <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+        <div className="flex flex-col items-center gap-4 mb-10">
+          <div className="flex rounded-full border border-white/10 bg-black/30 p-1 text-sm backdrop-blur">
             <button
               onClick={() => setBillingPeriod("monthly")}
-              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "monthly" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+              className={`rounded-full px-4 py-2 font-medium transition-all ${billingPeriod === "monthly" ? "bg-white text-black shadow-[0_8px_24px_rgba(255,255,255,0.12)]" : "text-white/50 hover:text-white/80"}`}
             >
               Monthly
             </button>
             <button
               onClick={() => setBillingPeriod("annual")}
-              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${billingPeriod === "annual" ? "bg-white text-black" : "text-white/50 hover:text-white/80"}`}
+              className={`rounded-full px-4 py-2 font-medium transition-all ${billingPeriod === "annual" ? "bg-gradient-to-r from-blue-300 via-violet-300 to-fuchsia-300 text-black shadow-[0_10px_30px_rgba(167,139,250,0.25)]" : "text-white/50 hover:text-white/80"}`}
             >
-              Annual <span className={`ml-1 text-xs font-semibold ${billingPeriod === "annual" ? "text-emerald-600" : "text-emerald-400"}`}>Save 17%</span>
+              Yearly <span className={`ml-1 text-xs font-bold ${billingPeriod === "annual" ? "text-black/70" : "text-emerald-400"}`}>Save 17%</span>
             </button>
           </div>
+          <div className="grid w-full max-w-3xl grid-cols-1 gap-2 text-sm text-white/55 sm:grid-cols-3">
+            {["7-day free trial", "Cancel anytime", "Unlimited scheduling on both plans"].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-center">
+                {item}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Creator */}
-          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.04] p-6 flex flex-col relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-0.5 text-xs font-semibold">
-              Most Popular
+          <div className="rounded-[1.75rem] border border-white/10 bg-gradient-to-b from-[#18284f] via-[#1f1740] to-[#120c22] p-6 sm:p-7 flex flex-col relative shadow-[0_24px_70px_rgba(59,130,246,0.12)]">
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/12 text-blue-300">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 6 12h4.5l-1.5 7.5L18 12h-4.5l1.5-7.5Z" />
+              </svg>
             </div>
-            <h3 className="text-lg font-semibold">Creator</h3>
+            <div className="mt-5 inline-flex self-start rounded-full border border-blue-300/20 bg-blue-400/12 px-3 py-1 text-[11px] font-medium text-blue-200">
+              For solo creators
+            </div>
+            <h3 className="mt-4 text-2xl font-semibold">Creator</h3>
+            <p className="mt-2 text-sm leading-6 text-white/48">Best if you are posting your own videos and want one clean system for scheduling, comments, and analytics.</p>
             <div className="mt-3 mb-5">
               {billingPeriod === "annual" ? (
                 <>
-                  <span className="text-4xl font-bold">$8.17</span>
+                  <span className="text-5xl font-bold">$8.17</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
-                  <div className="text-xs text-white/40 mt-0.5">$98 billed annually</div>
+                  <div className="text-xs text-white/40 mt-1">$98 billed yearly · Save $22</div>
                 </>
               ) : (
                 <>
-                  <span className="text-4xl font-bold">$9.99</span>
+                  <span className="text-5xl font-bold">$9.99</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
+                  <div className="text-xs text-white/40 mt-1">Billed monthly</div>
                 </>
               )}
             </div>
-            <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
+            <div className="rounded-2xl border border-white/8 bg-black/18 p-4 mb-5">
+            <div className="text-sm font-semibold text-white">Included</div>
+            <ul className="space-y-3 text-sm text-white/68 mt-4">
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                 Unlimited uploads &amp; scheduled posts
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                All 7 platforms
+                All 6 supported platforms
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
@@ -513,32 +581,62 @@ export default function Home() {
                 Analytics dashboard
               </li>
             </ul>
+            </div>
+            <div className="rounded-2xl border border-blue-300/14 bg-blue-300/8 p-4 mb-6">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-200/85">Upgrade unlocks</div>
+              <ul className="mt-3 space-y-2 text-sm text-white/60">
+                {PRICING_PLANS.creator.locked.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <svg className="mt-0.5 h-4 w-4 shrink-0 text-blue-200/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7.875a4.125 4.125 0 1 0-8.25 0V10.5m-.75 0h9a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18v-6a1.5 1.5 0 0 1 1.5-1.5Z" />
+                    </svg>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <a
               href="/login"
-              className="block text-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+              className="block text-center rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
             </a>
+            <p className="mt-2 text-center text-xs text-white/35">No long-term commitment. Cancel before renewal.</p>
           </div>
 
           {/* Team */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 flex flex-col">
-            <h3 className="text-lg font-semibold">Team</h3>
+          <div className="rounded-[1.75rem] border border-violet-400/30 bg-gradient-to-b from-[#23103a] via-[#24103f] to-[#170b2c] p-6 sm:p-7 flex flex-col relative shadow-[0_26px_90px_rgba(168,85,247,0.22)]">
+            <div className="absolute right-4 top-4 rounded-full border border-violet-300/25 bg-violet-300/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-100">
+              Best value
+            </div>
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-400/14 text-violet-200">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m4-2a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" />
+              </svg>
+            </div>
+            <div className="mt-5 inline-flex self-start rounded-full border border-violet-300/25 bg-violet-400/14 px-3 py-1 text-[11px] font-medium text-violet-100">
+              For editors, brands, and teams
+            </div>
+            <h3 className="mt-4 text-2xl font-semibold">Team</h3>
+            <p className="mt-2 text-sm leading-6 text-white/48">Built for shared workflows when more than one person needs access to uploads, scheduling, comments, and AI Clips.</p>
             <div className="mt-3 mb-5">
               {billingPeriod === "annual" ? (
                 <>
-                  <span className="text-4xl font-bold">$16.58</span>
+                  <span className="text-5xl font-bold">$16.58</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
-                  <div className="text-xs text-white/40 mt-0.5">$199 billed annually</div>
+                  <div className="text-xs text-white/40 mt-1">$199 billed yearly · Save $41</div>
                 </>
               ) : (
                 <>
-                  <span className="text-4xl font-bold">$19.99</span>
+                  <span className="text-5xl font-bold">$19.99</span>
                   <span className="text-white/40 text-sm ml-1">/month</span>
+                  <div className="text-xs text-white/40 mt-1">Billed monthly</div>
                 </>
               )}
             </div>
-            <ul className="space-y-3 text-sm text-white/60 mb-8 flex-1">
+            <div className="rounded-2xl border border-white/8 bg-black/18 p-4 mb-6">
+            <div className="text-sm font-semibold text-white">Included</div>
+            <ul className="space-y-3 text-sm text-white/68 mt-4">
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                 Everything in Creator
@@ -564,12 +662,14 @@ export default function Home() {
                 Priority email support
               </li>
             </ul>
+            </div>
             <a
               href="/login"
-              className="block text-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition-colors"
+              className="block text-center rounded-xl bg-gradient-to-r from-violet-300 via-fuchsia-300 to-blue-300 px-6 py-3.5 text-sm font-semibold text-black hover:brightness-105 transition-colors"
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
             </a>
+            <p className="mt-2 text-center text-xs text-violet-100/70">Includes AI Clips access and shared workspace features.</p>
           </div>
         </div>
       </section>
