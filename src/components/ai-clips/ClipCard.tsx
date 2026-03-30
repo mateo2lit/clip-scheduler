@@ -1,11 +1,140 @@
 // src/components/ai-clips/ClipCard.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SubtitleStyle } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 
 type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
+type TimedWord = { start: number; end: number; word: string };
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function hexToRgba(hex: string, opacity: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, opacity / 100))})`;
+}
+
+/** Strip Whisper artifacts: [Music], (laughter), and leading/trailing punctuation. */
+function cleanWord(word: string): string {
+  const t = word.trim();
+  if (!t) return "";
+  if (/^\[.*\]$/.test(t) || /^\(.*\)$/.test(t)) return "";
+  return t.replace(/^[.,!?;:"'""''`—–…\-]+|[.,!?;:"'""''`—–…\-]+$/g, "").trim();
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function TitleOverlay({ style, fallbackText }: { style: SubtitleStyle; fallbackText: string }) {
+  if (!(style.titleEnabled ?? true)) return null;
+  const text = style.titleText?.trim() || fallbackText;
+  if (!text) return null;
+  const isTop = (style.titlePosition ?? "top") === "top";
+  const bg = style.titleBg ?? true;
+  const bgColor = style.titleBgColor ?? "#FFFFFF";
+  const bgOpacity = style.titleBgOpacity ?? 100;
+  const color = style.titleColor ?? "#000000";
+  const bold = style.titleBold ?? true;
+  const fontFamily = style.titleFontFamily ?? "Montserrat";
+  return (
+    <div
+      className={`absolute ${isTop ? "top-2" : "bottom-10"} left-2 right-2 z-20 rounded-lg px-2 py-1.5 shadow-md`}
+      style={bg ? { backgroundColor: hexToRgba(bgColor, bgOpacity) } : {}}
+    >
+      <p
+        className="text-[10px] leading-tight line-clamp-3"
+        style={{ color, fontWeight: bold ? 900 : 400, fontFamily }}
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function LiveCaption({
+  words,
+  currentTime,
+  style,
+}: {
+  words: TimedWord[];
+  currentTime: number;
+  style: SubtitleStyle;
+}) {
+  if (style.animation === "none" || !words.length) return null;
+
+  const wpg = style.lines === 1 ? 4 : 8;
+
+  let activeGroup: TimedWord[] | null = null;
+  let activeWordIdx = 0;
+
+  for (let i = 0; i < words.length; i += wpg) {
+    const group = words.slice(i, i + wpg);
+    const groupStart = group[0].start;
+    const groupEnd = group[group.length - 1].end;
+    if (currentTime >= groupStart - 0.05 && currentTime <= groupEnd + 0.2) {
+      activeGroup = group;
+      activeWordIdx = 0;
+      for (let j = 0; j < group.length; j++) {
+        if (currentTime >= group[j].start) activeWordIdx = j;
+        else break;
+      }
+      break;
+    }
+  }
+
+  if (!activeGroup) return null;
+
+  const fontWeightNum = style.fontWeight === "Black" ? 900 : style.fontWeight === "Bold" ? 700 : 400;
+  const posClass =
+    style.position === "top"
+      ? "top-2"
+      : style.position === "middle"
+      ? "top-1/2 -translate-y-1/2"
+      : "bottom-2";
+  const dropShadow = style.shadowEnabled
+    ? `${style.shadowX}px ${style.shadowY}px ${style.shadowBlur}px rgba(0,0,0,0.85)`
+    : undefined;
+
+  const baseStyle: CSSProperties = {
+    fontFamily: style.fontFamily + ", sans-serif",
+    fontSize: `${style.fontSize}px`,
+    fontWeight: fontWeightNum,
+    fontStyle: style.italic ? "italic" : "normal",
+    textDecoration: style.underline ? "underline" : "none",
+    textTransform: style.uppercase ? "uppercase" : "none",
+    WebkitTextStroke: style.strokeWidth > 0 ? `${style.strokeWidth}px ${style.strokeColor}` : undefined,
+    textShadow: dropShadow,
+    lineHeight: 1.3,
+    paintOrder: "stroke fill" as any,
+  };
+
+  const displayWords = activeGroup.map((w) => w.word).filter(Boolean);
+
+  if (style.animation === "word_highlight") {
+    return (
+      <div className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${posClass}`}>
+        <p style={baseStyle}>
+          {displayWords.map((word, i) => (
+            <span key={i} style={{ color: i === activeWordIdx ? style.highlightColor : style.primaryColor }}>
+              {word}{i < displayWords.length - 1 ? " " : ""}
+            </span>
+          ))}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`absolute left-0 right-0 px-2 pointer-events-none text-center ${posClass}`}>
+      <p style={{ ...baseStyle, color: style.primaryColor }}>{displayWords.join(" ")}</p>
+    </div>
+  );
+}
+
+// ── ClipCard ──────────────────────────────────────────────────────────────────
 
 export function ClipCard({
   index,
@@ -33,8 +162,10 @@ export function ClipCard({
   const [burnError, setBurnError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,14 +180,32 @@ export function ClipCard({
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
+  // RAF-driven currentTime for live caption sync
+  useEffect(() => {
+    if (!playing) {
+      if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      return;
+    }
+    const tick = () => {
+      if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; } };
+  }, [playing]);
+
   function togglePlay() {
     if (!videoRef.current) return;
     if (playing) { videoRef.current.pause(); setPlaying(false); }
     else { videoRef.current.play().catch(() => {}); setPlaying(true); }
   }
 
-  const firstWords = subtitleWords?.slice(0, 6) ?? [];
-  const hasRealWords = subtitleWords.length > 0;
+  // Clean Whisper artifacts for display
+  const cleanedWords: TimedWord[] = (subtitleWords ?? [])
+    .map((w: any) => ({ start: w.start, end: w.end, word: cleanWord(w.word) }))
+    .filter((w) => w.word);
+  const firstWords = cleanedWords.slice(0, 6);
+  const hasRealWords = cleanedWords.length > 0;
   const hasSubtitles = subtitleStyle.animation !== "none" && hasRealWords;
   const titleEnabled = subtitleStyle.titleEnabled ?? true;
   const needsBurn = hasSubtitles || convertMode !== "landscape" || titleEnabled;
@@ -252,10 +401,8 @@ export function ClipCard({
           </div>
         )}
 
-        {/* Title caption box — top of card */}
-        <div className="absolute top-2 left-2 right-2 z-20 bg-white rounded-lg px-2 py-1.5 shadow-md">
-          <p className="text-black text-[10px] font-bold leading-tight line-clamp-3">{title}</p>
-        </div>
+        {/* Title overlay — respects titleEnabled, position, bg color, opacity, font */}
+        <TitleOverlay style={subtitleStyle} fallbackText={title} />
 
         {/* Play button overlay */}
         {videoUrl && !playing && (
@@ -268,10 +415,14 @@ export function ClipCard({
           </div>
         )}
 
-        {/* Subtitle preview */}
+        {/* Caption — live time-synced when playing, static preview otherwise */}
         {subtitleStyle.animation !== "none" && (
           hasRealWords ? (
-            <SubtitlePreview style={subtitleStyle} words={firstWords} preview={false} />
+            playing ? (
+              <LiveCaption words={cleanedWords} currentTime={currentTime} style={subtitleStyle} />
+            ) : (
+              <SubtitlePreview style={subtitleStyle} words={firstWords} preview={false} />
+            )
           ) : (
             <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
               <span className="text-[9px] text-white/40 bg-black/50 rounded px-1.5 py-0.5">No speech detected</span>

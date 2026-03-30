@@ -216,7 +216,7 @@ jobs:
           BURN_MODE: ${{ inputs.mode }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, subprocess
+          import json, os, re, subprocess
 
           with open("/tmp/subtitle_data.json") as f:
               words = json.load(f)
@@ -437,6 +437,20 @@ jobs:
 
           def apply_case(t):
               return t.upper() if uppercase else t
+
+          # ── Pre-clean words: strip Whisper artifacts ─────────────────────────────
+          # Remove [Music], (laughter), etc. and strip leading/trailing punctuation.
+          # Preserves apostrophes inside words (don't, it's).
+          _PUNCT = re.compile(r'^[.,!?;:"\'\u2018\u2019\u201c\u201d`\u2014\u2013\u2026\-]+|[.,!?;:"\'\u2018\u2019\u201c\u201d`\u2014\u2013\u2026\-]+$')
+          _ANNOTATION = re.compile(r'^\[.*\]$|^\(.*\)$')
+          def _clean(w):
+              t = w.strip()
+              if not t or _ANNOTATION.match(t):
+                  return ""
+              return _PUNCT.sub("", t).strip()
+
+          words = [dict(w, word=_clean(w["word"])) for w in words]
+          words = [w for w in words if w["word"]]
 
           events = []
           WORDS_PER_GROUP = 4 if lines == 1 else 8
