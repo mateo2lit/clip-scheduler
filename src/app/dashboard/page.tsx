@@ -11,11 +11,23 @@ type PostCounts = {
   drafts: number;
 };
 
+type AnalyticsTotals = {
+  views: number;
+  likes: number;
+};
+
+function formatStat(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
 export default function DashboardPage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState<PostCounts>({ scheduled: 0, posted: 0, drafts: 0 });
   const [loading, setLoading] = useState(true);
-  const totalPosts = counts.scheduled + counts.posted + counts.drafts;
+  const [totals, setTotals] = useState<AnalyticsTotals | null>(null);
+  const [totalsLoading, setTotalsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,9 +56,11 @@ export default function DashboardPage() {
 
       if (!teamId || cancelled) {
         setLoading(false);
+        setTotalsLoading(false);
         return;
       }
 
+      // Post counts — fast
       const [scheduledRes, postedRes, draftsRes] = await Promise.all([
         supabase
           .from("scheduled_posts")
@@ -72,9 +86,43 @@ export default function DashboardPage() {
         posted: postedRes.count ?? 0,
         drafts: draftsRes.count ?? 0,
       });
-
       setLoading(false);
 
+      // Analytics totals — slow (external API calls), loads separately
+      // Use localStorage as a stale-while-revalidate cache keyed by teamId
+      const cacheKey = `dashboard_stats_${teamId}`;
+      const cacheTtl = 15 * 60 * 1000; // 15 min
+      let cacheHit = false;
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          const cached = JSON.parse(raw) as { views: number; likes: number; cachedAt: number };
+          if (!cancelled) {
+            setTotals({ views: cached.views, likes: cached.likes });
+            setTotalsLoading(false);
+          }
+          cacheHit = true;
+          // If fresh, skip the network call entirely
+          if (Date.now() - cached.cachedAt < cacheTtl) return;
+          // If stale, fall through to refresh silently in background
+        }
+      } catch {}
+
+      try {
+        // range=1w → maxResults capped at 50 per platform (vs 200 for 1y), ~4× faster
+        const analyticsRes = await fetch("/api/analytics/metrics?range=1w", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const analyticsJson = await analyticsRes.json();
+        if (!cancelled && analyticsJson.ok) {
+          const fresh = { views: analyticsJson.totals.views, likes: analyticsJson.totals.likes };
+          setTotals(fresh);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ ...fresh, cachedAt: Date.now() }));
+          } catch {}
+        }
+      } catch {}
+      if (!cancelled && !cacheHit) setTotalsLoading(false);
     }
 
     boot();
@@ -105,37 +153,68 @@ export default function DashboardPage() {
       <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: "Total", value: totalPosts, color: "text-white" },
-            { label: "Scheduled", value: counts.scheduled, color: "text-blue-400" },
-            { label: "Posted", value: counts.posted, color: "text-emerald-400" },
-            { label: "Drafts", value: counts.drafts, color: "text-amber-400" },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4"
-            >
-              <p className="text-xs text-white/40 uppercase tracking-wider">{stat.label}</p>
-              <p className={`text-3xl font-bold mt-1.5 tabular-nums ${stat.color}`}>
-                {loading ? (
-                  <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
-                ) : (
-                  stat.value
-                )}
-              </p>
-            </div>
-          ))}
+          {/* Total Views */}
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
+            <p className="text-xs text-white/40 uppercase tracking-wider">Views <span className="normal-case tracking-normal text-white/20 not-uppercase">· 7d</span></p>
+            <p className="text-3xl font-bold mt-1.5 tabular-nums text-sky-400">
+              {totalsLoading ? (
+                <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
+              ) : totals ? (
+                formatStat(totals.views)
+              ) : (
+                <span className="text-white/20 text-2xl">—</span>
+              )}
+            </p>
+          </div>
+
+          {/* Total Likes */}
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
+            <p className="text-xs text-white/40 uppercase tracking-wider">Likes <span className="normal-case tracking-normal text-white/20 not-uppercase">· 7d</span></p>
+            <p className="text-3xl font-bold mt-1.5 tabular-nums text-pink-400">
+              {totalsLoading ? (
+                <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
+              ) : totals ? (
+                formatStat(totals.likes)
+              ) : (
+                <span className="text-white/20 text-2xl">—</span>
+              )}
+            </p>
+          </div>
+
+          {/* Posted */}
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
+            <p className="text-xs text-white/40 uppercase tracking-wider">Posted</p>
+            <p className="text-3xl font-bold mt-1.5 tabular-nums text-emerald-400">
+              {loading ? (
+                <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
+              ) : (
+                counts.posted
+              )}
+            </p>
+          </div>
+
+          {/* Scheduled */}
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
+            <p className="text-xs text-white/40 uppercase tracking-wider">Scheduled</p>
+            <p className="text-3xl font-bold mt-1.5 tabular-nums text-blue-400">
+              {loading ? (
+                <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
+              ) : (
+                counts.scheduled
+              )}
+            </p>
+          </div>
         </div>
 
         {/* Upload CTA */}
         <div className="mt-6">
           <Link
-            href="/upload"
-            className="group flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+            href="/uploads"
+            className="group flex items-center justify-between rounded-3xl border border-blue-500/20 bg-gradient-to-r from-blue-500/[0.06] to-purple-500/[0.03] shadow-[0_0_50px_rgba(96,165,250,0.07)] p-6 hover:border-blue-400/30 hover:from-blue-500/[0.09] hover:to-purple-500/[0.06] transition-all"
           >
             <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-white/[0.06] flex items-center justify-center group-hover:bg-white/[0.10] transition-colors">
-                <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </div>
@@ -144,7 +223,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-white/40 mt-0.5">Schedule across all your platforms in one go</p>
               </div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white/20 group-hover:text-blue-400/60 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
           </Link>
@@ -206,100 +285,106 @@ export default function DashboardPage() {
 
         {/* Navigation Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Scheduled */}
-          <Link
-            href="/scheduled"
-            className="group rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div className="inline-flex rounded-xl p-3 bg-blue-500/10 text-blue-400">
+          {[
+            {
+              href: "/scheduled",
+              label: "Scheduled",
+              desc: "Queued for publishing",
+              count: counts.scheduled,
+              color: "blue",
+              icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
-              </div>
-              <span className="text-3xl font-bold tabular-nums text-white/80">
-                {loading ? (
-                  <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
-                ) : (
-                  counts.scheduled
-                )}
-              </span>
-            </div>
-            <div className="mt-5">
-              <h3 className="font-semibold text-white/90">Scheduled</h3>
-              <p className="text-sm text-white/40 mt-0.5">Queued for publishing</p>
-            </div>
-            <div className="mt-5 pt-4 border-t border-white/5 flex items-center text-sm text-white/30 group-hover:text-blue-400/70 transition-colors">
-              View all
-              <svg className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </div>
-          </Link>
-
-          {/* Posted */}
-          <Link
-            href="/posted"
-            className="group rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div className="inline-flex rounded-xl p-3 bg-emerald-500/10 text-emerald-400">
+              ),
+            },
+            {
+              href: "/posted",
+              label: "Posted",
+              desc: "Successfully published",
+              count: counts.posted,
+              color: "emerald",
+              icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                 </svg>
-              </div>
-              <span className="text-3xl font-bold tabular-nums text-white/80">
-                {loading ? (
-                  <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
-                ) : (
-                  counts.posted
-                )}
-              </span>
-            </div>
-            <div className="mt-5">
-              <h3 className="font-semibold text-white/90">Posted</h3>
-              <p className="text-sm text-white/40 mt-0.5">Successfully published</p>
-            </div>
-            <div className="mt-5 pt-4 border-t border-white/5 flex items-center text-sm text-white/30 group-hover:text-emerald-400/70 transition-colors">
-              View all
-              <svg className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </div>
-          </Link>
-
-          {/* Drafts */}
-          <Link
-            href="/drafts"
-            className="group rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div className="inline-flex rounded-xl p-3 bg-amber-500/10 text-amber-400">
+              ),
+            },
+            {
+              href: "/drafts",
+              label: "Drafts",
+              desc: "Saved for later",
+              count: counts.drafts,
+              color: "amber",
+              icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                 </svg>
+              ),
+            },
+          ].map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className={`group rounded-3xl border p-6 transition-all ${
+                card.color === "blue"
+                  ? "border-blue-500/15 bg-blue-500/[0.04] shadow-[0_0_40px_rgba(59,130,246,0.06)] hover:bg-blue-500/[0.07] hover:border-blue-400/25"
+                  : card.color === "emerald"
+                  ? "border-emerald-500/15 bg-emerald-500/[0.04] shadow-[0_0_40px_rgba(16,185,129,0.06)] hover:bg-emerald-500/[0.07] hover:border-emerald-400/25"
+                  : "border-amber-500/15 bg-amber-500/[0.04] shadow-[0_0_40px_rgba(245,158,11,0.06)] hover:bg-amber-500/[0.07] hover:border-amber-400/25"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className={`inline-flex rounded-xl p-3 ${
+                    card.color === "blue"
+                      ? "bg-blue-500/10 text-blue-400"
+                      : card.color === "emerald"
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-amber-500/10 text-amber-400"
+                  }`}
+                >
+                  {card.icon}
+                </div>
+                <span
+                  className={`text-3xl font-bold tabular-nums ${
+                    card.color === "blue"
+                      ? "text-blue-300/80"
+                      : card.color === "emerald"
+                      ? "text-emerald-300/80"
+                      : "text-amber-300/80"
+                  }`}
+                >
+                  {loading ? (
+                    <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
+                  ) : (
+                    card.count
+                  )}
+                </span>
               </div>
-              <span className="text-3xl font-bold tabular-nums text-white/80">
-                {loading ? (
-                  <span className="inline-block w-8 h-8 rounded bg-white/[0.06] animate-pulse" />
-                ) : (
-                  counts.drafts
-                )}
-              </span>
-            </div>
-            <div className="mt-5">
-              <h3 className="font-semibold text-white/90">Drafts</h3>
-              <p className="text-sm text-white/40 mt-0.5">Saved for later</p>
-            </div>
-            <div className="mt-5 pt-4 border-t border-white/5 flex items-center text-sm text-white/30 group-hover:text-amber-400/70 transition-colors">
-              View all
-              <svg className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </div>
-          </Link>
+              <div className="mt-5">
+                <h3 className="font-semibold text-white/90">{card.label}</h3>
+                <p className="text-sm text-white/40 mt-0.5">{card.desc}</p>
+              </div>
+              <div
+                className={`mt-5 pt-4 border-t border-white/5 flex items-center text-sm text-white/30 transition-colors ${
+                  card.color === "blue"
+                    ? "group-hover:text-blue-400/70"
+                    : card.color === "emerald"
+                    ? "group-hover:text-emerald-400/70"
+                    : "group-hover:text-amber-400/70"
+                }`}
+              >
+                View all
+                <svg className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
+
       {/* Floating help button */}
       <a
         href="/support"
@@ -313,5 +398,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-
