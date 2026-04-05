@@ -376,19 +376,28 @@ export default function Home() {
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">How it works</h2>
           <p className="mt-4 text-white/40 text-lg">From upload to published in under 60 seconds.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           {[
             { step: "1", title: "Upload or import", desc: "Drop your video file or paste a Twitch/Kick clip link, then add your title, description, hashtags, and thumbnail in one place." },
             { step: "2", title: "Pick platforms and accounts", desc: "Select which platforms to post to. If you have multiple YouTube channels or TikTok accounts, choose which ones to post to — or all of them at once." },
             { step: "3", title: "Schedule and relax", desc: "Set a time, hit schedule, and walk away. No re-uploading, no re-logging in. Clip Dash posts automatically and all your comments land in one unified inbox." },
-          ].map((s) => (
-            <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5">
-                {s.step}
+          ].map((s, i) => (
+            <Fragment key={s.step}>
+              <div className="flex-1 rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold mb-5 ring-4 ring-[#050505]">
+                  {s.step}
+                </div>
+                <h3 className="text-lg font-semibold">{s.title}</h3>
+                <p className="mt-2 text-sm text-white/50 leading-relaxed">{s.desc}</p>
               </div>
-              <h3 className="text-lg font-semibold">{s.title}</h3>
-              <p className="mt-2 text-sm text-white/50 leading-relaxed">{s.desc}</p>
-            </div>
+              {i < 2 && (
+                <div className="hidden sm:flex items-center justify-center shrink-0 w-6 text-white/25">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M3 10h14M11 4l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2"/>
+                  </svg>
+                </div>
+              )}
+            </Fragment>
           ))}
         </div>
       </section>
