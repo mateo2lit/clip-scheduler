@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { supabase } from "./login/supabaseClient";
 
 const FAQ_ITEMS = [
@@ -190,7 +190,11 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 mx-auto max-w-4xl px-6 pt-24 pb-20 text-center">
+      <section className="relative z-10 mx-auto max-w-5xl px-6 pt-24 pb-6 text-center">
+        {/* Radial gradient bloom */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[500px] w-[900px] rounded-full bg-[radial-gradient(ellipse_at_top,rgba(96,165,250,0.11)_0%,rgba(167,139,250,0.07)_45%,transparent_70%)] blur-3xl" />
+        </div>
         <div className="inline-block rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 mb-8">
           Built for video creators — not brands
         </div>
@@ -247,7 +251,15 @@ export default function Home() {
             </div>
           ))}
         </div>
-        
+
+        {/* Product screenshot */}
+        <div className="mt-14 rounded-2xl border border-white/10 bg-white/[0.02] p-2 shadow-[0_0_100px_rgba(96,165,250,0.12),0_0_50px_rgba(167,139,250,0.08)] text-left">
+          <img
+            src="/product-scheduler.png"
+            alt="Clip Dash scheduling interface — configure platforms, accounts, and preview in one view"
+            className="w-full rounded-xl"
+          />
+        </div>
       </section>
 
       {/* Features */}
