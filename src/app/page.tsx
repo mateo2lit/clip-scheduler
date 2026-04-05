@@ -622,7 +622,7 @@ export default function Home() {
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
             </a>
-            <p className="mt-2 text-center text-xs text-white/35">No long-term commitment. Cancel before renewal.</p>
+            <p className="mt-2 text-center text-xs text-white/40">No payment due today — cancel anytime before day 7.</p>
           </div>
 
           {/* Team */}
@@ -690,7 +690,7 @@ export default function Home() {
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
             </a>
-            <p className="mt-2 text-center text-xs text-violet-100/70">Includes AI Clips access and shared workspace features.</p>
+            <p className="mt-2 text-center text-xs text-violet-100/50">No payment due today — cancel anytime before day 7.</p>
           </div>
         </div>
       </section>
