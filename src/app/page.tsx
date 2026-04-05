@@ -402,6 +402,40 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Calendar Screenshot Showcase */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Your entire content calendar,<br className="hidden sm:block" /> across all platforms.
+          </h2>
+          <p className="mt-4 text-white/40 text-lg max-w-2xl mx-auto">
+            Every scheduled post across YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky — visible in one view.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-2 shadow-[0_0_60px_rgba(96,165,250,0.08)]">
+          <img
+            src="/product-calendar.png"
+            alt="Clip Dash content calendar showing a full month of scheduled posts across all platforms"
+            className="w-full rounded-xl"
+          />
+        </div>
+        <div className="mt-6 flex items-center justify-center flex-wrap gap-5 text-sm text-white/45">
+          {[
+            { dot: "bg-red-400",  name: "YouTube" },
+            { dot: "bg-white/60", name: "TikTok" },
+            { dot: "bg-blue-400", name: "Facebook" },
+            { dot: "bg-pink-400", name: "Instagram" },
+            { dot: "bg-blue-300", name: "LinkedIn" },
+            { dot: "bg-sky-400",  name: "Bluesky" },
+          ].map((p) => (
+            <div key={p.name} className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full shrink-0 ${p.dot}`} />
+              <span>{p.name}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Twitch/Kick Import */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
         <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 lg:p-10">
