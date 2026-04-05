@@ -622,7 +622,7 @@ export default function Home() {
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
             </a>
-            <p className="mt-2 text-center text-xs text-white/40">No payment due today — cancel anytime before day 7.</p>
+            <p className="mt-2 text-center text-xs text-white/40">No Payment Necessary To Sign Up</p>
           </div>
 
           {/* Team */}
@@ -690,7 +690,7 @@ export default function Home() {
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
             </a>
-            <p className="mt-2 text-center text-xs text-violet-100/50">No payment due today — cancel anytime before day 7.</p>
+            <p className="mt-2 text-center text-xs text-violet-100/50">No Payment Necessary To Sign Up</p>
           </div>
         </div>
       </section>
