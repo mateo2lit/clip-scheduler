@@ -15,6 +15,7 @@ import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
 import AppPageOrb from "@/components/AppPageOrb";
+import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 
 const EMOJI_CATEGORIES = {
   "Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😎", "🤩"],
@@ -398,6 +399,13 @@ export default function UploadsPage() {
   // Upload-step convert picker
   const [showUploadConvertPicker, setShowUploadConvertPicker] = useState(false);
 
+  // Overlay burn state
+  const [burnJobId, setBurnJobId] = useState<string | null>(null);
+  const [burnStatus, setBurnStatus] = useState<"idle" | "pending" | "transcribing" | "burning" | "done" | "failed">("idle");
+  const [burnUploadId, setBurnUploadId] = useState<string | null>(null);
+  const [burnError, setBurnError] = useState<string | null>(null);
+  const [burnProgress, setBurnProgress] = useState(0);
+
   // Instagram specific
   const [igType, setIgType] = useState<InstagramType>("reel");
   const [igFirstComment, setIgFirstComment] = useState("");
@@ -772,6 +780,28 @@ export default function UploadsPage() {
     return () => clearInterval(interval);
   }, [conversionJobId, conversionStatus]);
 
+  // Poll overlay burn job status
+  useEffect(() => {
+    if (!burnJobId || burnStatus === "done" || burnStatus === "failed") return;
+    const interval = setInterval(async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`/api/overlay-burn/${burnJobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.ok && json.job) {
+          setBurnStatus(json.job.status);
+          if (json.job.status === "done") setBurnUploadId(json.job.result_upload_id);
+          if (json.job.status === "failed") setBurnError(json.job.error || "Burn failed");
+        }
+      } catch {}
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [burnJobId, burnStatus]);
+
   // Drive conversion progress bar based on status
   useEffect(() => {
     if (conversionStatus === "idle") { setConversionProgress(0); return; }
@@ -797,6 +827,24 @@ export default function UploadsPage() {
 
     return () => clearInterval(interval);
   }, [conversionStatus]);
+
+  // Drive burn progress bar
+  useEffect(() => {
+    if (burnStatus === "idle") { setBurnProgress(0); return; }
+    if (burnStatus === "done") { setBurnProgress(100); return; }
+    if (burnStatus === "failed") return;
+
+    const ceiling = burnStatus === "pending" ? 15 : burnStatus === "transcribing" ? 55 : 88;
+    const interval = setInterval(() => {
+      setBurnProgress((p) => {
+        if (p >= ceiling) return p;
+        const gap = ceiling - p;
+        return Math.min(p + Math.max(0.3, gap * 0.025), ceiling);
+      });
+    }, 400);
+    if (burnStatus === "burning") setBurnProgress((p) => Math.max(p, 56));
+    return () => clearInterval(interval);
+  }, [burnStatus]);
 
   // Compute TikTok validation
   const ttValidationError = useMemo(() => {
@@ -1108,6 +1156,12 @@ export default function UploadsPage() {
       return;
     }
 
+    // Guard: overlay burn still in progress
+    if (burnJobId && burnStatus !== "done" && burnStatus !== "failed") {
+      alert("Overlay burn still in progress. Please wait.");
+      return;
+    }
+
     setScheduling(true);
 
     try {
@@ -1156,7 +1210,11 @@ export default function UploadsPage() {
         for (const accountId of idsToPost) {
         const body: any = {
           group_id: groupId,
-          upload_id: (verticalEnabled && verticalUploadId) ? verticalUploadId : lastUploadId,
+          upload_id: (burnStatus === "done" && burnUploadId)
+            ? burnUploadId
+            : (verticalEnabled && verticalUploadId)
+            ? verticalUploadId
+            : lastUploadId,
           provider: platform,
           platform_account_id: accountId,
           title: title || null,
@@ -2800,10 +2858,29 @@ export default function UploadsPage() {
 
             {/* X Settings */}
 
+            {/* Enhance Video Panel */}
+            {lastUploadId && (
+              <EnhanceVideoPanel
+                uploadId={lastUploadId}
+                teamId={teamId ?? ""}
+                videoWidth={videoWidth}
+                videoHeight={videoHeight}
+                thumbnailUrl={null}
+                onBurnStart={(jobId) => {
+                  setBurnJobId(jobId);
+                  setBurnStatus("pending");
+                  setBurnProgress(0);
+                  setBurnUploadId(null);
+                  setBurnError(null);
+                }}
+              />
+            )}
+
             {/* Action Buttons */}
             {(() => {
               const verticalPending = verticalEnabled && conversionStatus !== "done" && conversionStatus !== "failed";
-              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || verticalPending;
+              const burnPending = burnJobId !== null && burnStatus !== "done" && burnStatus !== "failed";
+              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || verticalPending || burnPending;
               const blockReason = selectedPlatforms.length === 0
                 ? "Select at least one platform"
                 : ttValidationError || null;
@@ -2848,6 +2925,35 @@ export default function UploadsPage() {
                       </div>
                     )}
 
+                    {/* Burn progress */}
+                    {burnJobId && (burnStatus === "pending" || burnStatus === "transcribing" || burnStatus === "burning") && (
+                      <div className="flex flex-1 flex-col gap-1.5 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border-[1.5px] border-white/20 border-t-purple-400" />
+                            <span className="text-xs text-white/60">
+                              {burnStatus === "transcribing" ? "Transcribing audio…" : burnStatus === "burning" ? "Burning overlays…" : "Starting burn…"}
+                            </span>
+                          </div>
+                          <span className="text-xs font-medium text-white/50 tabular-nums">{Math.round(burnProgress)}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-violet-500 transition-[width] duration-500 ease-out"
+                            style={{ width: `${burnProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {burnJobId && burnStatus === "failed" && (
+                      <div className="flex flex-1 items-center gap-1.5 min-w-0">
+                        <svg className="w-3.5 h-3.5 shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="truncate text-xs text-red-300">{burnError || "Burn failed."}</span>
+                      </div>
+                    )}
+
                     <button
                       onClick={() => handleSchedule(false)}
                       disabled={publishBlocked}
@@ -2858,7 +2964,7 @@ export default function UploadsPage() {
                           : "bg-gradient-to-r from-blue-400 to-purple-400 text-black hover:from-blue-300 hover:to-purple-300 shadow-[0_0_20px_rgba(96,165,250,0.3)]"
                       }`}
                     >
-                      {publishBlocked && !scheduling && !verticalPending && (
+                      {publishBlocked && !scheduling && !verticalPending && !burnPending && (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
