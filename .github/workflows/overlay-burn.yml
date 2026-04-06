@@ -131,6 +131,10 @@ jobs:
             echo "Download failed"
             exit 1
           fi
+          if [ ! -s /tmp/source.mp4 ]; then
+            echo "Downloaded file is empty"
+            exit 1
+          fi
           echo "Downloaded $(stat -c%s /tmp/source.mp4) bytes"
 
       - name: Transcribe audio (if captions enabled)
@@ -181,7 +185,7 @@ jobs:
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, urllib.request, urllib.error
+          import json, os, subprocess
 
           supabase_url = os.environ["SUPABASE_URL"]
           service_key  = os.environ["SERVICE_KEY"]
@@ -201,20 +205,20 @@ jobs:
                   continue
               dest = f"/tmp/img_{i}.png"
               url = f"{supabase_url}/storage/v1/object/authenticated/clips/{file_path}"
-              try:
-                  req = urllib.request.Request(
-                      url,
-                      headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+              result = subprocess.run(
+                      ["curl", "-sS", "-o", dest, "--max-time", "30",
+                       "-H", f"Authorization: Bearer {service_key}",
+                       "-H", f"apikey: {service_key}",
+                       url],
+                      capture_output=True, text=True
                   )
-                  with urllib.request.urlopen(req, timeout=60) as resp:
-                      with open(dest, "wb") as f:
-                          f.write(resp.read())
-                  size = os.path.getsize(dest)
-                  print(f"  Layer {i}: downloaded {size} bytes → {dest}", flush=True)
-                  downloaded.append(dest)
-              except Exception as e:
-                  print(f"  Layer {i}: download failed ({e}), skipping", flush=True)
+              if result.returncode != 0 or not os.path.exists(dest) or os.path.getsize(dest) == 0:
+                  print(f"  Layer {i}: download failed or empty, skipping", flush=True)
                   downloaded.append(None)
+                  continue
+              size = os.path.getsize(dest)
+              print(f"  Layer {i}: downloaded {size} bytes → {dest}", flush=True)
+              downloaded.append(dest)
 
           with open("/tmp/downloaded_images.json", "w") as f:
               json.dump(downloaded, f)
@@ -368,7 +372,10 @@ jobs:
           if captions_enabled:
               animation   = style.get("animation", "word_highlight")
               font_family = style.get("fontFamily", "Montserrat")
-              font_size   = int(style.get("fontSize", 40))
+              try:
+                  font_size = int(style.get("fontSize", 40))
+              except (TypeError, ValueError):
+                  font_size = 40
               font_weight = style.get("fontWeight", "Black")
               italic      = bool(style.get("italic", False))
               underline   = bool(style.get("underline", False))
@@ -450,7 +457,10 @@ jobs:
                   title_pos  = layer.get("position", "top")
                   custom_y   = layer.get("customY")
                   font       = layer.get("font", "Montserrat")
-                  font_size  = int(layer.get("fontSize", 48))
+                  try:
+                      font_size = int(layer.get("fontSize", 48))
+                  except (TypeError, ValueError):
+                      font_size = 48
                   color      = layer.get("color", "#FFFFFF")
                   bold       = bool(layer.get("bold", True))
                   bg_cfg     = layer.get("background", {})
@@ -458,7 +468,10 @@ jobs:
                   bg_color   = bg_cfg.get("color", "#000000")
                   bg_opacity = float(bg_cfg.get("opacity", 70))
                   stroke_cfg = layer.get("stroke", {})
-                  stroke_w   = int(stroke_cfg.get("width", 0))
+                  try:
+                      stroke_w = int(stroke_cfg.get("width", 0))
+                  except (TypeError, ValueError):
+                      stroke_w = 0
                   stroke_c   = stroke_cfg.get("color", "#000000")
 
                   primary_ass = hex_to_ass(color)
@@ -495,12 +508,21 @@ jobs:
                   txt = esc(layer.get("text", "").strip())
                   if not txt:
                       continue
-                  x_frac = float(layer.get("x", 0.5))
-                  y_frac = float(layer.get("y", 0.88))
+                  try:
+                      x_frac = float(layer.get("x", 0.5))
+                  except (TypeError, ValueError):
+                      x_frac = 0.5
+                  try:
+                      y_frac = float(layer.get("y", 0.88))
+                  except (TypeError, ValueError):
+                      y_frac = 0.88
                   x_px   = int(play_res_x * x_frac)
                   y_px   = int(play_res_y * y_frac)
                   font       = layer.get("font", "Montserrat")
-                  font_size  = int(layer.get("fontSize", 36))
+                  try:
+                      font_size = int(layer.get("fontSize", 36))
+                  except (TypeError, ValueError):
+                      font_size = 36
                   color      = layer.get("color", "#FFFFFF")
                   bold       = bool(layer.get("bold", False))
                   bg_cfg     = layer.get("background", {})
@@ -717,10 +739,21 @@ jobs:
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JOB_ID: ${{ inputs.job_id }}
         run: |
+          if [ ! -f /tmp/source.mp4 ] || [ ! -s /tmp/source.mp4 ]; then
+            ERRMSG="Source video download failed"
+          elif [ ! -f /tmp/word_segments.json ]; then
+            ERRMSG="Audio transcription failed"
+          elif [ ! -f /tmp/overlay_config.json ]; then
+            ERRMSG="Could not fetch overlay configuration"
+          elif [ ! -f /tmp/burned.mp4 ] || [ ! -s /tmp/burned.mp4 ]; then
+            ERRMSG="FFmpeg burn failed — check GitHub Actions logs"
+          else
+            ERRMSG="Upload or finalization failed — check GitHub Actions logs"
+          fi
           curl -sS -X PATCH \
             "${SUPABASE_URL}/rest/v1/overlay_burn_jobs?id=eq.${JOB_ID}" \
             -H "Authorization: Bearer ${SERVICE_KEY}" \
             -H "apikey: ${SERVICE_KEY}" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal" \
-            -d "{\"status\":\"failed\",\"error\":\"Workflow step failed — check GitHub Actions logs\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"status\":\"failed\",\"error\":\"${ERRMSG}\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
