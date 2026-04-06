@@ -96,10 +96,10 @@ export function VideoOverlayPreview({
         {/* Overlay layers */}
         {config.layers.map((layer, i) => {
           if (layer.type === "title") return (
-            <TitleLayerPreview key={i} layer={layer} scale={scale} playResX={playResX} playResY={playResY} />
+            <TitleLayerPreview key={i} layer={layer} scale={scale} />
           );
           if (layer.type === "text") return (
-            <TextLayerPreview key={i} layer={layer} scale={scale} playResX={playResX} playResY={playResY} />
+            <TextLayerPreview key={i} layer={layer} scale={scale} />
           );
           if (layer.type === "image") return (
             <ImageLayerPreview key={i} layer={layer} previewWidth={previewWidth} previewHeight={previewHeight} />
@@ -121,8 +121,8 @@ export function VideoOverlayPreview({
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function TitleLayerPreview({ layer, scale, playResX, playResY }: {
-  layer: TitleLayer; scale: number; playResX: number; playResY: number;
+function TitleLayerPreview({ layer, scale }: {
+  layer: TitleLayer; scale: number;
 }) {
   if (!layer.text.trim()) return null;
 
@@ -168,8 +168,8 @@ function TitleLayerPreview({ layer, scale, playResX, playResY }: {
   );
 }
 
-function TextLayerPreview({ layer, scale, playResX, playResY }: {
-  layer: TextLayer; scale: number; playResX: number; playResY: number;
+function TextLayerPreview({ layer, scale }: {
+  layer: TextLayer; scale: number;
 }) {
   if (!layer.text.trim()) return null;
 
@@ -252,7 +252,7 @@ function CaptionSamplePreview({ style, scale, playResX, playResY }: {
       left: "50%",
       top,
       bottom,
-      transform: top === "50%" ? "translate(-50%, -50%)" : "translateX(-50%)",
+      transform: (top === "50%" || style.customCaptionY != null) ? "translate(-50%, -50%)" : "translateX(-50%)",
       display: "flex",
       gap: `${4 * scale}px`,
       flexWrap: "wrap",
