@@ -210,11 +210,11 @@ export default function DashboardPage() {
         <div className="mt-6">
           <Link
             href="/uploads"
-            className="group flex items-center justify-between rounded-3xl border border-blue-500/20 bg-gradient-to-r from-blue-500/[0.06] to-purple-500/[0.03] shadow-[0_0_50px_rgba(96,165,250,0.07)] p-6 hover:border-blue-400/30 hover:from-blue-500/[0.09] hover:to-purple-500/[0.06] transition-all"
+            className="group flex items-center justify-between rounded-3xl border border-violet-500/20 bg-gradient-to-r from-violet-500/[0.06] to-fuchsia-500/[0.03] shadow-[0_0_50px_rgba(139,92,246,0.07)] p-6 hover:border-violet-400/30 hover:from-violet-500/[0.09] hover:to-fuchsia-500/[0.06] transition-all"
           >
             <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all">
-                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center group-hover:from-violet-500/30 group-hover:to-fuchsia-500/30 transition-all">
+                <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </div>
@@ -223,7 +223,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-white/40 mt-0.5">Schedule across all your platforms in one go</p>
               </div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-blue-400/60 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white/20 group-hover:text-violet-400/60 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
           </Link>
@@ -328,10 +328,10 @@ export default function DashboardPage() {
               href={card.href}
               className={`group rounded-3xl border p-6 transition-all ${
                 card.color === "blue"
-                  ? "border-blue-500/15 bg-blue-500/[0.04] shadow-[0_0_40px_rgba(59,130,246,0.06)] hover:bg-blue-500/[0.07] hover:border-blue-400/25"
+                  ? "border-blue-500/[0.12] bg-blue-500/[0.02] shadow-[0_0_40px_rgba(59,130,246,0.04)] hover:bg-blue-500/[0.04] hover:border-blue-400/20"
                   : card.color === "emerald"
-                  ? "border-emerald-500/15 bg-emerald-500/[0.04] shadow-[0_0_40px_rgba(16,185,129,0.06)] hover:bg-emerald-500/[0.07] hover:border-emerald-400/25"
-                  : "border-amber-500/15 bg-amber-500/[0.04] shadow-[0_0_40px_rgba(245,158,11,0.06)] hover:bg-amber-500/[0.07] hover:border-amber-400/25"
+                  ? "border-emerald-500/[0.12] bg-emerald-500/[0.02] shadow-[0_0_40px_rgba(16,185,129,0.04)] hover:bg-emerald-500/[0.04] hover:border-emerald-400/20"
+                  : "border-amber-500/[0.12] bg-amber-500/[0.02] shadow-[0_0_40px_rgba(245,158,11,0.04)] hover:bg-amber-500/[0.04] hover:border-amber-400/20"
               }`}
             >
               <div className="flex items-center justify-between">
