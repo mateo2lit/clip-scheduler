@@ -52,6 +52,7 @@ export function EnhanceVideoPanel({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [burning, setBurning] = useState(false);
   const [burnError, setBurnError] = useState<string | null>(null);
+  const [saveNewImageToAccount, setSaveNewImageToAccount] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset config when upload changes
@@ -155,6 +156,7 @@ export function EnhanceVideoPanel({
       onBurnStart(json.jobId);
     } catch (e: any) {
       setBurnError(e?.message || "Unknown error");
+    } finally {
       setBurning(false);
     }
   }
@@ -301,6 +303,14 @@ export function EnhanceVideoPanel({
                     >
                       {uploadingImage ? "Uploading…" : "+ Image"}
                     </button>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-white/40">
+                      <input
+                        type="checkbox"
+                        checked={saveNewImageToAccount}
+                        onChange={(e) => setSaveNewImageToAccount(e.target.checked)}
+                      />
+                      Save to account
+                    </label>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -308,7 +318,7 @@ export function EnhanceVideoPanel({
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file, null, false);
+                        if (file) handleImageUpload(file, null, saveNewImageToAccount);
                         e.target.value = "";
                       }}
                     />
