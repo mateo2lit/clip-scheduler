@@ -22,7 +22,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     // Delete from Storage
-    await supabaseAdmin.storage.from("clips").remove([asset.file_path]);
+    const { error: storageErr } = await supabaseAdmin.storage.from("clips").remove([asset.file_path]);
+    if (storageErr) {
+      return NextResponse.json({ ok: false, error: `Storage deletion failed: ${storageErr.message}` }, { status: 500 });
+    }
 
     // Delete DB row
     await supabaseAdmin.from("brand_assets").delete().eq("id", params.id);
