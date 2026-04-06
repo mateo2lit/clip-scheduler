@@ -23,3 +23,7 @@ CREATE TABLE IF NOT EXISTS overlay_burn_jobs (
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_brand_assets_team_id ON brand_assets(team_id);
+CREATE INDEX IF NOT EXISTS idx_overlay_burn_jobs_team_status ON overlay_burn_jobs(team_id, status);
+CREATE INDEX IF NOT EXISTS idx_overlay_burn_jobs_source_upload ON overlay_burn_jobs(source_upload_id);
