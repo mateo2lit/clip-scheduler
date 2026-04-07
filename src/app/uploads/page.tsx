@@ -317,6 +317,15 @@ export default function UploadsPage() {
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [lastThumbnailPath, setLastThumbnailPath] = useState<string | null>(null);
   const [autoThumb, setAutoThumb] = useState<Blob | null>(null);
+  const [autoThumbUrl, setAutoThumbUrl] = useState<string | null>(null);
+
+  // Convert autoThumb blob → object URL for preview
+  useEffect(() => {
+    if (!autoThumb) { setAutoThumbUrl(null); return; }
+    const url = URL.createObjectURL(autoThumb);
+    setAutoThumbUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [autoThumb]);
 
   // YouTube specific
   const [ytIsShort, setYtIsShort] = useState(false);
@@ -2865,7 +2874,7 @@ export default function UploadsPage() {
                 teamId={teamId ?? ""}
                 videoWidth={videoWidth}
                 videoHeight={videoHeight}
-                thumbnailUrl={null}
+                thumbnailUrl={thumbnailPreview ?? autoThumbUrl}
                 onBurnStart={(jobId) => {
                   setBurnJobId(jobId);
                   setBurnStatus("pending");
