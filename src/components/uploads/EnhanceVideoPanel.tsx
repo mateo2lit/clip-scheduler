@@ -20,6 +20,8 @@ interface BrandAsset {
   signedUrl: string | null;
 }
 
+type ExternalBurnStatus = "idle" | "pending" | "transcribing" | "burning" | "done" | "failed";
+
 interface EnhancePanelProps {
   uploadId: string | null;
   teamId: string;
@@ -27,6 +29,9 @@ interface EnhancePanelProps {
   videoHeight: number | null;
   thumbnailUrl?: string | null;
   onBurnStart: (jobId: string) => void;
+  /** Passed down from parent so panel can reflect job progress/failure */
+  burnStatus?: ExternalBurnStatus;
+  burnError?: string | null;
 }
 
 const DEFAULT_CONFIG: OverlayConfig = {
@@ -35,7 +40,7 @@ const DEFAULT_CONFIG: OverlayConfig = {
   mode: "landscape",
 };
 
-// ── Toggle switch ─────────────────────────────────────────────────────────────
+// ── Toggle ────────────────────────────────────────────────────────────────────
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -48,11 +53,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
         checked ? "bg-purple-600" : "bg-white/15"
       }`}
     >
-      <span
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
-          checked ? "translate-x-4" : "translate-x-0"
-        }`}
-      />
+      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${checked ? "translate-x-4" : "translate-x-0"}`} />
     </button>
   );
 }
@@ -66,19 +67,21 @@ export function EnhanceVideoPanel({
   videoHeight,
   thumbnailUrl,
   onBurnStart,
+  burnStatus = "idle",
+  burnError,
 }: EnhancePanelProps) {
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState<OverlayConfig>(DEFAULT_CONFIG);
   const [brandAssets, setBrandAssets] = useState<BrandAsset[]>([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [burning, setBurning] = useState(false);
-  const [burnError, setBurnError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const addImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setConfig(DEFAULT_CONFIG);
-    setBurnError(null);
+    setSubmitError(null);
   }, [uploadId]);
 
   useEffect(() => {
@@ -125,10 +128,8 @@ export function EnhanceVideoPanel({
       const path = `${teamId}/brand/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("clips").upload(path, file, { contentType: file.type });
       if (error) throw error;
-
       const { data: signed } = await supabase.storage.from("clips").createSignedUrl(path, 3600);
       const publicUrl = signed?.signedUrl ?? null;
-
       if (saveToAccount) {
         const { data: sess } = await supabase.auth.getSession();
         const token = sess.session?.access_token;
@@ -141,7 +142,6 @@ export function EnhanceVideoPanel({
           await loadBrandAssets();
         }
       }
-
       if (layerIndex !== null) {
         updateLayer(layerIndex, { filePath: path, publicUrl: publicUrl ?? undefined } as Partial<ImageLayer>);
       } else {
@@ -156,13 +156,12 @@ export function EnhanceVideoPanel({
 
   async function handleBurn() {
     if (!uploadId) return;
-    setBurning(true);
-    setBurnError(null);
+    setSubmitting(true);
+    setSubmitError(null);
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       if (!token) throw new Error("Not logged in");
-
       const res = await fetch("/api/overlay-burn", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -170,12 +169,11 @@ export function EnhanceVideoPanel({
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Failed to start burn");
-
       onBurnStart(json.jobId);
     } catch (e: any) {
-      setBurnError(e?.message || "Unknown error");
+      setSubmitError(e?.message || "Unknown error");
     } finally {
-      setBurning(false);
+      setSubmitting(false);
     }
   }
 
@@ -185,11 +183,14 @@ export function EnhanceVideoPanel({
       l.type !== "image" ? !!(l as TextLayer | TitleLayer).text.trim() : !!(l as ImageLayer).filePath
     );
 
-  const previewHeight = config.mode === "landscape" ? 220 : 300;
+  const isRunning = burnStatus === "pending" || burnStatus === "transcribing" || burnStatus === "burning";
+
+  // Landscape preview fits 260px column at height 140; portrait at height 260
+  const previewHeight = config.mode === "landscape" ? 140 : 260;
 
   return (
     <div className="rounded-2xl border border-white/10 overflow-hidden">
-      {/* Collapsed header */}
+      {/* Header */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -200,14 +201,12 @@ export function EnhanceVideoPanel({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
           <span className="text-sm font-medium text-white/80">Enhance Video</span>
-          {hasContent && (
-            <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-300">Active</span>
-          )}
+          {hasContent && <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-300">Active</span>}
+          {isRunning && <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300">Processing…</span>}
+          {burnStatus === "done" && <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] text-green-300">Done</span>}
+          {burnStatus === "failed" && <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] text-red-300">Failed</span>}
         </div>
-        <svg
-          className={`w-4 h-4 text-white/40 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
+        <svg className={`w-4 h-4 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -215,42 +214,27 @@ export function EnhanceVideoPanel({
       {open && (
         <div className="border-t border-white/10 flex flex-col">
 
-          {/* ── STICKY TOP: mode + preview ── */}
-          <div className="px-4 pt-3 pb-3 flex flex-col gap-3 border-b border-white/[0.06]">
-            {/* Mode */}
-            <div className="flex gap-1.5">
-              {(["landscape", "portrait_blur", "portrait_crop"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setConfig((c) => ({ ...c, mode: m }))}
-                  className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                    config.mode === m
-                      ? "bg-purple-600 text-white"
-                      : "bg-white/5 text-white/50 hover:bg-white/10"
-                  }`}
-                >
-                  {m === "landscape" ? "16:9" : m === "portrait_blur" ? "9:16 Blur" : "9:16 Crop"}
-                </button>
-              ))}
-            </div>
-
-            {/* Preview — always visible */}
-            <div className="flex justify-center">
-              <VideoOverlayPreview
-                config={config}
-                thumbnailUrl={thumbnailUrl}
-                videoWidth={videoWidth}
-                videoHeight={videoHeight}
-                previewHeight={previewHeight}
-                onLayerUpdate={(idx, updates) => updateLayer(idx, updates)}
-              />
-            </div>
+          {/* Mode selector — full width */}
+          <div className="flex gap-1.5 px-4 pt-3 pb-2.5">
+            {(["landscape", "portrait_blur", "portrait_crop"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setConfig((c) => ({ ...c, mode: m }))}
+                className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
+                  config.mode === m ? "bg-purple-600 text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
+                }`}
+              >
+                {m === "landscape" ? "16:9" : m === "portrait_blur" ? "9:16 Blur" : "9:16 Crop"}
+              </button>
+            ))}
           </div>
 
-          {/* ── SCROLLABLE CONTROLS ── */}
-          <div className="overflow-y-auto" style={{ maxHeight: 420 }}>
-            <div className="px-4 pt-3 pb-3 flex flex-col gap-3">
+          {/* Two-column body: controls left, preview right */}
+          <div className="flex border-t border-white/[0.06]">
+
+            {/* Left: scrollable controls */}
+            <div className="flex-1 min-w-0 overflow-y-auto px-4 py-3 space-y-3" style={{ maxHeight: 480 }}>
 
               {/* Captions */}
               <CaptionsSection
@@ -275,47 +259,26 @@ export function EnhanceVideoPanel({
               {/* Add layer toolbar */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <AddButton
-                  icon={
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h12M4 14h8" />
-                    </svg>
-                  }
+                  icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h12M4 14h8" /></svg>}
                   label="Title"
                   onClick={() => addLayer({ ...DEFAULT_TITLE_LAYER })}
                 />
                 <AddButton
-                  icon={
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                  }
+                  icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>}
                   label="Text"
                   onClick={() => addLayer({ ...DEFAULT_TEXT_LAYER })}
                 />
                 <AddButton
-                  icon={
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  }
+                  icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
                   label={uploadingImage ? "Uploading…" : "Image"}
                   onClick={() => addImageRef.current?.click()}
                   disabled={uploadingImage}
                 />
-                <input
-                  ref={addImageRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageUpload(file, null, false);
-                    e.target.value = "";
-                  }}
-                />
+                <input ref={addImageRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, null, false); e.target.value = ""; }} />
               </div>
 
-              {/* Saved brand assets quick-add */}
+              {/* Brand assets */}
               {brandAssets.length > 0 && (
                 <div>
                   <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Saved images</p>
@@ -324,12 +287,7 @@ export function EnhanceVideoPanel({
                       <button
                         key={asset.id}
                         type="button"
-                        onClick={() => addLayer({
-                          ...DEFAULT_IMAGE_LAYER,
-                          assetId: asset.id,
-                          filePath: asset.file_path,
-                          publicUrl: asset.signedUrl ?? undefined,
-                        })}
+                        onClick={() => addLayer({ ...DEFAULT_IMAGE_LAYER, assetId: asset.id, filePath: asset.file_path, publicUrl: asset.signedUrl ?? undefined })}
                         title={asset.name}
                         className="rounded-lg border border-white/10 bg-white/5 p-1 hover:bg-white/10 transition-colors"
                       >
@@ -345,23 +303,66 @@ export function EnhanceVideoPanel({
               {loadingAssets && <p className="text-xs text-white/25">Loading saved images…</p>}
 
             </div>
+
+            {/* Right: preview — fixed width, not scrollable */}
+            <div className="flex-shrink-0 border-l border-white/[0.06] flex items-start justify-center px-3 py-3" style={{ width: 270 }}>
+              <VideoOverlayPreview
+                config={config}
+                thumbnailUrl={thumbnailUrl}
+                videoWidth={videoWidth}
+                videoHeight={videoHeight}
+                previewHeight={previewHeight}
+                onLayerUpdate={(idx, updates) => updateLayer(idx, updates)}
+              />
+            </div>
+
           </div>
 
-          {/* ── PINNED BOTTOM: burn CTA ── */}
-          <div className="px-4 pb-4 pt-3 border-t border-white/[0.06]">
-            {burnError && <p className="text-xs text-red-400 mb-2">{burnError}</p>}
+          {/* Burn CTA — full width, pinned at bottom */}
+          <div className="border-t border-white/[0.06] px-4 pb-4 pt-3 space-y-2">
+
+            {/* In-panel burn status */}
+            {isRunning && (
+              <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2">
+                <div className="h-3 w-3 flex-shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-blue-400" />
+                <span className="text-xs text-blue-300">
+                  {burnStatus === "transcribing" ? "Transcribing audio…" : burnStatus === "burning" ? "Burning overlays…" : "Starting burn…"}
+                </span>
+              </div>
+            )}
+            {burnStatus === "done" && (
+              <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2">
+                <svg className="w-3.5 h-3.5 flex-shrink-0 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-xs text-green-300">Burn complete — schedule the enhanced video below</span>
+              </div>
+            )}
+            {burnStatus === "failed" && (
+              <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
+                <svg className="w-3.5 h-3.5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span className="text-xs text-red-300">{burnError || "Burn failed — check GitHub Actions logs for details"}</span>
+              </div>
+            )}
+            {submitError && (
+              <p className="text-xs text-red-400">{submitError}</p>
+            )}
+
             <button
               type="button"
               onClick={handleBurn}
-              disabled={burning || !uploadId || !hasContent}
+              disabled={submitting || isRunning || !uploadId || !hasContent}
               className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-purple-500 hover:to-violet-500 disabled:opacity-40 transition-all"
             >
-              {burning ? "Starting…" : "✨ Burn & Schedule"}
+              {submitting ? "Starting…" : isRunning ? "Burn in progress…" : burnStatus === "done" ? "✨ Re-burn with new settings" : "✨ Burn & Schedule"}
             </button>
-            <p className="text-[10px] text-white/25 text-center mt-1.5">
+            <p className="text-[10px] text-white/25 text-center">
               {!hasContent
-                ? "Enable captions or add a layer above to get started"
-                : "Takes 1–3 min. You'll see progress as it processes."
+                ? "Enable captions or add a title, text, or image above"
+                : isRunning ? "Takes 1–3 min. You can still fill out the rest of the form."
+                : "Takes 1–3 min. You can fill out title, description, and schedule while it runs."
               }
             </p>
           </div>
@@ -372,19 +373,14 @@ export function EnhanceVideoPanel({
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Add button ────────────────────────────────────────────────────────────────
 
 function AddButton({ icon, label, onClick, disabled }: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
+  icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean;
 }) {
   return (
     <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
+      type="button" onClick={onClick} disabled={disabled}
       className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
     >
       {icon}+ {label}
@@ -395,7 +391,7 @@ function AddButton({ icon, label, onClick, disabled }: {
 const inputCls = "w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/20";
 const labelCls = "text-[10px] text-white/35 uppercase tracking-wider";
 
-// ── Captions ──────────────────────────────────────────────────────────────────
+// ── Captions section ──────────────────────────────────────────────────────────
 
 function CaptionsSection({ enabled, style, onToggle, onStyleChange }: {
   enabled: boolean;
@@ -414,7 +410,7 @@ function CaptionsSection({ enabled, style, onToggle, onStyleChange }: {
       </div>
       {enabled && (
         <div className="border-t border-white/10 px-3 pb-3 pt-2">
-          <SubtitleStylePicker style={style} onChange={onStyleChange} />
+          <SubtitleStylePicker style={style} onChange={onStyleChange} hideTitleTab />
         </div>
       )}
     </div>
@@ -424,8 +420,7 @@ function CaptionsSection({ enabled, style, onToggle, onStyleChange }: {
 // ── Layer card ────────────────────────────────────────────────────────────────
 
 function LayerCard({ layer, brandAssets, onUpdate, onRemove, onImageUpload }: {
-  layer: OverlayLayer;
-  brandAssets: BrandAsset[];
+  layer: OverlayLayer; brandAssets: BrandAsset[];
   onUpdate: (p: Partial<OverlayLayer>) => void;
   onRemove: () => void;
   onImageUpload: (file: File, save: boolean) => void;
@@ -434,23 +429,15 @@ function LayerCard({ layer, brandAssets, onUpdate, onRemove, onImageUpload }: {
   const [showMore, setShowMore] = useState(false);
 
   const typeLabel = layer.type === "title" ? "Title" : layer.type === "text" ? "Text" : "Image";
-  const previewText =
-    layer.type === "image"
-      ? layer.filePath ? "image added" : "no image yet"
-      : (layer as TitleLayer | TextLayer).text.trim() || "empty";
+  const previewText = layer.type === "image"
+    ? layer.filePath ? "image added" : "no image yet"
+    : (layer as TitleLayer | TextLayer).text.trim() || "empty";
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex-1 flex items-center gap-2 text-left min-w-0"
-        >
-          <svg
-            className={`w-3 h-3 text-white/30 flex-shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          >
+        <button type="button" onClick={() => setExpanded((v) => !v)} className="flex-1 flex items-center gap-2 text-left min-w-0">
+          <svg className={`w-3 h-3 text-white/30 flex-shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="text-xs font-semibold text-white/70 flex-shrink-0">{typeLabel}</span>
@@ -459,29 +446,17 @@ function LayerCard({ layer, brandAssets, onUpdate, onRemove, onImageUpload }: {
             <img src={layer.publicUrl} alt="" className="w-5 h-5 object-contain rounded flex-shrink-0" />
           )}
         </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="flex-shrink-0 text-white/25 hover:text-red-400 transition-colors"
-          aria-label="Remove"
-        >
+        <button type="button" onClick={onRemove} className="flex-shrink-0 text-white/25 hover:text-red-400 transition-colors" aria-label="Remove">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
-
       {expanded && (
         <div className="border-t border-white/[0.06] px-3 pb-3 pt-3 space-y-3">
-          {layer.type === "title" && (
-            <TitleEditor layer={layer} onUpdate={onUpdate} showMore={showMore} onToggleMore={() => setShowMore(v => !v)} />
-          )}
-          {layer.type === "text" && (
-            <TextEditor layer={layer} onUpdate={onUpdate} showMore={showMore} onToggleMore={() => setShowMore(v => !v)} />
-          )}
-          {layer.type === "image" && (
-            <ImageEditor layer={layer} brandAssets={brandAssets} onUpdate={onUpdate} onImageUpload={onImageUpload} />
-          )}
+          {layer.type === "title" && <TitleEditor layer={layer} onUpdate={onUpdate} showMore={showMore} onToggleMore={() => setShowMore(v => !v)} />}
+          {layer.type === "text" && <TextEditor layer={layer} onUpdate={onUpdate} showMore={showMore} onToggleMore={() => setShowMore(v => !v)} />}
+          {layer.type === "image" && <ImageEditor layer={layer} brandAssets={brandAssets} onUpdate={onUpdate} onImageUpload={onImageUpload} />}
         </div>
       )}
     </div>
@@ -491,159 +466,95 @@ function LayerCard({ layer, brandAssets, onUpdate, onRemove, onImageUpload }: {
 // ── Title editor ──────────────────────────────────────────────────────────────
 
 function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
-  layer: TitleLayer;
-  onUpdate: (p: Partial<OverlayLayer>) => void;
-  showMore: boolean;
-  onToggleMore: () => void;
+  layer: TitleLayer; onUpdate: (p: Partial<OverlayLayer>) => void;
+  showMore: boolean; onToggleMore: () => void;
 }) {
   return (
     <div className="space-y-3">
-      {/* Text */}
-      <input
-        className={inputCls}
-        placeholder="Title text…"
-        value={layer.text}
-        onChange={(e) => onUpdate({ text: e.target.value } as Partial<TitleLayer>)}
-      />
-
-      {/* Size + Position row */}
+      <input className={inputCls} placeholder="Title text…" value={layer.text}
+        onChange={(e) => onUpdate({ text: e.target.value } as Partial<TitleLayer>)} />
       <div className="flex gap-3 items-end">
-        {/* Font size */}
         <div className="flex-1">
           <p className={labelCls}>Size — {layer.fontSize}pt</p>
-          <input
-            type="range" min={24} max={120} step={2}
-            value={layer.fontSize}
+          <input type="range" min={24} max={120} step={2} value={layer.fontSize}
             onChange={(e) => onUpdate({ fontSize: Number(e.target.value) } as Partial<TitleLayer>)}
-            className="mt-1.5 w-full accent-purple-500"
-          />
+            className="mt-1.5 w-full accent-purple-500" />
         </div>
-        {/* Position */}
         <div className="flex-shrink-0">
           <p className={labelCls}>Position</p>
           <div className="flex gap-1 mt-1.5">
             {(["top", "bottom"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
+              <button key={p} type="button"
                 onClick={() => onUpdate({ position: p, customY: null } as Partial<TitleLayer>)}
                 className={`rounded-lg px-3 py-1 text-xs capitalize transition-colors ${
                   layer.position === p && layer.customY == null
-                    ? "bg-purple-600 text-white"
-                    : "bg-white/5 text-white/40 hover:bg-white/10"
+                    ? "bg-purple-600 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"
                 }`}
               >{p}</button>
             ))}
           </div>
         </div>
       </div>
-
-      {/* Y fine-tune (shown when customY is set, or always via More) */}
       {layer.customY != null && (
         <div>
-          <p className={labelCls}>Vertical position — {Math.round(layer.customY * 100)}%</p>
-          <input
-            type="range" min={0} max={100} step={1}
-            value={Math.round((layer.customY ?? 0) * 100)}
+          <p className={labelCls}>Vertical — {Math.round(layer.customY * 100)}% from top</p>
+          <input type="range" min={0} max={100} step={1} value={Math.round((layer.customY ?? 0) * 100)}
             onChange={(e) => onUpdate({ customY: Number(e.target.value) / 100 } as Partial<TitleLayer>)}
-            className="mt-1.5 w-full accent-purple-500"
-          />
+            className="mt-1.5 w-full accent-purple-500" />
         </div>
       )}
-
-      <p className="text-[10px] text-white/25 italic">Drag the title in the preview to set a custom position</p>
-
-      {/* More options toggle */}
-      <button
-        type="button"
-        onClick={onToggleMore}
-        className="text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1"
-      >
+      <p className="text-[10px] text-white/25 italic">Drag in the preview to set a custom position</p>
+      <button type="button" onClick={onToggleMore} className="text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
         <svg className={`w-3 h-3 transition-transform ${showMore ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
         {showMore ? "Fewer options" : "More options"}
       </button>
-
       {showMore && (
         <div className="space-y-3 pt-1">
-          {/* Font */}
           <div>
             <p className={labelCls}>Font</p>
-            <select
-              value={layer.font}
-              onChange={(e) => onUpdate({ font: e.target.value } as Partial<TitleLayer>)}
-              className={"mt-1 " + inputCls}
-            >
+            <select value={layer.font} onChange={(e) => onUpdate({ font: e.target.value } as Partial<TitleLayer>)} className={"mt-1 " + inputCls}>
               {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
-
-          {/* Color + Bold */}
           <div className="flex gap-4 items-center">
             <div className="flex items-center gap-2">
               <p className={labelCls}>Color</p>
-              <input
-                type="color" value={layer.color}
-                onChange={(e) => onUpdate({ color: e.target.value } as Partial<TitleLayer>)}
-                className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent"
-              />
+              <input type="color" value={layer.color} onChange={(e) => onUpdate({ color: e.target.value } as Partial<TitleLayer>)} className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent" />
             </div>
             <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={layer.bold}
-                onChange={(e) => onUpdate({ bold: e.target.checked } as Partial<TitleLayer>)} />
+              <input type="checkbox" checked={layer.bold} onChange={(e) => onUpdate({ bold: e.target.checked } as Partial<TitleLayer>)} />
               <span className="text-xs text-white/50">Bold</span>
             </label>
           </div>
-
-          {/* Stroke */}
           <div className="flex gap-3 items-end">
             <div>
               <p className={labelCls}>Stroke color</p>
-              <input
-                type="color" value={layer.stroke.color}
-                onChange={(e) => onUpdate({ stroke: { ...layer.stroke, color: e.target.value } } as Partial<TitleLayer>)}
-                className="mt-1 h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent"
-              />
+              <input type="color" value={layer.stroke.color} onChange={(e) => onUpdate({ stroke: { ...layer.stroke, color: e.target.value } } as Partial<TitleLayer>)} className="mt-1 h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent" />
             </div>
             <div className="flex-1">
               <p className={labelCls}>Stroke width — {layer.stroke.width}px</p>
-              <input
-                type="range" min={0} max={8} step={0.5}
-                value={layer.stroke.width}
+              <input type="range" min={0} max={8} step={0.5} value={layer.stroke.width}
                 onChange={(e) => onUpdate({ stroke: { ...layer.stroke, width: Number(e.target.value) } } as Partial<TitleLayer>)}
-                className="mt-1.5 w-full accent-purple-500"
-              />
+                className="mt-1.5 w-full accent-purple-500" />
             </div>
           </div>
-
-          {/* Background */}
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={layer.background.enabled}
-              onChange={(e) => onUpdate({ background: { ...layer.background, enabled: e.target.checked } } as Partial<TitleLayer>)}
-            />
+            <input type="checkbox" checked={layer.background.enabled} onChange={(e) => onUpdate({ background: { ...layer.background, enabled: e.target.checked } } as Partial<TitleLayer>)} />
             <span className="text-xs text-white/50">Background box</span>
           </label>
           {layer.background.enabled && (
             <div className="flex gap-3 items-end">
               <div>
                 <p className={labelCls}>BG color</p>
-                <input
-                  type="color" value={layer.background.color}
-                  onChange={(e) => onUpdate({ background: { ...layer.background, color: e.target.value } } as Partial<TitleLayer>)}
-                  className="mt-1 h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent"
-                />
+                <input type="color" value={layer.background.color} onChange={(e) => onUpdate({ background: { ...layer.background, color: e.target.value } } as Partial<TitleLayer>)} className="mt-1 h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent" />
               </div>
               <div className="flex-1">
                 <p className={labelCls}>Opacity — {layer.background.opacity}%</p>
-                <input
-                  type="range" min={0} max={100}
-                  value={layer.background.opacity}
+                <input type="range" min={0} max={100} value={layer.background.opacity}
                   onChange={(e) => onUpdate({ background: { ...layer.background, opacity: Number(e.target.value) } } as Partial<TitleLayer>)}
-                  className="mt-1.5 w-full accent-purple-500"
-                />
+                  className="mt-1.5 w-full accent-purple-500" />
               </div>
             </div>
           )}
@@ -656,97 +567,59 @@ function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
 // ── Text editor ───────────────────────────────────────────────────────────────
 
 function TextEditor({ layer, onUpdate, showMore, onToggleMore }: {
-  layer: TextLayer;
-  onUpdate: (p: Partial<OverlayLayer>) => void;
-  showMore: boolean;
-  onToggleMore: () => void;
+  layer: TextLayer; onUpdate: (p: Partial<OverlayLayer>) => void;
+  showMore: boolean; onToggleMore: () => void;
 }) {
   return (
     <div className="space-y-3">
-      <input
-        className={inputCls}
-        placeholder="Text…"
-        value={layer.text}
-        onChange={(e) => onUpdate({ text: e.target.value } as Partial<TextLayer>)}
-      />
-
-      {/* Size */}
+      <input className={inputCls} placeholder="Text…" value={layer.text}
+        onChange={(e) => onUpdate({ text: e.target.value } as Partial<TextLayer>)} />
       <div>
         <p className={labelCls}>Size — {layer.fontSize}pt</p>
-        <input
-          type="range" min={16} max={100} step={2}
-          value={layer.fontSize}
+        <input type="range" min={16} max={100} step={2} value={layer.fontSize}
           onChange={(e) => onUpdate({ fontSize: Number(e.target.value) } as Partial<TextLayer>)}
-          className="mt-1.5 w-full accent-purple-500"
-        />
+          className="mt-1.5 w-full accent-purple-500" />
       </div>
-
       <p className="text-[10px] text-white/25 italic">Drag in the preview to reposition</p>
-
-      <button
-        type="button"
-        onClick={onToggleMore}
-        className="text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1"
-      >
+      <button type="button" onClick={onToggleMore} className="text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
         <svg className={`w-3 h-3 transition-transform ${showMore ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
         {showMore ? "Fewer options" : "More options"}
       </button>
-
       {showMore && (
         <div className="space-y-3 pt-1">
           <div>
             <p className={labelCls}>Font</p>
-            <select
-              value={layer.font}
-              onChange={(e) => onUpdate({ font: e.target.value } as Partial<TextLayer>)}
-              className={"mt-1 " + inputCls}
-            >
+            <select value={layer.font} onChange={(e) => onUpdate({ font: e.target.value } as Partial<TextLayer>)} className={"mt-1 " + inputCls}>
               {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
           <div className="flex gap-4 items-center">
             <div className="flex items-center gap-2">
               <p className={labelCls}>Color</p>
-              <input
-                type="color" value={layer.color}
-                onChange={(e) => onUpdate({ color: e.target.value } as Partial<TextLayer>)}
-                className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent"
-              />
+              <input type="color" value={layer.color} onChange={(e) => onUpdate({ color: e.target.value } as Partial<TextLayer>)} className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent" />
             </div>
             <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={layer.bold}
-                onChange={(e) => onUpdate({ bold: e.target.checked } as Partial<TextLayer>)} />
+              <input type="checkbox" checked={layer.bold} onChange={(e) => onUpdate({ bold: e.target.checked } as Partial<TextLayer>)} />
               <span className="text-xs text-white/50">Bold</span>
             </label>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={layer.background.enabled}
-              onChange={(e) => onUpdate({ background: { ...layer.background, enabled: e.target.checked } } as Partial<TextLayer>)}
-            />
+            <input type="checkbox" checked={layer.background.enabled} onChange={(e) => onUpdate({ background: { ...layer.background, enabled: e.target.checked } } as Partial<TextLayer>)} />
             <span className="text-xs text-white/50">Background box</span>
           </label>
           {layer.background.enabled && (
             <div className="flex gap-3 items-end">
               <div>
                 <p className={labelCls}>BG color</p>
-                <input
-                  type="color" value={layer.background.color}
-                  onChange={(e) => onUpdate({ background: { ...layer.background, color: e.target.value } } as Partial<TextLayer>)}
-                  className="mt-1 h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent"
-                />
+                <input type="color" value={layer.background.color} onChange={(e) => onUpdate({ background: { ...layer.background, color: e.target.value } } as Partial<TextLayer>)} className="mt-1 h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent" />
               </div>
               <div className="flex-1">
                 <p className={labelCls}>Opacity — {layer.background.opacity}%</p>
-                <input
-                  type="range" min={0} max={100}
-                  value={layer.background.opacity}
+                <input type="range" min={0} max={100} value={layer.background.opacity}
                   onChange={(e) => onUpdate({ background: { ...layer.background, opacity: Number(e.target.value) } } as Partial<TextLayer>)}
-                  className="mt-1.5 w-full accent-purple-500"
-                />
+                  className="mt-1.5 w-full accent-purple-500" />
               </div>
             </div>
           )}
@@ -759,26 +632,18 @@ function TextEditor({ layer, onUpdate, showMore, onToggleMore }: {
 // ── Image editor ──────────────────────────────────────────────────────────────
 
 function ImageEditor({ layer, brandAssets, onUpdate, onImageUpload }: {
-  layer: ImageLayer;
-  brandAssets: BrandAsset[];
+  layer: ImageLayer; brandAssets: BrandAsset[];
   onUpdate: (p: Partial<OverlayLayer>) => void;
   onImageUpload: (file: File, save: boolean) => void;
 }) {
   const [saveToAccount, setSaveToAccount] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
-        {layer.publicUrl && (
-          <img src={layer.publicUrl} alt="" className="h-12 w-12 object-contain rounded border border-white/10 flex-shrink-0" />
-        )}
+        {layer.publicUrl && <img src={layer.publicUrl} alt="" className="h-12 w-12 object-contain rounded border border-white/10 flex-shrink-0" />}
         <div className="flex flex-col gap-1.5">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors w-fit"
-          >
+          <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 transition-colors w-fit">
             {layer.filePath ? "Replace image" : "Choose image"}
           </button>
           <label className="flex items-center gap-1.5 cursor-pointer">
@@ -787,37 +652,17 @@ function ImageEditor({ layer, brandAssets, onUpdate, onImageUpload }: {
           </label>
         </div>
       </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/png,image/jpeg,image/gif,image/webp"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onImageUpload(file, saveToAccount);
-          e.target.value = "";
-        }}
-      />
-
-      <p className="text-[10px] text-white/25 italic">Drag to reposition · drag corner handle to resize</p>
-
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onImageUpload(f, saveToAccount); e.target.value = ""; }} />
+      <p className="text-[10px] text-white/25 italic">Drag to reposition · drag corner to resize</p>
       {brandAssets.length > 0 && (
         <div>
           <p className={labelCls + " mb-1.5"}>Use saved image</p>
           <div className="flex flex-wrap gap-1.5">
             {brandAssets.map((asset) => (
-              <button
-                key={asset.id}
-                type="button"
-                onClick={() => onUpdate({
-                  assetId: asset.id,
-                  filePath: asset.file_path,
-                  publicUrl: asset.signedUrl ?? undefined,
-                } as Partial<ImageLayer>)}
-                title={asset.name}
-                className="rounded-lg border border-white/10 bg-white/5 p-1 hover:bg-white/10 transition-colors"
-              >
+              <button key={asset.id} type="button"
+                onClick={() => onUpdate({ assetId: asset.id, filePath: asset.file_path, publicUrl: asset.signedUrl ?? undefined } as Partial<ImageLayer>)}
+                title={asset.name} className="rounded-lg border border-white/10 bg-white/5 p-1 hover:bg-white/10 transition-colors">
                 {asset.signedUrl
                   ? <img src={asset.signedUrl} alt={asset.name} className="w-7 h-7 object-contain rounded" />
                   : <span className="text-[10px] text-white/40 px-1">{asset.name}</span>

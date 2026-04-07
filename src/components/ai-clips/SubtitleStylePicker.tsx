@@ -682,9 +682,11 @@ function TitleTab({
 export function SubtitleStylePicker({
   style,
   onChange,
+  hideTitleTab = false,
 }: {
   style: SubtitleStyle;
   onChange: (s: SubtitleStyle) => void;
+  hideTitleTab?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("presets");
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
@@ -756,9 +758,11 @@ export function SubtitleStylePicker({
         <button className={tabCls("effects")} onClick={() => setTab("effects")}>
           Effects
         </button>
-        <button className={tabCls("title")} onClick={() => setTab("title")}>
-          Title
-        </button>
+        {!hideTitleTab && (
+          <button className={tabCls("title")} onClick={() => setTab("title")}>
+            Title
+          </button>
+        )}
       </div>
 
       <div className="p-4">

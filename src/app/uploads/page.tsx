@@ -2875,6 +2875,8 @@ export default function UploadsPage() {
                 videoWidth={videoWidth}
                 videoHeight={videoHeight}
                 thumbnailUrl={thumbnailPreview ?? autoThumbUrl}
+                burnStatus={burnStatus}
+                burnError={burnError}
                 onBurnStart={(jobId) => {
                   setBurnJobId(jobId);
                   setBurnStatus("pending");
