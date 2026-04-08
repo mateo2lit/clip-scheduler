@@ -14,6 +14,8 @@ type PostCounts = {
 type AnalyticsTotals = {
   views: number;
   likes: number;
+  prevViews: number;
+  prevLikes: number;
 };
 
 function formatStat(n: number): string {
@@ -90,15 +92,15 @@ export default function DashboardPage() {
 
       // Analytics totals — slow (external API calls), loads separately
       // Use localStorage as a stale-while-revalidate cache keyed by teamId
-      const cacheKey = `dashboard_stats_${teamId}`;
+      const cacheKey = `dashboard_stats_v2_${teamId}`;
       const cacheTtl = 15 * 60 * 1000; // 15 min
       let cacheHit = false;
       try {
         const raw = localStorage.getItem(cacheKey);
         if (raw) {
-          const cached = JSON.parse(raw) as { views: number; likes: number; cachedAt: number };
+          const cached = JSON.parse(raw) as { views: number; likes: number; prevViews: number; prevLikes: number; cachedAt: number };
           if (!cancelled) {
-            setTotals({ views: cached.views, likes: cached.likes });
+            setTotals({ views: cached.views, likes: cached.likes, prevViews: cached.prevViews, prevLikes: cached.prevLikes });
             setTotalsLoading(false);
           }
           cacheHit = true;
@@ -109,13 +111,22 @@ export default function DashboardPage() {
       } catch {}
 
       try {
-        // range=1w → maxResults capped at 50 per platform (vs 200 for 1y), ~4× faster
-        const analyticsRes = await fetch("/api/analytics/metrics?range=1w", {
+        // range=2m → fetch 60 days of metrics, split client-side into this month vs prev month
+        const analyticsRes = await fetch("/api/analytics/metrics?range=2m", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const analyticsJson = await analyticsRes.json();
         if (!cancelled && analyticsJson.ok) {
-          const fresh = { views: analyticsJson.totals.views, likes: analyticsJson.totals.likes };
+          const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+          const metrics: any[] = analyticsJson.metrics ?? [];
+          const thisMonth = metrics.filter((m) => new Date(m.postedAt).getTime() >= thirtyDaysAgo);
+          const prevMonth = metrics.filter((m) => new Date(m.postedAt).getTime() < thirtyDaysAgo);
+          const fresh = {
+            views: thisMonth.reduce((s: number, m: any) => s + (m.views ?? 0), 0),
+            likes: thisMonth.reduce((s: number, m: any) => s + (m.likes ?? 0), 0),
+            prevViews: prevMonth.reduce((s: number, m: any) => s + (m.views ?? 0), 0),
+            prevLikes: prevMonth.reduce((s: number, m: any) => s + (m.likes ?? 0), 0),
+          };
           setTotals(fresh);
           try {
             localStorage.setItem(cacheKey, JSON.stringify({ ...fresh, cachedAt: Date.now() }));
@@ -155,30 +166,54 @@ export default function DashboardPage() {
         <div className="grid grid-cols-4 gap-4">
           {/* Total Views */}
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
-            <p className="text-xs text-white/40 uppercase tracking-wider">Views <span className="normal-case tracking-normal text-white/20 not-uppercase">· 7d</span></p>
-            <p className="text-3xl font-bold mt-1.5 tabular-nums text-sky-400">
-              {totalsLoading ? (
-                <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
-              ) : totals ? (
-                formatStat(totals.views)
-              ) : (
-                <span className="text-white/20 text-2xl">—</span>
+            <p className="text-xs text-white/40 uppercase tracking-wider">Views <span className="normal-case tracking-normal text-white/20">· 30d</span></p>
+            <div className="flex items-end gap-2 mt-1.5">
+              <p className="text-3xl font-bold tabular-nums text-white">
+                {totalsLoading ? (
+                  <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
+                ) : totals ? (
+                  formatStat(totals.views)
+                ) : (
+                  <span className="text-white/20 text-2xl">—</span>
+                )}
+              </p>
+              {!totalsLoading && totals && totals.prevViews > 0 && (
+                <span className={`mb-1 flex items-center gap-0.5 text-xs font-medium ${totals.views >= totals.prevViews ? "text-emerald-400" : "text-red-400"}`}>
+                  {totals.views >= totals.prevViews ? (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" /></svg>
+                  )}
+                  {Math.abs(Math.round(((totals.views - totals.prevViews) / totals.prevViews) * 100))}%
+                </span>
               )}
-            </p>
+            </div>
           </div>
 
           {/* Total Likes */}
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
-            <p className="text-xs text-white/40 uppercase tracking-wider">Likes <span className="normal-case tracking-normal text-white/20 not-uppercase">· 7d</span></p>
-            <p className="text-3xl font-bold mt-1.5 tabular-nums text-pink-400">
-              {totalsLoading ? (
-                <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
-              ) : totals ? (
-                formatStat(totals.likes)
-              ) : (
-                <span className="text-white/20 text-2xl">—</span>
+            <p className="text-xs text-white/40 uppercase tracking-wider">Likes <span className="normal-case tracking-normal text-white/20">· 30d</span></p>
+            <div className="flex items-end gap-2 mt-1.5">
+              <p className="text-3xl font-bold tabular-nums text-white">
+                {totalsLoading ? (
+                  <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
+                ) : totals ? (
+                  formatStat(totals.likes)
+                ) : (
+                  <span className="text-white/20 text-2xl">—</span>
+                )}
+              </p>
+              {!totalsLoading && totals && totals.prevLikes > 0 && (
+                <span className={`mb-1 flex items-center gap-0.5 text-xs font-medium ${totals.likes >= totals.prevLikes ? "text-emerald-400" : "text-red-400"}`}>
+                  {totals.likes >= totals.prevLikes ? (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" /></svg>
+                  )}
+                  {Math.abs(Math.round(((totals.likes - totals.prevLikes) / totals.prevLikes) * 100))}%
+                </span>
               )}
-            </p>
+            </div>
           </div>
 
           {/* Posted */}

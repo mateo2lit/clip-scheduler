@@ -46,6 +46,7 @@ export async function GET(req: Request) {
       "24h": 24 * 60 * 60 * 1000,
       "1w": 7 * 24 * 60 * 60 * 1000,
       "1m": 30 * 24 * 60 * 60 * 1000,
+      "2m": 60 * 24 * 60 * 60 * 1000,
       "1y": 365 * 24 * 60 * 60 * 1000,
     };
     const windowMs = rangeMs[range] ?? rangeMs["1w"];
@@ -54,6 +55,7 @@ export async function GET(req: Request) {
       "24h": 25,
       "1w": 50,
       "1m": 100,
+      "2m": 150,
       "1y": 200,
     };
     const maxResults = maxResultsByRange[range] ?? 50;

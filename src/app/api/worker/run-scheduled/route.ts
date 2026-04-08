@@ -10,6 +10,7 @@ import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/t
 import { uploadToBluesky } from "@/lib/blueskyUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
+import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -160,14 +161,14 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
-  // ── Process ig_processing posts first (Instagram + Threads + TikTok) ─
+  // ── Process ig_processing posts first (YouTube Shorts + Instagram + Threads + TikTok) ─
   const igProcessingResults: any[] = [];
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, group_id, title, platform_account_id")
+      .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, youtube_settings, group_id, title, platform_account_id")
       .eq("status", "ig_processing")
-      .in("provider", ["instagram", "threads", "tiktok"])
+      .in("provider", ["instagram", "threads", "tiktok", "youtube"])
       .limit(5);
 
     if (!igErr && igPosts && igPosts.length > 0) {
@@ -181,6 +182,90 @@ async function runWorker(req: Request) {
 
           if (!igPost.ig_container_id) {
             throw new Error("Missing publish/container ID");
+          }
+
+          // ── YouTube Shorts processing check ─────────────────────────
+          if (igPost.provider === "youtube") {
+            const { data: ytAcct } = await supabaseAdmin
+              .from("platform_accounts")
+              .select("id, refresh_token")
+              .eq("id", igPost.platform_account_id)
+              .maybeSingle();
+
+            if (!ytAcct?.refresh_token) {
+              throw new Error("YouTube account not found or missing refresh token. Please reconnect.");
+            }
+
+            const auth = await getYouTubeOAuthClient({ refreshToken: ytAcct.refresh_token });
+            const youtube = getYouTubeApi(auth);
+
+            const videoResp = await youtube.videos.list({
+              part: ["status", "processingDetails"],
+              id: [igPost.ig_container_id],
+            });
+
+            const video = videoResp.data.items?.[0];
+
+            if (!video) {
+              // Video not found — likely deleted or rejected by YouTube
+              throw new Error("YouTube video not found after upload. It may have been rejected.");
+            }
+
+            const processingStatus = video.processingDetails?.processingStatus;
+            const privacyStatus = video.status?.privacyStatus;
+
+            if (processingStatus === "succeeded") {
+              await supabaseAdmin.from("scheduled_posts").update({
+                status: "posted",
+                posted_at: new Date().toISOString(),
+                platform_post_id: igPost.ig_container_id,
+                last_error: null,
+              }).eq("id", igPost.id);
+              igProcessingResults.push({ id: igPost.id, ok: true, privacyStatus });
+
+              if (igPost.group_id) {
+                await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+              } else {
+                const info = await getNotificationInfo(igPost.user_id);
+                if (info?.notifySuccess) await sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", ["youtube"]);
+              }
+
+              if (igPost.upload_id) {
+                const { data: ytUpload } = await supabaseAdmin.from("uploads").select("bucket, file_path, storage_path, path, object_path").eq("id", igPost.upload_id).maybeSingle();
+                if (ytUpload) {
+                  const ytProbed = pickFirstNonEmpty(ytUpload, ["file_path", "storage_path", "path", "object_path"]);
+                  if (ytProbed.value) await checkAndMaybeDeleteFile(igPost.group_id, ytUpload.bucket?.trim() || DEFAULT_BUCKET, ytProbed.value, igPost.upload_id);
+                }
+              }
+            } else if (processingStatus === "failed") {
+              const errMsg = `YouTube processing failed: ${video.processingDetails?.processingFailureReason ?? "unknown reason"}`;
+              await supabaseAdmin.from("scheduled_posts").update({ status: "failed", last_error: errMsg }).eq("id", igPost.id);
+              igProcessingResults.push({ id: igPost.id, ok: false, error: errMsg });
+
+              if (igPost.group_id) {
+                await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+              } else {
+                const info = await getNotificationInfo(igPost.user_id);
+                if (info?.notifyFailed) await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "youtube", errMsg);
+              }
+            } else {
+              // Still processing — check 15-minute timeout
+              const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
+              if (createdAt < Date.now() - 15 * 60 * 1000) {
+                const timeoutMsg = "YouTube Short processing timed out — please check YouTube Studio";
+                await supabaseAdmin.from("scheduled_posts").update({ status: "failed", last_error: timeoutMsg }).eq("id", igPost.id);
+                igProcessingResults.push({ id: igPost.id, ok: false, error: timeoutMsg });
+
+                if (igPost.group_id) {
+                  await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+                } else {
+                  const info = await getNotificationInfo(igPost.user_id);
+                  if (info?.notifyFailed) await sendPostFailedEmail(info.email, igPost.title ?? "Untitled", "youtube", timeoutMsg);
+                }
+              }
+              // else: still within window, next cron tick will check again
+            }
+            continue;
           }
 
           // ── TikTok async publish check ──────────────────────────────
@@ -732,6 +817,19 @@ async function runWorker(req: Request) {
         }
 
         const yt = await uploadSupabaseVideoToYouTube(ytArgs);
+
+        if (yts.is_short) {
+          // Shorts go through YouTube's async processing pipeline — poll until live
+          await supabaseAdmin.from("scheduled_posts").update({
+            status: "ig_processing",
+            ig_container_id: yt.youtubeVideoId,
+            ig_container_created_at: new Date().toISOString(),
+            last_error: null,
+          }).eq("id", post.id);
+          results.push({ id: post.id, ok: true, status: "yt_processing", youtubeVideoId: yt.youtubeVideoId });
+          continue;
+        }
+
         platformPostId = yt.youtubeVideoId;
       }
 
