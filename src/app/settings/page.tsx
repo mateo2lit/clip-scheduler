@@ -179,6 +179,7 @@ export default function SettingsPage() {
     linkedin: [],
     threads: [],
     bluesky: [],
+    x: [],
   });
   const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
 
