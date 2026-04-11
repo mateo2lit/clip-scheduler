@@ -539,7 +539,7 @@ export default function OnboardingPage() {
               )}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Creator */}
-                <div className="relative flex flex-col overflow-hidden rounded-[30px] border border-violet-400/35 bg-[linear-gradient(180deg,rgba(17,20,33,0.98),rgba(8,9,15,0.96))] p-7 shadow-[0_24px_90px_rgba(91,33,182,0.18)]">
+                <div className="relative flex flex-col overflow-visible rounded-[30px] border border-violet-400/35 bg-[linear-gradient(180deg,rgba(17,20,33,0.98),rgba(8,9,15,0.96))] p-7 pt-10 shadow-[0_24px_90px_rgba(91,33,182,0.18)]">
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
                     Most Popular
                   </div>
@@ -586,6 +586,7 @@ export default function OnboardingPage() {
                   >
                     {checkoutLoading ? "Loading…" : "Start free trial"}
                   </button>
+                  <p className="text-center text-xs text-white/30 mt-2">No payment necessary</p>
                 </div>
 
                 {/* Team */}
@@ -641,6 +642,7 @@ export default function OnboardingPage() {
                   >
                     {checkoutLoading ? "Loading…" : "Start free trial"}
                   </button>
+                  <p className="text-center text-xs text-white/30 mt-2">No payment necessary</p>
                 </div>
               </div>
               <div className="mt-8 flex items-center justify-between">
