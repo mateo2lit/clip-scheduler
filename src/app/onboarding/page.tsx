@@ -591,7 +591,7 @@ export default function OnboardingPage() {
                   >
                     {checkoutLoading ? "Loading…" : "Start free trial"}
                   </button>
-                  <p className="text-center text-xs text-white/30 mt-2">No payment necessary</p>
+                  <p className="text-center text-xs text-white/40 mt-2">$0.00 due today, cancel anytime</p>
                 </div>
 
                 {/* Team */}
@@ -647,7 +647,7 @@ export default function OnboardingPage() {
                   >
                     {checkoutLoading ? "Loading…" : "Start free trial"}
                   </button>
-                  <p className="text-center text-xs text-white/30 mt-2">No payment necessary</p>
+                  <p className="text-center text-xs text-white/40 mt-2">$0.00 due today, cancel anytime</p>
                 </div>
               </div>
               <div className="mt-8">
