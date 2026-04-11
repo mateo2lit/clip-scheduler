@@ -10,7 +10,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What platforms do you support?",
-    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky — 6 platforms total.",
+    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, and X (Twitter) — 7 platforms total.",
   },
   {
     q: "Can I import clips from Twitch or Kick?",
@@ -71,7 +71,7 @@ const PRICING_PLANS = {
     ctaAnnual: "Start free trial",
     included: [
       "Unlimited uploads and scheduled posts",
-      "All 6 supported platforms",
+      "All 7 supported platforms",
       "Multiple accounts per platform",
       "AI tag suggestions and analytics",
       "Unified comments inbox",
@@ -204,7 +204,7 @@ export default function Home() {
           </span>
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-          Stop logging into 6 apps to post the same video. Upload once or use a Twitch/Kick clip link to auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky.</p>
+          Stop logging into 7 apps to post the same video. Upload once or use a Twitch/Kick clip link to auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X.</p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {loaded && (
             user ? (
@@ -275,8 +275,8 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
                 </svg>
               ),
-              title: "6 Platforms, One Workflow",
-              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky from a single upload.",
+              title: "7 Platforms, One Workflow",
+              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X from a single upload.",
               color: "blue",
               extra: (
                 <div className="mt-4 flex items-center gap-3">
@@ -402,7 +402,7 @@ export default function Home() {
             Your entire content calendar,<br className="hidden sm:block" /> across all platforms.
           </h2>
           <p className="mt-4 text-white/40 text-lg max-w-2xl mx-auto">
-            Every scheduled post across YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky — visible in one view.
+            Every scheduled post across YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X — visible in one view.
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-2 shadow-[0_0_60px_rgba(96,165,250,0.08)]">
@@ -583,7 +583,7 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                All 6 supported platforms
+                All 7 supported platforms
               </li>
               <li className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
@@ -700,10 +700,10 @@ export default function Home() {
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Supported Platforms</h2>
           <p className="mt-3 text-white/40 max-w-md mx-auto">
-            Post to all 6 platforms from a single upload.
+            Post to all 7 platforms from a single upload.
           </p>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
           {[
             { key: "youtube",   name: "YouTube",   color: "text-red-400",   icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z"/></svg> },
             { key: "tiktok",    name: "TikTok",    color: "text-white",     icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg> },
@@ -711,6 +711,7 @@ export default function Home() {
             { key: "facebook",  name: "Facebook",  color: "text-blue-400",  icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073Z"/></svg> },
             { key: "linkedin",  name: "LinkedIn",  color: "text-blue-300",  icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z"/></svg> },
             { key: "bluesky",   name: "Bluesky",   color: "text-sky-400",   icon: <svg className="w-10 h-10" viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg> },
+            { key: "x",         name: "X",         color: "text-white",     icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg> },
           ].map((p, i) => (
             <a
               key={p.key}

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Guides, tips, and workflows for video creators who want to cross-post faster across YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky.',
   openGraph: {
     title: 'Blog — Clip Dash',
-    description: 'Guides and tips for video creators scheduling content across 6 platforms.',
+    description: 'Guides and tips for video creators scheduling content across 7 platforms.',
     type: 'website',
   },
 }

@@ -7,7 +7,7 @@ import AppPageOrb from "@/components/AppPageOrb";
 
 type Metric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x";
   title: string;
   views: number;
   likes: number;
@@ -18,7 +18,7 @@ type Metric = {
 };
 
 type Totals = { views: number; likes: number; comments: number; shares: number };
-type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
+type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x";
 type RangeFilter = "24h" | "1w" | "1m" | "1y";
 
 const platformLabels: Record<string, string> = {
@@ -27,6 +27,7 @@ const platformLabels: Record<string, string> = {
   instagram: "Instagram",
   bluesky: "Bluesky",
   tiktok: "TikTok",
+  x: "X (Twitter)",
 };
 
 // Which stats are actually meaningful per platform (vs. always returning 0)
@@ -36,6 +37,7 @@ const PLATFORM_STATS: Record<string, { views: boolean; likes: boolean; comments:
   instagram: { views: false, likes: true, comments: true,  shares: false },
   facebook:  { views: false, likes: true, comments: true,  shares: false },
   bluesky:   { views: false, likes: true, comments: true,  shares: false },
+  x:         { views: true,  likes: true, comments: true,  shares: true  },
 };
 
 function PlatformIcon({ platform }: { platform: string }) {
@@ -71,6 +73,13 @@ function PlatformIcon({ platform }: { platform: string }) {
     return (
       <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
         <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+      </svg>
+    );
+  }
+  if (platform === "x") {
+    return (
+      <svg className="w-5 h-5 text-white/70" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
       </svg>
     );
   }
@@ -238,7 +247,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex gap-2 mb-6">
-          {(["all", "youtube", "tiktok", "instagram", "facebook", "bluesky"] as PlatformFilter[]).map((p) => (
+          {(["all", "youtube", "tiktok", "instagram", "facebook", "bluesky", "x"] as PlatformFilter[]).map((p) => (
             <button
               key={p}
               onClick={() => setFilter(p)}

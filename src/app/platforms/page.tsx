@@ -91,6 +91,21 @@ const PLATFORMS = [
       </svg>
     ),
   },
+  {
+    key: "x",
+    name: "X (Twitter)",
+    color: "text-white",
+    bg: "bg-white/10",
+    border: "border-white/20",
+    tagline: "Tweets & Video",
+    stat: "500M+ monthly users, real-time feed",
+    description: "Post videos directly to X as tweets with reply controls and per-tweet text customization. Pay-as-you-go API means no fixed monthly platform fee.",
+    icon: (
+      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+      </svg>
+    ),
+  },
 ];
 
 export default function PlatformsPage() {
@@ -112,7 +127,7 @@ export default function PlatformsPage() {
         <div className="text-center mb-16">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Supported Platforms</h1>
           <p className="mt-5 text-lg text-white/50 max-w-2xl mx-auto">
-            Upload once and publish to all six platforms simultaneously. Every platform gets its own native settings so your content looks exactly right, everywhere.
+            Upload once and publish to all seven platforms simultaneously. Every platform gets its own native settings so your content looks exactly right, everywhere.
           </p>
         </div>
 

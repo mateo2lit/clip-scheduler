@@ -2,7 +2,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export type UnifiedMetric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x";
   title: string;
   views: number;
   likes: number;
@@ -279,5 +279,56 @@ export async function fetchBlueskyMetrics(
     return { metrics };
   } catch (e: any) {
     return { metrics: [], error: `Bluesky: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── X (Twitter) ──────────────────────────────────────────────────────
+
+export async function fetchXMetrics(
+  posts: PostInfo[],
+  accessToken: string
+): Promise<{ metrics: UnifiedMetric[]; error?: string }> {
+  try {
+    const tweetIds = posts
+      .map((p) => p.platform_post_id)
+      .filter((id): id is string => !!id);
+
+    if (tweetIds.length === 0) return { metrics: [] };
+
+    const metrics: UnifiedMetric[] = [];
+
+    // X API allows up to 100 tweet IDs per request
+    for (let i = 0; i < tweetIds.length; i += 100) {
+      const batch = tweetIds.slice(i, i + 100);
+      const url = `https://api.twitter.com/2/tweets?ids=${batch.join(",")}&tweet.fields=public_metrics,created_at`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.errors?.[0]?.message || `HTTP ${res.status}`);
+      }
+
+      const json = await res.json();
+      for (const tweet of json.data ?? []) {
+        const post = posts.find((p) => p.platform_post_id === tweet.id);
+        const pm = tweet.public_metrics ?? {};
+        metrics.push({
+          videoId: tweet.id,
+          platform: "x",
+          title: post?.title ?? tweet.text?.slice(0, 120) ?? "X post",
+          views: pm.impression_count ?? 0,
+          likes: pm.like_count ?? 0,
+          comments: pm.reply_count ?? 0,
+          shares: (pm.retweet_count ?? 0) + (pm.quote_count ?? 0),
+          postedAt: post?.posted_at ?? tweet.created_at ?? new Date().toISOString(),
+        });
+      }
+    }
+
+    return { metrics };
+  } catch (e: any) {
+    return { metrics: [], error: `X: ${e?.message || "Unknown error"}` };
   }
 }

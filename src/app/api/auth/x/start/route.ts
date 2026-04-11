@@ -1,0 +1,76 @@
+import { NextResponse } from "next/server";
+import { getXAuthConfig } from "@/lib/x";
+import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { generateOAuthState } from "@/lib/oauthState";
+import crypto from "node:crypto";
+
+export const runtime = "nodejs";
+
+function readBearer(req: Request) {
+  const h = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  return m?.[1] || null;
+}
+
+function generateCodeVerifier(): string {
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const hash = crypto.createHash("sha256").update(verifier).digest();
+  return hash.toString("base64url");
+}
+
+async function handler(req: Request) {
+  const result = await getTeamContext(req);
+  if (!result.ok) return result.error;
+
+  const { userId, role } = result.ctx;
+  const ownerCheck = requireOwnerOrAdmin(role);
+  if (ownerCheck) return ownerCheck;
+
+  const { clientId, redirectUri } = getXAuthConfig();
+
+  // Generate PKCE code_verifier and code_challenge
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+  // Encode signed state token and code_verifier so callback can use both
+  const state = `${generateOAuthState(userId)}:${codeVerifier}`;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    scope: "tweet.write tweet.read users.read offline.access media.write",
+    redirect_uri: redirectUri,
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+  });
+
+  const authUrl = `https://twitter.com/i/oauth2/authorize?${params.toString()}`;
+
+  return NextResponse.json({ ok: true, url: authUrl, redirectUri });
+}
+
+export async function POST(req: Request) {
+  try {
+    return await handler(req);
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    return await handler(req);
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || "Unknown error" },
+      { status: 500 }
+    );
+  }
+}

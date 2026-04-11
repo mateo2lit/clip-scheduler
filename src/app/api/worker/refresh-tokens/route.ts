@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { refreshFacebookToken } from "@/lib/facebook";
 import { refreshInstagramToken } from "@/lib/instagram";
+import { refreshXTokens } from "@/lib/x";
 
 export const runtime = "nodejs";
 
@@ -34,7 +35,7 @@ async function runRefresh(req: Request) {
   const { data: accounts, error } = await supabaseAdmin
     .from("platform_accounts")
     .select("id, provider, access_token, refresh_token, expiry, team_id")
-    .in("provider", ["facebook", "instagram"])
+    .in("provider", ["facebook", "instagram", "x"])
     .lt("expiry", sevenDaysFromNow)
     .order("expiry", { ascending: true });
 
@@ -93,6 +94,23 @@ async function runRefresh(req: Request) {
             access_token: newToken,
             refresh_token: newToken,
             expiry: newExpiry,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", acct.id);
+      } else if (acct.provider === "x") {
+        const token = acct.refresh_token;
+        if (!token) throw new Error("No refresh_token to refresh");
+
+        const refreshed = await refreshXTokens(token);
+        const newXToken = refreshed.access_token;
+        const newXExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+
+        await supabaseAdmin
+          .from("platform_accounts")
+          .update({
+            access_token: newXToken,
+            refresh_token: refreshed.refresh_token,
+            expiry: newXExpiry,
             updated_at: new Date().toISOString(),
           })
           .eq("id", acct.id);

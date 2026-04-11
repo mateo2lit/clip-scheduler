@@ -8,6 +8,7 @@ import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/l
 import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
 import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky } from "@/lib/blueskyUpload";
+import { uploadVideoToX } from "@/lib/xUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
@@ -475,7 +476,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,thumbnail_path,group_id,platform_account_id")
+    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -484,7 +485,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,thumbnail_path,group_id,platform_account_id")
+      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -790,6 +791,29 @@ async function runWorker(req: Request) {
 
         const li = await uploadSupabaseVideoToLinkedIn(liArgs);
         platformPostId = li.linkedinPostId;
+      } else if (provider === "x") {
+        if (!acct.access_token || !acct.refresh_token) {
+          throw new Error("X account not configured. Please reconnect your X account.");
+        }
+
+        const xSettings = ((post as any).x_settings ?? {}) as any;
+        const rawText = xSettings.description_override
+          || `${post.title ?? ""}\n\n${post.description ?? ""}`.trim();
+        const tweetText = rawText.slice(0, 280);
+
+        const xResult = await uploadVideoToX({
+          userId: post.user_id,
+          platformAccountId: acct.id,
+          accessToken: acct.access_token,
+          refreshToken: acct.refresh_token,
+          expiresAt: acct.expiry,
+          bucket,
+          storagePath,
+          tweetText,
+          replySettings: xSettings.reply_settings || "everyone",
+        });
+
+        platformPostId = xResult.tweetId;
       } else {
         // YouTube (default)
         const yts = (post.youtube_settings ?? {}) as any;

@@ -223,3 +223,57 @@ export async function fetchRecentBlueskyPosts(params: {
     return { posts: [], error: `Bluesky recent posts: ${e?.message || "Unknown error"}` };
   }
 }
+
+
+// ── X (Twitter) ──────────────────────────────────────────────────────
+
+export async function fetchRecentXPosts(params: {
+  accessToken: string;
+  platformUserId: string;
+  maxResults: number;
+  sinceIso?: string;
+}): Promise<{ posts: RecentPost[]; error?: string }> {
+  try {
+    const maxCount = Math.min(params.maxResults, 100);
+    const url = `https://api.twitter.com/2/users/${encodeURIComponent(params.platformUserId)}/tweets?tweet.fields=created_at,attachments&expansions=attachments.media_keys&media.fields=type&max_results=${maxCount}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody?.errors?.[0]?.message || `HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+
+    // Build a set of tweet IDs that have video media attached
+    const mediaMap = new Map<string, string>(); // media_key -> type
+    for (const m of json.includes?.media ?? []) {
+      mediaMap.set(m.media_key, m.type);
+    }
+
+    const posts: RecentPost[] = [];
+    for (const tweet of json.data ?? []) {
+      // Only include tweets with video attachments
+      const mediaKeys: string[] = tweet.attachments?.media_keys ?? [];
+      const hasVideo = mediaKeys.some((k) => mediaMap.get(k) === "video");
+      if (!hasVideo) continue;
+
+      const createdAt: string | null = tweet.created_at ?? null;
+      if (!isAfterSince(createdAt, params.sinceIso)) continue;
+
+      posts.push({
+        id: `x-${tweet.id}`,
+        title: tweet.text?.slice(0, 120) ?? "X post",
+        platform_post_id: tweet.id,
+        posted_at: createdAt,
+        thumbnail_url: null,
+      });
+    }
+
+    return { posts };
+  } catch (e: any) {
+    return { posts: [], error: `X recent posts: ${e?.message || "Unknown error"}` };
+  }
+}

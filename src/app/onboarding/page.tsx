@@ -78,6 +78,15 @@ const PLATFORMS: { key: string; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    key: "x",
+    label: "X (Twitter)",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+      </svg>
+    ),
+  },
 ];
 
 const CREATOR_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || "";
@@ -570,7 +579,7 @@ export default function OnboardingPage() {
                   <ul className="mb-8 flex-1 space-y-3 border-t border-white/8 pt-6 text-sm text-white/65">
                     {[
                       "Unlimited uploads & scheduled posts",
-                      "All 6 platforms",
+                      "All 7 platforms",
                       "Multiple accounts per platform",
                       "AI tag suggestions",
                       "Unified comments inbox",

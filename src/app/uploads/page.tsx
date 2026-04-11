@@ -50,6 +50,7 @@ type PlatformConfig = {
 
 const PLATFORM_SIZE_LIMITS: Record<string, { maxBytes: number; label: string }> = {
   bluesky:   { maxBytes: 50  * 1024 * 1024,        label: "50 MB"  },
+  x:         { maxBytes: 512 * 1024 * 1024,        label: "512 MB" },
   instagram: { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
   threads:   { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
   tiktok:    { maxBytes: 4   * 1024 * 1024 * 1024, label: "4 GB"   },
@@ -133,6 +134,17 @@ const PLATFORMS: PlatformConfig[] = [
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 600 530" fill="currentColor">
         <path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.106 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "x",
+    name: "X (Twitter)",
+    available: true,
+    charLimit: 280,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
       </svg>
     ),
   },
@@ -1308,6 +1320,12 @@ export default function UploadsPage() {
           };
         }
 
+        if (platform === "x") {
+          body.x_settings = {
+            description_override: platformDescOverrides.x || undefined,
+            reply_settings: xReplySettings !== "everyone" ? xReplySettings : undefined,
+          };
+        }
 
         const res = await fetch("/api/scheduled-posts/create", {
           method: "POST",
@@ -2866,6 +2884,63 @@ export default function UploadsPage() {
             )}
 
             {/* X Settings */}
+            {selectedPlatforms.includes("x") && (
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-white/80">{PLATFORMS.find(p => p.key === "x")?.icon}</div>
+                  <span className="font-medium">X Settings</span>
+                  {(platformAccountsList.x?.length ?? 0) > 1 ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-white/40">Posting to:</span>
+                      <span className="text-xs text-white/70">{(selectedAccountIds.x || []).map((id) => platformAccountsList.x?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
+                    </div>
+                  ) : platformAccounts.x?.profileName ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {platformAccounts.x.avatarUrl && <img src={proxiedAvatar(platformAccounts.x.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.x.profileName}</span></span>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="p-5 space-y-4">
+                  <p className="text-xs text-white/40">Video will be posted as a tweet. 280 character limit applies.</p>
+
+                  <div>
+                    <label className="text-xs text-white/50 mb-1.5 block">Who can reply</label>
+                    <select
+                      value={xReplySettings}
+                      onChange={(e) => setXReplySettings(e.target.value as "everyone" | "mentionedUsers" | "subscribers")}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
+                    >
+                      <option value="everyone">Everyone</option>
+                      <option value="mentionedUsers">Mentioned users only</option>
+                      <option value="subscribers">Subscribers only</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setOpenCaptionOverride(openCaptionOverride === "x" ? null : "x")}
+                    className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors"
+                  >
+                    <svg className={`w-3 h-3 transition-transform ${openCaptionOverride === "x" ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    Customize tweet text
+                  </button>
+                  {openCaptionOverride === "x" && (
+                    <div className="mt-3 space-y-2">
+                      <textarea
+                        value={platformDescOverrides.x || ""}
+                        maxLength={280}
+                        onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, x: e.target.value }))}
+                        placeholder="Tweet text (max 280 characters)"
+                        rows={3}
+                        className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                      />
+                      <p className="text-xs text-white/30 text-right">{(platformDescOverrides.x || "").length}/280</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Enhance Video Panel */}
             {lastUploadId && (

@@ -7,6 +7,7 @@ import {
   fetchInstagramMetrics,
   fetchBlueskyMetrics,
   fetchTikTokMetrics,
+  fetchXMetrics,
   type UnifiedMetric,
 } from "@/lib/metricsFetchers";
 import {
@@ -15,6 +16,7 @@ import {
   fetchRecentInstagramPosts,
   fetchRecentBlueskyPosts,
   fetchRecentTikTokPosts,
+  fetchRecentXPosts,
 } from "@/lib/recentPlatformPosts";
 
 export const runtime = "nodejs";
@@ -31,7 +33,7 @@ export async function GET(req: Request) {
       .from("platform_accounts")
       .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
       .eq("team_id", teamId)
-      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok"]);
+      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok", "x"]);
 
     const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
@@ -151,6 +153,24 @@ export async function GET(req: Request) {
     for (const r of bskyResults) {
       if (r.status === "fulfilled") allMetrics.push(...r.value);
       else errors.push(r.reason?.message || "Bluesky fetch error");
+    }
+
+    // Fetch from all X accounts
+    const xResults = await Promise.allSettled(
+      (acctsByProvider.get("x") ?? [])
+        .filter((a) => a.access_token && a.platform_user_id)
+        .map(async (a) => {
+          const recent = await fetchRecentXPosts({ accessToken: a.access_token, platformUserId: a.platform_user_id, maxResults, sinceIso });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedMetric[];
+          const r = await fetchXMetrics(recent.posts, a.access_token);
+          if (r.error) errors.push(r.error);
+          return r.metrics;
+        })
+    );
+    for (const r of xResults) {
+      if (r.status === "fulfilled") allMetrics.push(...r.value);
+      else errors.push(r.reason?.message || "X fetch error");
     }
 
     // Sort by most recent first

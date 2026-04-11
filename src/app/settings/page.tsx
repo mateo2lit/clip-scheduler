@@ -6,7 +6,7 @@ import Link from "next/link";
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import AppPageOrb from "@/components/AppPageOrb";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky" | "x";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
 const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
@@ -114,6 +114,17 @@ const PLATFORMS: PlatformConfig[] = [
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 600 530" fill="currentColor">
         <path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.106 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "x" as ProviderKey,
+    name: "X (Twitter)",
+    description: "Post videos to your X (Twitter) account",
+    available: true,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
       </svg>
     ),
   },
@@ -1245,7 +1256,7 @@ export default function SettingsPage() {
                   </div>
                   <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 7 platforms</li>
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>25 GB storage</li>
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>1 team member (solo)</li>
                   </ul>
@@ -1275,7 +1286,7 @@ export default function SettingsPage() {
                   </div>
                   <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 6 platforms</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 7 platforms</li>
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>50 GB storage</li>
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Up to 5 team members</li>
                   </ul>

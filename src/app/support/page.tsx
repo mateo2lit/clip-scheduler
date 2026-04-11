@@ -91,7 +91,7 @@ const FAQ_CATEGORIES = [
     items: [
       {
         q: "What's the difference between Creator and Team plans?",
-        a: "Creator ($9.99/month): 1 user, 25 GB active storage, all 6 platforms. Team ($19.99/month): multiple users sharing one workspace, 50 GB active storage, shared platform accounts so the whole team can post from the same accounts.",
+        a: "Creator ($9.99/month): 1 user, 25 GB active storage, all 7 platforms. Team ($19.99/month): multiple users sharing one workspace, 50 GB active storage, shared platform accounts so the whole team can post from the same accounts.",
       },
       {
         q: "How does storage work?",
@@ -151,9 +151,9 @@ const ARTICLES = [
 **Key insight:** Consistency matters more than hitting the exact optimal window. A creator who posts every Monday at 8am will outperform one who posts at "peak" times sporadically. Use Clip Dash's Queue feature to build a reliable cadence — then let the algorithm work in your favor over time.`,
   },
   {
-    title: "Repurpose One Video Across 6 Platforms Without Losing Quality",
+    title: "Repurpose One Video Across 7 Platforms Without Losing Quality",
     excerpt:
-      "How to adapt a single video shoot for YouTube, TikTok, Instagram Reels, Facebook, LinkedIn, and Bluesky with minimal extra editing.",
+      "How to adapt a single video shoot for YouTube, TikTok, Instagram Reels, Facebook, LinkedIn, Bluesky, and X with minimal extra editing.",
     readTime: "5 min read",
     content: `The mistake most creators make: re-filming six different versions of the same video. Here's a smarter approach.
 
@@ -167,7 +167,7 @@ const ARTICLES = [
 
 **Upload once, customize in Clip Dash.** Upload your video to Clip Dash, then expand each platform's settings panel to paste your platform-specific caption. One upload, six tailored posts, fully scheduled.
 
-This workflow turns a 2-hour filming session into content that runs across all six platforms for the entire week.`,
+This workflow turns a 2-hour filming session into content that runs across all seven platforms for the entire week.`,
   },
   {
     title: "Content Batching: Schedule a Month of Posts in One Afternoon",
@@ -184,7 +184,7 @@ This workflow turns a 2-hour filming session into content that runs across all s
 5. Use the Queue feature to auto-assign each video to your next available time slots.
 6. Write captions for all videos in bulk while you're in the "writing" headspace.
 
-**The result:** 30+ days of content distributed across 6 platforms, fully automated. You show up consistently online without thinking about social media during the week.
+**The result:** 30+ days of content distributed across 7 platforms, fully automated. You show up consistently online without thinking about social media during the week.
 
 **Tips for better batching sessions:**
 - Film b-roll between takes so you have variety without extra effort.
@@ -247,7 +247,7 @@ Creators who batch report spending 80% less mental energy on content distributio
 **How it works:**
 1. Create one piece of "pillar" content per week — a well-produced short video, a tutorial, a story.
 2. Upload it to Clip Dash once.
-3. Let Clip Dash distribute it to all 6 platforms simultaneously.
+3. Let Clip Dash distribute it to all 7 platforms simultaneously.
 4. Spend your "social time" engaging on your top 1–2 platforms only.
 
 **Why it works:** Your audience on each platform discovers you organically. You don't need to manually post to TikTok AND Instagram AND YouTube AND LinkedIn. The automation handles distribution; your energy goes to community.
