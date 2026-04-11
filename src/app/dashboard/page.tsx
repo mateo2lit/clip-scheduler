@@ -47,6 +47,18 @@ export default function DashboardPage() {
       setSessionEmail(auth.session.user.email ?? null);
 
       const token = auth.session.access_token;
+
+      // Redirect to onboarding if not yet completed (enforces paywall)
+      try {
+        const onbRes = await fetch("/api/onboarding", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const onbJson = await onbRes.json().catch(() => ({}));
+        if (!onbJson.completed) {
+          window.location.href = "/onboarding";
+          return;
+        }
+      } catch {}
       let teamId: string | null = null;
       try {
         const res = await fetch("/api/team/me", {

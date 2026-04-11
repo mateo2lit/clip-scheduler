@@ -474,7 +474,12 @@ export default function OnboardingPage() {
                   );
                 })}
               </div>
-              <div className="mt-8 flex items-center justify-between">
+              {connectedAccounts.length === 0 && (
+                <p className="mt-6 text-center text-xs text-white/30">
+                  Connect at least one platform to be ready to post the moment your trial starts.
+                </p>
+              )}
+              <div className="mt-4 flex items-center justify-between">
                 <button
                   onClick={() => goTo(1, "back")}
                   className="rounded-full border border-white/10 px-6 py-3 text-sm text-white/50 hover:text-white/80 hover:border-white/20 transition-all"
@@ -485,9 +490,9 @@ export default function OnboardingPage() {
                   {connectedAccounts.length === 0 && (
                     <button
                       onClick={() => goTo(3, "forward")}
-                      className="text-sm text-white/30 hover:text-white/60 transition-colors"
+                      className="text-xs text-white/20 hover:text-white/40 transition-colors"
                     >
-                      Skip for now
+                      Skip
                     </button>
                   )}
                   <button
@@ -645,19 +650,12 @@ export default function OnboardingPage() {
                   <p className="text-center text-xs text-white/30 mt-2">No payment necessary</p>
                 </div>
               </div>
-              <div className="mt-8 flex items-center justify-between">
+              <div className="mt-8">
                 <button
                   onClick={() => goTo(2, "back")}
                   className="rounded-full border border-white/10 px-6 py-3 text-sm text-white/50 hover:text-white/80 hover:border-white/20 transition-all"
                 >
                   ← Back
-                </button>
-                <button
-                  onClick={finish}
-                  disabled={submitting}
-                  className="text-sm text-white/30 hover:text-white/60 transition-colors disabled:cursor-not-allowed"
-                >
-                  {submitting ? "Setting up…" : "Skip for now →"}
                 </button>
               </div>
             </div>

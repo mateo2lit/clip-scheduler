@@ -158,6 +158,15 @@ export default function WelcomePage() {
         if (planStatus === "active" || planStatus === "trialing") {
           setPlan(json.plan);
           setTrialEnds(json.trial_ends_at);
+          // Mark onboarding complete (Stripe flow bypasses the normal finish() call)
+          await fetch("/api/onboarding", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${data.session.access_token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({}),
+          }).catch(() => {});
           break;
         }
         attempts++;
