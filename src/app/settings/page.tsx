@@ -215,6 +215,8 @@ export default function SettingsPage() {
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
     if (conn === "threads") return { kind: "success" as const, text: "Threads connected successfully" };
     if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
+    const error = query.get("error");
+    if (error === "no_youtube_channel") return { kind: "error" as const, text: "No YouTube channel found on that Google account. Create a channel first, then reconnect." };
     const checkout = query.get("checkout");
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
@@ -1118,9 +1120,9 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Success Banner */}
+        {/* Banner */}
         {banner && (
-          <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
+          <div className={`mt-6 rounded-xl px-4 py-3 text-sm ${banner.kind === "error" ? "border border-red-500/20 bg-red-500/10 text-red-400" : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"}`}>
             {banner.text}
           </div>
         )}

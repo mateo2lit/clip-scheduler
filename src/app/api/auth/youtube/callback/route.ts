@@ -94,6 +94,13 @@ export async function GET(req: Request) {
       console.warn("Failed to fetch YouTube channel info:", profileErr);
     }
 
+    if (!channelId) {
+      const siteUrl = getSiteUrl(req);
+      return NextResponse.redirect(
+        `${siteUrl}/settings?error=no_youtube_channel`
+      );
+    }
+
     // 3) Read existing platform account for this specific channel to preserve refresh_token.
     //    Scope by platform_user_id (channelId) so we don't interfere with other connected channels.
     const existingQuery = supabaseAdmin
