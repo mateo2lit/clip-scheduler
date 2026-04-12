@@ -6,10 +6,13 @@ import crypto from "node:crypto";
 
 export const runtime = "nodejs";
 
-function readBearer(req: Request) {
-  const h = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  return m?.[1] || null;
+function getSiteUrl(req: Request) {
+  return (
+    process.env.SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    new URL(req.url).origin
+  );
 }
 
 function generateCodeVerifier(): string {
@@ -29,13 +32,12 @@ async function handler(req: Request) {
   const ownerCheck = requireOwnerOrAdmin(role);
   if (ownerCheck) return ownerCheck;
 
-  const { clientId, redirectUri } = getXAuthConfig();
+  const { clientId } = getXAuthConfig();
+  const siteUrl = getSiteUrl(req);
+  const redirectUri = `${siteUrl}/api/auth/x/callback`;
 
-  // Generate PKCE code_verifier and code_challenge
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-  // Encode signed state token and code_verifier so callback can use both
   const state = `${generateOAuthState(userId)}:${codeVerifier}`;
 
   const params = new URLSearchParams({

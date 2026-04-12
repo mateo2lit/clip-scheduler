@@ -55,7 +55,8 @@ export async function GET(req: Request) {
 
     const teamId = membership.team_id;
 
-    const { clientId, clientSecret, redirectUri } = getXAuthConfig();
+    const { clientId, clientSecret } = getXAuthConfig();
+    const redirectUri = `${getSiteUrl(req)}/api/auth/x/callback`;
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 

@@ -1,27 +1,17 @@
 type XAuthConfig = {
   clientId: string;
   clientSecret: string;
-  redirectUri: string;
 };
 
 export function getXAuthConfig(): XAuthConfig {
   const clientId = process.env.TWITTER_CLIENT_ID;
   const clientSecret = process.env.TWITTER_CLIENT_SECRET;
 
-  const siteUrl =
-    process.env.SITE_URL ||
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL;
-
-  if (!clientId || !clientSecret || !siteUrl) {
-    throw new Error(
-      "Missing TWITTER_CLIENT_ID / TWITTER_CLIENT_SECRET / SITE_URL env vars"
-    );
+  if (!clientId || !clientSecret) {
+    throw new Error("Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET env vars");
   }
 
-  const redirectUri = `${siteUrl}/api/auth/x/callback`;
-
-  return { clientId, clientSecret, redirectUri };
+  return { clientId, clientSecret };
 }
 
 export async function refreshXTokens(refreshToken: string): Promise<{
