@@ -770,7 +770,10 @@ export default function SettingsPage() {
       if (!token) { alert("Please log in first."); return; }
       const res = await fetch("/api/auth/x/start", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const { json } = await safeReadJson(res);
-      if (!res.ok || !json?.ok || !json?.url) { alert("Failed to start X connection. Please try again."); return; }
+      if (!res.ok || !json?.ok || !json?.url) {
+        alert(`Failed to start X connection: ${json?.error || `HTTP ${res.status}`}`);
+        return;
+      }
       window.location.href = json.url;
     } catch (e: any) { alert(e?.message || "Connect failed"); }
   }

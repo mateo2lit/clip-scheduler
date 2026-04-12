@@ -59,6 +59,7 @@ export async function POST(req: Request) {
   try {
     return await handler(req);
   } catch (e: any) {
+    console.error("[x/start] error:", e?.message, e?.stack);
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },
       { status: 500 }
@@ -70,6 +71,7 @@ export async function GET(req: Request) {
   try {
     return await handler(req);
   } catch (e: any) {
+    console.error("[x/start] error:", e?.message, e?.stack);
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },
       { status: 500 }
