@@ -60,8 +60,34 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
-      {/* Background gradient */}
-
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: post.title,
+            description: post.description,
+            datePublished: post.date,
+            dateModified: post.date,
+            author: {
+              "@type": "Organization",
+              name: "Clip Dash",
+              url: "https://clipdash.org",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Clip Dash",
+              url: "https://clipdash.org",
+            },
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `https://clipdash.org/blog/${post.slug}`,
+            },
+            keywords: post.tags.join(", "),
+          }),
+        }}
+      />
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-3xl px-6 py-4 flex items-center justify-between">
