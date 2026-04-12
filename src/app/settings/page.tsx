@@ -214,6 +214,7 @@ export default function SettingsPage() {
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
     if (conn === "threads") return { kind: "success" as const, text: "Threads connected successfully" };
+    if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
     const checkout = query.get("checkout");
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
@@ -748,6 +749,30 @@ export default function SettingsPage() {
       const res = await fetch("/api/platform-accounts?provider=threads", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, threads: [] }));
+    } catch (e) { console.error(e); }
+  }
+
+  async function connectX() {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) { alert("Please log in first."); return; }
+      const res = await fetch("/api/auth/x/start", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const { json } = await safeReadJson(res);
+      if (!res.ok || !json?.ok || !json?.url) { alert("Failed to start X connection. Please try again."); return; }
+      window.location.href = json.url;
+    } catch (e: any) { alert(e?.message || "Connect failed"); }
+  }
+
+  async function disconnectX() {
+    if (!confirm("Disconnect X? You'll need to reconnect before scheduling uploads.")) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/platform-accounts?provider=x", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const { json } = await safeReadJson(res);
+      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, x: [] }));
     } catch (e) { console.error(e); }
   }
 
@@ -1447,6 +1472,7 @@ export default function SettingsPage() {
                 instagram: connectInstagram,
                 linkedin: connectLinkedIn,
                 threads: connectThreads,
+                x: connectX,
               };
               const connectFn = connectFns[platform.key];
               const canManage = teamRole === "owner" || teamRole === "admin";

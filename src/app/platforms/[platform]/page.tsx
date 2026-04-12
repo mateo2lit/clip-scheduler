@@ -152,6 +152,31 @@ const PLATFORM_CONTENT: Record<string, {
       { label: "Thumbnail", detail: "A custom thumbnail can be uploaded alongside the video." },
     ],
   },
+  x: {
+    name: "X (Twitter)",
+    tagline: "Real-Time Conversation at Scale",
+    color: "from-white/[0.05] via-transparent to-transparent",
+    description: "X (formerly Twitter) has over 500 million monthly active users and is the dominant platform for real-time conversation, breaking news, and direct creator-to-audience engagement. Short-form video on X gets strong organic reach, especially when paired with trending topics and replies.",
+    signupUrl: "https://x.com/i/flow/signup",
+    signupLabel: "Create an X Account",
+    stats: [
+      { value: "500M+", label: "monthly active users" },
+      { value: "350B+", label: "posts read per day" },
+      { value: "Real-time", label: "trending topic discovery" },
+      { value: "2hrs", label: "average daily time spent" },
+    ],
+    why: [
+      "X's real-time nature means content tied to trending topics, live events, or breaking news can go viral within hours — faster than any other platform.",
+      "Video on X receives priority placement in the For You feed, giving even smaller accounts a chance to break through to new audiences organically.",
+      "X is the best platform for direct audience interaction — replies, quote posts, and threads let you build a community around your content in real time.",
+      "The X Premium subscription program rewards creators with ad revenue share once you hit follower and impression thresholds.",
+    ],
+    features: [
+      { label: "Video Upload", detail: "Videos are uploaded via the X v1.1 media upload API using chunked upload, then attached to a post via the v2 tweets API." },
+      { label: "Caption", detail: "The post description is used as the X post text (max 280 characters for standard accounts; longer for X Premium)." },
+      { label: "OAuth 2.0 + PKCE", detail: "X uses OAuth 2.0 with PKCE for secure authorization — no password is ever stored. Tokens are automatically refreshed before expiry." },
+    ],
+  },
   bluesky: {
     name: "Bluesky",
     tagline: "Decentralized & Creator-First Social",
