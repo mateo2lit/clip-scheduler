@@ -4,11 +4,11 @@ type XAuthConfig = {
 };
 
 export function getXAuthConfig(): XAuthConfig {
-  const clientId = process.env.TWITTER_CLIENT_ID;
-  const clientSecret = process.env.TWITTER_CLIENT_SECRET;
+  const clientId = process.env.TWITTER_CLIENT_ID || process.env.X_CLIENT_ID;
+  const clientSecret = process.env.TWITTER_CLIENT_SECRET || process.env.X_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error("Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET env vars");
+    throw new Error("Missing X/Twitter client credentials. Set TWITTER_CLIENT_ID and TWITTER_CLIENT_SECRET (or X_CLIENT_ID and X_CLIENT_SECRET) in your environment.");
   }
 
   return { clientId, clientSecret };
