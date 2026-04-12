@@ -22,20 +22,21 @@ function getSiteUrl(req: Request) {
   );
 }
 
+function redirectError(req: Request, code: string): NextResponse {
+  return NextResponse.redirect(`${getSiteUrl(req)}/settings?error=${code}`);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
 
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
+    const errorParam = url.searchParams.get("error");
 
-    if (!code) {
-      return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
-    }
-
-    if (!state) {
-      return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
-    }
+    if (errorParam) return redirectError(req, "auth_denied");
+    if (!code) return redirectError(req, "invalid");
+    if (!state) return redirectError(req, "invalid");
 
     const userId = verifyOAuthState(state);
 
@@ -47,9 +48,7 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) {
-      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
-    }
+    if (!membership) return redirectError(req, "no_team");
 
     const ownerCheck = requireOwnerOrAdmin(membership.role);
     if (ownerCheck) return ownerCheck;
@@ -72,8 +71,7 @@ export async function GET(req: Request) {
     const expiryIso =
       typeof tokens.expiry_date === "number" ? new Date(tokens.expiry_date).toISOString() : null;
 
-    // 2) Fetch channel profile — we need channelId to scope the refresh_token lookup
-    //    so we move this before the existing-account lookup.
+    // 2) Fetch channel profile
     oauth2.setCredentials(tokens);
     const youtube = google.youtube({ version: "v3", auth: oauth2 });
 
@@ -94,49 +92,25 @@ export async function GET(req: Request) {
       console.warn("Failed to fetch YouTube channel info:", profileErr);
     }
 
-    if (!channelId) {
-      const siteUrl = getSiteUrl(req);
-      return NextResponse.redirect(
-        `${siteUrl}/settings?error=no_youtube_channel`
-      );
-    }
+    if (!channelId) return redirectError(req, "no_youtube_channel");
 
     // 3) Read existing platform account for this specific channel to preserve refresh_token.
-    //    Scope by platform_user_id (channelId) so we don't interfere with other connected channels.
-    const existingQuery = supabaseAdmin
+    const existing = await supabaseAdmin
       .from("platform_accounts")
       .select("id, refresh_token")
       .eq("team_id", teamId)
-      .eq("provider", "youtube");
+      .eq("provider", "youtube")
+      .eq("platform_user_id", channelId)
+      .maybeSingle();
 
-    const existing = channelId
-      ? await existingQuery.eq("platform_user_id", channelId).maybeSingle()
-      : await existingQuery.maybeSingle();
-
-    if (existing.error) {
-      return NextResponse.json({ ok: false, error: existing.error.message }, { status: 500 });
-    }
+    if (existing.error) return redirectError(req, "save_failed");
 
     const preservedRefreshToken = existing.data?.refresh_token ?? null;
     const refreshTokenToStore = newRefreshToken || preservedRefreshToken;
 
-    if (!refreshTokenToStore) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "No refresh_token available. Please revoke Clip Scheduler access in your Google Account security settings and reconnect.",
-        },
-        { status: 400 }
-      );
-    }
+    if (!refreshTokenToStore) return redirectError(req, "no_refresh_token");
 
     // 4) Upsert platform_accounts.
-    //    onConflict uses "team_id,provider,platform_user_id" — requires the unique constraint
-    //    added in the multi-channel DB migration. Until that migration runs, this uses
-    //    "team_id,provider" as the fallback conflict target.
-    const conflictTarget = channelId ? "team_id,provider,platform_user_id" : "team_id,provider";
-
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -151,12 +125,10 @@ export async function GET(req: Request) {
         label: profileName,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: conflictTarget }
+      { onConflict: "team_id,provider,platform_user_id" }
     );
 
-    if (upsertErr) {
-      return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
-    }
+    if (upsertErr) return redirectError(req, "save_failed");
 
     const cookieStore = cookies();
     const inOnboarding = cookieStore.get("clip-onboarding")?.value === "1";
@@ -167,6 +139,9 @@ export async function GET(req: Request) {
     }
     return response;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    const msg = e?.message || "";
+    if (msg.includes("expired")) return redirectError(req, "expired");
+    if (msg.includes("OAuth state")) return redirectError(req, "invalid");
+    return redirectError(req, "unknown");
   }
 }

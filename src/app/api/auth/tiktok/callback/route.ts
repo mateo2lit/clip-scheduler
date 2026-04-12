@@ -16,6 +16,10 @@ function getSiteUrl(req: Request) {
   );
 }
 
+function redirectError(req: Request, code: string): NextResponse {
+  return NextResponse.redirect(`${getSiteUrl(req)}/settings?error=${code}`);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -24,35 +28,19 @@ export async function GET(req: Request) {
     const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
 
-    if (errorParam) {
-      const errorDesc = url.searchParams.get("error_description") || errorParam;
-      return NextResponse.json(
-        { ok: false, error: `TikTok auth denied: ${errorDesc}` },
-        { status: 400 }
-      );
-    }
-
-    if (!code) {
-      return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
-    }
-
-    if (!state) {
-      return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
-    }
+    if (errorParam) return redirectError(req, "auth_denied");
+    if (!code) return redirectError(req, "invalid");
+    if (!state) return redirectError(req, "invalid");
 
     // State format: "signedToken:codeVerifier"
     const lastColon = state.lastIndexOf(":");
-    if (lastColon === -1) {
-      return NextResponse.json({ ok: false, error: "Invalid state" }, { status: 400 });
-    }
+    if (lastColon === -1) return redirectError(req, "invalid");
     const signedToken = state.slice(0, lastColon);
     const codeVerifier = state.slice(lastColon + 1);
-    if (!signedToken || !codeVerifier) {
-      return NextResponse.json({ ok: false, error: "Invalid state" }, { status: 400 });
-    }
+    if (!signedToken || !codeVerifier) return redirectError(req, "invalid");
+
     const userId = verifyOAuthState(signedToken);
 
-    // Look up team membership and verify owner role
     const { data: membership } = await supabaseAdmin
       .from("team_members")
       .select("team_id, role")
@@ -60,9 +48,7 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) {
-      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
-    }
+    if (!membership) return redirectError(req, "no_team");
 
     const ownerCheckResult = requireOwnerOrAdmin(membership.role);
     if (ownerCheckResult) return ownerCheckResult;
@@ -71,7 +57,6 @@ export async function GET(req: Request) {
 
     const { clientKey, clientSecret, redirectUri } = getTikTokAuthConfig();
 
-    // Exchange code for tokens via TikTok API (with PKCE code_verifier)
     const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -85,38 +70,20 @@ export async function GET(req: Request) {
       }),
     });
 
-    if (!tokenRes.ok) {
-      const text = await tokenRes.text();
-      return NextResponse.json(
-        { ok: false, error: `TikTok token exchange failed: ${tokenRes.status} ${text}` },
-        { status: 500 }
-      );
-    }
+    if (!tokenRes.ok) return redirectError(req, "token_exchange");
 
     const tokens = await tokenRes.json();
-
-    if (tokens.error) {
-      return NextResponse.json(
-        { ok: false, error: `TikTok error: ${tokens.error} - ${tokens.error_description}` },
-        { status: 400 }
-      );
-    }
+    if (tokens.error) return redirectError(req, "token_exchange");
 
     const accessToken = tokens.access_token;
     const refreshToken = tokens.refresh_token;
     const openId = tokens.open_id;
     const expiresIn = tokens.expires_in;
 
-    if (!accessToken || !refreshToken) {
-      return NextResponse.json(
-        { ok: false, error: "TikTok did not return tokens" },
-        { status: 400 }
-      );
-    }
+    if (!accessToken || !refreshToken) return redirectError(req, "token_exchange");
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // Preserve existing refresh_token for this specific TikTok account (scoped by openId)
     const existingQ = supabaseAdmin
       .from("platform_accounts")
       .select("id, refresh_token")
@@ -126,28 +93,17 @@ export async function GET(req: Request) {
       ? await existingQ.eq("platform_user_id", openId).maybeSingle()
       : await existingQ.maybeSingle();
 
-    if (existing.error) {
-      return NextResponse.json({ ok: false, error: existing.error.message }, { status: 500 });
-    }
+    if (existing.error) return redirectError(req, "save_failed");
 
     const refreshTokenToStore = refreshToken || existing.data?.refresh_token;
+    if (!refreshTokenToStore) return redirectError(req, "token_exchange");
 
-    if (!refreshTokenToStore) {
-      return NextResponse.json(
-        { ok: false, error: "No refresh_token available from TikTok." },
-        { status: 400 }
-      );
-    }
-
-    // Fetch TikTok user profile info (display name + avatar)
     let profileName: string | null = null;
     let avatarUrl: string | null = null;
     try {
       const profileRes = await fetch(
         "https://open.tiktokapis.com/v2/user/info/?fields=display_name,avatar_url",
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       if (profileRes.ok) {
         const profileData = await profileRes.json();
@@ -158,12 +114,9 @@ export async function GET(req: Request) {
         }
       }
     } catch (profileErr) {
-      // Non-fatal: continue without profile data
       console.warn("Failed to fetch TikTok user info:", profileErr);
     }
 
-    // Upsert platform_accounts.
-    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const conflictTarget = openId ? "team_id,provider,platform_user_id" : "team_id,provider";
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
@@ -182,9 +135,7 @@ export async function GET(req: Request) {
       { onConflict: conflictTarget }
     );
 
-    if (upsertErr) {
-      return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
-    }
+    if (upsertErr) return redirectError(req, "save_failed");
 
     const siteUrl = getSiteUrl(req);
     const cookieStore = cookies();
@@ -196,6 +147,9 @@ export async function GET(req: Request) {
     }
     return response;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    const msg = e?.message || "";
+    if (msg.includes("expired")) return redirectError(req, "expired");
+    if (msg.includes("OAuth state")) return redirectError(req, "invalid");
+    return redirectError(req, "unknown");
   }
 }

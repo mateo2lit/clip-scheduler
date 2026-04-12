@@ -20,6 +20,10 @@ function getSiteUrl(req: Request) {
   );
 }
 
+function redirectError(req: Request, code: string): NextResponse {
+  return NextResponse.redirect(`${getSiteUrl(req)}/settings?error=${code}`);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -28,25 +32,12 @@ export async function GET(req: Request) {
     const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
 
-    if (errorParam) {
-      const errorDesc = url.searchParams.get("error_description") || errorParam;
-      return NextResponse.json(
-        { ok: false, error: `Facebook auth denied: ${errorDesc}` },
-        { status: 400 }
-      );
-    }
-
-    if (!code) {
-      return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
-    }
-
-    if (!state) {
-      return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
-    }
+    if (errorParam) return redirectError(req, "auth_denied");
+    if (!code) return redirectError(req, "invalid");
+    if (!state) return redirectError(req, "invalid");
 
     const userId = verifyOAuthState(state);
 
-    // Look up team membership and verify owner role
     const { data: membership } = await supabaseAdmin
       .from("team_members")
       .select("team_id, role")
@@ -54,9 +45,7 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) {
-      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
-    }
+    if (!membership) return redirectError(req, "no_team");
 
     const ownerCheckResult = requireOwnerOrAdmin(membership.role);
     if (ownerCheckResult) return ownerCheckResult;
@@ -77,56 +66,31 @@ export async function GET(req: Request) {
       `https://graph.facebook.com/v21.0/oauth/access_token?${tokenParams.toString()}`
     );
 
-    if (!tokenRes.ok) {
-      const text = await tokenRes.text();
-      return NextResponse.json(
-        { ok: false, error: `Facebook token exchange failed: ${tokenRes.status} ${text}` },
-        { status: 500 }
-      );
-    }
+    if (!tokenRes.ok) return redirectError(req, "token_exchange");
 
     const tokenData = await tokenRes.json();
-
-    if (tokenData.error) {
-      return NextResponse.json(
-        { ok: false, error: `Facebook error: ${tokenData.error.message}` },
-        { status: 400 }
-      );
-    }
+    if (tokenData.error) return redirectError(req, "token_exchange");
 
     const shortToken = tokenData.access_token;
-    if (!shortToken) {
-      return NextResponse.json(
-        { ok: false, error: "Facebook did not return an access token" },
-        { status: 400 }
-      );
-    }
+    if (!shortToken) return redirectError(req, "token_exchange");
 
     // 2) Exchange for long-lived token (~60 days)
     const longLived = await exchangeForLongLivedToken(shortToken);
     const longLivedToken = longLived.access_token;
-    const expiresIn = longLived.expires_in || 5184000; // default 60 days
+    const expiresIn = longLived.expires_in || 5184000;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     // 3) Fetch user's Pages
     const pages = await getFacebookUserPages(longLivedToken);
 
-    if (pages.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "No Facebook Pages found. You need a Facebook Page to post videos." },
-        { status: 400 }
-      );
-    }
+    if (pages.length === 0) return redirectError(req, "no_pages");
 
     // Auto-select first page
     const page = pages[0];
 
-    // 4) Build stable page picture URL (no signed tokens — works from any IP via proxy)
     const profileName: string | null = page.name || null;
     const avatarUrl = `https://graph.facebook.com/${page.id}/picture?type=large`;
 
-    // 5) Upsert platform_accounts with provider="facebook".
-    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -146,9 +110,7 @@ export async function GET(req: Request) {
       { onConflict: "team_id,provider,platform_user_id" }
     );
 
-    if (upsertErr) {
-      return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
-    }
+    if (upsertErr) return redirectError(req, "save_failed");
 
     const siteUrl = getSiteUrl(req);
     const cookieStore = cookies();
@@ -160,6 +122,9 @@ export async function GET(req: Request) {
     }
     return response;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    const msg = e?.message || "";
+    if (msg.includes("expired")) return redirectError(req, "expired");
+    if (msg.includes("OAuth state")) return redirectError(req, "invalid");
+    return redirectError(req, "unknown");
   }
 }

@@ -22,6 +22,10 @@ function getSiteUrl(req: Request) {
   );
 }
 
+function redirectError(req: Request, code: string): NextResponse {
+  return NextResponse.redirect(`${getSiteUrl(req)}/settings?error=${code}`);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -29,22 +33,13 @@ export async function GET(req: Request) {
     const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
 
-    if (errorParam) {
-      const errorDesc = url.searchParams.get("error_description") || errorParam;
-      return NextResponse.json({ ok: false, error: `Threads auth denied: ${errorDesc}` }, { status: 400 });
-    }
-
-    if (!code) return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
-    if (!state) return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
+    if (errorParam) return redirectError(req, "auth_denied");
+    if (!code) return redirectError(req, "invalid");
+    if (!state) return redirectError(req, "invalid");
 
     const userId = verifyOAuthState(state);
 
-    if (!isThreadsEnabledForUserId(userId)) {
-      return NextResponse.json(
-        { ok: false, error: "Threads is not available for this account." },
-        { status: 403 }
-      );
-    }
+    if (!isThreadsEnabledForUserId(userId)) return redirectError(req, "no_team");
 
     const { data: membership } = await supabaseAdmin
       .from("team_members")
@@ -54,9 +49,7 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) {
-      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
-    }
+    if (!membership) return redirectError(req, "no_team");
 
     const ownerCheckResult = requireOwnerOrAdmin(membership.role);
     if (ownerCheckResult) return ownerCheckResult;
@@ -74,7 +67,6 @@ export async function GET(req: Request) {
     const profileName = profile.username || null;
     const avatarUrl = profile.profilePictureUrl || null;
 
-    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -93,9 +85,7 @@ export async function GET(req: Request) {
       { onConflict: "team_id,provider,platform_user_id" }
     );
 
-    if (upsertErr) {
-      return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
-    }
+    if (upsertErr) return redirectError(req, "save_failed");
 
     const siteUrl = getSiteUrl(req);
     const cookieStore = cookies();
@@ -107,6 +97,9 @@ export async function GET(req: Request) {
     }
     return response;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    const msg = e?.message || "";
+    if (msg.includes("expired")) return redirectError(req, "expired");
+    if (msg.includes("OAuth state")) return redirectError(req, "invalid");
+    return redirectError(req, "unknown");
   }
 }

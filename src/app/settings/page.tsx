@@ -216,7 +216,16 @@ export default function SettingsPage() {
     if (conn === "threads") return { kind: "success" as const, text: "Threads connected successfully" };
     if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
     const error = query.get("error");
+    if (error === "auth_denied") return { kind: "error" as const, text: "Connection was canceled." };
+    if (error === "expired") return { kind: "error" as const, text: "Connection timed out — the authorization window is 15 minutes. Please try again." };
+    if (error === "invalid") return { kind: "error" as const, text: "Something went wrong during authorization. Please try again." };
+    if (error === "no_team") return { kind: "error" as const, text: "Account setup issue detected. Please log out and back in." };
+    if (error === "save_failed") return { kind: "error" as const, text: "Failed to save your account. Please try again." };
+    if (error === "token_exchange") return { kind: "error" as const, text: "Connection failed — the platform returned an error. Please try again." };
     if (error === "no_youtube_channel") return { kind: "error" as const, text: "No YouTube channel found on that Google account. Create a channel first, then reconnect." };
+    if (error === "no_refresh_token") return { kind: "error" as const, text: "Google didn't return a refresh token. Revoke Clip Scheduler's access in your Google Account security settings, then reconnect." };
+    if (error === "no_pages") return { kind: "error" as const, text: "No Facebook Pages found on that account. You need a Facebook Page to post — create one at facebook.com, then reconnect." };
+    if (error === "unknown") return { kind: "error" as const, text: "Something went wrong. Please try again or contact support if it persists." };
     const checkout = query.get("checkout");
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };

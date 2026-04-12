@@ -21,6 +21,10 @@ function getSiteUrl(req: Request) {
   );
 }
 
+function redirectError(req: Request, code: string): NextResponse {
+  return NextResponse.redirect(`${getSiteUrl(req)}/settings?error=${code}`);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -29,25 +33,12 @@ export async function GET(req: Request) {
     const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
 
-    if (errorParam) {
-      const errorDesc = url.searchParams.get("error_description") || errorParam;
-      return NextResponse.json(
-        { ok: false, error: `Instagram auth denied: ${errorDesc}` },
-        { status: 400 }
-      );
-    }
-
-    if (!code) {
-      return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
-    }
-
-    if (!state) {
-      return NextResponse.json({ ok: false, error: "Missing state" }, { status: 400 });
-    }
+    if (errorParam) return redirectError(req, "auth_denied");
+    if (!code) return redirectError(req, "invalid");
+    if (!state) return redirectError(req, "invalid");
 
     const userId = verifyOAuthState(state);
 
-    // Look up team membership and verify owner role
     const { data: membership } = await supabaseAdmin
       .from("team_members")
       .select("team_id, role")
@@ -56,9 +47,7 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) {
-      return NextResponse.json({ ok: false, error: "No team found for user" }, { status: 403 });
-    }
+    if (!membership) return redirectError(req, "no_team");
 
     const ownerCheckResult = requireOwnerOrAdmin(membership.role);
     if (ownerCheckResult) return ownerCheckResult;
@@ -66,23 +55,16 @@ export async function GET(req: Request) {
     const teamId = membership.team_id;
     const { redirectUri } = getInstagramAuthConfig();
 
-    // 1) Exchange code for short-lived token via Instagram API
     const shortLived = await exchangeCodeForToken(code, redirectUri);
-
-    // 2) Exchange for long-lived token (~60 days)
     const longLived = await exchangeForLongLivedToken(shortLived.access_token);
     const longLivedToken = longLived.access_token;
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000).toISOString();
 
-    // 3) Fetch Instagram profile info — use the Graph API `id` for content publishing
     const profile = await getInstagramProfile(longLivedToken);
-    const igUserId = profile.id; // Graph API IG User ID (needed for /media and /media_publish)
+    const igUserId = profile.id;
     const profileName = profile.username || null;
-    // Store the profile picture URL directly; the avatar-live endpoint will re-fetch it fresh
     const avatarUrl = profile.profilePictureUrl || null;
 
-    // 4) Upsert platform_accounts with provider="instagram".
-    // onConflict uses "team_id,provider,platform_user_id" after the multi-channel DB migration.
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       {
         user_id: userId,
@@ -101,9 +83,7 @@ export async function GET(req: Request) {
       { onConflict: "team_id,provider,platform_user_id" }
     );
 
-    if (upsertErr) {
-      return NextResponse.json({ ok: false, error: upsertErr.message }, { status: 500 });
-    }
+    if (upsertErr) return redirectError(req, "save_failed");
 
     const siteUrl = getSiteUrl(req);
     const cookieStore = cookies();
@@ -115,6 +95,10 @@ export async function GET(req: Request) {
     }
     return response;
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
+    const msg = e?.message || "";
+    if (msg.includes("expired")) return redirectError(req, "expired");
+    if (msg.includes("OAuth state")) return redirectError(req, "invalid");
+    if (msg.includes("Instagram token") || msg.includes("Instagram profile")) return redirectError(req, "token_exchange");
+    return redirectError(req, "unknown");
   }
 }
