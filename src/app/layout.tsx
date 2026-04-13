@@ -29,12 +29,14 @@ export const metadata: Metadata = {
     description:
       "Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X simultaneously. Built for streamers and video creators.",
     url: "https://clipdash.org",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Clip Dash — Upload Once, Post Everywhere" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Clip Dash — Upload Once, Post to Every Platform",
     description:
       "Stop logging into 7 apps to post the same video. Clip Dash auto-publishes to all platforms from one upload.",
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
@@ -51,6 +53,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="theme-color" content="#0a0e17" />
+        <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -64,7 +68,13 @@ export default function RootLayout({
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', 'G-JMCPTQSXGB');
+          gtag('config', 'G-JMCPTQSXGB', {
+            campaign_source: new URLSearchParams(window.location.search).get('utm_source') || undefined,
+            campaign_medium: new URLSearchParams(window.location.search).get('utm_medium') || undefined,
+            campaign_name: new URLSearchParams(window.location.search).get('utm_campaign') || undefined,
+            campaign_term: new URLSearchParams(window.location.search).get('utm_term') || undefined,
+            campaign_content: new URLSearchParams(window.location.search).get('utm_content') || undefined
+          });
         `}</Script>
         <Script
           id="schema-software"
@@ -102,7 +112,7 @@ export default function RootLayout({
                 "Content calendar",
                 "30-day analytics dashboard",
               ],
-              screenshot: "https://clipdash.org/og-image.png",
+              screenshot: "https://clipdash.org/opengraph-image",
               softwareVersion: "1.0",
             }),
           }}
