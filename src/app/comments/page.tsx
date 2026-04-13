@@ -55,7 +55,6 @@ function exportCSV(comments: EnrichedComment[], readIds: Record<string, true>) {
 export default function CommentsPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
-  const [tiktokNote, setTiktokNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -138,7 +137,6 @@ export default function CommentsPage() {
       if (json.ok) {
         setComments(json.comments ?? []);
         setErrors(json.errors ?? []);
-        if (json.tiktokNote) setTiktokNote(json.tiktokNote);
         setLastFetchedAt(new Date());
       }
     } catch {}
@@ -652,18 +650,6 @@ export default function CommentsPage() {
           </div>
         ))}
 
-        {/* TikTok note */}
-        {tiktokNote && (
-          <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 flex items-center gap-3">
-            <svg className="w-4 h-4 text-white/30 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-            </svg>
-            <p className="text-sm text-white/40">{tiktokNote}</p>
-            <Link href="/analytics" className="shrink-0 ml-auto text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition-colors">
-              View Analytics
-            </Link>
-          </div>
-        )}
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4">
           {/* Sidebar filters */}

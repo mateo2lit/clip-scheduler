@@ -1,7 +1,7 @@
 export type Comment = {
   id: string;
   replyId?: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "x";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "x" | "threads";
   accountId: string;
   accountLabel: string;
   postTitle: string;
@@ -18,7 +18,7 @@ export type Comment = {
 
 export type Sentiment = "positive" | "negative" | "neutral";
 export type CommentType = "question" | "content-request" | "feedback" | "praise" | "general";
-export type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "x";
+export type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "x" | "threads";
 export type SortMode = "priority" | "recent" | "oldest";
 export type ReadFilter = "unread" | "read" | "all";
 export type ViewMode = "list" | "by-post" | "by-user";
@@ -51,6 +51,7 @@ export const platformLabels: Record<string, string> = {
   instagram: "Instagram",
   bluesky: "Bluesky",
   x: "X (Twitter)",
+  threads: "Threads",
 };
 
 export const platformColors: Record<string, { badge: string; text: string }> = {
@@ -59,6 +60,7 @@ export const platformColors: Record<string, { badge: string; text: string }> = {
   instagram: { badge: "bg-pink-500/10 border-pink-500/20 text-pink-400", text: "text-pink-400" },
   bluesky: { badge: "bg-sky-500/10 border-sky-500/20 text-sky-400", text: "text-sky-400" },
   x: { badge: "bg-white/10 border-white/20 text-white/70", text: "text-white/70" },
+  threads: { badge: "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400", text: "text-fuchsia-400" },
 };
 
 export const commentTypeColors: Record<CommentType, { badge: string; label: string }> = {

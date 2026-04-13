@@ -95,7 +95,7 @@ export default function Sidebar({
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
         <p className="text-[10px] font-semibold tracking-widest text-white/30 uppercase px-1">Platforms</p>
         <div className="mt-3 flex lg:flex-col flex-wrap gap-1.5">
-          {(["all", "youtube", "facebook", "instagram", "bluesky", "x"] as PlatformFilter[]).map((p) => (
+          {(["all", "youtube", "facebook", "instagram", "bluesky", "x", "threads"] as PlatformFilter[]).map((p) => (
             <button
               key={p}
               onClick={() => setFilter(p)}

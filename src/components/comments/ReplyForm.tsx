@@ -7,6 +7,7 @@ const platformCharLimits: Record<string, number> = {
   instagram: 2200,
   bluesky: 300,
   x: 280,
+  threads: 500,
 };
 
 export default function ReplyForm({

@@ -277,3 +277,48 @@ export async function fetchRecentXPosts(params: {
     return { posts: [], error: `X recent posts: ${e?.message || "Unknown error"}` };
   }
 }
+
+
+// ── Threads ─────────────────────────────────────────────────────────
+
+export async function fetchRecentThreadsPosts(params: {
+  threadsUserId: string;
+  accessToken: string;
+  maxResults: number;
+  sinceIso?: string;
+}): Promise<{ posts: RecentPost[]; error?: string }> {
+  try {
+    const url = `https://graph.threads.net/v1.0/${params.threadsUserId}/threads?fields=id,text,timestamp,permalink,media_type,media_url,thumbnail_url&limit=${Math.min(
+      Math.max(params.maxResults, 1),
+      50
+    )}&access_token=${encodeURIComponent(params.accessToken)}`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      return {
+        posts: [],
+        error: `Threads recent posts: ${errBody?.error?.message || `HTTP ${res.status}`}`,
+      };
+    }
+
+    const json = await res.json();
+    const posts: RecentPost[] = [];
+    for (const item of json.data ?? []) {
+      const createdAt = item.timestamp ?? null;
+      if (!isAfterSince(createdAt, params.sinceIso)) continue;
+      posts.push({
+        id: `threads-${item.id}`,
+        title: item.text?.slice(0, 120) ?? "Threads post",
+        platform_post_id: item.permalink || item.id || null,
+        platform_media_id: item.id ?? null,
+        posted_at: createdAt,
+        thumbnail_url: item.thumbnail_url || item.media_url || null,
+      });
+    }
+
+    return { posts };
+  } catch (e: any) {
+    return { posts: [], error: `Threads recent posts: ${e?.message || "Unknown error"}` };
+  }
+}

@@ -3,7 +3,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 export type UnifiedComment = {
   id: string;
   replyId?: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "x" | "threads";
   accountId: string;
   accountLabel: string;
   postTitle: string;
@@ -381,5 +381,156 @@ export async function fetchBlueskyComments(
     };
   } catch (e: any) {
     return { comments: [], error: `Bluesky: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── X (Twitter) ────────────────────────────────────────────────────
+
+export async function fetchXComments(
+  posts: PostInfo[],
+  accessToken: string,
+  accountId: string,
+  accountLabel: string
+): Promise<{ comments: UnifiedComment[]; error?: string }> {
+  try {
+    const results = await Promise.allSettled(
+      posts.map(async (post) => {
+        const tweetId = post.platform_post_id;
+        if (!tweetId) return [];
+
+        // Use the recent search endpoint with conversation_id to find replies
+        const query = `conversation_id:${tweetId} is:reply`;
+        const url = `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&tweet.fields=created_at,public_metrics,author_id,conversation_id&expansions=author_id&user.fields=name,username,profile_image_url&max_results=20`;
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody?.errors?.[0]?.message || errBody?.detail || `HTTP ${res.status}`);
+        }
+
+        const json = await res.json();
+        const tweets: any[] = json.data ?? [];
+
+        // Build author lookup from includes
+        const authorMap = new Map<string, { name: string; username: string; image: string | null }>();
+        for (const user of json.includes?.users ?? []) {
+          authorMap.set(user.id, {
+            name: user.name ?? user.username ?? "Unknown",
+            username: user.username ?? "",
+            image: user.profile_image_url ?? null,
+          });
+        }
+
+        return tweets.map((tweet): UnifiedComment => {
+          const author = authorMap.get(tweet.author_id) ?? { name: "Unknown", username: "", image: null };
+          const tweetUrl = author.username
+            ? `https://x.com/${author.username}/status/${tweet.id}`
+            : undefined;
+          return {
+            id: tweet.id ?? `x-${tweetId}-${Math.random()}`,
+            replyId: tweet.id ?? undefined,
+            platform: "x",
+            accountId,
+            accountLabel,
+            postTitle: post.title ?? "Untitled",
+            postId: tweetId,
+            postUrl: `https://x.com/i/status/${tweetId}`,
+            commentUrl: tweetUrl,
+            postThumbnailUrl: post.thumbnail_url ?? null,
+            authorName: author.name,
+            authorImageUrl: author.image,
+            text: tweet.text ?? "",
+            publishedAt: tweet.created_at ?? new Date().toISOString(),
+            likeCount: tweet.public_metrics?.like_count ?? 0,
+          };
+        });
+      })
+    );
+
+    const comments: UnifiedComment[] = [];
+    const fetchErrors: string[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled") comments.push(...r.value);
+      else fetchErrors.push(r.reason?.message || "Unknown error");
+    }
+    return {
+      comments,
+      error: fetchErrors.length > 0 ? `X: ${fetchErrors[0]}` : undefined,
+    };
+  } catch (e: any) {
+    return { comments: [], error: `X: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── Threads ────────────────────────────────────────────────────────
+
+export async function fetchThreadsComments(
+  posts: PostInfo[],
+  accessToken: string,
+  accountId: string,
+  accountLabel: string
+): Promise<{ comments: UnifiedComment[]; error?: string }> {
+  try {
+    const results = await Promise.allSettled(
+      posts.map(async (post) => {
+        const mediaId = post.platform_media_id || post.platform_post_id;
+        if (!mediaId || mediaId.startsWith("https://")) return [];
+
+        const url = `https://graph.threads.net/v1.0/${mediaId}/replies?fields=id,text,username,timestamp,likes&access_token=${encodeURIComponent(accessToken)}`;
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const code = errBody?.error?.code;
+          if (code === 190 || res.status === 403) {
+            throw new Error("reconnect_required");
+          }
+          return [];
+        }
+
+        const json = await res.json();
+        const items: any[] = json.data ?? [];
+
+        return items.map((item): UnifiedComment => ({
+          id: item.id ?? `threads-${mediaId}-${Math.random()}`,
+          replyId: item.id ?? undefined,
+          platform: "threads",
+          accountId,
+          accountLabel,
+          postTitle: post.title ?? "Untitled",
+          postId: mediaId,
+          postUrl: post.platform_post_id?.startsWith("https://") ? post.platform_post_id : undefined,
+          postThumbnailUrl: post.thumbnail_url ?? null,
+          authorName: item.username ?? "Unknown",
+          authorImageUrl: null,
+          text: item.text ?? "",
+          publishedAt: item.timestamp ?? new Date().toISOString(),
+          likeCount: item.likes ?? 0,
+        }));
+      })
+    );
+
+    let reconnectNeeded = false;
+    const comments: UnifiedComment[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        comments.push(...r.value);
+      } else if (r.reason?.message === "reconnect_required") {
+        reconnectNeeded = true;
+      }
+    }
+
+    return {
+      comments,
+      error: reconnectNeeded ? "Reconnect Threads to see comments" : undefined,
+    };
+  } catch (e: any) {
+    if (e?.message === "reconnect_required") {
+      return { comments: [], error: "Reconnect Threads to see comments" };
+    }
+    return { comments: [], error: `Threads: ${e?.message || "Unknown error"}` };
   }
 }

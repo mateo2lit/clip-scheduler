@@ -209,6 +209,7 @@ export default function StatsBar({
                 instagram: "bg-pink-400",
                 bluesky: "bg-sky-400",
                 x: "bg-white/50",
+                threads: "bg-fuchsia-400",
               };
               return (
                 <div key={platform} className="flex items-center gap-2">
