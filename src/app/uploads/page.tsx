@@ -16,7 +16,7 @@ import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
 import AppPageOrb from "@/components/AppPageOrb";
 import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
-import TextPostComposer, { type LinkPreviewData, type SavedHashtagGroup } from "@/components/uploads/TextPostComposer";
+import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 
 const EMOJI_CATEGORIES = {
   "Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😎", "🤩"],
@@ -280,7 +280,6 @@ export default function UploadsPage() {
   const [textPostBody, setTextPostBody] = useState("");
   const [linkPreview, setLinkPreview] = useState<LinkPreviewData | null>(null);
   const [linkPreviewLoading, setLinkPreviewLoading] = useState(false);
-  const [savedHashtagGroups, setSavedHashtagGroups] = useState<SavedHashtagGroup[]>([]);
 
   // Connected platform accounts (for showing "posting as" info)
   const [platformAccounts, setPlatformAccounts] = useState<Record<string, { profileName: string | null; avatarUrl: string | null }>>({
@@ -621,7 +620,7 @@ export default function UploadsPage() {
         try {
           const { data: draftPosts } = await supabase
             .from("scheduled_posts")
-            .select("id, upload_id, post_type, text_post_content, title, description, provider, scheduled_for, privacy_status, youtube_settings, tiktok_settings, instagram_settings, thumbnail_path, group_id, platform_account_id")
+            .select("*")
             .eq("status", "draft")
             .or(`group_id.eq.${draftGroupId},id.eq.${draftGroupId}`);
 
@@ -1086,14 +1085,15 @@ export default function UploadsPage() {
       const token = sess.session?.access_token;
       if (!token) throw new Error("Not logged in");
 
+      const isText = postMode === "text";
       const res = await fetch("/api/ai/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          title,
-          description,
+          title: isText ? "" : title,
+          description: isText ? textPostBody : description,
           platforms: selectedPlatforms,
-          filename: file?.name || "",
+          filename: isText ? "" : (file?.name || ""),
           existingHashtags: hashtags,
           context: aiContext,
         }),
@@ -1291,7 +1291,6 @@ export default function UploadsPage() {
             body.linkedin_settings = { visibility: linkedinVisibility };
           }
         } else {
-          body.post_type = "video";
           body.upload_id = (burnStatus === "done" && burnUploadId)
             ? burnUploadId
             : (verticalEnabled && verticalUploadId)
@@ -1985,27 +1984,12 @@ export default function UploadsPage() {
                   <TextPostComposer
                     body={textPostBody}
                     onBodyChange={setTextPostBody}
-                    hashtags={hashtags}
-                    onHashtagsChange={setHashtags}
                     selectedPlatforms={selectedPlatforms}
                     linkPreview={linkPreview}
                     linkPreviewLoading={linkPreviewLoading}
                     onLinkPreview={setLinkPreview}
                     onLinkPreviewLoadingChange={setLinkPreviewLoading}
                     platformDescOverrides={platformDescOverrides}
-                    onPlatformDescOverride={(platform, val) => {
-                      if (!val) {
-                        setPlatformDescOverrides((prev) => {
-                          const next = { ...prev };
-                          delete next[platform];
-                          return next;
-                        });
-                      } else {
-                        setPlatformDescOverrides((prev) => ({ ...prev, [platform]: val }));
-                      }
-                    }}
-                    savedHashtagGroups={savedHashtagGroups}
-                    onSavedHashtagGroups={setSavedHashtagGroups}
                     accessToken={accessToken}
                     textareaRef={descriptionRef as React.RefObject<HTMLTextAreaElement | null>}
                   />
@@ -2061,8 +2045,7 @@ export default function UploadsPage() {
               </div>
               )} {/* end postMode === "video" description */}
 
-              {/* Hashtags — video mode only */}
-              {postMode === "video" && (
+              {/* Hashtags */}
               <div className="border-b border-white/10 p-5">
                 <label className="mb-2 block text-xs text-white/70">Hashtags</label>
                 <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border border-white/10 bg-white/5 min-h-[44px]" onClick={() => hashtagInputRef.current?.focus()}>
@@ -2107,7 +2090,7 @@ export default function UploadsPage() {
                 {/* AI Context Prompt */}
                 {showAiPrompt && (
                   <div className="mt-3 rounded-xl border border-blue-400/30 bg-blue-400/[0.08] p-4">
-                    <label className="mb-2 block text-xs font-medium text-blue-300">What's this video about?</label>
+                    <label className="mb-2 block text-xs font-medium text-blue-300">{postMode === "text" ? "What's this post about?" : "What's this video about?"}</label>
                     <input
                       type="text"
                       value={aiContext}
@@ -2175,7 +2158,7 @@ export default function UploadsPage() {
                   </div>
                 )}
               </div>
-              )} {/* end postMode === "video" hashtags */}
+              {/* end hashtags */}
 
               {/* Thumbnail — video mode only */}
               {postMode === "video" && (
@@ -2913,7 +2896,11 @@ export default function UploadsPage() {
                 </div>
                 <div className="p-5">
                   {postMode === "text" && (
-                    <p className="text-xs text-white/40 mb-3">Text post — use the "Facebook" tab in the composer above to customize the text.</p>
+                    <>
+                    <p className="text-xs text-white/40 mb-3">Optionally customize the text for Facebook. Leave blank to use the base text.</p>
+                    <textarea value={platformDescOverrides.facebook || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, facebook: e.target.value }))} placeholder="Custom text for Facebook (optional)" rows={3} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    <p className="mt-1.5 text-xs text-white/30 text-right">{(platformDescOverrides.facebook || "").length}/63,206</p>
+                    </>
                   )}
                   {postMode === "video" && (
                   <>
@@ -2959,6 +2946,13 @@ export default function UploadsPage() {
                       <option value="CONNECTIONS">Connections only</option>
                     </select>
                   </div>
+                  {postMode === "text" && (
+                    <>
+                    <p className="text-xs text-white/40 mb-3">Optionally customize the text for LinkedIn. Leave blank to use the base text.</p>
+                    <textarea value={platformDescOverrides.linkedin || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, linkedin: e.target.value }))} placeholder="Custom text for LinkedIn (optional)" rows={3} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    <p className="mt-1.5 text-xs text-white/30 text-right">{(platformDescOverrides.linkedin || "").length}/3,000</p>
+                    </>
+                  )}
                   {postMode === "video" && (
                   <>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "linkedin" ? null : "linkedin")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
@@ -2996,10 +2990,16 @@ export default function UploadsPage() {
                   ) : null}
                 </div>
                 <div className="p-5">
-                  {postMode === "video"
-                    ? <p className="text-xs text-white/40 mb-3">Video will be posted as a Threads video post. Async publishing — takes 1–5 minutes.</p>
-                    : <p className="text-xs text-white/40 mb-3">Text post — use the "Threads" tab in the composer above to customize the text for Threads.</p>
-                  }
+                  {postMode === "video" && (
+                    <p className="text-xs text-white/40 mb-3">Video will be posted as a Threads video post. Async publishing — takes 1–5 minutes.</p>
+                  )}
+                  {postMode === "text" && (
+                    <>
+                    <p className="text-xs text-white/40 mb-3">Optionally customize the text for Threads. Leave blank to use the base text.</p>
+                    <textarea value={platformDescOverrides.threads || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, threads: e.target.value }))} placeholder="Custom text for Threads (optional)" rows={3} maxLength={500} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    <p className="mt-1.5 text-xs text-white/30 text-right">{(platformDescOverrides.threads || "").length}/500</p>
+                    </>
+                  )}
                   {postMode === "video" && (
                   <>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "threads" ? null : "threads")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
@@ -3037,10 +3037,16 @@ export default function UploadsPage() {
                   ) : null}
                 </div>
                 <div className="p-5">
-                  {postMode === "video"
-                    ? <p className="text-xs text-white/40 mb-3">Video will be posted as a Bluesky video post. Caption is limited to 300 characters.</p>
-                    : <p className="text-xs text-white/40 mb-3">Text post — use the "Bluesky" tab in the composer above to customize the text.</p>
-                  }
+                  {postMode === "video" && (
+                    <p className="text-xs text-white/40 mb-3">Video will be posted as a Bluesky video post. Caption is limited to 300 characters.</p>
+                  )}
+                  {postMode === "text" && (
+                    <>
+                    <p className="text-xs text-white/40 mb-3">Optionally customize the text for Bluesky. Leave blank to use the base text.</p>
+                    <textarea value={platformDescOverrides.bluesky || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, bluesky: e.target.value }))} placeholder="Custom text for Bluesky (optional)" rows={3} maxLength={300} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    <p className="mt-1.5 text-xs text-white/30 text-right">{(platformDescOverrides.bluesky || "").length}/300</p>
+                    </>
+                  )}
                   {postMode === "video" && (
                   <>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "bluesky" ? null : "bluesky")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
@@ -3078,7 +3084,9 @@ export default function UploadsPage() {
                   ) : null}
                 </div>
                 <div className="p-5 space-y-4">
-                  <p className="text-xs text-white/40">Video will be posted as a tweet. 280 character limit applies.</p>
+                  {postMode === "video" && (
+                    <p className="text-xs text-white/40">Video will be posted as a tweet. 280 character limit applies.</p>
+                  )}
 
                   <div>
                     <label className="text-xs text-white/50 mb-1.5 block">Who can reply</label>
@@ -3093,6 +3101,15 @@ export default function UploadsPage() {
                     </select>
                   </div>
 
+                  {postMode === "text" && (
+                    <>
+                    <p className="text-xs text-white/40">Optionally customize the tweet text. Leave blank to use the base text.</p>
+                    <textarea value={platformDescOverrides.x || ""} maxLength={280} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, x: e.target.value }))} placeholder="Custom tweet text (optional)" rows={3} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    <p className="mt-1.5 text-xs text-white/30 text-right">{(platformDescOverrides.x || "").length}/280</p>
+                    </>
+                  )}
+                  {postMode === "video" && (
+                  <>
                   <button
                     type="button"
                     onClick={() => setOpenCaptionOverride(openCaptionOverride === "x" ? null : "x")}
@@ -3113,6 +3130,8 @@ export default function UploadsPage() {
                       />
                       <p className="text-xs text-white/30 text-right">{(platformDescOverrides.x || "").length}/280</p>
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
               </div>

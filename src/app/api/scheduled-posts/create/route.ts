@@ -92,7 +92,6 @@ export async function POST(req: Request) {
     const insertRow: any = {
       user_id: userId,
       team_id: teamId,
-      post_type: isTextPost ? "text" : "video",
       upload_id: upload_id || null,
       provider: normalizedProvider,
       platform_account_id: platform_account_id || null,
@@ -104,8 +103,12 @@ export async function POST(req: Request) {
       group_id: group_id || undefined,
     };
 
-    if (isTextPost && text_post_content) {
-      insertRow.text_post_content = text_post_content;
+    // Only include text post columns when creating a text post (columns may not exist if migration hasn't run)
+    if (isTextPost) {
+      insertRow.post_type = "text";
+      if (text_post_content) {
+        insertRow.text_post_content = text_post_content;
+      }
     }
 
     if (thumbnail_path) {

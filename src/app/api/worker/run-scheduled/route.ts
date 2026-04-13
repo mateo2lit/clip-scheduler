@@ -476,7 +476,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,post_type,text_post_content,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
+    .select("*")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -485,7 +485,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,post_type,text_post_content,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
+      .select("*")
       .eq("id", postId)
       .limit(1);
   }
