@@ -24,7 +24,7 @@ function sleep(ms: number) {
 }
 
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB chunks
-const MEDIA_UPLOAD_URL = "https://upload.twitter.com/1.1/media/upload.json";
+const MEDIA_UPLOAD_URL = "https://api.x.com/2/media/upload";
 
 export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   tweetId: string;
@@ -85,20 +85,18 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   assertOk(totalBytes > 0, "Video file is empty");
 
   // 3) INIT the media upload
-  const initParams = new URLSearchParams({
-    command: "INIT",
-    total_bytes: String(totalBytes),
-    media_type: "video/mp4",
-    media_category: "tweet_video",
-  });
+  const initForm = new FormData();
+  initForm.append("command", "INIT");
+  initForm.append("total_bytes", String(totalBytes));
+  initForm.append("media_type", "video/mp4");
+  initForm.append("media_category", "tweet_video");
 
   const initRes = await fetch(MEDIA_UPLOAD_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: initParams,
+    body: initForm,
   });
 
   if (!initRes.ok) {
@@ -107,10 +105,10 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   }
 
   const initData = await initRes.json();
-  const mediaId: string = initData.media_id_string;
+  const mediaId: string = initData.data?.id;
 
   if (!mediaId) {
-    throw new Error("X media INIT did not return media_id_string");
+    throw new Error("X media INIT did not return media id");
   }
 
   // 4) APPEND chunks
@@ -143,18 +141,16 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   }
 
   // 5) FINALIZE
-  const finalizeParams = new URLSearchParams({
-    command: "FINALIZE",
-    media_id: mediaId,
-  });
+  const finalizeForm = new FormData();
+  finalizeForm.append("command", "FINALIZE");
+  finalizeForm.append("media_id", mediaId);
 
   const finalizeRes = await fetch(MEDIA_UPLOAD_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: finalizeParams,
+    body: finalizeForm,
   });
 
   if (!finalizeRes.ok) {
@@ -215,7 +211,7 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
     tweetBody.reply_settings = replySettings;
   }
 
-  const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
+  const tweetRes = await fetch("https://api.x.com/2/tweets", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
