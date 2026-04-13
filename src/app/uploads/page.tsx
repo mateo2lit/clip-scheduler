@@ -275,7 +275,7 @@ export default function UploadsPage() {
   const [draftEditGroupId, setDraftEditGroupId] = useState<string | null>(null);
 
   // Text post mode
-  const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky"]);
+  const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky", "x"]);
   const [postMode, setPostMode] = useState<PostMode>("video");
   const [textPostBody, setTextPostBody] = useState("");
   const [linkPreview, setLinkPreview] = useState<LinkPreviewData | null>(null);

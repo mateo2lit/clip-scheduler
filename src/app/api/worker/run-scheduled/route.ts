@@ -8,7 +8,7 @@ import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/l
 import { uploadSupabaseVideoToLinkedIn, postTextToLinkedIn } from "@/lib/linkedinUpload";
 import { createThreadsContainer, checkAndPublishThreadsContainer, createThreadsTextContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky, postTextToBluesky } from "@/lib/blueskyUpload";
-import { uploadVideoToX } from "@/lib/xUpload";
+import { uploadVideoToX, postTextToX } from "@/lib/xUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
@@ -626,7 +626,7 @@ async function runWorker(req: Request) {
 
       // ── Text post execution ──────────────────────────────────────────────────
       if (isTextPost) {
-        const TEXT_POST_PLATFORMS = ["linkedin", "facebook", "threads", "bluesky"];
+        const TEXT_POST_PLATFORMS = ["linkedin", "facebook", "threads", "bluesky", "x"];
         if (!TEXT_POST_PLATFORMS.includes(provider)) {
           throw new Error(`${provider} does not support text-only posts`);
         }
@@ -730,6 +730,22 @@ async function runWorker(req: Request) {
             }).eq("id", acct.id);
           }
           platformPostId = bskyResult.uri;
+
+        } else if (provider === "x") {
+          if (!acct.access_token || !acct.refresh_token) {
+            throw new Error("X account not configured. Please reconnect your X account.");
+          }
+          const xSettings = ((post as any).x_settings ?? {}) as any;
+          const xResult = await postTextToX({
+            userId: post.user_id,
+            platformAccountId: acct.id,
+            refreshToken: acct.refresh_token,
+            accessToken: acct.access_token,
+            expiresAt: acct.expiry || null,
+            text: fullText.slice(0, 280),
+            replySettings: xSettings.reply_settings || "everyone",
+          });
+          platformPostId = xResult.tweetId;
         }
 
         // Mark posted and notify — shared path below handles this

@@ -226,3 +226,73 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
 
   return { tweetId };
 }
+
+// ── Text-only tweet ────────────────────────────────────────────────────────
+
+type PostTextToXArgs = {
+  userId: string;
+  platformAccountId: string;
+  refreshToken: string;
+  accessToken?: string | null;
+  expiresAt?: string | null;
+  text: string;
+  replySettings?: "everyone" | "mentionedUsers" | "subscribers";
+};
+
+export async function postTextToX(args: PostTextToXArgs): Promise<{ tweetId: string }> {
+  const {
+    userId,
+    platformAccountId,
+    refreshToken,
+    accessToken: existingAccessToken,
+    expiresAt: existingExpiresAt,
+    text,
+    replySettings = "everyone",
+  } = args;
+
+  assertOk(refreshToken, "Missing refreshToken");
+
+  const tokens = await getXAccessToken({
+    refreshToken,
+    accessToken: existingAccessToken,
+    expiresAt: existingExpiresAt,
+  });
+
+  // Persist refreshed tokens
+  await supabaseAdmin
+    .from("platform_accounts")
+    .update({
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      expiry: tokens.expiresAt.toISOString(),
+    })
+    .eq("id", platformAccountId)
+    .eq("user_id", userId);
+
+  const tweetBody: any = { text: text.slice(0, 280) };
+  if (replySettings !== "everyone") {
+    tweetBody.reply_settings = replySettings;
+  }
+
+  const tweetRes = await fetch("https://api.x.com/2/tweets", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${tokens.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(tweetBody),
+  });
+
+  if (!tweetRes.ok) {
+    const errText = await tweetRes.text();
+    throw new Error(`X tweet post failed: ${tweetRes.status} ${errText}`);
+  }
+
+  const tweetData = await tweetRes.json();
+  const tweetId: string = tweetData.data?.id;
+  if (!tweetId) {
+    throw new Error("X tweet post did not return tweet id");
+  }
+
+  return { tweetId };
+}

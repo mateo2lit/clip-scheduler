@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const isDraft = requestedStatus === "draft";
     const normalizedProvider = String(provider || "youtube").toLowerCase();
     const isTextPost = post_type === "text";
-    const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky"]);
+    const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky", "x"]);
 
     if (normalizedProvider === "threads" && !isThreadsEnabledForUserId(userId)) {
       return NextResponse.json(

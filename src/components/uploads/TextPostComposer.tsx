@@ -22,6 +22,7 @@ const TEXT_PLATFORM_LIMITS: Record<string, { label: string; limit: number; count
   facebook: { label: "Facebook", limit: 63206 },
   threads: { label: "Threads", limit: 500 },
   bluesky: { label: "Bluesky", limit: 300, countFn: countBlueskyGraphemes },
+  x: { label: "X", limit: 280 },
 };
 
 function getCount(platform: string, text: string): number {
