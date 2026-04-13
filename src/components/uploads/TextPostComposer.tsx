@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { countBlueskyGraphemes } from "@/lib/blueskyUpload";
+import { countBlueskyGraphemes } from "@/lib/blueskyUtils";
 
 export type LinkPreviewData = {
   url: string;
