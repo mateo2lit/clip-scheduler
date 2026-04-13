@@ -1,113 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import AppPageOrb from "@/components/AppPageOrb";
+import type {
+  Comment,
+  EnrichedComment,
+  PlatformFilter,
+  SortMode,
+  ReadFilter,
+  ViewMode,
+  SentimentFilter,
+  CommentType,
+  SavedReply,
+  CommentFlags,
+  ArchiveFilter,
+  DateRange,
+} from "@/components/comments/types";
+import { enrichComment } from "@/components/comments/sentiment";
+import CommentCard from "@/components/comments/CommentCard";
+import Sidebar from "@/components/comments/Sidebar";
+import StatsBar from "@/components/comments/StatsBar";
+import SearchBar from "@/components/comments/SearchBar";
+import ViewToggle from "@/components/comments/ViewToggle";
+import KeyboardShortcutsHelp from "@/components/comments/KeyboardShortcutsHelp";
 
-type Comment = {
-  id: string;
-  replyId?: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "x";
-  accountId: string;
-  accountLabel: string;
-  postTitle: string;
-  postId: string;
-  postUrl?: string;
-  commentUrl?: string;
-  postThumbnailUrl?: string | null;
-  authorName: string;
-  authorImageUrl: string | null;
-  text: string;
-  publishedAt: string;
-  likeCount: number;
-};
-
-type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "x";
-type SortMode = "priority" | "recent" | "oldest";
-type ReadFilter = "unread" | "read" | "all";
-
-const platformLabels: Record<string, string> = {
-  youtube: "YouTube",
-  facebook: "Facebook",
-  instagram: "Instagram",
-  bluesky: "Bluesky",
-  x: "X (Twitter)",
-};
-
-const platformColors: Record<string, { badge: string; text: string }> = {
-  youtube: { badge: "bg-red-500/10 border-red-500/20 text-red-400", text: "text-red-400" },
-  facebook: { badge: "bg-blue-500/10 border-blue-500/20 text-blue-400", text: "text-blue-400" },
-  instagram: { badge: "bg-pink-500/10 border-pink-500/20 text-pink-400", text: "text-pink-400" },
-  bluesky: { badge: "bg-sky-500/10 border-sky-500/20 text-sky-400", text: "text-sky-400" },
-  x: { badge: "bg-white/10 border-white/20 text-white/70", text: "text-white/70" },
-};
-
-function relativeTime(iso: string) {
-  try {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  } catch {
-    return "";
-  }
-}
-
-function isLikelyQuestion(text: string): boolean {
-  const t = (text || "").toLowerCase();
-  if (t.includes("?")) return true;
-  return /(^|\s)(how|what|when|where|why|who|which|can|could|should|do|does|did|is|are|will)\b/.test(t);
-}
-
-function hasContentRequestSignal(text: string): boolean {
-  const t = (text || "").toLowerCase();
-  return (
-    /(^|\s)(please|plz|pls)\b/.test(t) ||
-    t.includes("part 2") ||
-    t.includes("next video") ||
-    t.includes("make a video") ||
-    t.includes("do a video") ||
-    t.includes("tutorial") ||
-    t.includes("can you make") ||
-    t.includes("you should make") ||
-    t.includes("video idea") ||
-    t.includes("cover ") ||
-    t.includes("explain ")
+function exportCSV(comments: EnrichedComment[], readIds: Record<string, true>) {
+  const escape = (s: string) => `"${(s ?? "").replace(/"/g, '""').replace(/\n/g, " ")}"`;
+  const header = "Author,Platform,Post,Comment,Sentiment,Type,Date,Likes,Status";
+  const rows = comments.map((c) =>
+    [
+      escape(c.authorName),
+      c.platform,
+      escape(c.postTitle),
+      escape(c.text),
+      c.sentiment,
+      c.commentType,
+      c.publishedAt,
+      c.likeCount,
+      readIds[c.id] ? "read" : "unread",
+    ].join(",")
   );
-}
-
-function hasFeedbackSignal(text: string): boolean {
-  const t = (text || "").toLowerCase();
-  return (
-    t.includes("you should") ||
-    t.includes("would be better") ||
-    t.includes("improve") ||
-    t.includes("feedback") ||
-    t.includes("suggest")
-  );
-}
-
-function priorityScore(comment: Comment): number {
-  const text = comment.text || "";
-  const questionBoost = isLikelyQuestion(text) ? 600 : 0;
-  const requestBoost = hasContentRequestSignal(text) ? 900 : 0;
-  const feedbackBoost = hasFeedbackSignal(text) ? 350 : 0;
-
-  // Prioritize comments with some substance over one-word reactions.
-  const lengthBoost = Math.min(Math.floor(text.trim().length / 40), 6) * 40;
-
-  // Engagement matters for deciding what content to respond to publicly.
-  const likesBoost = Math.min(comment.likeCount, 150) * 8;
-
-  // Mild recency tie-breaker.
-  const recencyBoost = Math.floor(new Date(comment.publishedAt).getTime() / 60000) * 0.001;
-
-  return requestBoost + questionBoost + feedbackBoost + lengthBoost + likesBoost + recencyBoost;
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `comments_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function CommentsPage() {
@@ -116,30 +58,93 @@ export default function CommentsPage() {
   const [tiktokNote, setTiktokNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
-  const [filter, setFilter] = useState<PlatformFilter>("all");
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState("");
-  const [replySending, setReplySending] = useState(false);
-  const [replySuccess, setReplySuccess] = useState<string | null>(null);
-  const [replyError, setReplyError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
+
+  const [filter, setFilter] = useState<PlatformFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [readFilter, setReadFilter] = useState<ReadFilter>("all");
+  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("all");
+  const [commentTypeFilter, setCommentTypeFilter] = useState<CommentType | "all">("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
+  const [dateRange, setDateRange] = useState<DateRange>("7d");
+
   const [readCommentIds, setReadCommentIds] = useState<Record<string, true>>({});
+  const [commentFlags, setCommentFlags] = useState<Record<string, CommentFlags>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
+  const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
 
-  const isRead = (commentId: string) => Boolean(readCommentIds[commentId]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(60);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [likedCommentIds, setLikedCommentIds] = useState<Record<string, true>>({});
 
-  const toggleRead = (commentId: string) => {
+  const autoRefreshRef = useRef(autoRefresh);
+  autoRefreshRef.current = autoRefresh;
+  const authTokenRef = useRef(authToken);
+  authTokenRef.current = authToken;
+  const commentListRef = useRef<HTMLDivElement>(null);
+
+  const isRead = (id: string) => Boolean(readCommentIds[id]);
+  const isStarred = (id: string) => Boolean(commentFlags[id]?.starred);
+  const isArchived = (id: string) => Boolean(commentFlags[id]?.archived);
+
+  const toggleRead = useCallback((id: string) => {
     setReadCommentIds((prev) => {
-      if (prev[commentId]) {
+      if (prev[id]) {
         const next = { ...prev };
-        delete next[commentId];
+        delete next[id];
         return next;
       }
-      return { ...prev, [commentId]: true };
+      return { ...prev, [id]: true };
     });
-  };
+  }, []);
 
+  const toggleStar = useCallback((id: string) => {
+    setCommentFlags((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], starred: !prev[id]?.starred },
+    }));
+  }, []);
+
+  const toggleArchive = useCallback((id: string) => {
+    setCommentFlags((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], archived: !prev[id]?.archived },
+    }));
+  }, []);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const fetchComments = useCallback(async (token: string, range?: DateRange) => {
+    try {
+      const r = range || "7d";
+      const res = await fetch(`/api/comments?range=${r}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setComments(json.comments ?? []);
+        setErrors(json.errors ?? []);
+        if (json.tiktokNote) setTiktokNote(json.tiktokNote);
+        setLastFetchedAt(new Date());
+      }
+    } catch {}
+  }, []);
+
+  // Initial load
   useEffect(() => {
     async function load() {
       const { data: auth } = await supabase.auth.getSession();
@@ -149,11 +154,9 @@ export default function CommentsPage() {
       }
 
       setSessionEmail(auth.session.user.email ?? null);
-
       const token = auth.session.access_token;
       setAuthToken(token);
 
-      // Verify team membership
       let teamOk = false;
       try {
         const res = await fetch("/api/team/me", {
@@ -168,37 +171,56 @@ export default function CommentsPage() {
         return;
       }
 
-      try {
-        const res = await fetch("/api/comments", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        if (json.ok) {
-          setComments(json.comments ?? []);
-          setErrors(json.errors ?? []);
-          if (json.tiktokNote) setTiktokNote(json.tiktokNote);
-        }
-      } catch {}
-
+      await fetchComments(token, dateRange);
       setLoading(false);
     }
 
     load();
-  }, []);
+  }, [fetchComments]);
 
+  // Auto-refresh polling (60s interval, pauses on blur)
+  useEffect(() => {
+    if (loading) return;
+
+    let countdown = 60;
+    setSecondsUntilRefresh(60);
+
+    const timer = setInterval(() => {
+      if (!autoRefreshRef.current) return;
+      countdown--;
+      setSecondsUntilRefresh(countdown);
+
+      if (countdown <= 0) {
+        countdown = 60;
+        setSecondsUntilRefresh(60);
+        const token = authTokenRef.current;
+        if (token) {
+          setIsRefreshing(true);
+          fetchComments(token).finally(() => setIsRefreshing(false));
+        }
+      }
+    }, 1000);
+
+    const onFocus = () => { countdown = 5; setSecondsUntilRefresh(5); };
+    const onBlur = () => { countdown = 999; };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [loading, fetchComments]);
+
+  // Load read state from localStorage
   useEffect(() => {
     if (!sessionEmail) return;
     try {
       const raw = window.localStorage.getItem(`clipdash:read-comments:${sessionEmail}`);
-      if (!raw) {
-        setReadCommentIds({});
-        return;
-      }
+      if (!raw) { setReadCommentIds({}); return; }
       const ids = JSON.parse(raw);
-      if (!Array.isArray(ids)) {
-        setReadCommentIds({});
-        return;
-      }
+      if (!Array.isArray(ids)) { setReadCommentIds({}); return; }
       const next: Record<string, true> = {};
       for (const id of ids) {
         if (typeof id === "string" && id.length > 0) next[id] = true;
@@ -209,6 +231,7 @@ export default function CommentsPage() {
     }
   }, [sessionEmail]);
 
+  // Persist read state
   useEffect(() => {
     if (!sessionEmail) return;
     try {
@@ -219,73 +242,330 @@ export default function CommentsPage() {
     } catch {}
   }, [sessionEmail, readCommentIds]);
 
-  async function sendReply(platform: string, commentId: string, platformAccountId: string) {
-    if (!replyText.trim() || !authToken) return;
-    setReplySending(true);
-    setReplyError(null);
+  // Load comment flags from localStorage
+  useEffect(() => {
+    if (!sessionEmail) return;
     try {
-      const res = await fetch("/api/comments/reply", {
+      const raw = window.localStorage.getItem(`clipdash:comment-flags:${sessionEmail}`);
+      if (raw) setCommentFlags(JSON.parse(raw));
+    } catch {}
+  }, [sessionEmail]);
+
+  // Persist comment flags
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      window.localStorage.setItem(
+        `clipdash:comment-flags:${sessionEmail}`,
+        JSON.stringify(commentFlags)
+      );
+    } catch {}
+  }, [sessionEmail, commentFlags]);
+
+  // Load saved replies from localStorage
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      const raw = window.localStorage.getItem(`clipdash:saved-replies:${sessionEmail}`);
+      if (raw) setSavedReplies(JSON.parse(raw));
+    } catch {}
+  }, [sessionEmail]);
+
+  // Persist saved replies
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      window.localStorage.setItem(
+        `clipdash:saved-replies:${sessionEmail}`,
+        JSON.stringify(savedReplies)
+      );
+    } catch {}
+  }, [sessionEmail, savedReplies]);
+
+  // Load liked state from localStorage
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      const raw = window.localStorage.getItem(`clipdash:liked-comments:${sessionEmail}`);
+      if (raw) setLikedCommentIds(JSON.parse(raw));
+    } catch {}
+  }, [sessionEmail]);
+
+  // Persist liked state
+  useEffect(() => {
+    if (!sessionEmail) return;
+    try {
+      window.localStorage.setItem(
+        `clipdash:liked-comments:${sessionEmail}`,
+        JSON.stringify(likedCommentIds)
+      );
+    } catch {}
+  }, [sessionEmail, likedCommentIds]);
+
+  const addSavedReply = useCallback((label: string, text: string) => {
+    setSavedReplies((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), label, text, createdAt: new Date().toISOString() },
+    ]);
+  }, []);
+
+  const deleteSavedReply = useCallback((id: string) => {
+    setSavedReplies((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  async function handleRefresh() {
+    if (!authToken || isRefreshing) return;
+    setIsRefreshing(true);
+    await fetchComments(authToken, dateRange);
+    setIsRefreshing(false);
+    setSecondsUntilRefresh(60);
+  }
+
+  async function handleDateRangeChange(range: DateRange) {
+    setDateRange(range);
+    if (!authToken) return;
+    setIsRefreshing(true);
+    await fetchComments(authToken, range);
+    setIsRefreshing(false);
+  }
+
+  async function handleLikeComment(comment: EnrichedComment) {
+    if (!authToken || likedCommentIds[comment.id]) return;
+    setLikedCommentIds((prev) => ({ ...prev, [comment.id]: true }));
+    try {
+      await fetch("/api/comments/like", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ platform, commentId, text: replyText.trim(), platformAccountId }),
+        body: JSON.stringify({
+          platform: comment.platform,
+          commentId: comment.id,
+          platformAccountId: comment.accountId,
+        }),
       });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Reply failed");
-      setReplySuccess(commentId);
-      setReplyText("");
-      setTimeout(() => {
-        setReplySuccess(null);
-        setReplyingTo(null);
-      }, 1500);
-    } catch (e: any) {
-      setReplyError(e?.message || "Reply failed");
-    } finally {
-      setReplySending(false);
+    } catch {
+      setLikedCommentIds((prev) => {
+        const next = { ...prev };
+        delete next[comment.id];
+        return next;
+      });
     }
   }
 
-  const platformScoped = filter === "all" ? comments : comments.filter((c) => c.platform === filter);
-  const readCounts = {
-    all: platformScoped.length,
-    read: platformScoped.filter((c) => isRead(c.id)).length,
-    unread: platformScoped.filter((c) => !isRead(c.id)).length,
-  };
+  // Enrich all comments with sentiment + type + priority
+  const enriched: EnrichedComment[] = useMemo(
+    () => comments.map(enrichComment),
+    [comments]
+  );
 
-  const filtered = platformScoped
-    .filter((c) => {
-      if (readFilter === "all") return true;
-      if (readFilter === "read") return isRead(c.id);
-      return !isRead(c.id);
-    })
-    .slice()
-    .sort((a, b) => {
-      if (sortMode === "recent") {
-        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
-      }
-      if (sortMode === "oldest") {
-        return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime();
-      }
-      const scoreDiff = priorityScore(b) - priorityScore(a);
-      if (scoreDiff !== 0) return scoreDiff;
-      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+  // Filter pipeline
+  const filtered = useMemo(() => {
+    let result = enriched;
+
+    // Archive filter
+    if (archiveFilter === "active") result = result.filter((c) => !isArchived(c.id));
+    else if (archiveFilter === "archived") result = result.filter((c) => isArchived(c.id));
+    else if (archiveFilter === "starred") result = result.filter((c) => isStarred(c.id));
+
+    // Platform
+    if (filter !== "all") result = result.filter((c) => c.platform === filter);
+
+    // Sentiment
+    if (sentimentFilter !== "all") result = result.filter((c) => c.sentiment === sentimentFilter);
+
+    // Comment type
+    if (commentTypeFilter !== "all") result = result.filter((c) => c.commentType === commentTypeFilter);
+
+    // Read status
+    if (readFilter === "read") result = result.filter((c) => isRead(c.id));
+    else if (readFilter === "unread") result = result.filter((c) => !isRead(c.id));
+
+    // Search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.text.toLowerCase().includes(q) ||
+          c.authorName.toLowerCase().includes(q) ||
+          c.postTitle.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      if (sortMode === "recent") return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      if (sortMode === "oldest") return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime();
+      const diff = b.priorityScore - a.priorityScore;
+      return diff !== 0 ? diff : new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
     });
+
+    return result;
+  }, [enriched, filter, sentimentFilter, commentTypeFilter, readFilter, searchQuery, sortMode, readCommentIds, archiveFilter, commentFlags]);
+
+  // Read counts scoped to platform filter
+  const readCounts = useMemo(() => {
+    const scoped = filter === "all" ? enriched : enriched.filter((c) => c.platform === filter);
+    const active = scoped.filter((c) => !isArchived(c.id));
+    return {
+      all: active.length,
+      read: active.filter((c) => isRead(c.id)).length,
+      unread: active.filter((c) => !isRead(c.id)).length,
+    };
+  }, [enriched, filter, readCommentIds, commentFlags]);
+
+  // Archive/star counts
+  const flagCounts = useMemo(() => {
+    return {
+      starred: enriched.filter((c) => isStarred(c.id)).length,
+      archived: enriched.filter((c) => isArchived(c.id)).length,
+    };
+  }, [enriched, commentFlags]);
+
+  // Bulk actions
+  function bulkMarkRead() {
+    setReadCommentIds((prev) => {
+      const next = { ...prev };
+      for (const id of selectedIds) next[id] = true;
+      return next;
+    });
+    setSelectedIds(new Set());
+    setBulkMode(false);
+  }
+
+  function bulkMarkUnread() {
+    setReadCommentIds((prev) => {
+      const next = { ...prev };
+      for (const id of selectedIds) delete next[id];
+      return next;
+    });
+    setSelectedIds(new Set());
+    setBulkMode(false);
+  }
+
+  function bulkStar() {
+    setCommentFlags((prev) => {
+      const next = { ...prev };
+      for (const id of selectedIds) next[id] = { ...next[id], starred: true };
+      return next;
+    });
+    setSelectedIds(new Set());
+    setBulkMode(false);
+  }
+
+  function bulkArchive() {
+    setCommentFlags((prev) => {
+      const next = { ...prev };
+      for (const id of selectedIds) next[id] = { ...next[id], archived: true };
+      return next;
+    });
+    setSelectedIds(new Set());
+    setBulkMode(false);
+  }
+
+  // Group helpers for view modes
+  const groupedByPost = useMemo(() => {
+    if (viewMode !== "by-post") return null;
+    const map = new Map<string, EnrichedComment[]>();
+    for (const c of filtered) {
+      const key = c.postId || "unknown";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(c);
+    }
+    return map;
+  }, [filtered, viewMode]);
+
+  const groupedByUser = useMemo(() => {
+    if (viewMode !== "by-user") return null;
+    const map = new Map<string, EnrichedComment[]>();
+    for (const c of filtered) {
+      const key = c.authorName;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(c);
+    }
+    return map;
+  }, [filtered, viewMode]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable;
+
+      if (e.key === "?" && !isInput) {
+        e.preventDefault();
+        setShowShortcutsHelp((v) => !v);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setShowShortcutsHelp(false);
+        return;
+      }
+
+      if (isInput) return;
+
+      if (e.key === "j" || e.key === "k") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const max = filtered.length - 1;
+          if (max < 0) return -1;
+          if (e.key === "j") return Math.min(prev + 1, max);
+          return Math.max(prev - 1, 0);
+        });
+        return;
+      }
+
+      if (e.key === "/" ) {
+        e.preventDefault();
+        const searchInput = document.querySelector<HTMLInputElement>('[data-search-input]');
+        searchInput?.focus();
+        return;
+      }
+
+      const comment = focusedIndex >= 0 && focusedIndex < filtered.length ? filtered[focusedIndex] : null;
+      if (!comment) return;
+
+      if (e.key === "m") { e.preventDefault(); toggleRead(comment.id); }
+      if (e.key === "s") { e.preventDefault(); toggleStar(comment.id); }
+      if (e.key === "e") { e.preventDefault(); toggleArchive(comment.id); }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [filtered, focusedIndex, toggleRead, toggleStar, toggleArchive]);
+
+  // Scroll focused comment into view
+  useEffect(() => {
+    if (focusedIndex < 0) return;
+    const container = commentListRef.current;
+    if (!container) return;
+    const cards = container.querySelectorAll('[data-comment-card]');
+    cards[focusedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusedIndex]);
 
   const reconnectErrors = errors.filter((e) => e.toLowerCase().includes("reconnect"));
   const otherErrors = errors.filter((e) => !e.toLowerCase().includes("reconnect"));
+
+  const focusedId = focusedIndex >= 0 && focusedIndex < filtered.length ? filtered[focusedIndex].id : null;
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       <AppPageOrb />
 
+      {showShortcutsHelp && <KeyboardShortcutsHelp onClose={() => setShowShortcutsHelp(false)} />}
+
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
-        <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" /></Link>
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center">
+            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
+          </Link>
           <div className="flex items-center gap-3">
-            <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">Settings</Link>
+            <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">
+              Settings
+            </Link>
             <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[11px] font-semibold">
               {sessionEmail ? sessionEmail[0].toUpperCase() : "?"}
             </div>
@@ -293,9 +573,9 @@ export default function CommentsPage() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-5xl px-6 pt-10 pb-16">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
@@ -312,7 +592,34 @@ export default function CommentsPage() {
               </p>
             </div>
           </div>
+
+          <div className="flex items-center gap-3">
+            <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+
+            {/* Keyboard shortcuts hint */}
+            <button
+              onClick={() => setShowShortcutsHelp(true)}
+              className="h-8 w-8 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-center text-white/25 hover:text-white/50 hover:bg-white/[0.05] transition-all"
+              title="Keyboard shortcuts (?)"
+            >
+              <kbd className="text-[10px] font-mono font-bold">?</kbd>
+            </button>
+          </div>
         </div>
+
+        {/* Stats */}
+        {!loading && enriched.length > 0 && (
+          <StatsBar
+            comments={enriched}
+            unreadCount={readCounts.unread}
+            lastFetchedAt={lastFetchedAt}
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            autoRefresh={autoRefresh}
+            onToggleAutoRefresh={() => setAutoRefresh((v) => !v)}
+            secondsUntilRefresh={secondsUntilRefresh}
+          />
+        )}
 
         {/* Reconnect banners */}
         {reconnectErrors.map((err, i) => (
@@ -345,11 +652,11 @@ export default function CommentsPage() {
           </div>
         ))}
 
-        {/* TikTok comment limitation notice */}
+        {/* TikTok note */}
         {tiktokNote && (
           <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 flex items-center gap-3">
             <svg className="w-4 h-4 text-white/30 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
             </svg>
             <p className="text-sm text-white/40">{tiktokNote}</p>
             <Link href="/analytics" className="shrink-0 ml-auto text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition-colors">
@@ -358,267 +665,260 @@ export default function CommentsPage() {
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-4">
-          <aside className="space-y-3 h-fit">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-              <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Platforms</p>
-              <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
-                {(["all", "youtube", "facebook", "instagram", "bluesky", "x"] as PlatformFilter[]).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setFilter(p)}
-                    className={`rounded-full lg:rounded-lg px-4 py-1.5 lg:py-2 text-sm font-medium border transition-all text-left ${
-                      filter === p
-                        ? "bg-white/10 border-white/20 text-white"
-                        : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    {p === "all" ? "All" : platformLabels[p]}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4">
+          {/* Sidebar filters */}
+          <Sidebar
+            comments={enriched}
+            filter={filter}
+            setFilter={setFilter}
+            readFilter={readFilter}
+            setReadFilter={setReadFilter}
+            readCounts={readCounts}
+            sentimentFilter={sentimentFilter}
+            setSentimentFilter={setSentimentFilter}
+            commentTypeFilter={commentTypeFilter}
+            setCommentTypeFilter={setCommentTypeFilter}
+            archiveFilter={archiveFilter}
+            setArchiveFilter={setArchiveFilter}
+            flagCounts={flagCounts}
+          />
 
+          {/* Main content */}
+          <section className="space-y-4">
+            {/* Toolbar */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-              <p className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Read Status</p>
-              <div className="mt-3 flex lg:flex-col flex-wrap gap-2">
-                {(["all", "unread", "read"] as ReadFilter[]).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setReadFilter(mode)}
-                    className={`rounded-full lg:rounded-lg px-4 py-1.5 lg:py-2 text-sm font-medium border transition-all text-left ${
-                      readFilter === mode
-                        ? "bg-white/12 border-white/20 text-white"
-                        : "bg-white/[0.02] border-white/10 text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    {mode === "unread" ? "Unread" : mode === "read" ? "Read" : "All"} (
-                    {mode === "unread" ? readCounts.unread : mode === "read" ? readCounts.read : readCounts.all})
-                  </button>
-                ))}
-              </div>
-            </div>
-          </aside>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-[180px]">
+                  <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                </div>
 
-          <section>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold tracking-wide text-white/40 uppercase px-1">Sort</span>
+                {/* Date range */}
                 <select
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value as SortMode)}
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium border border-white/15 bg-[#0b0b0b] text-white/90 focus:outline-none focus:border-white/30"
-                  aria-label="Sort comments"
+                  value={dateRange}
+                  onChange={(e) => handleDateRangeChange(e.target.value as DateRange)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium border border-white/10 bg-[#0b0b0b] text-white/90 focus:outline-none focus:border-white/20"
+                  aria-label="Date range"
                 >
-                  <option value="recent">Newest first</option>
-                  <option value="priority">Priority</option>
-                  <option value="oldest">Oldest first</option>
+                  <option value="3d">3 days</option>
+                  <option value="7d">7 days</option>
+                  <option value="14d">14 days</option>
+                  <option value="30d">30 days</option>
                 </select>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold tracking-widest text-white/30 uppercase">Sort</span>
+                  <select
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.target.value as SortMode)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium border border-white/10 bg-[#0b0b0b] text-white/90 focus:outline-none focus:border-white/20"
+                    aria-label="Sort comments"
+                  >
+                    <option value="recent">Newest first</option>
+                    <option value="priority">Priority</option>
+                    <option value="oldest">Oldest first</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                    bulkMode
+                      ? "border-blue-500/30 bg-blue-500/10 text-blue-300"
+                      : "border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  {bulkMode ? "Cancel" : "Select"}
+                </button>
+
+                {/* Export CSV */}
+                {!loading && filtered.length > 0 && (
+                  <button
+                    onClick={() => exportCSV(filtered, readCommentIds)}
+                    className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-all flex items-center gap-1.5"
+                    title="Export filtered comments as CSV"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    CSV
+                  </button>
+                )}
               </div>
+
+              {/* Bulk action bar */}
+              {bulkMode && selectedIds.size > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-white/40">{selectedIds.size} selected</span>
+                  <button onClick={bulkMarkRead} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/15 transition-colors">
+                    Mark read
+                  </button>
+                  <button onClick={bulkMarkUnread} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors">
+                    Mark unread
+                  </button>
+                  <button onClick={bulkStar} className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/15 transition-colors">
+                    Star
+                  </button>
+                  <button onClick={bulkArchive} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors">
+                    Archive
+                  </button>
+                </div>
+              )}
             </div>
 
-        {/* Comments list */}
-        <div className="mt-4">
-          {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02]">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="px-5 py-4 border-t border-white/5 first:border-t-0">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-white/[0.06] animate-pulse" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 w-24 rounded bg-white/[0.06] animate-pulse" />
-                      <div className="h-3 w-64 rounded bg-white/[0.06] animate-pulse" />
+            {/* Comments list */}
+            {loading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02]">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="px-6 py-5 border-t border-white/5 first:border-t-0">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-white/[0.06] animate-pulse" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-24 rounded bg-white/[0.06] animate-pulse" />
+                        <div className="h-3 w-64 rounded bg-white/[0.06] animate-pulse" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
-              <div className="inline-flex rounded-xl p-3 bg-cyan-500/10 text-cyan-400 mx-auto">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-                </svg>
+                ))}
               </div>
-              <p className="font-semibold text-white/90 mt-4">No comments yet</p>
-              <p className="text-sm text-white/40 mt-1">
-                Comments on your recent posts will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] divide-y divide-white/5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
-              {filtered.map((comment) => {
-                const colors = platformColors[comment.platform];
-                return (
-                  <div key={comment.id} className="px-5 py-4 hover:bg-white/[0.02] transition-colors">
-                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem] gap-4 items-start">
-                      <div className="flex items-start gap-3">
-                      {/* Avatar */}
-                      {comment.authorImageUrl ? (
-                        <img
-                          src={comment.authorImageUrl}
-                          alt=""
-                          className="h-8 w-8 rounded-full shrink-0"
+            ) : filtered.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
+                <div className="inline-flex rounded-xl p-3 bg-cyan-500/10 text-cyan-400 mx-auto">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                  </svg>
+                </div>
+                <p className="font-semibold text-white/90 mt-4">No comments found</p>
+                <p className="text-sm text-white/40 mt-1">
+                  {searchQuery
+                    ? "Try a different search term."
+                    : archiveFilter === "archived"
+                    ? "No archived comments yet."
+                    : archiveFilter === "starred"
+                    ? "No starred comments yet. Press S to star a comment."
+                    : "Comments on your recent posts will appear here."}
+                </p>
+              </div>
+            ) : viewMode === "list" ? (
+              <div ref={commentListRef} className="rounded-2xl border border-white/10 bg-white/[0.03] divide-y divide-white/[0.04] shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+                {filtered.map((comment, idx) => (
+                  <CommentCard
+                    key={comment.id}
+                    comment={comment}
+                    isRead={isRead(comment.id)}
+                    isFocused={focusedId === comment.id}
+                    isSelected={selectedIds.has(comment.id)}
+                    isStarred={isStarred(comment.id)}
+                    isArchived={isArchived(comment.id)}
+                    isLiked={Boolean(likedCommentIds[comment.id])}
+                    bulkMode={bulkMode}
+                    onToggleRead={() => toggleRead(comment.id)}
+                    onToggleSelect={() => toggleSelect(comment.id)}
+                    onToggleStar={() => toggleStar(comment.id)}
+                    onToggleArchive={() => toggleArchive(comment.id)}
+                    onLike={() => handleLikeComment(comment)}
+                    onSelect={() => setFocusedIndex(focusedId === comment.id ? -1 : idx)}
+                    onReply={() => {}}
+                    savedReplies={savedReplies}
+                    onAddSavedReply={addSavedReply}
+                    onDeleteSavedReply={deleteSavedReply}
+                    authToken={authToken}
+                    sessionEmail={sessionEmail}
+                  />
+                ))}
+              </div>
+            ) : viewMode === "by-post" && groupedByPost ? (
+              <div className="space-y-4">
+                {Array.from(groupedByPost.entries()).map(([postId, group]) => (
+                  <div key={postId} className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+                    <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-3">
+                      {group[0].postThumbnailUrl && (
+                        <img src={group[0].postThumbnailUrl} alt="" className="h-10 w-16 rounded-lg object-cover border border-white/10" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white/80 truncate">{group[0].postTitle || "Untitled"}</p>
+                        <p className="text-[11px] text-white/30">{group.length} comment{group.length === 1 ? "" : "s"}</p>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-white/[0.04]">
+                      {group.map((comment) => (
+                        <CommentCard
+                          key={comment.id}
+                          comment={comment}
+                          isRead={isRead(comment.id)}
+                          isFocused={focusedId === comment.id}
+                          isSelected={selectedIds.has(comment.id)}
+                          isStarred={isStarred(comment.id)}
+                          isArchived={isArchived(comment.id)}
+                          isLiked={Boolean(likedCommentIds[comment.id])}
+                          bulkMode={bulkMode}
+                          compact
+                          onToggleRead={() => toggleRead(comment.id)}
+                          onToggleSelect={() => toggleSelect(comment.id)}
+                          onToggleStar={() => toggleStar(comment.id)}
+                          onToggleArchive={() => toggleArchive(comment.id)}
+                          onLike={() => handleLikeComment(comment)}
+                          onSelect={() => setFocusedIndex(-1)}
+                          onReply={() => {}}
+                          savedReplies={savedReplies}
+                          onAddSavedReply={addSavedReply}
+                          onDeleteSavedReply={deleteSavedReply}
+                          authToken={authToken}
+                          sessionEmail={sessionEmail}
                         />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : viewMode === "by-user" && groupedByUser ? (
+              <div className="space-y-4">
+                {Array.from(groupedByUser.entries()).map(([author, group]) => (
+                  <div key={author} className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+                    <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-3">
+                      {group[0].authorImageUrl ? (
+                        <img src={group[0].authorImageUrl} alt="" className="h-9 w-9 rounded-full ring-1 ring-white/10" />
                       ) : (
-                        <div className="h-8 w-8 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-semibold text-white/40 shrink-0">
-                          {comment.authorName[0]?.toUpperCase() ?? "?"}
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-white/[0.08] to-white/[0.03] flex items-center justify-center text-xs font-semibold text-white/40 ring-1 ring-white/10">
+                          {author[0]?.toUpperCase() ?? "?"}
                         </div>
                       )}
-
-                        <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-white/90">
-                            {comment.authorName}
-                          </span>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${colors.badge}`}>
-                            {platformLabels[comment.platform]}
-                          </span>
-                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium border border-white/10 bg-white/[0.04] text-white/50 max-w-[140px] truncate" title={comment.accountLabel}>
-                            {comment.accountLabel}
-                          </span>
-                          <span className="text-xs text-white/30">
-                            {relativeTime(comment.publishedAt)}
-                          </span>
-                          <button
-                            onClick={() => toggleRead(comment.id)}
-                            className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${
-                              isRead(comment.id)
-                                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
-                                : "border-white/15 bg-white/[0.03] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
-                            }`}
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                isRead(comment.id) ? "bg-emerald-300" : "bg-white/35"
-                              }`}
-                            />
-                            {isRead(comment.id) ? "Read" : "Mark read"}
-                          </button>
-                        </div>
-
-                        <p className="text-base leading-relaxed text-white/80 mt-1 whitespace-pre-line break-words">
-                          {comment.text}
-                        </p>
-
-                          <div className="mt-3 pt-2 border-t border-white/5 flex items-center gap-2 flex-wrap">
-                          {comment.likeCount > 0 && (
-                            <span className="flex items-center gap-1 text-xs text-white/30">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6ZM6 10.333v5.43a2 2 0 0 0 1.106 1.79l.05.025A4 4 0 0 0 8.943 18h5.416a2 2 0 0 0 1.962-1.608l1.2-6A2 2 0 0 0 15.56 8H12V4a2 2 0 0 0-2-2 1 1 0 0 0-1 1v.667a4 4 0 0 1-.8 2.4L6.8 7.933a4 4 0 0 0-.8 2.4Z" />
-                              </svg>
-                              {comment.likeCount}
-                            </span>
-                          )}
-                          {comment.commentUrl && (
-                            <a
-                              href={comment.commentUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all"
-                            >
-                              View comment
-                            </a>
-                          )}
-                          <button
-                            onClick={() => {
-                              setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                              setReplyText("");
-                              setReplyError(null);
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                            </svg>
-                            Reply
-                          </button>
-                        </div>
-
-                        {/* Inline reply form */}
-                        {replyingTo === comment.id && (
-                          <div className="mt-3 flex flex-col gap-2">
-                            <p className="text-[11px] text-white/30">
-                              Replying as <span className="text-white/50 font-medium">{comment.accountLabel}</span>
-                            </p>
-                            {replySuccess === comment.id ? (
-                              <div className="flex items-center gap-1.5 text-xs text-green-400">
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                </svg>
-                                Reply sent
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        sendReply(comment.platform, comment.replyId ?? comment.id, comment.accountId);
-                                      }
-                                    }}
-                                    placeholder="Write a reply..."
-                                    disabled={replySending}
-                                    className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 disabled:opacity-50"
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={() => sendReply(comment.platform, comment.replyId ?? comment.id, comment.accountId)}
-                                    disabled={replySending || !replyText.trim()}
-                                    className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors flex items-center gap-1.5"
-                                  >
-                                    {replySending ? (
-                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                      </svg>
-                                    ) : null}
-                                    Send
-                                  </button>
-                                </div>
-                                {replyError && (
-                                  <p className="text-xs text-red-400">{replyError}</p>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 w-36 justify-self-start sm:justify-self-end">
-                        <a
-                          href={comment.commentUrl || comment.postUrl || "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block rounded-xl border border-white/10 bg-white/[0.02] p-2.5 hover:bg-white/[0.04] transition-colors"
-                          title="Open comment"
-                        >
-                          {comment.postThumbnailUrl ? (
-                            <img
-                              src={comment.postThumbnailUrl}
-                              alt={comment.postTitle || "Post thumbnail"}
-                              className="h-20 w-full rounded-md object-cover border border-white/10"
-                            />
-                          ) : (
-                            <div className="h-20 w-full rounded-md border border-white/10 bg-white/[0.03]" />
-                          )}
-                          <p className="mt-2.5 text-[11px] leading-tight text-white/65 line-clamp-2">
-                            {comment.postTitle || "Untitled"}
-                          </p>
-                        </a>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white/80">{author}</p>
+                        <p className="text-[11px] text-white/30">{group.length} comment{group.length === 1 ? "" : "s"}</p>
                       </div>
                     </div>
+                    <div className="divide-y divide-white/[0.04]">
+                      {group.map((comment) => (
+                        <CommentCard
+                          key={comment.id}
+                          comment={comment}
+                          isRead={isRead(comment.id)}
+                          isFocused={focusedId === comment.id}
+                          isSelected={selectedIds.has(comment.id)}
+                          isStarred={isStarred(comment.id)}
+                          isArchived={isArchived(comment.id)}
+                          isLiked={Boolean(likedCommentIds[comment.id])}
+                          bulkMode={bulkMode}
+                          compact
+                          onToggleRead={() => toggleRead(comment.id)}
+                          onToggleSelect={() => toggleSelect(comment.id)}
+                          onToggleStar={() => toggleStar(comment.id)}
+                          onToggleArchive={() => toggleArchive(comment.id)}
+                          onLike={() => handleLikeComment(comment)}
+                          onSelect={() => setFocusedIndex(-1)}
+                          onReply={() => {}}
+                          savedReplies={savedReplies}
+                          onAddSavedReply={addSavedReply}
+                          onDeleteSavedReply={deleteSavedReply}
+                          authToken={authToken}
+                          sessionEmail={sessionEmail}
+                        />
+                      ))}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            ) : null}
           </section>
         </div>
       </div>

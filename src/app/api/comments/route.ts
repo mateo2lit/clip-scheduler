@@ -38,8 +38,13 @@ export async function GET(req: Request) {
     }
 
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const url = new URL(req.url);
+    const rangeParam = url.searchParams.get("range") || "7d";
+    const rangeDays: Record<string, number> = { "3d": 3, "7d": 7, "14d": 14, "30d": 30 };
+    const days = rangeDays[rangeParam] || 7;
+    const sinceDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgo = sinceDate;
+    const threeDaysAgo = days <= 3 ? sinceDate : new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
 
     const errors: string[] = [];
     const allComments: UnifiedComment[] = [];
