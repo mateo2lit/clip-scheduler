@@ -3,11 +3,11 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { uploadSupabaseVideoToYouTube, CATEGORY_IDS } from "@/lib/youtubeUpload";
 import { uploadSupabaseVideoToTikTok, checkTikTokPublishStatus } from "@/lib/tiktokUpload";
 import { getTikTokAccessToken } from "@/lib/tiktok";
-import { uploadSupabaseVideoToFacebook } from "@/lib/facebookUpload";
+import { uploadSupabaseVideoToFacebook, postTextToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
-import { uploadSupabaseVideoToLinkedIn } from "@/lib/linkedinUpload";
-import { createThreadsContainer, checkAndPublishThreadsContainer } from "@/lib/threadsUpload";
-import { uploadToBluesky } from "@/lib/blueskyUpload";
+import { uploadSupabaseVideoToLinkedIn, postTextToLinkedIn } from "@/lib/linkedinUpload";
+import { createThreadsContainer, checkAndPublishThreadsContainer, createThreadsTextContainer } from "@/lib/threadsUpload";
+import { uploadToBluesky, postTextToBluesky } from "@/lib/blueskyUpload";
 import { uploadVideoToX } from "@/lib/xUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
@@ -476,7 +476,7 @@ async function runWorker(req: Request) {
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
-    .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
+    .select("id,user_id,team_id,upload_id,post_type,text_post_content,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -485,7 +485,7 @@ async function runWorker(req: Request) {
   if (postId) {
     query = supabaseAdmin
       .from("scheduled_posts")
-      .select("id,user_id,team_id,upload_id,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
+      .select("id,user_id,team_id,upload_id,post_type,text_post_content,title,description,privacy_status,status,scheduled_for,provider,instagram_settings,youtube_settings,facebook_settings,linkedin_settings,bluesky_settings,threads_settings,x_settings,thumbnail_path,group_id,platform_account_id")
       .eq("id", postId)
       .limit(1);
   }
@@ -547,41 +547,55 @@ async function runWorker(req: Request) {
         continue;
       }
 
-      // Load upload row (probe schema)
-      const { data: uploadBase, error: uploadBaseErr } = await supabaseAdmin
-        .from("uploads")
-        .select("*")
-        .eq("id", post.upload_id)
-        .maybeSingle();
+      const isTextPost = (post as any).post_type === "text";
+      const textContent = (post as any).text_post_content as any;
 
-      if (debugOut) {
-        debugOut.uploadBaseExists = !!uploadBase;
-        debugOut.uploadBaseError = uploadBaseErr?.message || null;
+      let bucket: string = DEFAULT_BUCKET;
+      let storagePath: string = "";
+
+      if (!isTextPost) {
+        // Load upload row (probe schema)
+        const { data: uploadBase, error: uploadBaseErr } = await supabaseAdmin
+          .from("uploads")
+          .select("*")
+          .eq("id", post.upload_id)
+          .maybeSingle();
+
+        if (debugOut) {
+          debugOut.uploadBaseExists = !!uploadBase;
+          debugOut.uploadBaseError = uploadBaseErr?.message || null;
+        }
+
+        if (uploadBaseErr || !uploadBase) {
+          throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
+        }
+
+        const probed = pickFirstNonEmpty(uploadBase, [
+          "file_path",
+          "storage_path",
+          "path",
+          "object_path",
+        ]);
+
+        if (debugOut) debugOut.pathColumn = probed.key;
+
+        if (!probed.value) {
+          throw new Error("Upload row exists but storage path is missing");
+        }
+
+        bucket =
+          typeof uploadBase.bucket === "string" && uploadBase.bucket.trim()
+            ? uploadBase.bucket.trim()
+            : DEFAULT_BUCKET;
+
+        storagePath = probed.value;
+      } else {
+        // Text posts need content body
+        if (!textContent?.body) {
+          throw new Error("Text post is missing content body");
+        }
+        if (debugOut) debugOut.isTextPost = true;
       }
-
-      if (uploadBaseErr || !uploadBase) {
-        throw new Error(`Upload row not found for upload_id=${post.upload_id}`);
-      }
-
-      const probed = pickFirstNonEmpty(uploadBase, [
-        "file_path",
-        "storage_path",
-        "path",
-        "object_path",
-      ]);
-
-      if (debugOut) debugOut.pathColumn = probed.key;
-
-      if (!probed.value) {
-        throw new Error("Upload row exists but storage path is missing");
-      }
-
-      const bucket =
-        typeof uploadBase.bucket === "string" && uploadBase.bucket.trim()
-          ? uploadBase.bucket.trim()
-          : DEFAULT_BUCKET;
-
-      const storagePath = probed.value;
 
       const provider = post.provider || "youtube";
 
@@ -597,15 +611,131 @@ async function runWorker(req: Request) {
         throw new Error(`Failed to load ${provider} account: ${acctErr.message}`);
       }
 
-      if (!acct?.refresh_token) {
+      // Text posts on Threads/Bluesky use access_token; others need refresh_token
+      const needsRefreshToken = !isTextPost || !["threads", "bluesky"].includes(provider);
+      if (needsRefreshToken && !acct?.refresh_token) {
         throw new Error(
           `${provider} not connected for scheduled_posts.user_id=${post.user_id}`
         );
       }
+      if (!acct) {
+        throw new Error(`${provider} account not found for user_id=${post.user_id}`);
+      }
 
       let platformPostId: string | null = null;
 
-      if (provider === "tiktok") {
+      // ── Text post execution ──────────────────────────────────────────────────
+      if (isTextPost) {
+        const TEXT_POST_PLATFORMS = ["linkedin", "facebook", "threads", "bluesky"];
+        if (!TEXT_POST_PLATFORMS.includes(provider)) {
+          throw new Error(`${provider} does not support text-only posts`);
+        }
+
+        const hashtags = (textContent.hashtags || []) as string[];
+        const baseText = textContent.body as string;
+        const fullText = hashtags.length > 0
+          ? `${baseText}\n\n${hashtags.map((t: string) => `#${t}`).join(" ")}`
+          : baseText;
+
+        if (provider === "linkedin") {
+          if (!acct.access_token || !acct.platform_user_id) {
+            throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");
+          }
+          const liSettings = (post.linkedin_settings ?? {}) as any;
+          const li = await postTextToLinkedIn({
+            accessToken: acct.access_token,
+            personUrn: `urn:li:person:${acct.platform_user_id}`,
+            text: fullText.slice(0, 3000),
+            visibility: liSettings.visibility || "PUBLIC",
+            linkUrl: textContent.link_url,
+            linkTitle: textContent.link_title,
+            linkDescription: textContent.link_description,
+          });
+          platformPostId = li.linkedinPostId;
+
+        } else if (provider === "facebook") {
+          if (!acct.page_id || !acct.page_access_token) {
+            throw new Error("Facebook Page not configured. Please reconnect your Facebook account.");
+          }
+          const fb = await postTextToFacebook({
+            pageId: acct.page_id,
+            pageAccessToken: acct.page_access_token,
+            message: fullText.slice(0, 63206),
+            linkUrl: textContent.link_url,
+          });
+          platformPostId = fb.facebookPostId;
+
+        } else if (provider === "threads") {
+          if (!isThreadsEnabledForUserId(post.user_id)) {
+            throw new Error("Threads is not available for this account.");
+          }
+          if (!acct.access_token || !acct.ig_user_id) {
+            throw new Error("Threads account not configured. Please reconnect your Threads account.");
+          }
+          // TEXT containers are ready immediately — create and publish in one tick
+          const { containerId } = await createThreadsTextContainer({
+            threadsUserId: acct.ig_user_id,
+            accessToken: acct.access_token,
+            text: fullText.slice(0, 500),
+            linkAttachmentUrl: textContent.link_url,
+          });
+          const publishResult = await checkAndPublishThreadsContainer({
+            containerId,
+            threadsUserId: acct.ig_user_id,
+            accessToken: acct.access_token,
+          });
+          if (publishResult.status === "error") {
+            throw new Error(publishResult.error || "Threads text publish failed");
+          }
+          if (publishResult.status === "processing") {
+            // Unexpected — fall back to async polling path
+            await supabaseAdmin.from("scheduled_posts").update({
+              status: "ig_processing",
+              ig_container_id: containerId,
+              ig_container_created_at: new Date().toISOString(),
+              last_error: null,
+            }).eq("id", post.id);
+            results.push({ id: post.id, ok: true, igProcessing: true, containerId });
+            continue;
+          }
+          platformPostId = publishResult.threadsMediaId || null;
+
+        } else if (provider === "bluesky") {
+          if (!acct.access_token || !acct.platform_user_id) {
+            throw new Error("Bluesky account not configured. Please reconnect your Bluesky account.");
+          }
+          const bskyResult = await postTextToBluesky({
+            did: acct.platform_user_id,
+            accessJwt: acct.access_token,
+            refreshJwt: acct.refresh_token || acct.access_token,
+            text: fullText,
+            linkCard: textContent.link_url
+              ? {
+                  uri: textContent.link_url,
+                  title: textContent.link_title || "",
+                  description: textContent.link_description || "",
+                  thumbUrl: textContent.link_image || undefined,
+                }
+              : undefined,
+          });
+          // Persist refreshed tokens
+          if (
+            bskyResult.accessJwt !== acct.access_token ||
+            bskyResult.refreshJwt !== (acct.refresh_token || acct.access_token)
+          ) {
+            await supabaseAdmin.from("platform_accounts").update({
+              access_token: bskyResult.accessJwt,
+              refresh_token: bskyResult.refreshJwt,
+              updated_at: new Date().toISOString(),
+            }).eq("id", acct.id);
+          }
+          platformPostId = bskyResult.uri;
+        }
+
+        // Mark posted and notify — shared path below handles this
+        // (fall through to the "Mark posted" block)
+
+      } else if (provider === "tiktok") {
         // Fetch tiktok_settings separately to avoid breaking the main query if column doesn't exist
         let ttSettings: any = {};
         try {
@@ -878,8 +1008,10 @@ async function runWorker(req: Request) {
         }
       }
 
-      // Delete source file if all group posts are now posted (or solo post)
-      await checkAndMaybeDeleteFile(post.group_id, bucket, storagePath, post.upload_id);
+      // Delete source file if all group posts are now posted (or solo post) — video posts only
+      if (!isTextPost && storagePath) {
+        await checkAndMaybeDeleteFile(post.group_id, bucket, storagePath, post.upload_id);
+      }
 
       const okResult: any = {
         id: post.id,

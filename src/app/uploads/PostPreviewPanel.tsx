@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+type LinkPreviewData = {
+  url: string;
+  title: string;
+  description: string;
+  image: string | null;
+  domain: string;
+};
+
 type PostPreviewPanelProps = {
   selectedPlatforms: string[];
   title: string;
@@ -12,6 +20,8 @@ type PostPreviewPanelProps = {
   platformAccounts: Record<string, { profileName: string | null; avatarUrl: string | null }>;
   ttNickname: string | null;
   ytIsShort?: boolean;
+  postMode?: "video" | "text";
+  linkPreview?: LinkPreviewData | null;
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -333,10 +343,12 @@ function InstagramPreview({ title, description, hashtags, videoPreviewUrl, thumb
 }
 
 // ── Facebook Post Preview ─────────────────────────────────────────────────────
-function FacebookPreview({ title, description, thumbnailPreview, videoPreviewUrl, profileName, avatarUrl }: {
+function FacebookPreview({ title, description, thumbnailPreview, videoPreviewUrl, profileName, avatarUrl, isTextPost, linkPreview }: {
   title: string; description: string;
   thumbnailPreview: string | null; videoPreviewUrl: string | null;
   profileName: string | null; avatarUrl: string | null;
+  isTextPost?: boolean;
+  linkPreview?: LinkPreviewData | null;
 }) {
   const name = profileName || "Your Page";
   const caption = description || title || "";
@@ -359,6 +371,21 @@ function FacebookPreview({ title, description, thumbnailPreview, videoPreviewUrl
         </svg>
       </div>
       {caption && <p className="px-3 pb-2 text-sm text-white/75 line-clamp-3">{caption}</p>}
+      {isTextPost ? (
+        linkPreview ? (
+          <div className="mx-3 mb-3 overflow-hidden rounded-lg border border-white/10">
+            {linkPreview.image && (
+              <img src={linkPreview.image} alt="" className="h-32 w-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            )}
+            <div className="bg-white/[0.03] px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-white/30">{linkPreview.domain}</p>
+              <p className="text-xs font-medium text-white/80 truncate">{linkPreview.title}</p>
+              {linkPreview.description && <p className="mt-0.5 text-[11px] text-white/40 line-clamp-2">{linkPreview.description}</p>}
+            </div>
+          </div>
+        ) : null
+      ) : (
       <div className="relative bg-black" style={{ aspectRatio: "16/9" }}>
         {thumbnailPreview ? (
           <img src={thumbnailPreview} alt="" className="h-full w-full object-cover" />
@@ -375,6 +402,7 @@ function FacebookPreview({ title, description, thumbnailPreview, videoPreviewUrl
           </div>
         </div>
       </div>
+      )}
       <div className="flex border-t border-white/5">
         {["Like", "Comment", "Share"].map((label) => (
           <button key={label} className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs text-white/40 transition-colors hover:bg-white/5">
@@ -387,10 +415,12 @@ function FacebookPreview({ title, description, thumbnailPreview, videoPreviewUrl
 }
 
 // ── LinkedIn Post Preview ─────────────────────────────────────────────────────
-function LinkedInPreview({ title, description, thumbnailPreview, videoPreviewUrl, profileName, avatarUrl }: {
+function LinkedInPreview({ title, description, thumbnailPreview, videoPreviewUrl, profileName, avatarUrl, isTextPost, linkPreview }: {
   title: string; description: string;
   thumbnailPreview: string | null; videoPreviewUrl: string | null;
   profileName: string | null; avatarUrl: string | null;
+  isTextPost?: boolean;
+  linkPreview?: LinkPreviewData | null;
 }) {
   const name = profileName || "Your Name";
   const caption = description || title || "";
@@ -411,7 +441,22 @@ function LinkedInPreview({ title, description, thumbnailPreview, videoPreviewUrl
           + Follow
         </button>
       </div>
-      {caption && <p className="px-3 pb-2 text-sm text-white/75 line-clamp-3">{caption}</p>}
+      {caption && <p className="px-3 pb-2 text-sm text-white/75 line-clamp-4">{caption}</p>}
+      {isTextPost ? (
+        linkPreview ? (
+          <div className="mx-3 mb-3 overflow-hidden rounded-lg border border-white/10">
+            {linkPreview.image && (
+              <img src={linkPreview.image} alt="" className="h-36 w-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            )}
+            <div className="bg-white/[0.03] px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-wide text-white/30">{linkPreview.domain}</p>
+              <p className="text-sm font-semibold text-white/85 truncate">{linkPreview.title}</p>
+              {linkPreview.description && <p className="mt-0.5 text-xs text-white/45 line-clamp-2">{linkPreview.description}</p>}
+            </div>
+          </div>
+        ) : null
+      ) : (
       <div className="relative bg-black" style={{ aspectRatio: "16/9" }}>
         {thumbnailPreview ? (
           <img src={thumbnailPreview} alt="" className="h-full w-full object-cover" />
@@ -428,6 +473,7 @@ function LinkedInPreview({ title, description, thumbnailPreview, videoPreviewUrl
           </div>
         </div>
       </div>
+      )}
       <div className="flex border-t border-white/5 px-1">
         {["Like", "Comment", "Repost", "Send"].map((label) => (
           <button key={label} className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] text-white/35 transition-colors hover:bg-white/5">
@@ -440,10 +486,12 @@ function LinkedInPreview({ title, description, thumbnailPreview, videoPreviewUrl
 }
 
 // ── Threads Post Preview ──────────────────────────────────────────────────────
-function ThreadsPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl }: {
+function ThreadsPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl, isTextPost, linkPreview }: {
   title: string; description: string; hashtags: string[];
   videoPreviewUrl: string | null; thumbnailPreview: string | null;
   profileName: string | null; avatarUrl: string | null;
+  isTextPost?: boolean;
+  linkPreview?: LinkPreviewData | null;
 }) {
   const handle = profileName ? `@${profileName.replace(/^@/, "")}` : "@yourhandle";
   const caption = (description || title || "Your caption will appear here…").slice(0, 120);
@@ -482,9 +530,23 @@ function ThreadsPreview({ title, description, hashtags, videoPreviewUrl, thumbna
               </div>
             </div>
           )}
-          {!videoPreviewUrl && !thumbnailPreview && (
+          {!isTextPost && !videoPreviewUrl && !thumbnailPreview && (
             <div className="mt-2 flex h-24 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03]">
               <svg className="h-8 w-8 text-white/15" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            </div>
+          )}
+          {isTextPost && linkPreview && (
+            <div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
+              {linkPreview.image && (
+                <img src={linkPreview.image} alt="" className="h-28 w-full object-cover" />
+              )}
+              <div className="px-3 py-2">
+                <p className="text-xs text-white/35 uppercase tracking-wide">{linkPreview.domain}</p>
+                <p className="mt-0.5 text-sm font-medium text-white/85 line-clamp-2 leading-snug">{linkPreview.title}</p>
+                {linkPreview.description && (
+                  <p className="mt-0.5 text-xs text-white/45 line-clamp-2">{linkPreview.description}</p>
+                )}
+              </div>
             </div>
           )}
           <div className="mt-2 flex items-center gap-4">
@@ -509,10 +571,12 @@ function ThreadsPreview({ title, description, hashtags, videoPreviewUrl, thumbna
 }
 
 // ── Bluesky Post Preview ──────────────────────────────────────────────────────
-function BlueskyPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl }: {
+function BlueskyPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl, isTextPost, linkPreview }: {
   title: string; description: string; hashtags: string[];
   videoPreviewUrl: string | null; thumbnailPreview: string | null;
   profileName: string | null; avatarUrl: string | null;
+  isTextPost?: boolean;
+  linkPreview?: LinkPreviewData | null;
 }) {
   const displayName = profileName ? profileName.replace(/^@/, "").split(".")[0] : "yourhandle";
   const handle = profileName ? `@${profileName.replace(/^@/, "")}` : "@yourhandle.bsky.social";
@@ -545,9 +609,23 @@ function BlueskyPreview({ title, description, hashtags, videoPreviewUrl, thumbna
               </div>
             </div>
           )}
-          {!videoPreviewUrl && !thumbnailPreview && (
+          {!isTextPost && !videoPreviewUrl && !thumbnailPreview && (
             <div className="mt-2 flex h-24 items-center justify-center rounded-xl border border-white/8 bg-white/[0.02]">
               <svg className="h-8 w-8 text-white/15" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            </div>
+          )}
+          {isTextPost && linkPreview && (
+            <div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
+              {linkPreview.image && (
+                <img src={linkPreview.image} alt="" className="h-28 w-full object-cover" />
+              )}
+              <div className="px-3 py-2">
+                <p className="text-xs text-white/35 uppercase tracking-wide">{linkPreview.domain}</p>
+                <p className="mt-0.5 text-sm font-medium text-white/85 line-clamp-2 leading-snug">{linkPreview.title}</p>
+                {linkPreview.description && (
+                  <p className="mt-0.5 text-xs text-white/45 line-clamp-2">{linkPreview.description}</p>
+                )}
+              </div>
             </div>
           )}
           <div className="mt-2.5 flex items-center gap-5">
@@ -676,6 +754,8 @@ export default function PostPreviewPanel({
   platformAccounts,
   ttNickname,
   ytIsShort,
+  postMode = "video",
+  linkPreview,
 }: PostPreviewPanelProps) {
   const [activePlatform, setActivePlatform] = useState(selectedPlatforms[0] || "");
 
@@ -766,6 +846,7 @@ export default function PostPreviewPanel({
                 thumbnailPreview={thumbnailPreview} videoPreviewUrl={videoPreviewUrl}
                 profileName={accts.facebook?.profileName || null}
                 avatarUrl={accts.facebook?.avatarUrl || null}
+                isTextPost={postMode === "text"} linkPreview={linkPreview}
               />
             )}
             {activePlatform === "linkedin" && (
@@ -774,6 +855,7 @@ export default function PostPreviewPanel({
                 thumbnailPreview={thumbnailPreview} videoPreviewUrl={videoPreviewUrl}
                 profileName={accts.linkedin?.profileName || null}
                 avatarUrl={accts.linkedin?.avatarUrl || null}
+                isTextPost={postMode === "text"} linkPreview={linkPreview}
               />
             )}
             {activePlatform === "threads" && (
@@ -782,6 +864,7 @@ export default function PostPreviewPanel({
                 videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
                 profileName={accts.threads?.profileName || null}
                 avatarUrl={accts.threads?.avatarUrl || null}
+                isTextPost={postMode === "text"} linkPreview={linkPreview}
               />
             )}
             {activePlatform === "bluesky" && (
@@ -790,6 +873,7 @@ export default function PostPreviewPanel({
                 videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
                 profileName={accts.bluesky?.profileName || null}
                 avatarUrl={accts.bluesky?.avatarUrl || null}
+                isTextPost={postMode === "text"} linkPreview={linkPreview}
               />
             )}
             {activePlatform === "x" && (

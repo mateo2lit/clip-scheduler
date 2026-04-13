@@ -116,6 +116,59 @@ async function getSession(handle: string, appPassword: string): Promise<{
 
 export { getSession as blueskyLogin };
 
+// ── Shared facet detection (used by both video and text posts) ────────────────
+
+type BlueskyFacet = {
+  index: { byteStart: number; byteEnd: number };
+  features: Array<{ $type: string; [key: string]: unknown }>;
+};
+
+/**
+ * Detect URLs and hashtags in text and return AT Protocol facets.
+ * Byte offsets are computed from UTF-8 encoding (required by AT Protocol).
+ */
+export function detectBlueskyFacets(text: string): BlueskyFacet[] {
+  const facets: BlueskyFacet[] = [];
+  const encoder = new TextEncoder();
+
+  // URLs
+  const urlRegex = /https?:\/\/[^\s\])"'>]+/g;
+  let match: RegExpExecArray | null;
+  while ((match = urlRegex.exec(text)) !== null) {
+    const pre = encoder.encode(text.slice(0, match.index));
+    const body = encoder.encode(match[0]);
+    facets.push({
+      index: { byteStart: pre.length, byteEnd: pre.length + body.length },
+      features: [{ $type: "app.bsky.richtext.facet#link", uri: match[0] }],
+    });
+  }
+
+  // Hashtags
+  const tagRegex = /#([a-zA-Z][a-zA-Z0-9_]*)/g;
+  while ((match = tagRegex.exec(text)) !== null) {
+    const pre = encoder.encode(text.slice(0, match.index));
+    const body = encoder.encode(match[0]);
+    facets.push({
+      index: { byteStart: pre.length, byteEnd: pre.length + body.length },
+      features: [{ $type: "app.bsky.richtext.facet#tag", tag: match[1] }],
+    });
+  }
+
+  return facets;
+}
+
+/**
+ * Count grapheme clusters for Bluesky's 300-grapheme limit.
+ * Falls back to character count when Intl.Segmenter is unavailable.
+ */
+export function countBlueskyGraphemes(text: string): number {
+  if (typeof Intl !== "undefined" && typeof (Intl as any).Segmenter !== "undefined") {
+    const seg = new (Intl as any).Segmenter();
+    return [...seg.segment(text)].length;
+  }
+  return text.length;
+}
+
 export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   uri: string;
   cid: string;
@@ -231,6 +284,149 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
 
   const createData = await createRes.json();
   if (createData.error) throw new Error(`Bluesky post error: ${createData.message || createData.error}`);
+
+  return {
+    uri: createData.uri,
+    cid: createData.cid,
+    accessJwt: session.accessJwt,
+    refreshJwt: session.refreshJwt,
+  };
+}
+
+// ── Text-only post ────────────────────────────────────────────────────────────
+
+type PostTextToBlueskyArgs = {
+  did: string;
+  accessJwt: string;
+  refreshJwt: string;
+  text: string; // max 300 grapheme clusters
+  linkCard?: {
+    uri: string;
+    title: string;
+    description: string;
+    thumbUrl?: string; // optional OG image URL to upload as thumb blob
+  };
+};
+
+/**
+ * Publish a text-only (or text + external link card) post to Bluesky.
+ * Automatically detects URL/hashtag facets in the text.
+ * No video upload required.
+ */
+export async function postTextToBluesky(args: PostTextToBlueskyArgs): Promise<{
+  uri: string;
+  cid: string;
+  accessJwt: string;
+  refreshJwt: string;
+}> {
+  const { did, linkCard } = args;
+  const session: SessionState = { accessJwt: args.accessJwt, refreshJwt: args.refreshJwt };
+  const serviceUrl = await resolvePdsServiceUrl(did);
+
+  // Always refresh first
+  try {
+    const refreshed = await refreshSession(serviceUrl, session.refreshJwt);
+    session.accessJwt = refreshed.accessJwt;
+    session.refreshJwt = refreshed.refreshJwt;
+  } catch (e: any) {
+    if (isRevokedTokenError(e.message || "")) {
+      throw new Error("Bluesky session has been revoked — please reconnect your Bluesky account.");
+    }
+  }
+
+  function callWithRefresh(
+    requestFactory: (jwt: string) => Promise<Response>,
+    failurePrefix: string
+  ): Promise<Response> {
+    let refreshAttempts = 0;
+
+    async function attempt(): Promise<Response> {
+      let res = await requestFactory(session.accessJwt);
+
+      while (!res.ok) {
+        const text = await res.text();
+        if (!hasExpiredTokenSignal(res.status, text)) {
+          throw new Error(`${failurePrefix}: ${res.status} ${text}`);
+        }
+        if (refreshAttempts >= 2) {
+          throw new Error(`${failurePrefix}: ${res.status} ${text}`);
+        }
+        let refreshed;
+        try {
+          refreshed = await refreshSession(serviceUrl, session.refreshJwt);
+        } catch (e: any) {
+          if (isRevokedTokenError(e.message || "")) {
+            throw new Error("Bluesky session has been revoked — please reconnect your Bluesky account.");
+          }
+          throw e;
+        }
+        session.accessJwt = refreshed.accessJwt;
+        session.refreshJwt = refreshed.refreshJwt;
+        refreshAttempts += 1;
+        res = await requestFactory(session.accessJwt);
+      }
+      return res;
+    }
+
+    return attempt();
+  }
+
+  // Optionally upload link card thumbnail blob
+  let thumbBlob: any = undefined;
+  if (linkCard?.thumbUrl) {
+    try {
+      const thumbFetch = await fetch(linkCard.thumbUrl, { signal: AbortSignal.timeout(5000) });
+      if (thumbFetch.ok) {
+        const thumbBuffer = Buffer.from(await thumbFetch.arrayBuffer());
+        const contentType = thumbFetch.headers.get("content-type") || "image/jpeg";
+        const uploadThumb = (jwt: string) =>
+          fetch(`${serviceUrl}/xrpc/com.atproto.repo.uploadBlob`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${jwt}`, "Content-Type": contentType },
+            body: thumbBuffer,
+          });
+        const thumbRes = await callWithRefresh(uploadThumb, "Bluesky thumb upload failed");
+        const thumbData = await thumbRes.json();
+        if (!thumbData.error) thumbBlob = thumbData.blob;
+      }
+    } catch {
+      // Thumbnail is non-fatal — post without it
+    }
+  }
+
+  const now = new Date().toISOString();
+  const text = args.text;
+  const facets = detectBlueskyFacets(text);
+
+  const record: any = {
+    $type: "app.bsky.feed.post",
+    text,
+    createdAt: now,
+    ...(facets.length > 0 ? { facets } : {}),
+  };
+
+  if (linkCard) {
+    record.embed = {
+      $type: "app.bsky.embed.external",
+      external: {
+        uri: linkCard.uri,
+        title: linkCard.title || "",
+        description: linkCard.description || "",
+        ...(thumbBlob ? { thumb: thumbBlob } : {}),
+      },
+    };
+  }
+
+  const createRecord = (jwt: string) =>
+    fetch(`${serviceUrl}/xrpc/com.atproto.repo.createRecord`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ repo: did, collection: "app.bsky.feed.post", record }),
+    });
+
+  const createRes = await callWithRefresh(createRecord, "Bluesky text post creation failed");
+  const createData = await createRes.json();
+  if (createData.error) throw new Error(`Bluesky text post error: ${createData.message || createData.error}`);
 
   return {
     uri: createData.uri,

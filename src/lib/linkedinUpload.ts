@@ -232,3 +232,77 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
 
   return { linkedinPostId };
 }
+
+// ── Text-only post ────────────────────────────────────────────────────────────
+
+type PostTextToLinkedInArgs = {
+  accessToken: string;
+  personUrn: string; // "urn:li:person:{id}"
+  text: string; // max 3000 chars
+  visibility?: "PUBLIC" | "CONNECTIONS";
+  linkUrl?: string;
+  linkTitle?: string;
+  linkDescription?: string;
+};
+
+/**
+ * Publish a text-only (or text + link card) post to LinkedIn.
+ * No video or media upload required.
+ */
+export async function postTextToLinkedIn(args: PostTextToLinkedInArgs): Promise<{
+  linkedinPostId: string;
+}> {
+  const { accessToken, personUrn, text, visibility = "PUBLIC", linkUrl, linkTitle, linkDescription } = args;
+
+  assertOk(accessToken, "Missing accessToken");
+  assertOk(personUrn, "Missing personUrn");
+
+  const apiHeaders = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+    "LinkedIn-Version": "202601",
+    "X-Restli-Protocol-Version": "2.0.0",
+  };
+
+  const body: any = {
+    author: personUrn,
+    commentary: text.slice(0, 3000),
+    visibility,
+    distribution: {
+      feedDistribution: "MAIN_FEED",
+      targetEntities: [],
+      thirdPartyDistributionChannels: [],
+    },
+    lifecycleState: "PUBLISHED",
+    isReshareDisabledByAuthor: false,
+  };
+
+  // Add article link card when a URL is provided
+  if (linkUrl) {
+    body.content = {
+      article: {
+        source: linkUrl,
+        ...(linkTitle ? { title: linkTitle.slice(0, 400) } : {}),
+        ...(linkDescription ? { description: linkDescription.slice(0, 400) } : {}),
+      },
+    };
+  }
+
+  const postRes = await fetch("https://api.linkedin.com/rest/posts", {
+    method: "POST",
+    headers: apiHeaders,
+    body: JSON.stringify(body),
+  });
+
+  if (!postRes.ok) {
+    const errText = await postRes.text();
+    throw new Error(`LinkedIn text post failed: ${postRes.status} ${errText}`);
+  }
+
+  const linkedinPostId =
+    postRes.headers.get("x-restli-id") ||
+    postRes.headers.get("x-linkedin-id") ||
+    "unknown";
+
+  return { linkedinPostId };
+}

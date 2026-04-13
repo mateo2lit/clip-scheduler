@@ -124,3 +124,49 @@ export async function checkAndPublishThreadsContainer(args: CheckAndPublishArgs)
 
   return { status: "posted", threadsMediaId: String(publishData.id) };
 }
+
+// ── Text-only post ────────────────────────────────────────────────────────────
+
+type CreateThreadsTextContainerArgs = {
+  threadsUserId: string;
+  accessToken: string;
+  text: string; // max 500 chars
+  linkAttachmentUrl?: string;
+};
+
+/**
+ * Phase 1 for a text-only Threads post: create the container.
+ * TEXT containers are ready immediately (no processing delay),
+ * so the worker can call checkAndPublishThreadsContainer right after.
+ */
+export async function createThreadsTextContainer(
+  args: CreateThreadsTextContainerArgs
+): Promise<{ containerId: string }> {
+  const { threadsUserId, accessToken, text, linkAttachmentUrl } = args;
+
+  const params = new URLSearchParams({
+    media_type: "TEXT",
+    text: text.slice(0, 500),
+    access_token: accessToken,
+  });
+
+  if (linkAttachmentUrl) {
+    params.set("link_attachment_url", linkAttachmentUrl);
+  }
+
+  const res = await fetch(`https://graph.threads.net/${threadsUserId}/threads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Threads text container creation failed: ${res.status} ${errText}`);
+  }
+
+  const data = await res.json();
+  if (data.error) throw new Error(`Threads text container error: ${data.error.message || data.error}`);
+
+  return { containerId: String(data.id) };
+}

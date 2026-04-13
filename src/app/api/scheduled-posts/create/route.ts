@@ -30,6 +30,8 @@ export async function POST(req: Request) {
 
     const {
       upload_id,
+      post_type,
+      text_post_content,
       provider,
       platform_account_id,
       title,
@@ -41,12 +43,15 @@ export async function POST(req: Request) {
       facebook_settings,
       instagram_settings,
       youtube_settings,
+      linkedin_settings,
       thumbnail_path,
       group_id,
     } = body;
 
     const isDraft = requestedStatus === "draft";
     const normalizedProvider = String(provider || "youtube").toLowerCase();
+    const isTextPost = post_type === "text";
+    const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky"]);
 
     if (normalizedProvider === "threads" && !isThreadsEnabledForUserId(userId)) {
       return NextResponse.json(
@@ -55,27 +60,53 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!upload_id || (!isDraft && !scheduled_for)) {
-      return NextResponse.json(
-        { error: "Missing required fields: upload_id, scheduled_for" },
-        { status: 400 }
-      );
+    if (isTextPost) {
+      if (!TEXT_POST_PLATFORMS.has(normalizedProvider)) {
+        return NextResponse.json(
+          { error: `${normalizedProvider} does not support text-only posts` },
+          { status: 400 }
+        );
+      }
+      if (!text_post_content?.body) {
+        return NextResponse.json(
+          { error: "Text post body is required" },
+          { status: 400 }
+        );
+      }
+      if (!isDraft && !scheduled_for) {
+        return NextResponse.json(
+          { error: "Missing required field: scheduled_for" },
+          { status: 400 }
+        );
+      }
+    } else {
+      if (!upload_id || (!isDraft && !scheduled_for)) {
+        return NextResponse.json(
+          { error: "Missing required fields: upload_id, scheduled_for" },
+          { status: 400 }
+        );
+      }
     }
 
     // Insert scheduled post via admin client (bypass RLS)
     const insertRow: any = {
       user_id: userId,
       team_id: teamId,
-      upload_id,
+      post_type: isTextPost ? "text" : "video",
+      upload_id: upload_id || null,
       provider: normalizedProvider,
       platform_account_id: platform_account_id || null,
-      title: title ?? "Untitled Clip",
+      title: title ?? (isTextPost ? "" : "Untitled Clip"),
       description: description ?? "",
       privacy_status: privacy_status ?? "private",
       scheduled_for: scheduled_for || null,
       status: isDraft ? "draft" : "scheduled",
       group_id: group_id || undefined,
     };
+
+    if (isTextPost && text_post_content) {
+      insertRow.text_post_content = text_post_content;
+    }
 
     if (thumbnail_path) {
       insertRow.thumbnail_path = thumbnail_path;
@@ -95,6 +126,10 @@ export async function POST(req: Request) {
 
     if (youtube_settings && provider === "youtube") {
       insertRow.youtube_settings = youtube_settings;
+    }
+
+    if (linkedin_settings && normalizedProvider === "linkedin") {
+      insertRow.linkedin_settings = linkedin_settings;
     }
 
     const { data, error } = await supabaseAdmin

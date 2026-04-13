@@ -122,3 +122,58 @@ export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs):
 
   return { facebookVideoId };
 }
+
+// ── Text-only post ────────────────────────────────────────────────────────────
+
+type PostTextToFacebookArgs = {
+  pageId: string;
+  pageAccessToken: string;
+  message: string; // max 63206 chars
+  linkUrl?: string; // Facebook auto-generates link preview server-side
+};
+
+/**
+ * Publish a text-only (or text + link) post to a Facebook Page.
+ * No video upload required.
+ */
+export async function postTextToFacebook(args: PostTextToFacebookArgs): Promise<{
+  facebookPostId: string;
+}> {
+  const { pageId, pageAccessToken, message, linkUrl } = args;
+
+  assertOk(pageId, "Missing pageId");
+  assertOk(pageAccessToken, "Missing pageAccessToken");
+  assertOk(message, "Missing message");
+
+  const params: Record<string, string> = {
+    message: message.slice(0, 63206),
+    access_token: pageAccessToken,
+  };
+
+  if (linkUrl) {
+    params.link = linkUrl;
+  }
+
+  const res = await fetch(`https://graph.facebook.com/v21.0/${pageId}/feed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Facebook text post failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`Facebook text post error: ${data.error.message}`);
+  }
+
+  const facebookPostId = data.id;
+  if (!facebookPostId) {
+    throw new Error("Facebook text post succeeded but no post ID returned");
+  }
+
+  return { facebookPostId };
+}
