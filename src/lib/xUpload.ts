@@ -24,7 +24,7 @@ function sleep(ms: number) {
 }
 
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB chunks
-const MEDIA_UPLOAD_URL = "https://api.x.com/2/media/upload";
+const MEDIA_UPLOAD_BASE = "https://api.x.com/2/media/upload";
 
 export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   tweetId: string;
@@ -85,18 +85,17 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   assertOk(totalBytes > 0, "Video file is empty");
 
   // 3) INIT the media upload
-  const initForm = new FormData();
-  initForm.append("command", "INIT");
-  initForm.append("total_bytes", String(totalBytes));
-  initForm.append("media_type", "video/mp4");
-  initForm.append("media_category", "tweet_video");
-
-  const initRes = await fetch(MEDIA_UPLOAD_URL, {
+  const initRes = await fetch(`${MEDIA_UPLOAD_BASE}/initialize`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
     },
-    body: initForm,
+    body: JSON.stringify({
+      total_bytes: totalBytes,
+      media_type: "video/mp4",
+      media_category: "tweet_video",
+    }),
   });
 
   if (!initRes.ok) {
@@ -120,12 +119,10 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
     const chunk = videoBuffer.slice(start, end);
 
     const appendForm = new FormData();
-    appendForm.append("command", "APPEND");
-    appendForm.append("media_id", mediaId);
     appendForm.append("segment_index", String(i));
     appendForm.append("media", new Blob([chunk], { type: "video/mp4" }));
 
-    const appendRes = await fetch(MEDIA_UPLOAD_URL, {
+    const appendRes = await fetch(`${MEDIA_UPLOAD_BASE}/${mediaId}/append`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -137,20 +134,14 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
       const text = await appendRes.text();
       throw new Error(`X media APPEND (segment ${i}) failed: ${appendRes.status} ${text}`);
     }
-    // 204 No Content on success — no body to parse
   }
 
   // 5) FINALIZE
-  const finalizeForm = new FormData();
-  finalizeForm.append("command", "FINALIZE");
-  finalizeForm.append("media_id", mediaId);
-
-  const finalizeRes = await fetch(MEDIA_UPLOAD_URL, {
+  const finalizeRes = await fetch(`${MEDIA_UPLOAD_BASE}/${mediaId}/finalize`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
-    body: finalizeForm,
   });
 
   if (!finalizeRes.ok) {
@@ -161,8 +152,9 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
   const finalizeData = await finalizeRes.json();
 
   // 6) Poll for processing completion if needed
-  if (finalizeData.processing_info) {
-    let processingInfo = finalizeData.processing_info;
+  const initialProcessingInfo = finalizeData.data?.processing_info ?? finalizeData.processing_info;
+  if (initialProcessingInfo) {
+    let processingInfo = initialProcessingInfo;
     const startTime = Date.now();
     const MAX_WAIT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -180,7 +172,7 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
       await sleep(waitSecs * 1000);
 
       const statusRes = await fetch(
-        `${MEDIA_UPLOAD_URL}?command=STATUS&media_id=${mediaId}`,
+        `${MEDIA_UPLOAD_BASE}?media_id=${mediaId}`,
         {
           headers: { Authorization: `Bearer ${accessToken}` },
         }
@@ -192,7 +184,7 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
       }
 
       const statusData = await statusRes.json();
-      processingInfo = statusData.processing_info;
+      processingInfo = statusData.data?.processing_info ?? statusData.processing_info;
 
       if (!processingInfo) {
         // No processing_info in response means it's done
