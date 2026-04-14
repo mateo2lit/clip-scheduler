@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { normalizeExternalUrl } from "@/lib/bioHelpers";
 
 export const runtime = "nodejs";
 
@@ -95,16 +96,18 @@ export async function POST(req: Request) {
       // Delete old links
       await supabaseAdmin.from("bio_links").delete().eq("bio_page_id", pageId);
 
-      // Insert new links
+      // Insert new links (normalize URLs so we always store a full https:// URL)
       if (links.length > 0) {
-        const linkRows = links.map((l: any, i: number) => ({
-          bio_page_id: pageId,
-          title: l.title || "",
-          url: l.url || "",
-          icon: l.icon || null,
-          sort_order: i,
-        }));
-        await supabaseAdmin.from("bio_links").insert(linkRows);
+        const linkRows = links
+          .filter((l: any) => l.title && l.url)
+          .map((l: any, i: number) => ({
+            bio_page_id: pageId,
+            title: String(l.title).trim(),
+            url: normalizeExternalUrl(l.url),
+            icon: l.icon || null,
+            sort_order: i,
+          }));
+        if (linkRows.length > 0) await supabaseAdmin.from("bio_links").insert(linkRows);
       }
     }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { resolvePostPermalink, resolveThumbnailUrl, normalizeExternalUrl } from "@/lib/bioHelpers";
 
 export const runtime = "nodejs";
 
@@ -24,17 +25,32 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
       .eq("bio_page_id", page.id)
       .order("sort_order", { ascending: true });
 
+    // Normalize link URLs (ensure https:// prefix) — safety net in case data was saved without it
+    const normalizedLinks = (links || []).map((l) => ({
+      ...l,
+      url: normalizeExternalUrl(l.url),
+    }));
+
     // Get recent posts if enabled
     let recentPosts: any[] = [];
     if (page.show_recent_posts) {
       const { data: posts } = await supabaseAdmin
         .from("scheduled_posts")
-        .select("id, title, description, provider, platform_post_id, thumbnail_path, posted_at")
+        .select("id, title, description, provider, platform_post_id, thumbnail_path, posted_at, platform_accounts!inner(profile_name,platform_user_id)")
         .eq("team_id", page.team_id)
         .eq("status", "posted")
         .order("posted_at", { ascending: false })
         .limit(9);
-      recentPosts = posts || [];
+
+      recentPosts = (posts || []).map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        provider: p.provider,
+        thumbnail_url: resolveThumbnailUrl(p.thumbnail_path),
+        permalink: resolvePostPermalink(p.provider, p.platform_post_id, p.platform_accounts),
+        posted_at: p.posted_at,
+      }));
     }
 
     return NextResponse.json({
@@ -47,7 +63,7 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
         accent_color: page.accent_color,
         show_recent_posts: page.show_recent_posts,
       },
-      links: links || [],
+      links: normalizedLinks,
       recentPosts,
     });
   } catch (e: any) {

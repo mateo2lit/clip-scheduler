@@ -25,7 +25,8 @@ type RecentPost = {
   title: string;
   description: string;
   provider: string;
-  thumbnail_path: string | null;
+  thumbnail_url: string | null;
+  permalink: string | null;
   posted_at: string;
 };
 
@@ -150,32 +151,54 @@ export default function PublicBioPage() {
               Recent Content
             </h2>
             <div className="grid grid-cols-3 gap-2">
-              {posts.map((post) => (
-                <div
-                  key={post.id}
-                  className={`aspect-square rounded-xl overflow-hidden ${
-                    isDark ? "bg-white/[0.04]" : "bg-gray-100"
-                  }`}
-                >
-                  {post.thumbnail_path ? (
-                    <img
-                      src={post.thumbnail_path}
-                      alt={post.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center p-2">
+              {posts.map((post) => {
+                const Wrapper: any = post.permalink ? "a" : "div";
+                const wrapperProps = post.permalink
+                  ? { href: post.permalink, target: "_blank", rel: "noopener noreferrer" }
+                  : {};
+                return (
+                  <Wrapper
+                    key={post.id}
+                    {...wrapperProps}
+                    className={`block aspect-square rounded-xl overflow-hidden relative group ${
+                      isDark ? "bg-white/[0.04]" : "bg-gray-100"
+                    }`}
+                  >
+                    {post.thumbnail_url ? (
+                      <img
+                        src={post.thumbnail_url}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        onError={(e) => {
+                          // If thumbnail fails to load, hide the img and let the fallback show
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : null}
+                    {/* Fallback / overlay shown when no thumbnail or on image error */}
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center p-2 ${
+                        post.thumbnail_url
+                          ? "opacity-0 group-hover:opacity-100 bg-black/60 transition-opacity"
+                          : ""
+                      }`}
+                    >
                       <p
-                        className={`text-[10px] text-center line-clamp-3 ${
-                          isDark ? "text-white/30" : "text-gray-400"
+                        className={`text-[10px] text-center line-clamp-3 font-medium ${
+                          post.thumbnail_url
+                            ? "text-white"
+                            : isDark
+                              ? "text-white/40"
+                              : "text-gray-500"
                         }`}
                       >
                         {post.title}
                       </p>
                     </div>
-                  )}
-                </div>
-              ))}
+                  </Wrapper>
+                );
+              })}
             </div>
           </div>
         )}
