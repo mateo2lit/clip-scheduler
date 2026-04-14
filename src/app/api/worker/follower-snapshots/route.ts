@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchPublicProfile } from "@/lib/competitorFetchers";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function requireWorkerAuth(req: Request): boolean {
   const authHeader = req.headers.get("authorization") || "";
@@ -163,7 +164,51 @@ export async function POST(req: Request) {
       results.push({ account: acct.id, provider: acct.provider, followers });
     }
 
-    return NextResponse.json({ ok: true, processed: results.length, results });
+    // Also snapshot competitors — fetch latest public profile and record a snapshot
+    const { data: competitors } = await supabaseAdmin
+      .from("competitor_profiles")
+      .select("id, platform, handle");
+
+    const today = new Date().toISOString().split("T")[0];
+    const competitorResults: { id: string; platform: string; followers: number | null }[] = [];
+
+    for (const comp of competitors || []) {
+      const profile = await fetchPublicProfile(comp.platform, comp.handle);
+      if (profile) {
+        // Update current profile stats
+        await supabaseAdmin
+          .from("competitor_profiles")
+          .update({
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            follower_count: profile.follower_count,
+            following_count: profile.following_count,
+            post_count: profile.post_count,
+            last_fetched_at: new Date().toISOString(),
+          })
+          .eq("id", comp.id);
+
+        // Record daily snapshot
+        await supabaseAdmin.from("competitor_snapshots").upsert(
+          {
+            competitor_id: comp.id,
+            follower_count: profile.follower_count,
+            post_count: profile.post_count,
+            snapshot_date: today,
+          },
+          { onConflict: "competitor_id,snapshot_date" }
+        );
+      }
+      competitorResults.push({ id: comp.id, platform: comp.platform, followers: profile?.follower_count ?? null });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      accounts: results.length,
+      competitors: competitorResults.length,
+      results,
+      competitorResults,
+    });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Unknown error" }, { status: 500 });
   }
