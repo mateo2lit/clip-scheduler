@@ -326,6 +326,16 @@ export default function UploadsPage() {
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [aiContext, setAiContext] = useState("");
 
+  // AI caption generator
+  const [captionLoading, setCaptionLoading] = useState(false);
+  const [captionTone, setCaptionTone] = useState<string>("casual");
+  const [showCaptionPanel, setShowCaptionPanel] = useState(false);
+  const [captionResult, setCaptionResult] = useState<{ caption: string; hook: string; hashtags: string[]; callToAction: string } | null>(null);
+
+  // AI virality score
+  const [scoreLoading, setScoreLoading] = useState(false);
+  const [viralityScore, setViralityScore] = useState<{ score: number; grade: string; breakdown: any; topTip: string } | null>(null);
+
   // Toolbar state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<string>("Smileys");
@@ -1121,6 +1131,90 @@ export default function UploadsPage() {
     const newTags = aiSuggestions.map((s) => s.tag).filter((t) => !hashtags.includes(t));
     setHashtags((prev) => [...prev, ...newTags]);
     setAiSuggestions([]);
+  }
+
+  async function handleGenerateCaption() {
+    setCaptionLoading(true);
+    setCaptionResult(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Not logged in");
+
+      const isText = postMode === "text";
+      const mainPlatform = selectedPlatforms[0] || "youtube";
+
+      const res = await fetch("/api/ai/caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: isText ? "" : title,
+          context: isText ? textPostBody : (title || file?.name || ""),
+          platform: mainPlatform,
+          tone: captionTone,
+          existingDescription: isText ? textPostBody : description,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Caption generation failed");
+
+      setCaptionResult(data);
+    } catch (e: any) {
+      alert(e?.message || "AI caption generation failed");
+    } finally {
+      setCaptionLoading(false);
+    }
+  }
+
+  function applyCaptionResult() {
+    if (!captionResult) return;
+    if (postMode === "text") {
+      setTextPostBody(captionResult.caption);
+    } else {
+      setDescription(captionResult.caption);
+    }
+    // Add suggested hashtags
+    if (captionResult.hashtags?.length) {
+      const newTags = captionResult.hashtags.filter((t: string) => !hashtags.includes(t));
+      setHashtags((prev) => [...prev, ...newTags]);
+    }
+    setCaptionResult(null);
+    setShowCaptionPanel(false);
+  }
+
+  async function handleScorePost() {
+    setScoreLoading(true);
+    setViralityScore(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Not logged in");
+
+      const isText = postMode === "text";
+      const mainPlatform = selectedPlatforms[0] || "youtube";
+
+      const res = await fetch("/api/ai/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: isText ? textPostBody.slice(0, 100) : title,
+          description: isText ? textPostBody : description,
+          platform: mainPlatform,
+          hashtags,
+          scheduledTime: scheduledForLocal || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Scoring failed");
+
+      setViralityScore(data);
+    } catch (e: any) {
+      alert(e?.message || "AI scoring failed");
+    } finally {
+      setScoreLoading(false);
+    }
   }
 
   async function doUpload(convertAfter = false) {
@@ -2044,6 +2138,130 @@ export default function UploadsPage() {
                 </div>
               </div>
               )} {/* end postMode === "video" description */}
+
+              {/* AI Caption Generator + Virality Score */}
+              <div className="border-b border-white/10 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    onClick={() => setShowCaptionPanel(!showCaptionPanel)}
+                    className="flex items-center gap-1.5 rounded-full border border-purple-400/30 bg-gradient-to-r from-purple-400/20 to-pink-400/20 px-3 py-1.5 text-xs text-purple-300 transition-all hover:from-purple-400/30 hover:to-pink-400/30"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                    </svg>
+                    AI Caption
+                  </button>
+                  <button
+                    onClick={handleScorePost}
+                    disabled={scoreLoading || (!title && !description && !textPostBody)}
+                    className="flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-gradient-to-r from-emerald-400/20 to-cyan-400/20 px-3 py-1.5 text-xs text-emerald-300 transition-all hover:from-emerald-400/30 hover:to-cyan-400/30 disabled:opacity-50"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${scoreLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
+                    </svg>
+                    {scoreLoading ? "Scoring..." : "Score Post"}
+                  </button>
+
+                  {/* Virality score badge */}
+                  {viralityScore && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                        viralityScore.score >= 80 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" :
+                        viralityScore.score >= 60 ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" :
+                        viralityScore.score >= 40 ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30" :
+                        "bg-red-500/20 text-red-300 border border-red-500/30"
+                      }`}>
+                        <span className="tabular-nums">{viralityScore.score}</span>
+                        <span className="text-[10px] opacity-70">/100</span>
+                        <span className="font-semibold">{viralityScore.grade}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Caption generation panel */}
+                {showCaptionPanel && (
+                  <div className="rounded-xl border border-purple-400/20 bg-purple-500/[0.04] p-4 mb-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <label className="text-xs text-white/50">Tone:</label>
+                      {(["casual", "hype", "professional", "funny", "storytelling"] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setCaptionTone(t)}
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                            captionTone === t
+                              ? "bg-purple-500/20 text-purple-300 border border-purple-400/30"
+                              : "text-white/30 hover:text-white/50 border border-transparent"
+                          }`}
+                        >
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleGenerateCaption}
+                      disabled={captionLoading || (!title && !description && !textPostBody)}
+                      className="w-full rounded-lg bg-purple-500/20 py-2 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-500/30 disabled:opacity-50"
+                    >
+                      {captionLoading ? "Generating..." : "Generate Caption"}
+                    </button>
+
+                    {/* Caption result */}
+                    {captionResult && (
+                      <div className="mt-3 space-y-2">
+                        <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-3">
+                          <p className="text-xs text-white/40 mb-1">Generated caption:</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{captionResult.caption}</p>
+                        </div>
+                        {captionResult.callToAction && (
+                          <p className="text-xs text-white/40">Suggested CTA: <span className="text-white/60">{captionResult.callToAction}</span></p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={applyCaptionResult}
+                            className="flex-1 rounded-lg bg-purple-500/30 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-500/40"
+                          >
+                            Apply Caption
+                          </button>
+                          <button
+                            onClick={handleGenerateCaption}
+                            disabled={captionLoading}
+                            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:text-white/70 hover:bg-white/[0.04]"
+                          >
+                            Regenerate
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Virality score breakdown */}
+                {viralityScore && viralityScore.breakdown && (
+                  <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4">
+                    <div className="grid grid-cols-4 gap-3 mb-3">
+                      {Object.entries(viralityScore.breakdown).map(([key, val]: [string, any]) => (
+                        <div key={key} className="text-center">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">{key}</p>
+                          <p className={`text-lg font-bold tabular-nums ${
+                            val.score >= 8 ? "text-emerald-400" :
+                            val.score >= 6 ? "text-blue-400" :
+                            val.score >= 4 ? "text-yellow-400" : "text-red-400"
+                          }`}>{val.score}/10</p>
+                          <p className="text-[10px] text-white/30 mt-0.5 line-clamp-2">{val.tip}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {viralityScore.topTip && (
+                      <div className="rounded-lg bg-white/[0.03] px-3 py-2">
+                        <p className="text-xs text-emerald-300/70">
+                          <span className="font-medium">Top tip:</span> {viralityScore.topTip}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Hashtags */}
               <div className="border-b border-white/10 p-5">

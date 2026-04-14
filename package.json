@@ -20,7 +20,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
-    "@neondatabase/serverless": "^1.0.2",
     "@next/mdx": "^14.2.35",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.8.0",
@@ -28,11 +27,13 @@
     "@tailwindcss/postcss": "^4.1.18",
     "googleapis": "^170.1.0",
     "gray-matter": "^4.0.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "next": "14.2.35",
-    "pg": "^8.17.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "reading-time": "^1.5.0",
+    "recharts": "^3.8.1",
     "remark-frontmatter": "^5.0.0",
     "resend": "^6.9.2",
     "stripe": "^20.3.1"
@@ -46,6 +47,7 @@
     "eslint": "8.57.1",
     "eslint-config-next": "14.2.35",
     "postcss": "^8.5.6",
+    "supabase": "^2.90.0",
     "tailwindcss": "^4.1.18",
     "typescript": "^5"
   }
