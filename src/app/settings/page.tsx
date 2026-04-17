@@ -4,8 +4,21 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
+import {
+  CaretLeft,
+  Check,
+  CheckCircle,
+  Clock,
+  X as XIcon,
+  ArrowSquareOut,
+  PencilSimple,
+  Plus,
+  CreditCard,
+  ChartBar,
+  Warning,
+} from "@phosphor-icons/react/dist/ssr";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky" | "x";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky" | "x" | "pinterest" | "telegram";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
 const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
@@ -127,6 +140,28 @@ const PLATFORMS: PlatformConfig[] = [
       </svg>
     ),
   },
+  {
+    key: "pinterest" as ProviderKey,
+    name: "Pinterest",
+    description: "Post video pins to your Pinterest boards",
+    available: true,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "telegram" as ProviderKey,
+    name: "Telegram",
+    description: "Post videos to your Telegram channels via bot",
+    available: true,
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+      </svg>
+    ),
+  },
 ];
 
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; subtitle: string }> = [
@@ -179,6 +214,8 @@ export default function SettingsPage() {
     threads: [],
     bluesky: [],
     x: [],
+    pinterest: [],
+    telegram: [],
   });
   const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
 
@@ -274,6 +311,8 @@ export default function SettingsPage() {
         threads: [],
         bluesky: [],
         x: [],
+        pinterest: [],
+        telegram: [],
       };
 
       for (const r of rows) {
@@ -789,6 +828,60 @@ export default function SettingsPage() {
     } catch (e) { console.error(e); }
   }
 
+  async function connectPinterest() {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) { alert("Please log in first."); return; }
+      const res = await fetch("/api/auth/pinterest/start", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) { alert(json?.error || "Connect failed"); return; }
+      window.location.href = json.url;
+    } catch (e: any) { alert(e?.message || "Connect failed"); }
+  }
+
+  async function disconnectPinterest() {
+    if (!confirm("Disconnect Pinterest? You'll need to reconnect before scheduling uploads.")) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/platform-accounts?provider=pinterest", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const { json } = await safeReadJson(res);
+      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, pinterest: [] }));
+    } catch (e) { console.error(e); }
+  }
+
+  const [telegramBotToken, setTelegramBotToken] = useState("");
+  const [telegramChannelId, setTelegramChannelId] = useState("");
+  const [telegramLabel, setTelegramLabel] = useState("");
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
+
+  async function connectTelegram() {
+    if (!telegramBotToken.trim() || !telegramChannelId.trim()) {
+      setTelegramError("Bot token and channel ID are required.");
+      return;
+    }
+    setTelegramConnecting(true);
+    setTelegramError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) { setTelegramError("Not logged in."); return; }
+      const res = await fetch("/api/auth/telegram/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ botToken: telegramBotToken.trim(), channelId: telegramChannelId.trim(), label: telegramLabel.trim() }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) { setTelegramError(json?.error || "Connection failed"); return; }
+      setTelegramBotToken(""); setTelegramChannelId(""); setTelegramLabel("");
+      loadConnectedAccounts();
+    } catch (e: any) { setTelegramError(e?.message || "Connection failed"); }
+    finally { setTelegramConnecting(false); }
+  }
+
   const [blueskyHandle, setBlueskyHandle] = useState("");
   const [blueskyPassword, setBlueskyPassword] = useState("");
   const [blueskyConnecting, setBlueskyConnecting] = useState(false);
@@ -1120,9 +1213,7 @@ export default function SettingsPage() {
             href="/dashboard"
             className="h-8 w-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
+            <CaretLeft className="w-4 h-4" weight="bold" />
           </Link>
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
@@ -1294,10 +1385,10 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 7 platforms</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>25 GB storage</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>1 team member (solo)</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />Unlimited uploads</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />All 7 platforms</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />25 GB storage</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />1 team member (solo)</li>
                   </ul>
                   <button
                     onClick={() => handleCheckout(billingPeriod === "annual" ? (process.env.NEXT_PUBLIC_STRIPE_CREATOR_ANNUAL_PRICE_ID || "") : (process.env.NEXT_PUBLIC_STRIPE_CREATOR_PRICE_ID || ""))}
@@ -1324,10 +1415,10 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Unlimited uploads</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>All 7 platforms</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>50 GB storage</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>Up to 5 team members</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />Unlimited uploads</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />All 7 platforms</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />50 GB storage</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />Up to 5 team members</li>
                   </ul>
                   <button
                     onClick={() => handleCheckout(billingPeriod === "annual" ? (process.env.NEXT_PUBLIC_STRIPE_TEAM_ANNUAL_PRICE_ID || "") : (process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID || ""))}
@@ -1364,13 +1455,9 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-3">
                       <div className={`rounded-full p-2 ${isTrialing ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
                         {isTrialing ? (
-                          <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                          </svg>
+                          <Clock className="w-4 h-4 text-amber-400" weight="duotone" />
                         ) : (
-                          <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m4.5 12.75 6 6 9-13.5" />
-                          </svg>
+                          <Check className="w-4 h-4 text-emerald-400" weight="bold" />
                         )}
                       </div>
                       <div>
@@ -1426,9 +1513,7 @@ export default function SettingsPage() {
                 {/* Retention nudge */}
                 {postedCount > 0 && (
                   <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 flex items-start gap-3">
-                    <svg className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                    </svg>
+                    <ChartBar className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" weight="duotone" />
                     <p className="text-sm text-white/50">
                       You&apos;ve published <span className="text-white/80 font-medium">{postedCount} post{postedCount !== 1 ? "s" : ""}</span> across <span className="text-white/80 font-medium">{connectedCount} platform{connectedCount !== 1 ? "s" : ""}</span> with Clip Dash — saving an estimated <span className="text-emerald-400 font-medium">{timeSavedHrs} hours</span> of manual work.
                     </p>
@@ -1444,9 +1529,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="rounded-full bg-red-500/10 p-2">
-                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XIcon className="w-4 h-4 text-red-400" weight="bold" />
                   </div>
                   <div>
                     <div className="font-medium">Plan Canceled</div>
@@ -1485,6 +1568,7 @@ export default function SettingsPage() {
                 linkedin: connectLinkedIn,
                 threads: connectThreads,
                 x: connectX,
+                pinterest: connectPinterest,
               };
               const connectFn = connectFns[platform.key];
               const canManage = teamRole === "owner" || teamRole === "admin";
@@ -1504,9 +1588,7 @@ export default function SettingsPage() {
                             title={`Learn more about ${platform.name}`}
                             className="text-white/20 hover:text-white/60 transition-colors"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                            </svg>
+                            <ArrowSquareOut className="w-3.5 h-3.5" weight="bold" />
                           </a>
                           {isConnected && (
                             <span className="rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-2 py-0.5 text-[10px] font-medium text-emerald-400">
@@ -1519,7 +1601,7 @@ export default function SettingsPage() {
                         )}
                       </div>
                     </div>
-                    {canManage && platform.key !== "bluesky" && connectFn && (
+                    {canManage && platform.key !== "bluesky" && platform.key !== "telegram" && connectFn && (
                       <button
                         onClick={connectFn}
                         className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-medium text-white/55 hover:bg-white/[0.08] hover:text-white/80 transition-colors"
@@ -1569,9 +1651,7 @@ export default function SettingsPage() {
                                 className="group flex items-center gap-1.5 text-sm text-white/70 hover:text-white/90 transition-colors text-left"
                               >
                                 {acct.label || acct.profileName || <span className="text-white/25 italic text-xs">Add display name</span>}
-                                <svg className="w-3 h-3 text-white/20 group-hover:text-white/40 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
+                                <PencilSimple className="w-3 h-3 text-white/20 group-hover:text-white/40 transition-colors" weight="bold" />
                               </button>
                             )}
                           </div>
@@ -1588,13 +1668,49 @@ export default function SettingsPage() {
                     </div>
                   )}
 
+                  {/* Telegram form */}
+                  {platform.key === "telegram" && canManage && (
+                    <div className={`${isConnected ? "border-t border-white/[0.06]" : ""} px-4 py-3`}>
+                      {isConnected ? (
+                        <details className="group">
+                          <summary className="cursor-pointer text-xs text-white/35 hover:text-white/60 transition-colors list-none flex items-center gap-1">
+                            <Plus className="w-3 h-3" weight="bold" />
+                            Add another Telegram channel
+                          </summary>
+                          <div className="mt-3 space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <input type="password" placeholder="Bot token" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                              <input type="text" placeholder="@channel or -100..." value={telegramChannelId} onChange={(e) => setTelegramChannelId(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                              <input type="text" placeholder="Label (optional)" value={telegramLabel} onChange={(e) => setTelegramLabel(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                            </div>
+                            <button onClick={connectTelegram} disabled={telegramConnecting} className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50">{telegramConnecting ? "Connecting…" : "Add Channel"}</button>
+                            {telegramError && <p className="text-xs text-red-400">{telegramError}</p>}
+                          </div>
+                        </details>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-xs text-white/35">
+                            Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-white/55 underline underline-offset-2">@BotFather</a>, add it as admin to your channel, then paste its token and your channel ID below.
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <input type="password" placeholder="Bot token" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                            <input type="text" placeholder="@channel or -100..." value={telegramChannelId} onChange={(e) => setTelegramChannelId(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                            <input type="text" placeholder="Label (optional)" value={telegramLabel} onChange={(e) => setTelegramLabel(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
+                          </div>
+                          <button onClick={connectTelegram} disabled={telegramConnecting} className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50">{telegramConnecting ? "Connecting…" : "Add Channel"}</button>
+                          {telegramError && <p className="text-xs text-red-400">{telegramError}</p>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Bluesky form */}
                   {platform.key === "bluesky" && canManage && (
                     <div className={`${isConnected ? "border-t border-white/[0.06]" : ""} px-4 py-3`}>
                       {isConnected ? (
                         <details className="group">
                           <summary className="cursor-pointer text-xs text-white/35 hover:text-white/60 transition-colors list-none flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            <Plus className="w-3 h-3" weight="bold" />
                             Add another Bluesky account
                           </summary>
                           <div className="mt-3 space-y-2">
@@ -1690,9 +1806,7 @@ export default function SettingsPage() {
               {teamInvites.map((invite) => (
                 <div key={invite.id} className="flex items-center gap-3 rounded-2xl border border-amber-400/[0.12] bg-amber-400/[0.03] px-4 py-3">
                   <div className="w-8 h-8 rounded-full border border-dashed border-white/15 bg-white/[0.02] flex items-center justify-center shrink-0">
-                    <svg className="w-3.5 h-3.5 text-white/20" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 9v.906a2.25 2.25 0 0 1-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 0 0 1.183 1.981l6.478 3.488m8.839 2.51-4.66-2.51m0 0-1.023-.55a2.25 2.25 0 0 0-2.134 0l-1.022.55m0 0-4.661 2.51m16.5 1.615a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V8.844a2.25 2.25 0 0 1 1.183-1.981l7.5-4.039a2.25 2.25 0 0 1 2.134 0l7.5 4.039a2.25 2.25 0 0 1 1.183 1.98V19.5Z" />
-                    </svg>
+                    <CreditCard className="w-3.5 h-3.5 text-white/20" weight="duotone" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white/55 truncate">{invite.email}</p>
@@ -2012,9 +2126,7 @@ export default function SettingsPage() {
                             <td key={i} className="py-3 text-center">
                               <button type="button" onClick={() => toggleQueueDay(slot.id, i)} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/5 transition-colors">
                                 {active ? (
-                                  <svg className="h-6 w-6 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
-                                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-                                  </svg>
+                                  <CheckCircle className="h-6 w-6 text-emerald-400" weight="fill" />
                                 ) : (
                                   <span className="block h-5 w-5 rounded-full border border-white/15" />
                                 )}
@@ -2031,7 +2143,7 @@ export default function SettingsPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <input type="time" value={newSlotTime} onChange={e => setNewSlotTime(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40" />
                 <button type="button" onClick={addQueueSlot} className="flex items-center gap-1.5 rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  <Plus className="h-4 w-4" weight="bold" />
                   Add time
                 </button>
                 {queueSaving && <span className="animate-pulse text-xs text-white/30">Saving…</span>}
@@ -2056,9 +2168,9 @@ export default function SettingsPage() {
                         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${alreadyAdded ? "border-white/[0.06] bg-white/[0.02] text-white/20 cursor-default" : "border-white/10 bg-white/[0.03] text-white/50 hover:border-blue-400/30 hover:bg-blue-400/[0.06] hover:text-blue-300"}`}
                       >
                         {alreadyAdded ? (
-                          <svg className="w-3 h-3 text-emerald-500/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m4.5 12.75 6 6 9-13.5" /></svg>
+                          <Check className="w-3 h-3 text-emerald-500/60" weight="bold" />
                         ) : (
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                          <Plus className="w-3 h-3" weight="bold" />
                         )}
                         <span className="font-medium">{r.label}</span>
                         <span className="text-white/25">{r.note}</span>
@@ -2137,9 +2249,7 @@ export default function SettingsPage() {
           <div className="relative w-full max-w-md rounded-2xl border border-red-500/20 bg-[#0e0e0e] p-6 shadow-2xl">
             {/* Icon */}
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-4">
-              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
+              <Warning className="w-6 h-6 text-red-400" weight="duotone" />
             </div>
 
             <h2 className="text-lg font-semibold text-white text-center">Delete your account</h2>

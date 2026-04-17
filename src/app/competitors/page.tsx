@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { CaretLeft, Question, Warning, Users, X as XIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   LineChart,
   Line,
@@ -156,9 +157,7 @@ export default function CompetitorsPage() {
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="text-white/30 hover:text-white/60 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
+              <CaretLeft className="w-5 h-5" weight="bold" />
             </Link>
             <div>
               <h1 className="text-2xl font-bold">Competitors</h1>
@@ -171,9 +170,7 @@ export default function CompetitorsPage() {
             onClick={() => setShowHelp(!showHelp)}
             className="text-xs text-white/40 hover:text-white/70 flex items-center gap-1.5 mt-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-            </svg>
+            <Question className="w-4 h-4" weight="bold" />
             {showHelp ? "Hide help" : "How this works"}
           </button>
         </div>
@@ -239,9 +236,7 @@ export default function CompetitorsPage() {
           </div>
           {!isAutoSupported && (
             <p className="text-xs text-yellow-400/70 mt-2 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
+              <Warning className="w-3.5 h-3.5" weight="duotone" />
               {PLATFORM_LABELS[addPlatform]} doesn&apos;t allow public data lookup. You can still track them but numbers won&apos;t auto-update.
             </p>
           )}
@@ -256,9 +251,7 @@ export default function CompetitorsPage() {
           </div>
         ) : competitors.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-10 text-center">
-            <svg className="w-12 h-12 mx-auto mb-4 text-white/15" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-            </svg>
+            <Users className="w-12 h-12 mx-auto mb-4 text-white/15" weight="duotone" />
             <p className="text-white/40">No competitors tracked yet</p>
             <p className="text-sm text-white/25 mt-1 max-w-md mx-auto">
               Add 2-3 creators in your niche to see how your growth compares. We recommend picking
@@ -420,9 +413,7 @@ export default function CompetitorsPage() {
                       className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors md:justify-self-end self-start"
                       title="Remove competitor"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <XIcon className="w-4 h-4" weight="bold" />
                     </button>
                   </div>
                 );

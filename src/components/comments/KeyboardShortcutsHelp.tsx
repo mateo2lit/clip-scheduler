@@ -1,3 +1,5 @@
+import { X as XIcon } from "@phosphor-icons/react/dist/ssr";
+
 export default function KeyboardShortcutsHelp({ onClose }: { onClose: () => void }) {
   const shortcuts = [
     { key: "J / K", desc: "Navigate between comments" },

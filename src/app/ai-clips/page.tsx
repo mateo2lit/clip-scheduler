@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/login/supabaseClient";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
+import { LinkSimple, Play, CaretRight, Check, CloudArrowUp } from "@phosphor-icons/react/dist/ssr";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -563,9 +564,7 @@ export default function AiClipsPage() {
               <div className={urlPreview ? "" : "flex gap-2"}>
                 <div className="relative flex-1">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
+                    <LinkSimple className="w-4 h-4" weight="bold" />
                   </div>
                   <input
                     type="url"
@@ -616,9 +615,7 @@ export default function AiClipsPage() {
                     {/* Play icon */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="rounded-full bg-black/50 backdrop-blur-sm p-4">
-                        <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
+                        <Play className="w-7 h-7 text-white" weight="fill" />
                       </div>
                     </div>
                     {/* Title + channel overlay */}
@@ -670,9 +667,7 @@ export default function AiClipsPage() {
                 onClick={() => setShowFileOptions((v) => !v)}
                 className="flex items-center gap-2 text-sm text-white/50 hover:text-white/70 transition-colors"
               >
-                <svg className={`w-4 h-4 transition-transform ${showFileOptions ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <CaretRight className={`w-4 h-4 transition-transform ${showFileOptions ? "rotate-90" : ""}`} weight="bold" />
                 Upload a video file
               </button>
 
@@ -696,9 +691,7 @@ export default function AiClipsPage() {
                     {file ? (
                       <>
                         <div className="h-10 w-10 rounded-full bg-violet-500/20 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                          <Check className="w-5 h-5 text-violet-400" weight="bold" />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-white">{file.name}</p>
@@ -718,9 +711,7 @@ export default function AiClipsPage() {
                     ) : (
                       <>
                         <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                          <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
+                          <CloudArrowUp className="w-5 h-5 text-white/30" weight="duotone" />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-white/70">Drop a video file here</p>

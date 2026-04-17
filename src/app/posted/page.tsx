@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { CaretLeft, Check, ArrowSquareOut, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 
 type PostedPost = {
   id: string;
@@ -146,7 +147,7 @@ function PostThumbnail({ group }: { group: PostGroup }) {
     };
     return (
       <div className={`${placeholder} bg-white/[0.03]`}>
-        {iconMap[primaryProvider ?? ""] ?? <svg className="w-5 h-5 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>}
+        {iconMap[primaryProvider ?? ""] ?? <FilmSlate className="w-5 h-5 text-white/20" weight="duotone" />}
       </div>
     );
   }
@@ -261,9 +262,7 @@ export default function PostedPage() {
                 href="/dashboard"
                 className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white/70"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                </svg>
+                <CaretLeft className="h-4 w-4" weight="bold" />
               </Link>
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Posted Content</h1>
@@ -317,9 +316,7 @@ export default function PostedPage() {
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 py-20 text-center">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08]">
-              <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-              </svg>
+              <Check className="h-5 w-5 text-emerald-400" weight="bold" />
             </div>
             <p className="font-semibold text-white">Nothing posted yet</p>
             <p className="mt-1.5 max-w-xs text-sm text-white/40">Once your scheduled posts go live they'll appear here with platform links.</p>
@@ -384,9 +381,7 @@ export default function PostedPage() {
                                 )}
                                 {pillLabel}
                                 {url && (
-                                  <svg className="h-2.5 w-2.5 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                  </svg>
+                                  <ArrowSquareOut className="h-2.5 w-2.5 text-white/30" weight="bold" />
                                 )}
                               </>
                             );

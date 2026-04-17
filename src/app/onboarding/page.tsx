@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
+import { Check } from "@phosphor-icons/react/dist/ssr";
 
 const TOTAL_STEPS = 3;
 
@@ -291,9 +292,7 @@ export default function OnboardingPage() {
                 }`}
               >
                 {i + 1 < step ? (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check className="w-3.5 h-3.5" weight="bold" />
                 ) : (
                   i + 1
                 )}
@@ -352,9 +351,7 @@ export default function OnboardingPage() {
                     </div>
                     {role === r.key && (
                       <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Check className="w-3 h-3 text-black" weight="bold" />
                       </div>
                     )}
                   </button>
@@ -416,9 +413,7 @@ export default function OnboardingPage() {
                         </div>
                         {isConnected ? (
                           <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                            <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" weight="bold" />
                           </div>
                         ) : isBluesky ? (
                           <button
@@ -584,9 +579,7 @@ export default function OnboardingPage() {
                       "Analytics dashboard",
                     ].map((feat) => (
                       <li key={feat} className="flex items-start gap-2">
-                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" weight="bold" />
                         {feat}
                       </li>
                     ))}
@@ -640,9 +633,7 @@ export default function OnboardingPage() {
                       "Priority email support",
                     ].map((feat) => (
                       <li key={feat} className="flex items-start gap-2">
-                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-white/45" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-white/45" weight="bold" />
                         {feat}
                       </li>
                     ))}

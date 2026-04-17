@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { CaretLeft, Camera, Plus, X as XIcon } from "@phosphor-icons/react/dist/ssr";
 
 type BioLink = {
   title: string;
@@ -169,9 +170,7 @@ export default function LinkInBioSettingsPage() {
       <div className="relative z-10 mx-auto max-w-4xl px-6 pt-10 pb-16">
         <div className="flex items-center gap-3 mb-8">
           <Link href="/dashboard" className="text-white/30 hover:text-white/60 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
+            <CaretLeft className="w-5 h-5" weight="bold" />
           </Link>
           <h1 className="text-2xl font-bold">Link in Bio</h1>
         </div>
@@ -218,10 +217,7 @@ export default function LinkInBioSettingsPage() {
                       displayName?.[0]?.toUpperCase() || "?"
                     )}
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
+                      <Camera className="w-5 h-5 text-white" weight="bold" />
                     </div>
                   </div>
                 </label>
@@ -332,9 +328,7 @@ export default function LinkInBioSettingsPage() {
                   onClick={addLink}
                   className="flex items-center gap-1 text-xs text-blue-300 hover:text-blue-200 transition-colors"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus className="w-3.5 h-3.5" weight="bold" />
                   Add Link
                 </button>
               </div>
@@ -361,9 +355,7 @@ export default function LinkInBioSettingsPage() {
                       onClick={() => removeLink(idx)}
                       className="mt-1.5 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <XIcon className="w-4 h-4" weight="bold" />
                     </button>
                   </div>
                 ))}

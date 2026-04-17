@@ -9,6 +9,9 @@ import { uploadSupabaseVideoToLinkedIn, postTextToLinkedIn } from "@/lib/linkedi
 import { createThreadsContainer, checkAndPublishThreadsContainer, createThreadsTextContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky, postTextToBluesky } from "@/lib/blueskyUpload";
 import { uploadVideoToX, postTextToX } from "@/lib/xUpload";
+import { uploadToPinterest } from "@/lib/pinterestUpload";
+import { uploadToTelegram } from "@/lib/telegramUpload";
+import { uploadToSnapchat } from "@/lib/snapchatUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
@@ -960,6 +963,48 @@ async function runWorker(req: Request) {
         });
 
         platformPostId = xResult.tweetId;
+      } else if (provider === "pinterest") {
+        if (!acct.access_token) {
+          throw new Error("Pinterest account not configured. Please reconnect your Pinterest account.");
+        }
+        const ptSettings = ((post as any).pinterest_settings ?? {}) as any;
+        const boardId = ptSettings.board_id;
+        if (!boardId) throw new Error("No Pinterest board selected for this post.");
+        const pt = await uploadToPinterest({
+          accessToken: acct.access_token,
+          bucket,
+          storagePath,
+          title: post.title ?? "Clip Dash Upload",
+          description: post.description ?? "",
+          boardId,
+        });
+        platformPostId = pt.platform_post_id;
+      } else if (provider === "telegram") {
+        if (!acct.access_token || !acct.platform_user_id) {
+          throw new Error("Telegram channel not configured. Please reconnect.");
+        }
+        const tg = await uploadToTelegram({
+          botToken: acct.access_token,
+          channelId: acct.platform_user_id,
+          bucket,
+          storagePath,
+          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+        });
+        platformPostId = tg.platform_post_id;
+      } else if (provider === "snapchat") {
+        if (!acct.access_token || !acct.platform_user_id) {
+          throw new Error("Snapchat account not configured.");
+        }
+        const scSettings = ((post as any).snapchat_settings ?? {}) as any;
+        const sc = await uploadToSnapchat({
+          accessToken: acct.access_token,
+          snapchatUserId: acct.platform_user_id,
+          bucket,
+          storagePath,
+          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+          postType: scSettings.post_type || "spotlight",
+        });
+        platformPostId = sc.platform_post_id;
       } else {
         // YouTube (default)
         const yts = (post.youtube_settings ?? {}) as any;

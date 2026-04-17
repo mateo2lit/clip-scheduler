@@ -9,6 +9,7 @@ import { evaluate } from '@mdx-js/mdx'
 import * as runtime from 'react/jsx-runtime'
 import remarkFrontmatter from 'remark-frontmatter'
 import { useMDXComponents } from '@/mdx-components'
+import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 
 interface Props {
   params: { slug: string }
@@ -107,9 +108,7 @@ export default async function BlogPostPage({ params }: Props) {
       <article className="relative z-10 mx-auto max-w-3xl px-6 pt-12 pb-24">
         {/* Back */}
         <Link href="/blog" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors mb-10">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          </svg>
+          <ArrowLeft className="w-4 h-4" weight="bold" />
           All articles
         </Link>
 

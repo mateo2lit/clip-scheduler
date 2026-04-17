@@ -7,6 +7,7 @@ import { supabase } from "@/app/login/supabaseClient";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { ClipCard, type DownloadInfo } from "@/components/ai-clips/ClipCard";
+import { CaretLeft, CaretRight, X as XIcon } from "@phosphor-icons/react/dist/ssr";
 
 type AiClipJobStatus =
   | "pending" | "uploading" | "transcribing" | "detecting" | "cutting" | "done" | "failed";
@@ -265,9 +266,7 @@ export default function AiClipProjectPage() {
               href="/ai-clips"
               className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <CaretLeft className="w-4 h-4" weight="bold" />
               Projects
             </Link>
             <span className="text-white/15">/</span>
@@ -418,9 +417,7 @@ export default function AiClipProjectPage() {
                 onClick={() => setPreviewClipIndex(null)}
                 className="absolute -top-9 right-0 text-white/60 hover:text-white transition-colors text-sm flex items-center gap-1"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <XIcon className="w-4 h-4" weight="bold" />
                 Close
               </button>
 
@@ -449,9 +446,7 @@ export default function AiClipProjectPage() {
                       onClick={() => setPreviewClipIndex((i: number | null) => i === null || i === 0 ? (job.result_upload_ids!.length - 1) : i - 1)}
                       className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
+                      <CaretLeft className="w-4 h-4" weight="bold" />
                     </button>
                     <span className="text-xs text-white/30 tabular-nums">
                       {mi + 1} / {job.result_upload_ids.length}
@@ -460,9 +455,7 @@ export default function AiClipProjectPage() {
                       onClick={() => setPreviewClipIndex((i: number | null) => i === null ? 0 : (i + 1) % job.result_upload_ids!.length)}
                       className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                      <CaretRight className="w-4 h-4" weight="bold" />
                     </button>
                   </div>
                 )}

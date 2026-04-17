@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CaretLeft } from "@phosphor-icons/react/dist/ssr";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -11,9 +12,7 @@ export default function PrivacyPolicyPage() {
           href="/"
           className="mb-8 inline-flex items-center gap-1 text-sm text-white/40 transition-colors hover:text-white/70"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <CaretLeft className="w-4 h-4" weight="bold" />
           Back to Home
         </Link>
 

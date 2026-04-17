@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 
 type TicketStatus = "open" | "in_progress" | "resolved";
 type TicketType = "bug" | "question" | "billing" | "feature";
@@ -256,12 +257,10 @@ export default function AdminSupportPage() {
                           <span className="text-xs text-white/20">{formatDate(ticket.created_at)}</span>
                         </div>
                       </div>
-                      <svg
+                      <CaretDown
                         className={`shrink-0 mt-0.5 w-4 h-4 text-white/20 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                        weight="bold"
+                      />
                     </button>
 
                     {/* Expanded panel */}

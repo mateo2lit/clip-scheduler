@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 const PLATFORMS = [
   {
@@ -146,17 +147,13 @@ export default function PlatformsPage() {
                   <h2 className="text-lg font-semibold">{p.name}</h2>
                   <p className="text-xs text-white/40 mt-0.5">{p.tagline}</p>
                 </div>
-                <svg className="w-4 h-4 text-white/30 mt-1 group-hover:text-white/60 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <CaretRight className="w-4 h-4 text-white/30 mt-1 group-hover:text-white/60 transition-colors shrink-0" weight="bold" />
               </div>
               <p className="mt-1 text-xs font-medium text-white/30">{p.stat}</p>
               <p className="mt-3 text-sm text-white/50 leading-relaxed">{p.description}</p>
               <span className="mt-4 inline-flex items-center gap-1 text-sm text-white/40 group-hover:text-white/70 transition-colors">
                 Learn more
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <CaretRight className="w-4 h-4" weight="bold" />
               </span>
             </Link>
           ))}

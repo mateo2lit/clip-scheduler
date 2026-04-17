@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { CaretLeft, Clock, PencilSimple, Warning, CheckCircle, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 
 type ScheduledPost = {
   id: string;
@@ -189,9 +190,7 @@ function ScheduledThumbnail({ group }: { group: PostGroup }) {
   return (
     <div className={placeholder}>
       {iconMap[primaryProvider ?? ""] ?? (
-        <svg className="w-5 h-5 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
-        </svg>
+        <FilmSlate className="w-5 h-5 text-white/20" weight="duotone" />
       )}
     </div>
   );
@@ -441,9 +440,7 @@ export default function ScheduledPage() {
                 href="/dashboard"
                 className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white/70"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                </svg>
+                <CaretLeft className="h-4 w-4" weight="bold" />
               </Link>
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Scheduled Posts</h1>
@@ -497,9 +494,7 @@ export default function ScheduledPage() {
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 py-20 text-center">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-400/[0.08]">
-              <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
+              <Clock className="h-5 w-5 text-blue-400" weight="duotone" />
             </div>
             <p className="font-semibold text-white">No scheduled posts</p>
             <p className="mt-1.5 max-w-xs text-sm text-white/40">Upload a video and choose a publish time to populate your queue.</p>
@@ -672,9 +667,7 @@ export default function ScheduledPage() {
                                     title="Edit post"
                                     className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
                                   >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
+                                    <PencilSimple className="w-3 h-3" weight="bold" />
                                     Edit
                                   </button>
                                 )}
@@ -724,13 +717,9 @@ export default function ScheduledPage() {
           }`}
         >
           {toast.type === "error" ? (
-            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
+            <Warning className="h-4 w-4 shrink-0" weight="duotone" />
           ) : (
-            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
+            <CheckCircle className="h-4 w-4 shrink-0" weight="duotone" />
           )}
           {toast.msg}
         </div>

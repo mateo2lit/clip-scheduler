@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
+import { Check, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 // Confetti particle config
 const COLORS = ["#60a5fa", "#a78bfa", "#34d399", "#f472b6", "#fbbf24", "#fb923c", "#e879f9"];
@@ -209,15 +210,10 @@ export default function WelcomePage() {
           <div className="relative mx-auto w-20 h-20 mb-6">
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 animate-pulse opacity-20" />
             <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-              <svg className="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M5 13l4 4L19 7"
-                  className={`transition-all duration-700 delay-300 ${show ? "opacity-100" : "opacity-0"}`}
-                />
-              </svg>
+              <Check
+                className={`w-10 h-10 text-black transition-all duration-700 delay-300 ${show ? "opacity-100" : "opacity-0"}`}
+                weight="bold"
+              />
             </div>
           </div>
 
@@ -246,9 +242,7 @@ export default function WelcomePage() {
               >
                 <span className="text-lg">{item.icon}</span>
                 <span className="text-sm text-white/70">{item.text}</span>
-                <svg className="ml-auto w-3.5 h-3.5 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <CaretRight className="ml-auto w-3.5 h-3.5 text-white/20" weight="bold" />
               </button>
             ))}
           </div>

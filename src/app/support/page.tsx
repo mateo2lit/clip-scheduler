@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { CaretLeft, CaretDown, CheckCircle, ChatCircleDots } from "@phosphor-icons/react/dist/ssr";
 
 type SupportTab = "faq" | "submit" | "tickets" | "articles";
 type TicketType = "bug" | "question" | "billing" | "feature";
@@ -430,9 +431,7 @@ export default function SupportPage() {
               href="/dashboard"
               className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white/70"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
+              <CaretLeft className="h-4 w-4" weight="bold" />
             </Link>
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Support</h1>
@@ -482,15 +481,10 @@ export default function SupportPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <span className="text-sm font-medium text-white/85">{item.q}</span>
-                          <svg
+                          <CaretDown
                             className={`mt-0.5 h-4 w-4 shrink-0 text-white/30 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                          </svg>
+                            weight="bold"
+                          />
                         </div>
                         {isOpen && (
                           <p className="mt-3 text-sm text-white/55 leading-relaxed">{item.a}</p>
@@ -511,9 +505,7 @@ export default function SupportPage() {
               <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-6 text-center">
                 <div className="mb-3 flex justify-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10">
-                    <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                    </svg>
+                    <CheckCircle className="h-5 w-5 text-emerald-400" weight="duotone" />
                   </div>
                 </div>
                 <p className="font-semibold text-white">Ticket submitted</p>
@@ -620,9 +612,7 @@ export default function SupportPage() {
             ) : tickets.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 py-16 text-center">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-                  <svg className="h-5 w-5 text-white/30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
-                  </svg>
+                  <ChatCircleDots className="h-5 w-5 text-white/30" weight="duotone" />
                 </div>
                 <p className="font-semibold text-white">No tickets yet</p>
                 <p className="mt-1.5 max-w-xs text-sm text-white/40">
@@ -708,15 +698,10 @@ export default function SupportPage() {
                       <p className="mt-1 text-xs text-white/45 leading-relaxed">{article.excerpt}</p>
                       <p className="mt-2 text-[11px] text-white/25">{article.readTime}</p>
                     </div>
-                    <svg
+                    <CaretDown
                       className={`mt-1 h-4 w-4 shrink-0 text-white/25 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                    </svg>
+                      weight="bold"
+                    />
                   </div>
 
                   {isOpen && (

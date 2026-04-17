@@ -4,6 +4,21 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/login/supabaseClient";
+import {
+  ArrowUp,
+  ArrowDown,
+  Plus,
+  CaretRight,
+  CalendarBlank,
+  ChatCircleDots,
+  ChartBar,
+  Sparkle,
+  LinkSimple,
+  Clock,
+  Check,
+  PencilSimple,
+  Question,
+} from "@phosphor-icons/react/dist/ssr";
 
 type PostCounts = {
   scheduled: number;
@@ -196,9 +211,9 @@ export default function DashboardPage() {
               {!totalsLoading && totals && totals.prevViews > 0 && (
                 <span className={`mb-1 flex items-center gap-0.5 text-xs font-medium ${totals.views >= totals.prevViews ? "text-emerald-400" : "text-red-400"}`}>
                   {totals.views >= totals.prevViews ? (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
+                    <ArrowUp className="w-3 h-3" weight="bold" />
                   ) : (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" /></svg>
+                    <ArrowDown className="w-3 h-3" weight="bold" />
                   )}
                   {Math.abs(Math.round(((totals.views - totals.prevViews) / totals.prevViews) * 100))}%
                 </span>
@@ -222,9 +237,9 @@ export default function DashboardPage() {
               {!totalsLoading && totals && totals.prevLikes > 0 && (
                 <span className={`mb-1 flex items-center gap-0.5 text-xs font-medium ${totals.likes >= totals.prevLikes ? "text-emerald-400" : "text-red-400"}`}>
                   {totals.likes >= totals.prevLikes ? (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
+                    <ArrowUp className="w-3 h-3" weight="bold" />
                   ) : (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" /></svg>
+                    <ArrowDown className="w-3 h-3" weight="bold" />
                   )}
                   {Math.abs(Math.round(((totals.likes - totals.prevLikes) / totals.prevLikes) * 100))}%
                 </span>
@@ -265,18 +280,14 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center group-hover:from-violet-500/30 group-hover:to-fuchsia-500/30 transition-all">
-                <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
+                <Plus className="w-5 h-5 text-violet-400" weight="bold" />
               </div>
               <div>
                 <p className="font-semibold text-white/90">Upload a new video</p>
                 <p className="text-sm text-white/40 mt-0.5">Schedule across all your platforms in one go</p>
               </div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-violet-400/60 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
+            <CaretRight className="w-5 h-5 text-white/20 group-hover:text-violet-400/60 group-hover:translate-x-0.5 transition-all" weight="bold" />
           </Link>
         </div>
 
@@ -288,18 +299,14 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/15 transition-colors">
-                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                </svg>
+                <CalendarBlank className="w-5 h-5 text-purple-400" weight="duotone" />
               </div>
               <div>
                 <p className="font-semibold text-white/90">Content Calendar</p>
                 <p className="text-sm text-white/40 mt-0.5">See all your posts on a monthly calendar</p>
               </div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
+            <CaretRight className="w-5 h-5 text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" weight="bold" />
           </Link>
         </div>
 
@@ -310,9 +317,7 @@ export default function DashboardPage() {
             className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="h-8 w-8 shrink-0 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/15 transition-colors">
-              <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-              </svg>
+              <ChatCircleDots className="w-4 h-4 text-cyan-400" weight="duotone" />
             </div>
             <span className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Comments</span>
           </Link>
@@ -321,9 +326,7 @@ export default function DashboardPage() {
             className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="h-8 w-8 shrink-0 rounded-lg bg-sky-500/10 flex items-center justify-center group-hover:bg-sky-500/15 transition-colors">
-              <svg className="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-              </svg>
+              <ChartBar className="w-4 h-4 text-sky-400" weight="duotone" />
             </div>
             <span className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Analytics</span>
           </Link>
@@ -332,9 +335,7 @@ export default function DashboardPage() {
             className="group flex items-center gap-3 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] px-4 py-3 hover:bg-violet-500/[0.07] hover:border-violet-400/30 transition-all text-left w-full"
           >
             <div className="h-8 w-8 shrink-0 rounded-lg bg-violet-500/15 flex items-center justify-center group-hover:bg-violet-500/25 transition-colors">
-              <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-              </svg>
+              <Sparkle className="w-4 h-4 text-violet-400" weight="duotone" />
             </div>
             <span className="text-sm font-medium text-violet-300/80 group-hover:text-violet-300 transition-colors">AI Clips</span>
             <span className="ml-auto text-[9px] font-bold tracking-wider uppercase bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full">NEW</span>
@@ -344,9 +345,7 @@ export default function DashboardPage() {
             className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
           >
             <div className="h-8 w-8 shrink-0 rounded-lg bg-pink-500/10 flex items-center justify-center group-hover:bg-pink-500/15 transition-colors">
-              <svg className="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-              </svg>
+              <LinkSimple className="w-4 h-4 text-pink-400" weight="bold" />
             </div>
             <span className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Link in Bio</span>
           </Link>
@@ -366,11 +365,7 @@ export default function DashboardPage() {
               desc: "Queued for publishing",
               count: counts.scheduled,
               color: "blue",
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-              ),
+              icon: <Clock className="w-5 h-5" weight="duotone" />,
             },
             {
               href: "/posted",
@@ -378,11 +373,7 @@ export default function DashboardPage() {
               desc: "Successfully published",
               count: counts.posted,
               color: "emerald",
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-              ),
+              icon: <Check className="w-5 h-5" weight="bold" />,
             },
             {
               href: "/drafts",
@@ -390,11 +381,7 @@ export default function DashboardPage() {
               desc: "Saved for later",
               count: counts.drafts,
               color: "amber",
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                </svg>
-              ),
+              icon: <PencilSimple className="w-5 h-5" weight="bold" />,
             },
           ].map((card) => (
             <Link
@@ -450,9 +437,7 @@ export default function DashboardPage() {
                 }`}
               >
                 View all
-                <svg className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+                <CaretRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" weight="bold" />
               </div>
             </Link>
           ))}
@@ -470,9 +455,7 @@ export default function DashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/15">
-              <svg className="h-6 w-6 text-violet-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-              </svg>
+              <Sparkle className="h-6 w-6 text-violet-400" weight="duotone" />
             </div>
             <h2 className="text-lg font-bold text-white">Team Plan Required</h2>
             <p className="mt-2 text-sm text-white/50 leading-relaxed">
@@ -503,9 +486,7 @@ export default function DashboardPage() {
         className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/50 shadow-lg backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white/80"
         title="Help & Support"
       >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-        </svg>
+        <Question className="h-4 w-4" weight="bold" />
       </a>
     </main>
   );
