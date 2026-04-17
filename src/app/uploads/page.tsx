@@ -14,7 +14,6 @@ import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
-import AppPageOrb from "@/components/AppPageOrb";
 import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 
@@ -1656,7 +1655,6 @@ export default function UploadsPage() {
   return (
     <>
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
-      <AppPageOrb />
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-500/[0.08] via-purple-500/[0.06] to-transparent blur-3xl" />
         <div className="absolute bottom-0 right-0 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-purple-500/[0.06] to-transparent blur-3xl" />

@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { DndContext, DragStartEvent, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 import { ScheduledPost, PostGroup, groupPosts } from "./types";
 import { CalendarHeader } from "./components/CalendarHeader";
 import { MonthView } from "./components/MonthView";
@@ -165,7 +164,6 @@ export default function CalendarPage() {
 
   return (
     <main className="h-screen flex flex-col overflow-hidden bg-[#050505] text-white relative">
-      <AppPageOrb />
       <div className="relative z-10 flex flex-col h-full">
         <CalendarHeader
           view={view}

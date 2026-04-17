@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { ClipCard, type DownloadInfo } from "@/components/ai-clips/ClipCard";
@@ -258,8 +257,6 @@ export default function AiClipProjectPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative">
-      <AppPageOrb />
-
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">

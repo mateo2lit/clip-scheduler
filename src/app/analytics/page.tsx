@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 import EngagementChart from "@/components/analytics/EngagementChart";
 import PlatformBreakdown from "@/components/analytics/PlatformBreakdown";
 import BestTimeHeatmap from "@/components/analytics/BestTimeHeatmap";
@@ -292,8 +291,6 @@ export default function AnalyticsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      <AppPageOrb />
-
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">

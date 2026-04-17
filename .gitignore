@@ -46,6 +46,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+.claude/
 .claude/settings.local.json
 CLIP SCHEDULER PROJECT.txt
 CLAUDE.md
+
+# Superpowers brainstorm scratchpad (local working state)
+.superpowers/
+
+# Lead data (PII — never commit)
+clipdash_leads*.xlsx
+clipdash_leads_log_*.txt
+.~lock.*#
+
+# Internal docs
+ClipDash-GTM-Playbook.docx

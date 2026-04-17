@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 import {
   LineChart,
   Line,
@@ -142,8 +141,6 @@ export default function CompetitorsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      <AppPageOrb />
-
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center">

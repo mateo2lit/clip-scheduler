@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 
 type PostCounts = {
   scheduled: number;
@@ -25,11 +25,14 @@ function formatStat(n: number): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState<PostCounts>({ scheduled: 0, posted: 0, drafts: 0 });
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState<AnalyticsTotals | null>(null);
   const [totalsLoading, setTotalsLoading] = useState(true);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +68,10 @@ export default function DashboardPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const json = await res.json();
-        if (json.ok) teamId = json.teamId;
+        if (json.ok) {
+          teamId = json.teamId;
+          setPlan(json.plan ?? "creator");
+        }
       } catch {}
 
       if (!teamId || cancelled) {
@@ -156,8 +162,6 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      <AppPageOrb />
-
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
@@ -323,17 +327,18 @@ export default function DashboardPage() {
             </div>
             <span className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Analytics</span>
           </Link>
-          <Link
-            href="/competitors"
-            className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+          <button
+            onClick={() => plan === "team" ? router.push("/ai-clips") : setShowUpgradeModal(true)}
+            className="group flex items-center gap-3 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] px-4 py-3 hover:bg-violet-500/[0.07] hover:border-violet-400/30 transition-all text-left w-full"
           >
-            <div className="h-8 w-8 shrink-0 rounded-lg bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/15 transition-colors">
-              <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            <div className="h-8 w-8 shrink-0 rounded-lg bg-violet-500/15 flex items-center justify-center group-hover:bg-violet-500/25 transition-colors">
+              <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
               </svg>
             </div>
-            <span className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Competitors</span>
-          </Link>
+            <span className="text-sm font-medium text-violet-300/80 group-hover:text-violet-300 transition-colors">AI Clips</span>
+            <span className="ml-auto text-[9px] font-bold tracking-wider uppercase bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full">NEW</span>
+          </button>
           <Link
             href="/link-in-bio"
             className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
@@ -453,6 +458,44 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* AI Clips upgrade modal */}
+      {showUpgradeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          onClick={() => setShowUpgradeModal(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl border border-violet-500/25 bg-[#0d0d0d] p-7 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/15">
+              <svg className="h-6 w-6 text-violet-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-white">Team Plan Required</h2>
+            <p className="mt-2 text-sm text-white/50 leading-relaxed">
+              AI Clips automatically cuts your long-form videos into short clips ready to schedule — it&apos;s available on the Team plan.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Link
+                href="/settings?tab=billing"
+                className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-500 to-purple-500 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                onClick={() => setShowUpgradeModal(false)}
+              >
+                Upgrade to Team · $19.99/mo
+              </Link>
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-full rounded-2xl py-3 text-sm text-white/40 hover:text-white/60 transition-colors"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating help button */}
       <a

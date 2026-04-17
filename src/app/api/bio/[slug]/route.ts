@@ -36,13 +36,25 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
     if (page.show_recent_posts) {
       const { data: posts } = await supabaseAdmin
         .from("scheduled_posts")
-        .select("id, title, description, provider, platform_post_id, thumbnail_path, posted_at, platform_accounts!inner(profile_name,platform_user_id)")
+        .select("id, title, description, provider, platform_post_id, thumbnail_path, posted_at, group_id, upload_id, platform_accounts!inner(profile_name,platform_user_id)")
         .eq("team_id", page.team_id)
         .eq("status", "posted")
         .order("posted_at", { ascending: false })
-        .limit(9);
+        .limit(81); // over-fetch to get 9 unique groups (worst case: 9 platforms each)
 
-      recentPosts = (posts || []).map((p: any) => ({
+      // Deduplicate by group_id (or upload_id as fallback) — one entry per upload session
+      const seen = new Set<string>();
+      const unique: any[] = [];
+      for (const p of posts || []) {
+        const key = p.group_id || p.upload_id || p.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(p);
+          if (unique.length >= 9) break;
+        }
+      }
+
+      recentPosts = unique.map((p: any) => ({
         id: p.id,
         title: p.title,
         description: p.description,

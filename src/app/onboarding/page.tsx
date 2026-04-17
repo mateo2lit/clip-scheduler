@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 
 const TOTAL_STEPS = 3;
 
@@ -272,7 +271,6 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-white flex flex-col">
-      <AppPageOrb />
       {/* Header */}
       <header className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-5 border-b border-white/[0.06]">
         <div className="flex justify-start">

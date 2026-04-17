@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AppPageOrb from "@/components/AppPageOrb";
 
 type TicketStatus = "open" | "in_progress" | "resolved";
 type TicketType = "bug" | "question" | "billing" | "feature";
@@ -180,7 +179,6 @@ export default function AdminSupportPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] px-4 py-8 md:px-8">
-      <AppPageOrb />
       {/* Header */}
       <div className="relative z-10 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">

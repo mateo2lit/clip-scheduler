@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 
 // Confetti particle config
 const COLORS = ["#60a5fa", "#a78bfa", "#34d399", "#f472b6", "#fbbf24", "#fb923c", "#e879f9"];
@@ -196,7 +195,6 @@ export default function WelcomePage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white relative overflow-hidden flex items-center justify-center">
-      <AppPageOrb />
       <ConfettiCanvas />
 
       {/* Background glow */}

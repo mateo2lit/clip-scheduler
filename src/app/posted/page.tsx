@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 
 type PostedPost = {
   id: string;
@@ -231,7 +230,6 @@ export default function PostedPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
-      <AppPageOrb />
       {/* Ambient glows */}
 
       {/* Nav */}

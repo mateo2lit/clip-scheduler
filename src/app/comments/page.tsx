@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 import type {
   Comment,
   EnrichedComment,
@@ -550,8 +549,6 @@ export default function CommentsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      <AppPageOrb />
-
       {showShortcutsHelp && <KeyboardShortcutsHelp onClose={() => setShowShortcutsHelp(false)} />}
 
       {/* Nav */}

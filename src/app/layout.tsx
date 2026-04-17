@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import GlobalSpotlight from "@/components/GlobalSpotlight";
 
 export const metadata: Metadata = {
   title: {
@@ -117,7 +116,7 @@ export default function RootLayout({
             }),
           }}
         />
-        <GlobalSpotlight>{children}</GlobalSpotlight>
+        {children}
       </body>
     </html>
   );

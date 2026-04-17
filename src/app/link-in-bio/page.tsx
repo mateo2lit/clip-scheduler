@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import AppPageOrb from "@/components/AppPageOrb";
 
 type BioLink = {
   title: string;
@@ -21,6 +20,8 @@ export default function LinkInBioSettingsPage() {
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [theme, setTheme] = useState("dark");
   const [accentColor, setAccentColor] = useState("#8b5cf6");
   const [showRecentPosts, setShowRecentPosts] = useState(true);
@@ -46,6 +47,7 @@ export default function LinkInBioSettingsPage() {
         setSlug(json.page.slug);
         setDisplayName(json.page.display_name);
         setBio(json.page.bio || "");
+        setAvatarUrl(json.page.avatar_url || null);
         setTheme(json.page.theme);
         setAccentColor(json.page.accent_color);
         setShowRecentPosts(json.page.show_recent_posts);
@@ -80,6 +82,7 @@ export default function LinkInBioSettingsPage() {
           slug,
           display_name: displayName,
           bio,
+          avatar_url: avatarUrl,
           theme,
           accent_color: accentColor,
           show_recent_posts: showRecentPosts,
@@ -99,6 +102,32 @@ export default function LinkInBioSettingsPage() {
       alert("Failed to save bio page");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !authToken) return;
+    setUploadingAvatar(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/bio/avatar", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: form,
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setAvatarUrl(json.url);
+      } else {
+        alert(json.error || "Failed to upload photo");
+      }
+    } catch {
+      alert("Failed to upload photo");
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = "";
     }
   }
 
@@ -126,8 +155,6 @@ export default function LinkInBioSettingsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      <AppPageOrb />
-
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-4xl px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center">
@@ -169,6 +196,49 @@ export default function LinkInBioSettingsPage() {
 
             {/* Profile */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+              {/* Avatar */}
+              <div className="flex items-center gap-4">
+                <label className="relative cursor-pointer group shrink-0">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="sr-only"
+                    onChange={handleAvatarUpload}
+                    disabled={uploadingAvatar}
+                  />
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold relative overflow-hidden"
+                    style={{ background: accentColor + "30", color: accentColor }}
+                  >
+                    {uploadingAvatar ? (
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin opacity-60" />
+                    ) : avatarUrl ? (
+                      <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      displayName?.[0]?.toUpperCase() || "?"
+                    )}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </label>
+                <div>
+                  <p className="text-sm font-medium text-white/80">Profile Photo</p>
+                  <p className="text-xs text-white/35 mt-0.5">JPG, PNG, WebP · max 5 MB</p>
+                  {avatarUrl && (
+                    <button
+                      onClick={() => setAvatarUrl(null)}
+                      className="text-xs text-red-400/60 hover:text-red-400 mt-1 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="border-t border-white/[0.06]" />
               <div>
                 <label className="block text-xs text-white/50 mb-1.5">Display Name</label>
                 <input
@@ -332,12 +402,20 @@ export default function LinkInBioSettingsPage() {
                 className={`p-8 min-h-[400px] ${theme === "dark" ? "bg-[#050505]" : "bg-gray-50"}`}
               >
                 <div className="text-center mb-6">
-                  <div
-                    className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-lg font-bold"
-                    style={{ background: accentColor + "30", color: accentColor }}
-                  >
-                    {displayName?.[0]?.toUpperCase() || "?"}
-                  </div>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="w-14 h-14 rounded-full mx-auto mb-3 object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-lg font-bold"
+                      style={{ background: accentColor + "30", color: accentColor }}
+                    >
+                      {displayName?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
                   <p
                     className={`font-bold text-sm ${theme === "dark" ? "text-white" : "text-gray-900"}`}
                   >

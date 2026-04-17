@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     // Fetch team info
     const { data: team } = await supabaseAdmin
       .from("teams")
-      .select("name")
+      .select("name, plan")
       .eq("id", teamId)
       .single();
 
@@ -50,6 +50,7 @@ export async function GET(req: Request) {
       ok: true,
       teamId,
       teamName: team?.name ?? "My Team",
+      plan: team?.plan ?? "creator",
       role,
       members: membersWithEmail,
       invites: invites ?? [],
