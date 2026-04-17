@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X as XIcon, Check } from "@phosphor-icons/react/dist/ssr";
 
 type JobStatus = "pending" | "fetching" | "uploading" | "done" | "failed";
 
@@ -189,9 +190,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <XIcon className="w-4 h-4" weight="bold" />
             </button>
           )}
         </div>
@@ -290,9 +289,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
                       }`}
                     >
                       {isPast ? (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Check className="w-3 h-3" weight="bold" />
                       ) : isCurrent ? (
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
                       ) : (

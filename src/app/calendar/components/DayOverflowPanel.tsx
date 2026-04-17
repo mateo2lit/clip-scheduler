@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { PostGroup, formatTime, thumbnailUrl } from "../types";
 import { ProviderIcon } from "./ProviderIcon";
+import { X as XIcon } from "@phosphor-icons/react/dist/ssr";
 
 type Props = {
   groups: PostGroup[];
@@ -44,7 +45,7 @@ export function DayOverflowPanel({ groups, anchorRect, supabaseUrl, onCardClick,
       <div className="px-3 py-2 border-b border-white/[0.06] flex items-center justify-between">
         <span className="text-xs text-white/40 font-medium">{groups.length} posts</span>
         <button onClick={onClose} className="text-white/30 hover:text-white/60 transition-colors">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          <XIcon className="w-3.5 h-3.5" weight="bold" />
         </button>
       </div>
       <div className="max-h-64 overflow-y-auto divide-y divide-white/[0.04]">

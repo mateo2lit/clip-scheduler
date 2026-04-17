@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { countBlueskyGraphemes } from "@/lib/blueskyUtils";
+import { X as XIcon } from "@phosphor-icons/react/dist/ssr";
 
 export type LinkPreviewData = {
   url: string;
@@ -76,9 +77,7 @@ function LinkPreviewCard({
         className="absolute right-2 top-2 rounded-full p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-white/70"
         aria-label="Dismiss link preview"
       >
-        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <XIcon className="h-3.5 w-3.5" weight="bold" />
       </button>
     </div>
   );

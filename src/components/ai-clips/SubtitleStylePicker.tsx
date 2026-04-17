@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SubtitleStyle, PRESETS, PRESET_LABELS } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
+import { Prohibit } from "@phosphor-icons/react/dist/ssr";
 
 type Tab = "presets" | "font" | "effects" | "title";
 
@@ -100,9 +101,7 @@ function PresetCardText({ preset }: { preset: SubtitleStyle }) {
   if (preset.animation === "none") {
     return (
       <div className="flex flex-col items-center justify-center gap-1.5">
-        <svg className="w-6 h-6 text-white/25" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-        </svg>
+        <Prohibit className="w-6 h-6 text-white/25" weight="regular" />
         <span className="text-[10px] text-white/25">No captions</span>
       </div>
     );

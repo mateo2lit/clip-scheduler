@@ -1,5 +1,6 @@
 import type { PlatformFilter, ReadFilter, EnrichedComment, SentimentFilter, CommentType, ArchiveFilter } from "./types";
 import { platformLabels } from "./types";
+import { Tray, Star, Archive } from "@phosphor-icons/react/dist/ssr";
 
 export default function Sidebar({
   comments,
@@ -64,21 +65,9 @@ export default function Sidebar({
               }`}
             >
               <span className="flex items-center gap-2">
-                {icon === "inbox" && (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h2.21a2.25 2.25 0 0 0 2.012-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.86M2.25 13.5V6.108c0-1.135.845-2.098 1.976-2.192a48.424 48.424 0 0 1 11.548 0c1.131.094 1.976 1.057 1.976 2.192V13.5" />
-                  </svg>
-                )}
-                {icon === "star" && (
-                  <svg className="w-3.5 h-3.5 text-amber-400/70" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
-                  </svg>
-                )}
-                {icon === "archive" && (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-                  </svg>
-                )}
+                {icon === "inbox" && <Tray className="w-3.5 h-3.5" weight="duotone" />}
+                {icon === "star" && <Star className="w-3.5 h-3.5 text-amber-400/70" weight="duotone" />}
+                {icon === "archive" && <Archive className="w-3.5 h-3.5" weight="duotone" />}
                 {label}
               </span>
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${

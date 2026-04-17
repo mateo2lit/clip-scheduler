@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { EnrichedComment, SavedReply } from "./types";
 import { platformLabels, platformColors, commentTypeColors } from "./types";
 import ReplyForm from "./ReplyForm";
+import { Star, Check, Heart, Archive, ArrowSquareOut, ArrowBendUpLeft } from "@phosphor-icons/react/dist/ssr";
 
 function relativeTime(iso: string) {
   try {
@@ -92,9 +93,7 @@ export default function CommentCard({
       {/* Star indicator */}
       {isStarred && (
         <div className="absolute right-2 top-3">
-          <svg className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 0 0 .951-.69l1.07-3.292Z" />
-          </svg>
+          <Star className="w-3.5 h-3.5 text-amber-400" weight="fill" />
         </div>
       )}
 
@@ -111,9 +110,7 @@ export default function CommentCard({
               }`}
             >
               {isSelected && (
-                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
+                <Check className="w-2.5 h-2.5 text-white" weight="bold" />
               )}
             </button>
           )}
@@ -183,9 +180,7 @@ export default function CommentCard({
                 }`}
                 title={isLiked ? "Liked" : "Like this comment"}
               >
-                <svg className="w-3 h-3" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-                </svg>
+                <Heart className="w-3 h-3" weight={isLiked ? "fill" : "regular"} />
                 {comment.likeCount > 0 && <span className="tabular-nums">{comment.likeCount + (isLiked ? 1 : 0)}</span>}
               </button>
 
@@ -199,9 +194,7 @@ export default function CommentCard({
                 }`}
                 title={isStarred ? "Unstar" : "Star (S)"}
               >
-                <svg className="w-3 h-3" fill={isStarred ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
-                </svg>
+                <Star className="w-3 h-3" weight={isStarred ? "fill" : "regular"} />
               </button>
 
               {/* Archive */}
@@ -214,9 +207,7 @@ export default function CommentCard({
                 }`}
                 title={isArchived ? "Unarchive" : "Archive (E)"}
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-                </svg>
+                <Archive className="w-3 h-3" weight="duotone" />
                 {isArchived ? "Unarchive" : "Archive"}
               </button>
 
@@ -228,9 +219,7 @@ export default function CommentCard({
                   onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] hover:border-white/15 transition-all"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                  </svg>
+                  <ArrowSquareOut className="w-3 h-3" weight="bold" />
                   View
                 </a>
               )}
@@ -238,9 +227,7 @@ export default function CommentCard({
                 onClick={(e) => { e.stopPropagation(); setReplyOpen(!replyOpen); }}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] hover:border-white/15 transition-all"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                </svg>
+                <ArrowBendUpLeft className="w-3 h-3" weight="bold" />
                 Reply
               </button>
             </div>

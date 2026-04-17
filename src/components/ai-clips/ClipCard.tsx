@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { SubtitleStyle } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
+import { Play, Calendar, DownloadSimple, Prohibit, ArrowsOut } from "@phosphor-icons/react/dist/ssr";
 
 type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
 type TimedWord = { start: number; end: number; word: string };
@@ -648,9 +649,7 @@ export function ClipCard({
         {videoUrl && !playing && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+              <Play className="w-5 h-5 text-white ml-0.5" weight="fill" />
             </div>
           </div>
         )}
@@ -729,9 +728,7 @@ export function ClipCard({
           {burning ? (
             <span className="inline-block h-3 w-3 rounded-full border-2 border-violet-300/30 border-t-violet-300 animate-spin" />
           ) : (
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+            <Calendar className="w-3 h-3" weight="duotone" />
           )}
           <span>Post</span>
         </button>
@@ -745,9 +742,7 @@ export function ClipCard({
           {downloading ? (
             <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
           ) : (
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
+            <DownloadSimple className="w-3.5 h-3.5" weight="bold" />
           )}
         </button>
 
@@ -758,9 +753,7 @@ export function ClipCard({
             title="Post without subtitles"
             className="p-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-white/50 hover:text-white/80 transition-colors disabled:opacity-30"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
+            <Prohibit className="w-3.5 h-3.5" weight="bold" />
           </button>
         )}
 
@@ -770,9 +763,7 @@ export function ClipCard({
             title="Larger preview"
             className="p-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-white/50 hover:text-white/80 transition-colors"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
+            <ArrowsOut className="w-3.5 h-3.5" weight="bold" />
           </button>
         )}
       </div>

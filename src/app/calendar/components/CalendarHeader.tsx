@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PROVIDER_META } from "../types";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -35,7 +36,7 @@ export function CalendarHeader({ view, onViewChange, viewDate, onPrev, onNext, o
     <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] shrink-0">
       {/* Back + title */}
       <Link href="/dashboard" className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all shrink-0">
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+        <CaretLeft className="w-3.5 h-3.5" weight="bold" />
       </Link>
       <div className="flex items-center gap-1.5 shrink-0">
         <span className="text-sm font-semibold">Calendar</span>
@@ -54,11 +55,11 @@ export function CalendarHeader({ view, onViewChange, viewDate, onPrev, onNext, o
       {/* Nav */}
       <div className="flex items-center gap-1 shrink-0">
         <button onClick={onPrev} className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          <CaretLeft className="w-3 h-3" weight="bold" />
         </button>
         <button onClick={onToday} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/50 hover:bg-white/10 transition-colors">Today</button>
         <button onClick={onNext} className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          <CaretRight className="w-3 h-3" weight="bold" />
         </button>
         <span className="text-sm font-semibold min-w-[150px] text-center tabular-nums">{label}</span>
       </div>

@@ -2,6 +2,10 @@
 
 import { useEffect, useState, Fragment } from "react";
 import { supabase } from "./login/supabaseClient";
+import {
+  ShareNetwork, LinkSimple, UsersThree, Sparkle, SquaresFour, Calendar,
+  Lightning, Check, Lock, Clock, ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
 
 const FAQ_ITEMS = [
   {
@@ -289,9 +293,7 @@ export default function Home() {
           {[
             {
               icon: (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-                </svg>
+                <ShareNetwork className="w-6 h-6" weight="duotone" />
               ),
               title: "7 Platforms, One Workflow",
               desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X from a single upload.",
@@ -311,9 +313,7 @@ export default function Home() {
             },
             {
               icon: (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m13.19 8.688 4.505-4.504a3 3 0 1 1 4.243 4.242l-4.504 4.505m-4.243-4.243-4.505 4.505a3 3 0 0 0 4.243 4.243l4.504-4.505m-8.747-1.414 1.414 1.414" />
-                </svg>
+                <LinkSimple className="w-6 h-6" weight="duotone" />
               ),
               title: "Import Twitch & Kick Clips by URL",
               desc: "Paste a Twitch or Kick clip link and turn it into a scheduled cross-post without manual downloading or re-uploading.",
@@ -321,9 +321,7 @@ export default function Home() {
             },
             {
               icon: (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                </svg>
+                <UsersThree className="w-6 h-6" weight="duotone" />
               ),
               title: "Multiple Accounts Per Platform",
               desc: "Connect multiple YouTube channels, TikTok accounts, or Instagram profiles and post to all of them at once.",
@@ -331,9 +329,7 @@ export default function Home() {
             },
             {
               icon: (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                </svg>
+                <Sparkle className="w-6 h-6" weight="duotone" />
               ),
               title: "AI Tag Suggestions",
               desc: "Generate platform-aware hashtags in seconds based on your title, description, and target audience.",
@@ -341,9 +337,7 @@ export default function Home() {
             },
             {
               icon: (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
-                </svg>
+                <SquaresFour className="w-6 h-6" weight="duotone" />
               ),
               title: "Unified Comments Inbox",
               desc: "Read and reply to comments from YouTube, Instagram, Facebook, and Bluesky in one place so engagement never slips through.",
@@ -351,9 +345,7 @@ export default function Home() {
             },
             {
               icon: (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                </svg>
+                <Calendar className="w-6 h-6" weight="duotone" />
               ),
               title: "Smart Queue Scheduling",
               desc: "Set recurring time slots for each day of the week. Add to Queue on any upload and Clip Dash fills your next open slot automatically.",
@@ -403,9 +395,7 @@ export default function Home() {
               </div>
               {i < 2 && (
                 <div className="hidden sm:flex items-center justify-center shrink-0 w-6 text-white/25">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <path d="M3 10h14M11 4l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2"/>
-                  </svg>
+                  <ArrowRight className="w-5 h-5" weight="bold" />
                 </div>
               )}
             </Fragment>
@@ -568,9 +558,7 @@ export default function Home() {
           {/* Creator */}
           <div className="rounded-[1.75rem] border border-white/10 bg-gradient-to-b from-[#18284f] via-[#1f1740] to-[#120c22] p-6 sm:p-7 flex flex-col relative shadow-[0_24px_70px_rgba(59,130,246,0.12)]">
             <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/12 text-blue-300">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 6 12h4.5l-1.5 7.5L18 12h-4.5l1.5-7.5Z" />
-              </svg>
+              <Lightning className="h-4 w-4" weight="fill" />
             </div>
             <div className="mt-5 inline-flex self-start rounded-full border border-blue-300/20 bg-blue-400/12 px-3 py-1 text-[11px] font-medium text-blue-200">
               For solo creators
@@ -596,27 +584,27 @@ export default function Home() {
             <div className="text-sm font-semibold text-white">Included</div>
             <ul className="space-y-3 text-sm text-white/68 mt-4">
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 Unlimited uploads &amp; scheduled posts
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 All 7 supported platforms
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 Multiple accounts per platform
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 AI tag suggestions
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 Unified comments inbox
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 Analytics dashboard
               </li>
             </ul>
@@ -626,9 +614,7 @@ export default function Home() {
               <ul className="mt-3 space-y-2 text-sm text-white/60">
                 {PRICING_PLANS.creator.locked.map((item) => (
                   <li key={item} className="flex items-start gap-2.5">
-                    <svg className="mt-0.5 h-4 w-4 shrink-0 text-blue-200/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7.875a4.125 4.125 0 1 0-8.25 0V10.5m-.75 0h9a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18v-6a1.5 1.5 0 0 1 1.5-1.5Z" />
-                    </svg>
+                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-blue-200/80" weight="duotone" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -649,9 +635,7 @@ export default function Home() {
               Best value
             </div>
             <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-400/14 text-violet-200">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m4-2a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" />
-              </svg>
+              <Clock className="h-4 w-4" weight="duotone" />
             </div>
             <div className="mt-5 inline-flex self-start rounded-full border border-violet-300/25 bg-violet-400/14 px-3 py-1 text-[11px] font-medium text-violet-100">
               For editors, brands, and teams
@@ -677,27 +661,27 @@ export default function Home() {
             <div className="text-sm font-semibold text-white">Included</div>
             <ul className="space-y-3 text-sm text-white/68 mt-4">
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Everything in Creator
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Up to 5 team members
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Shared platform connections &amp; scheduling
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Role-based permissions (owner, admin, member)
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Shared uploads library &amp; comments inbox
               </li>
               <li className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-white/30 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Priority email support
               </li>
             </ul>

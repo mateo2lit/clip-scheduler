@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 
 type Metric = {
   videoId: string;
@@ -107,15 +108,10 @@ export default function TopPosts({ metrics }: { metrics: Metric[] }) {
     >
       {label}
       {sortBy === sortKey && (
-        <svg
+        <CaretDown
           className={`w-3 h-3 transition-transform ${sortAsc ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+          weight="bold"
+        />
       )}
     </button>
   );
