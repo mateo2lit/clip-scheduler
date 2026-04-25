@@ -1,0 +1,109 @@
+---
+title: "How to Schedule Bluesky Posts (And Why You Should)"
+description: "Bluesky is growing fast and most schedulers don't support it. Here's how to schedule Bluesky posts in advance, what the AT Protocol means for you, and how to roll Bluesky into your cross-platform workflow."
+date: "2026-04-24"
+slug: "how-to-schedule-bluesky-posts"
+readTime: "6 min read"
+tags: ["Bluesky", "AT Protocol", "video scheduling", "content workflow"]
+---
+
+Bluesky crossed 30 million users in early 2026 and has become a real distribution channel for creators — especially in tech, gaming, and creator-economy niches where the audience left other platforms. But most major scheduling tools still don't support it, which means most creators on Bluesky are still posting manually.
+
+This guide covers how to schedule Bluesky posts in advance, what's different about Bluesky's API (the AT Protocol), and how to combine Bluesky with your other platforms in one workflow.
+
+## What's Different About Bluesky
+
+Bluesky runs on the AT Protocol, which is fundamentally different from the closed APIs that platforms like TikTok, Instagram, and X use. Key differences for scheduling:
+
+**Open API by default.** Any third-party tool can integrate with Bluesky without an approval process. You don't need a developer account, an app review, or restricted scopes. This is why Bluesky support has rolled out faster on smaller tools than on the big enterprise schedulers — there's no gatekeeping.
+
+**App passwords, not OAuth.** Bluesky uses app passwords for third-party access. You generate an app password in your Bluesky settings and the scheduler uses that to post on your behalf. App passwords can be revoked at any time without changing your main account password.
+
+**Public profile data.** Avatar, follower count, recent posts — all publicly readable through the AT Protocol. Schedulers can show you analytics without needing extra permissions.
+
+**Video support.** Bluesky added native video in 2024. Up to 60 seconds, MP4. Schedulers that support Bluesky video can post the same Reel or TikTok clip to Bluesky as well.
+
+## Why Schedule Bluesky in Advance
+
+Bluesky has the same posting cadence problem every other platform has. If you only post when you remember to, you don't post enough.
+
+Common reasons creators schedule Bluesky:
+
+- **Cross-posting clips.** When you post a TikTok or Reel, also send the same clip to Bluesky with a different caption — Bluesky's audience prefers more conversational, less hashtag-stuffed copy.
+- **Time-zone optimization.** Bluesky is heavily US-tech-leaning. Posting at 8am ET hits the morning commute window.
+- **Content batching.** Write a week of posts on Sunday, schedule them for the week, move on.
+- **Multiple accounts.** If you run a personal handle and a brand handle, scheduling lets you post to both without switching logins.
+
+## How to Schedule Bluesky Posts with Clip Dash
+
+Clip Dash supports Bluesky as a full first-class platform alongside YouTube, TikTok, Instagram, Facebook, LinkedIn, and Threads. Here's the workflow:
+
+### Step 1: Generate a Bluesky app password
+
+Open Bluesky → Settings → Privacy and Security → App Passwords → Add app password. Name it something obvious like "Clip Dash" so you can revoke it later if needed.
+
+Copy the password — it's only shown once.
+
+### Step 2: Connect Bluesky in Clip Dash
+
+Settings → Connections → Connect Bluesky. Enter your handle (the one ending in `.bsky.social` or your custom domain) and the app password.
+
+You can connect multiple Bluesky accounts to the same workspace.
+
+### Step 3: Create the post
+
+Drop in your video, image, or write text-only. Bluesky-specific fields:
+
+- **Caption** — up to 300 characters
+- **Media** — video (up to 60s), image, or text-only
+- **Reply settings** — public by default
+
+If you're cross-posting from a longer video, the platform-specific caption override lets you write a tighter, more conversational version for Bluesky without changing what goes to TikTok or YouTube.
+
+### Step 4: Schedule
+
+Specific time or queue. Bluesky posts publish automatically at the scheduled moment.
+
+## Cross-Posting Bluesky with Video Platforms
+
+The most common Bluesky scheduling pattern for video creators: when a TikTok or YouTube Short publishes, the same clip goes to Bluesky a few minutes later with a custom caption.
+
+In Clip Dash, this is one upload session. You drop in the video, pick TikTok + YouTube + Bluesky, write the platform-specific captions, and schedule. Three platforms covered, one workflow.
+
+The 60-second Bluesky video limit means anything longer gets posted as a thumbnail-image link to where the full video lives (typically YouTube). Worth knowing if your clips run longer.
+
+## Limits and Things to Know
+
+**No edits after posting.** Bluesky doesn't allow post edits. Same as Threads. Scheduled copy is final.
+
+**Custom domain handles.** If you use a custom domain (like `mateo.com` instead of `mateo.bsky.social`), the scheduler should accept it. Test with a small post first.
+
+**Rate limits.** Bluesky has reasonable rate limits but they're not infinite. Most creators won't hit them; bulk-importers might.
+
+**Image alt text.** Bluesky encourages alt text on images for accessibility. If your scheduler doesn't support alt text fields, that's a flag.
+
+## What to Look For in a Bluesky Scheduler
+
+When evaluating tools:
+
+1. **Native AT Protocol integration** — not "via Buffer" or some intermediate
+2. **Video upload support** — many tools added Bluesky text-only first and never added video
+3. **Multiple account support** — if you run more than one handle
+4. **Per-platform caption** — don't post Twitter copy to Bluesky verbatim
+5. **App password flow** — should accept the standard Bluesky app password format
+
+## The Bottom Line
+
+Bluesky has open API access, real audience growth, and minimal scheduler competition. That's a rare combination — most platforms are either locked down or oversaturated.
+
+For creators already posting to TikTok, YouTube, and Instagram, adding Bluesky to your cross-posting workflow takes about a minute of setup. After that, every video can also go to Bluesky with a tailored caption — without ever opening the Bluesky app.
+
+## Related reading
+
+- [How to Schedule Threads Posts in Advance](/blog/how-to-schedule-threads-posts-in-advance) — the other zero-native-scheduler platform
+- [How to Schedule TikTok Videos in Advance](/blog/how-to-schedule-tiktok-videos-in-advance) — full TikTok metadata setup
+- [How to Schedule Videos Across All Platforms](/blog/how-to-schedule-videos-across-all-platforms) — the multi-platform workflow
+
+---
+
+*Start free for 7 days. Connect Bluesky, schedule your first post, and add it alongside YouTube, TikTok, Instagram, Facebook, LinkedIn, and Threads. No credit card required.*
