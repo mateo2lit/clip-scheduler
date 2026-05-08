@@ -111,6 +111,9 @@ export function humanizePostError(
     }
   }
   if (provider === "linkedin") {
+    if (r.includes("restricted_member") || r.includes("member is restricted")) {
+      return "LinkedIn restricted your account — check linkedin.com for verification prompts";
+    }
     if (r.includes("video init failed")) {
       return "LinkedIn rejected the video upload";
     }
