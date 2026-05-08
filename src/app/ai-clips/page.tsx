@@ -52,6 +52,7 @@ const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: 
 import { detectCodecCapabilities } from "@/lib/aiClips/codecDetect";
 import { probeMp4DurationSeconds } from "@/lib/aiClips/audioExtractor";
 
+const LARGE_ENABLED = process.env.NEXT_PUBLIC_AI_CLIPS_LARGE_ENABLED === "true";
 const FILE_SIZE_THRESHOLD_BYTES = 1024 * 1024 * 1024;       // 1 GB
 const DURATION_THRESHOLD_SECONDS = 30 * 60;                 // 30 min
 
@@ -390,6 +391,12 @@ export default function AiClipsPage() {
 
     const { minutes, useLargePath } = await readVideoDurationSafe(selectedFile);
     setFileDurationMinutes(minutes);
+
+    if (useLargePath && !LARGE_ENABLED) {
+      setSubmitError("This file is too large for the current pipeline. Compress to under 1 GB or paste a URL instead.");
+      setFile(null);
+      return;
+    }
 
     if (useLargePath) {
       const caps = await detectCodecCapabilities(selectedFile);
