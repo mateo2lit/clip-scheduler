@@ -23,7 +23,7 @@ export type EncodeClipOptions = {
   width?: number;         // default: source width
   height?: number;        // default: source height
   framerate?: number;     // default: 30
-  onProgress?: (frameIdx: number, totalFrames: number) => void;
+  onProgress?: (frameIdx: number, totalFrames: number | undefined) => void;
 };
 
 const DEFAULT_BITRATE = 8_000_000;
@@ -99,14 +99,28 @@ export async function encodeClip(file: File, opts: EncodeClipOptions): Promise<B
   mp4.setExtractionOptions(videoTrack.id, null, { nbSamples: 60 });
 
   const samplesQueue: Sample[] = [];
+  let streamingDone = false;
+
   mp4.onSamples = (_id: number, _user: unknown, batch: Sample[]) => {
     samplesQueue.push(...batch);
   };
+
+  // Start streaming concurrently; set streamingDone only after flush completes.
+  // Do NOT set it in .catch() — errors are surfaced via the awaited promise below.
+  const streamPromise = streamFileToMp4(file, mp4).then(() => {
+    streamingDone = true;
+  });
+
   mp4.start();
 
-  // Drain the sample queue — streaming was already done above; start() triggers extraction.
-  // Give the event loop a tick to flush buffered samples.
-  await new Promise<void>((r) => setTimeout(r, 0));
+  // Wait for the full stream to complete before walking samplesQueue.
+  // A single event-loop tick is not enough for files larger than ~256 KB —
+  // the stream reads in a loop and may not have fed all samples yet.
+  while (!streamingDone) {
+    await new Promise<void>((r) => setTimeout(r, 0));
+  }
+  // Surface any streaming error.
+  await streamPromise;
 
   // Find keyframe at-or-before desiredStartUs
   let firstKeyframeIdx = 0;
@@ -116,7 +130,6 @@ export async function encodeClip(file: File, opts: EncodeClipOptions): Promise<B
     if (sUs > desiredEndUs) break;
   }
 
-  let totalFrames = 0;
   for (let i = firstKeyframeIdx; i < samplesQueue.length; i++) {
     const s = samplesQueue[i];
     const sUs = (s.cts / s.timescale) * 1_000_000;
@@ -127,7 +140,6 @@ export async function encodeClip(file: File, opts: EncodeClipOptions): Promise<B
       duration: (s.duration / s.timescale) * 1_000_000,
       data: s.data!,
     }));
-    totalFrames++;
   }
 
   await decoder.flush();
@@ -147,7 +159,9 @@ export async function encodeClip(file: File, opts: EncodeClipOptions): Promise<B
     encoder.encode(frame, { keyFrame: outFrameIdx === 0 });
     frame.close();
     outFrameIdx++;
-    opts.onProgress?.(outFrameIdx, totalFrames);
+    // Pass undefined for total — totalFrames includes pre-roll frames that are dropped,
+    // so it would overcount. The UI shows indeterminate progress for clips.
+    opts.onProgress?.(outFrameIdx, undefined);
   }
   await encoder.flush();
   if (encoderError) throw encoderError;
