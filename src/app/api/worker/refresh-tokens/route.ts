@@ -71,7 +71,9 @@ async function runRefresh(req: Request) {
 
         const refreshed = await refreshFacebookToken(token);
         newToken = refreshed.access_token;
-        newExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+        // Facebook's fb_exchange_token sometimes omits expires_in for already-long-lived
+        // tokens; default to 60 days (the standard long-lived token lifetime).
+        newExpiry = new Date(Date.now() + (refreshed.expires_in || 5184000) * 1000).toISOString();
 
         // Also refresh page access tokens by re-fetching pages
         const { getFacebookUserPages } = await import("@/lib/facebook");
@@ -99,7 +101,7 @@ async function runRefresh(req: Request) {
 
         const refreshed = await refreshInstagramToken(token);
         newToken = refreshed.access_token;
-        newExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+        newExpiry = new Date(Date.now() + (refreshed.expires_in || 5184000) * 1000).toISOString();
 
         await supabaseAdmin
           .from("platform_accounts")
