@@ -87,10 +87,10 @@ jobs:
           // 3. Claude detection (single-pass for now; map-reduce TBD if transcript too long)
           const anthropic = new Anthropic();
           const detectPrompt = `You are picking the best ${job.clip_count} short moments from this transcript for social-media clips. Each clip should be 15-90 seconds. Return JSON only:
-[{"start_sec":<number>,"end_sec":<number>,"title":"<short>"}]
+          [{"start_sec":<number>,"end_sec":<number>,"title":"<short>"}]
 
-Transcript:
-${merged.transcript.slice(0, 100_000)}`;
+          Transcript:
+          ${merged.transcript.slice(0, 100_000)}`;
 
           const resp = await anthropic.messages.create({
             model: "claude-haiku-4-5-20251001",
