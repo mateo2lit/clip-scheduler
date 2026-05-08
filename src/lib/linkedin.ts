@@ -34,6 +34,8 @@ export async function exchangeCodeForToken(
 ): Promise<{
   access_token: string;
   expires_in: number;
+  refresh_token?: string;
+  refresh_token_expires_in?: number;
 }> {
   const { clientId, clientSecret } = getLinkedInAuthConfig();
 
@@ -65,6 +67,8 @@ export async function exchangeCodeForToken(
   return {
     access_token: data.access_token,
     expires_in: data.expires_in || 5184000,
+    refresh_token: data.refresh_token,
+    refresh_token_expires_in: data.refresh_token_expires_in,
   };
 }
 

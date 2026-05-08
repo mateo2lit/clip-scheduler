@@ -58,6 +58,10 @@ export async function GET(req: Request) {
     const accessToken = tokenData.access_token;
     const expiresIn = tokenData.expires_in || 5184000;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+    // LinkedIn only returns a refresh_token if the app has the
+    // "Refresh Tokens for Authorization Code Flow" product approved.
+    // If absent, fall back to the access_token so existing call sites don't break.
+    const refreshToken = tokenData.refresh_token || accessToken;
 
     const profile = await getLinkedInProfile(accessToken);
 
@@ -67,7 +71,7 @@ export async function GET(req: Request) {
         team_id: teamId,
         provider: "linkedin",
         access_token: accessToken,
-        refresh_token: accessToken,
+        refresh_token: refreshToken,
         expiry: expiresAt,
         platform_user_id: profile.sub,
         profile_name: profile.name,

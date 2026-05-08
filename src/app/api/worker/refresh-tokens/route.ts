@@ -3,6 +3,11 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { refreshFacebookToken } from "@/lib/facebook";
 import { refreshInstagramToken } from "@/lib/instagram";
 import { refreshXTokens } from "@/lib/x";
+import { refreshLinkedInToken } from "@/lib/linkedin";
+import {
+  refreshBlueskySession,
+  resolveBlueskyPdsServiceUrl,
+} from "@/lib/blueskyUpload";
 
 export const runtime = "nodejs";
 
@@ -21,33 +26,41 @@ function requireWorkerAuth(req: Request) {
 }
 
 /**
- * Refresh Facebook and Instagram tokens that expire within 7 days.
- * Should run daily via Vercel cron.
+ * Refresh Facebook, Instagram, X, LinkedIn, and Bluesky tokens.
+ * Facebook/Instagram/X/LinkedIn refresh when expiry is within 7 days OR null/missing.
+ * Bluesky refreshes on every run (atproto access JWTs expire in ~2 hours; refreshJwt
+ * lasts ~90 days and is the only thing we can extend without a full reconnect).
+ * Should run daily via GitHub Actions (.github/workflows/refresh-tokens.yml).
  */
 async function runRefresh(req: Request) {
   requireWorkerAuth(req);
 
   const results: any[] = [];
 
-  // Find accounts with tokens expiring in the next 7 days
-  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
   const { data: accounts, error } = await supabaseAdmin
     .from("platform_accounts")
-    .select("id, provider, access_token, refresh_token, expiry, team_id")
-    .in("provider", ["facebook", "instagram", "x"])
-    .lt("expiry", sevenDaysFromNow)
-    .order("expiry", { ascending: true });
+    .select("id, provider, access_token, refresh_token, expiry, team_id, platform_user_id")
+    .in("provider", ["facebook", "instagram", "x", "linkedin", "bluesky"])
+    .order("expiry", { ascending: true, nullsFirst: true });
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
   if (!accounts || accounts.length === 0) {
-    return NextResponse.json({ ok: true, message: "No tokens need refreshing", refreshed: 0, results: [] });
+    return NextResponse.json({ ok: true, message: "No accounts to refresh", refreshed: 0, results: [] });
   }
 
-  for (const acct of accounts) {
+  // Filter: Bluesky always refreshes; everyone else only when expiring soon or missing expiry.
+  const due = accounts.filter((a) => {
+    if (a.provider === "bluesky") return true;
+    if (!a.expiry) return true;
+    return new Date(a.expiry).getTime() < sevenDaysFromNow;
+  });
+
+  for (const acct of due) {
     try {
       let newToken: string;
       let newExpiry: string;
@@ -111,6 +124,50 @@ async function runRefresh(req: Request) {
             access_token: newXToken,
             refresh_token: refreshed.refresh_token,
             expiry: newXExpiry,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", acct.id);
+      } else if (acct.provider === "linkedin") {
+        const refreshTokenStored = acct.refresh_token;
+        if (!refreshTokenStored || refreshTokenStored === acct.access_token) {
+          // Pre-fix accounts stored the access_token in the refresh_token slot.
+          // The LinkedIn refresh endpoint will reject it; surface a clear reconnect signal.
+          throw new Error(
+            "No usable LinkedIn refresh_token on file — user needs to reconnect (or the LinkedIn app lacks the Refresh Tokens product)"
+          );
+        }
+
+        const refreshed = await refreshLinkedInToken(refreshTokenStored);
+        newToken = refreshed.access_token;
+        newExpiry = new Date(Date.now() + (refreshed.expires_in || 5184000) * 1000).toISOString();
+
+        await supabaseAdmin
+          .from("platform_accounts")
+          .update({
+            access_token: newToken,
+            // LinkedIn rotates refresh tokens; keep old one if a new one wasn't issued.
+            refresh_token: refreshed.refresh_token || refreshTokenStored,
+            expiry: newExpiry,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", acct.id);
+      } else if (acct.provider === "bluesky") {
+        const refreshJwt = acct.refresh_token;
+        if (!refreshJwt) throw new Error("No Bluesky refreshJwt on file");
+
+        const did = (acct as any).platform_user_id || "";
+        const serviceUrl = did
+          ? await resolveBlueskyPdsServiceUrl(did)
+          : "https://bsky.social";
+
+        const refreshed = await refreshBlueskySession(serviceUrl, refreshJwt);
+
+        await supabaseAdmin
+          .from("platform_accounts")
+          .update({
+            access_token: refreshed.accessJwt,
+            refresh_token: refreshed.refreshJwt,
+            // Bluesky doesn't expose a stable expiry; clear it so the next run picks this up again.
             updated_at: new Date().toISOString(),
           })
           .eq("id", acct.id);

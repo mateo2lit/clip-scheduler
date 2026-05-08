@@ -27,6 +27,17 @@ type SessionState = {
   refreshJwt: string;
 };
 
+export async function refreshBlueskySession(serviceUrl: string, refreshJwt: string): Promise<{
+  did: string;
+  handle: string;
+  accessJwt: string;
+  refreshJwt: string;
+}> {
+  return refreshSession(serviceUrl, refreshJwt);
+}
+
+export { resolvePdsServiceUrl as resolveBlueskyPdsServiceUrl };
+
 async function refreshSession(serviceUrl: string, refreshJwt: string): Promise<{
   did: string;
   handle: string;

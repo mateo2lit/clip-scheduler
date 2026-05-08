@@ -1,0 +1,18 @@
+name: Refresh Platform Tokens
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # daily at 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  refresh-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call refresh-tokens endpoint
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --retry 3 --retry-delay 5 --retry-connrefused \
+            --max-time 300 \
+            -X POST "${{ secrets.WORKER_URL_REFRESH_TOKENS }}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

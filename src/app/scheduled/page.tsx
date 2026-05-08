@@ -634,11 +634,17 @@ export default function ScheduledPage() {
                               </div>
                             </div>
 
-                            {hasFailed && group.posts.find((p) => p.last_error) && (
-                              <p className="mt-1.5 text-xs text-red-400/70">
-                                {group.posts.filter((p) => p.status === "failed" && p.last_error).map((p) => p.last_error).join("; ")}
-                              </p>
-                            )}
+                            {hasFailed && group.posts.find((p) => p.last_error) && (() => {
+                              const combined = group.posts
+                                .filter((p) => p.status === "failed" && p.last_error)
+                                .map((p) => `${providerLabel(p.provider)}: ${p.last_error}`)
+                                .join("; ");
+                              return (
+                                <p className="mt-1.5 truncate text-xs text-red-400/70" title={combined}>
+                                  {combined}
+                                </p>
+                              );
+                            })()}
 
                             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap gap-1.5">
