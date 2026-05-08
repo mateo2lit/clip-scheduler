@@ -181,6 +181,30 @@ async function runRefresh(req: Request) {
     // Non-fatal — don't let cleanup failure affect the token refresh response
   }
 
+  // Cleanup orphaned ai_audio_chunks/* (large-path audio chunks from failed/abandoned jobs)
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Find chunk rows older than 24h whose parent job is in a terminal state
+    const { data: orphans } = await supabaseAdmin
+      .from("ai_clip_audio_chunks")
+      .select("id, job_id, storage_path, ai_clip_jobs!inner(status)")
+      .lt("created_at", cutoff)
+      .in("ai_clip_jobs.status", ["failed", "done"])
+      .limit(500);
+
+    if (orphans?.length) {
+      const paths = orphans.map((r) => r.storage_path);
+      await supabaseAdmin.storage.from("clips").remove(paths);
+      await supabaseAdmin
+        .from("ai_clip_audio_chunks")
+        .delete()
+        .in("id", orphans.map((r) => r.id));
+    }
+  } catch {
+    // Non-fatal — don't let cleanup failure affect the token refresh response
+  }
+
   return NextResponse.json({
     ok: true,
     refreshed: results.filter((r) => r.ok).length,
