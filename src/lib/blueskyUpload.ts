@@ -253,8 +253,12 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   const uploadData = await uploadRes.json();
   if (uploadData.error) throw new Error(`Bluesky upload error: ${uploadData.message || uploadData.error}`);
 
-  // Force video/mp4 — Bluesky rejects video/quicktime even though the file plays fine.
-  const blob = { ...uploadData.blob, mimeType: "video/mp4" };
+  // Use whatever mimeType Bluesky's blob server stored. atproto's createRecord
+  // validates that the embed reference matches the stored blob exactly, so any
+  // override (e.g. forcing video/mp4 when the file is really a QuickTime
+  // container) produces "InvalidMimeType: Referenced Mimetype does not match
+  // stored blob".
+  const blob = uploadData.blob;
 
   // Create post record with video embed
   const now = new Date().toISOString();

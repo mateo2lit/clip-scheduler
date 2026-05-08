@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import { CaretLeft, Clock, PencilSimple, Warning, CheckCircle, FilmSlate } from "@phosphor-icons/react/dist/ssr";
+import { humanizePostError } from "@/lib/postErrorMessages";
 
 type ScheduledPost = {
   id: string;
@@ -635,13 +636,21 @@ export default function ScheduledPage() {
                             </div>
 
                             {hasFailed && group.posts.find((p) => p.last_error) && (() => {
-                              const combined = group.posts
-                                .filter((p) => p.status === "failed" && p.last_error)
+                              const failedWithError = group.posts.filter(
+                                (p) => p.status === "failed" && p.last_error
+                              );
+                              const friendly = failedWithError
+                                .map((p) => `${providerLabel(p.provider)}: ${humanizePostError(p.provider, p.last_error)}`)
+                                .join(" • ");
+                              const rawDetails = failedWithError
                                 .map((p) => `${providerLabel(p.provider)}: ${p.last_error}`)
-                                .join("; ");
+                                .join("\n\n");
                               return (
-                                <p className="mt-1.5 truncate text-xs text-red-400/70" title={combined}>
-                                  {combined}
+                                <p
+                                  className="mt-1.5 truncate text-xs text-red-400/70"
+                                  title={rawDetails}
+                                >
+                                  {friendly}
                                 </p>
                               );
                             })()}
@@ -658,7 +667,7 @@ export default function ScheduledPage() {
                                         ? "border-amber-500/30 bg-amber-500/10 text-amber-300 animate-pulse"
                                         : "border-white/[0.12] bg-white/[0.05] text-white/60"
                                     }`}
-                                    title={`${providerLabel(post.provider)}: ${post.status}${post.last_error ? ` — ${post.last_error}` : ""}`}
+                                    title={`${providerLabel(post.provider)}: ${post.status}${post.last_error ? ` — ${humanizePostError(post.provider, post.last_error)}` : ""}`}
                                   >
                                     <ProviderIcon provider={post.provider} className="w-3 h-3" />
                                     {providerLabel(post.provider)}
