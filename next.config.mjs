@@ -7,7 +7,16 @@ const withMDX = createMDX({ options: { remarkPlugins: [remarkFrontmatter], rehyp
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   reactStrictMode: true,
-  experimental: { after: true },
+  experimental: {
+    after: true,
+    // Keep ffmpeg-static unbundled so Next/Webpack doesn't try to inline the
+    // ~80 MB native binary (used by Bluesky uploads to remux QuickTime → MP4).
+    serverComponentsExternalPackages: ["ffmpeg-static"],
+  },
+  // Ensure the ffmpeg binary is included in the serverless function bundle.
+  outputFileTracingIncludes: {
+    "/api/worker/run-scheduled": ["./node_modules/ffmpeg-static/**"],
+  },
   async headers() {
     return [
       {

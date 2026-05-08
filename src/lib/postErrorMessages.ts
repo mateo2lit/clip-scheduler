@@ -67,7 +67,11 @@ export function humanizePostError(
 
   // ── Provider-specific media errors ────────────────────────────────────────
   if (provider === "bluesky") {
-    if (r.includes("invalidmimetype")) {
+    if (
+      r.includes("invalidmimetype") ||
+      (r.includes("video/mp4") && r.includes("video/quicktime")) ||
+      r.includes("expected \"video/mp4\"")
+    ) {
       return "Video format not accepted by Bluesky — try a true MP4 file";
     }
     if (r.includes("blob") && r.includes("size")) {

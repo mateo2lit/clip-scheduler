@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabaseAdmin";
+import { detectVideoContainer, remuxToMp4 } from "./videoRemux";
 
 type UploadToBlueskyArgs = {
   did: string;
@@ -237,8 +238,27 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     throw new Error(`Failed to download video from storage: ${downloadErr?.message || "unknown"}`);
   }
 
-  const videoBuffer = Buffer.from(await fileData.arrayBuffer());
+  let videoBuffer: Buffer = Buffer.from(await fileData.arrayBuffer());
 
+  // Bluesky's lexicon validator requires embed.video.mimeType === "video/mp4",
+  // and its blob server detects the actual container from file bytes (not the
+  // Content-Type header). QuickTime-wrapped clips (common from Twitch / some
+  // yt-dlp outputs) get stored as video/quicktime and the post-record fails
+  // schema validation. Remux to a true MP4 container before upload.
+  const container = detectVideoContainer(videoBuffer);
+  if (container === "quicktime" || container === "unknown") {
+    try {
+      videoBuffer = await remuxToMp4(videoBuffer);
+    } catch (e: any) {
+      throw new Error(
+        `Bluesky upload preparation failed: could not remux ${container} container to mp4 — ${e?.message || e}`
+      );
+    }
+  }
+
+  // Convert to a fresh Uint8Array — fetch's BodyInit accepts Uint8Array
+  // unambiguously, regardless of which Buffer<...> type TS infers above.
+  const videoBytes = new Uint8Array(videoBuffer);
   const uploadBlob = (jwt: string) =>
     fetch(`${serviceUrl}/xrpc/com.atproto.repo.uploadBlob`, {
       method: "POST",
@@ -246,18 +266,16 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
         Authorization: `Bearer ${jwt}`,
         "Content-Type": "video/mp4",
       },
-      body: videoBuffer,
+      body: videoBytes,
     });
   const uploadRes = await callWithRefresh(uploadBlob, "Bluesky blob upload failed");
 
   const uploadData = await uploadRes.json();
   if (uploadData.error) throw new Error(`Bluesky upload error: ${uploadData.message || uploadData.error}`);
 
-  // Use whatever mimeType Bluesky's blob server stored. atproto's createRecord
-  // validates that the embed reference matches the stored blob exactly, so any
-  // override (e.g. forcing video/mp4 when the file is really a QuickTime
-  // container) produces "InvalidMimeType: Referenced Mimetype does not match
-  // stored blob".
+  // After remux the blob server should store as video/mp4. Use whatever the
+  // server actually returned — atproto strictly enforces that the embed
+  // reference matches the stored blob's mimeType.
   const blob = uploadData.blob;
 
   // Create post record with video embed
