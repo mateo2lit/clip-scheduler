@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "src/app/api/worker/run-scheduled/route.ts": {
-      "includeFiles": "node_modules/ffmpeg-static/**"
-    }
-  }
-}
+{}

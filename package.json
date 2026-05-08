@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/patch-ffmpeg-trace.mjs",
     "start": "next start",
     "lint": "next lint",
     "setup:hooks": "powershell -ExecutionPolicy Bypass -File scripts/setup-git-hooks.ps1"

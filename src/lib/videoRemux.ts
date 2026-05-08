@@ -4,21 +4,17 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 
-/**
- * Resolve the ffmpeg binary path at runtime.
- *
- * We deliberately avoid `import ffmpegPath from "ffmpeg-static"`: webpack
- * inlines the package's index.js into a chunk file, which rewrites the
- * `__dirname`-based binary lookup to a non-existent path inside
- * `.next/server/chunks/`. Using `eval("require")` is opaque to webpack's
- * static analysis, so the require runs at runtime against the real
- * `node_modules/ffmpeg-static/index.js` whose `__dirname` resolves correctly.
- *
- * The binary file itself is shipped into the lambda via
- * outputFileTracingIncludes in next.config.mjs (the package's package.json
- * does not list the binary in its `files` field, so Next's file tracer
- * doesn't pull it in automatically).
- */
+// Side-effect-only import so Next's NFT tracer includes ffmpeg-static and
+// its post-install-downloaded binary in the serverless function bundle.
+// We deliberately do NOT call this default export — the import value is
+// unreliable in the bundled output because webpack inlines the package's
+// index.js into a chunk and rewrites its __dirname-based lookup. The
+// runtime require below uses eval to bypass webpack's static analysis,
+// hitting node_modules/ffmpeg-static/index.js directly where __dirname
+// correctly resolves to the binary's actual location.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import _ffmpegStaticTraceMarker from "ffmpeg-static";
+
 function resolveFfmpegPath(): string | null {
   // eslint-disable-next-line no-eval
   const runtimeRequire = eval("require") as NodeRequire;

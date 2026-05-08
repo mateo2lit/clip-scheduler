@@ -9,19 +9,26 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     after: true,
-    // Mark ffmpeg-static as external so its index.js stays in node_modules
-    // (where __dirname resolves correctly to the binary's actual location).
     serverComponentsExternalPackages: ["ffmpeg-static"],
-    // Force the ffmpeg binary (and its package metadata) into the serverless
-    // function bundle. ffmpeg-static's package.json doesn't list the binary
-    // in its `files` field (it's downloaded post-install), so Next's NFT
-    // tracer skips it without these explicit includes.
-    // Note: in Next 14.2 this option is read from `config.experimental`
-    // despite newer docs showing it at the top level.
-    // Note: ffmpeg-static binary inclusion is handled via Vercel's
-    // `includeFiles` in vercel.json — Next 14.2's outputFileTracingIncludes
-    // doesn't reliably pick up files for App Router route handlers in this
-    // repo, regardless of key format.
+  },
+  // ffmpeg-static is needed inside the run-scheduled worker route to remux
+  // QuickTime-wrapped videos into true MP4 before posting to Bluesky. Three
+  // pieces work together:
+  //   1. side-effect `import "ffmpeg-static"` in src/lib/videoRemux.ts so
+  //      Next's NFT tracer sees the dependency and ships it (plus its
+  //      post-install-downloaded binary) to the serverless function;
+  //   2. eval("require")("ffmpeg-static") at call time so webpack cannot
+  //      relocate the package into chunks/ and break the __dirname-based
+  //      binary path lookup;
+  //   3. this externals rule so the static import itself isn't bundled.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const existing = config.externals;
+      const arr = Array.isArray(existing) ? existing : existing ? [existing] : [];
+      arr.push({ "ffmpeg-static": "commonjs ffmpeg-static" });
+      config.externals = arr;
+    }
+    return config;
   },
   async headers() {
     return [
