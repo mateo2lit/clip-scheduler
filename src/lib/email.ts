@@ -499,3 +499,45 @@ export async function sendReconnectEmail(
     console.error("Failed to send reconnect email:", e);
   }
 }
+
+export async function sendAiClipsReady(opts: {
+  to: string;
+  jobId: string;
+  clipCount: number;
+  sourceMinutes: number;
+}): Promise<void> {
+  if (!resend) return;
+  const { to, jobId, clipCount, sourceMinutes } = opts;
+  const url = appUrl(`/ai-clips/${jobId}`);
+  const subject = `Your AI clips are ready (${clipCount} clip${clipCount === 1 ? "" : "s"} from ${Math.round(sourceMinutes)} min)`;
+
+  const html = `
+<!doctype html>
+<html>
+<body style="font-family:Inter,Arial,sans-serif;background:#050505;color:#fff;padding:32px;">
+  <h2 style="margin-top:0;">Your AI clips are ready</h2>
+  <p>${escapeHtml(BRAND_NAME)} just finished processing your video.</p>
+  <p style="margin:16px 0;">
+    <strong>${clipCount}</strong> clip${clipCount === 1 ? "" : "s"} generated from
+    <strong>${Math.round(sourceMinutes)}</strong> minutes of source video.
+  </p>
+  <p>
+    <a href="${url}"
+       style="display:inline-block;padding:12px 20px;background:linear-gradient(135deg,#8b5cf6,#a855f7);color:#fff;text-decoration:none;border-radius:12px;font-weight:600;">
+      View clips →
+    </a>
+  </p>
+  <p style="font-size:12px;color:#888;margin-top:24px;">
+    You're receiving this because you enabled email notifications for AI Clips.
+    Disable in <a href="${appUrl("/settings")}" style="color:#a855f7;">Settings</a>.
+  </p>
+</body>
+</html>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject,
+    html,
+  });
+}
