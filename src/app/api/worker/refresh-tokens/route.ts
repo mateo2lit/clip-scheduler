@@ -8,6 +8,64 @@ import {
   refreshBlueskySession,
   resolveBlueskyPdsServiceUrl,
 } from "@/lib/blueskyUpload";
+import { sendReconnectEmail } from "@/lib/email";
+
+const RECONNECT_EMAIL_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function isHardReconnectError(message: string): boolean {
+  const m = (message || "").toLowerCase();
+  return (
+    m.includes("revoked") ||
+    m.includes("expired") ||
+    m.includes("invalid_token") ||
+    m.includes("invalid_grant") ||
+    m.includes("oauthexception") ||
+    m.includes("needs to reconnect") ||
+    m.includes("no usable") ||
+    m.includes("401")
+  );
+}
+
+async function maybeSendReconnectEmail(acct: {
+  id: string;
+  provider: string;
+  team_id: string;
+  last_reconnect_email_at?: string | null;
+}) {
+  // Throttle: skip if we emailed for this account within the last 24h.
+  if (acct.last_reconnect_email_at) {
+    const since = Date.now() - new Date(acct.last_reconnect_email_at).getTime();
+    if (since < RECONNECT_EMAIL_THROTTLE_MS) return;
+  }
+
+  const { data: team } = await supabaseAdmin
+    .from("teams")
+    .select("owner_id")
+    .eq("id", acct.team_id)
+    .maybeSingle();
+
+  const ownerId = team?.owner_id;
+  if (!ownerId) return;
+
+  const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+  const email = userRes?.user?.email;
+  if (!email) return;
+
+  const { data: prefs } = await supabaseAdmin
+    .from("notification_preferences")
+    .select("notify_reconnect")
+    .eq("user_id", ownerId)
+    .maybeSingle();
+
+  if (prefs?.notify_reconnect === false) return; // explicitly opted out
+
+  await sendReconnectEmail(email, acct.provider);
+
+  await supabaseAdmin
+    .from("platform_accounts")
+    .update({ last_reconnect_email_at: new Date().toISOString() })
+    .eq("id", acct.id);
+}
 
 export const runtime = "nodejs";
 
@@ -41,7 +99,9 @@ async function runRefresh(req: Request) {
 
   const { data: accounts, error } = await supabaseAdmin
     .from("platform_accounts")
-    .select("id, provider, access_token, refresh_token, expiry, team_id, platform_user_id")
+    .select(
+      "id, provider, access_token, refresh_token, expiry, team_id, platform_user_id, last_reconnect_email_at"
+    )
     .in("provider", ["facebook", "instagram", "x", "linkedin", "bluesky"])
     .order("expiry", { ascending: true, nullsFirst: true });
 
@@ -177,9 +237,32 @@ async function runRefresh(req: Request) {
         continue;
       }
 
+      // Successful refresh — clear any prior throttle timestamp so a future
+      // re-break gets emailed promptly instead of being suppressed for 24h.
+      if ((acct as any).last_reconnect_email_at) {
+        await supabaseAdmin
+          .from("platform_accounts")
+          .update({ last_reconnect_email_at: null })
+          .eq("id", acct.id);
+      }
+
       results.push({ id: acct.id, provider: acct.provider, ok: true });
     } catch (e: any) {
-      results.push({ id: acct.id, provider: acct.provider, ok: false, error: e?.message });
+      const message = e?.message || "Unknown error";
+      results.push({ id: acct.id, provider: acct.provider, ok: false, error: message });
+
+      if (isHardReconnectError(message)) {
+        try {
+          await maybeSendReconnectEmail({
+            id: acct.id,
+            provider: acct.provider,
+            team_id: (acct as any).team_id,
+            last_reconnect_email_at: (acct as any).last_reconnect_email_at,
+          });
+        } catch (mailErr) {
+          console.error("Reconnect email dispatch failed:", mailErr);
+        }
+      }
     }
   }
 
