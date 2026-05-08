@@ -74,7 +74,7 @@ export async function* extractAudioChunks(
     error: (e) => { encoderError = e instanceof Error ? e : new Error(String(e)); },
   });
 
-  await encoder.configure({
+  encoder.configure({
     codec: "opus",
     sampleRate: TARGET_SAMPLE_RATE,
     numberOfChannels: TARGET_CHANNELS,
@@ -107,18 +107,25 @@ export async function* extractAudioChunks(
   };
 
   const samplesQueue: Sample[] = [];
-  let extractDone = false;
+  let streamingDone = false;
 
   mp4.onSamples = (_id: number, _user: unknown, samples: Sample[]) => {
     samplesQueue.push(...samples);
   };
+
+  // Start streaming concurrently; set streamingDone only after flush completes.
+  // We await the promise after the loop so streaming errors are surfaced properly.
+  const streamPromise = streamFileToMp4(file, mp4).then(() => {
+    streamingDone = true;
+  });
+
   mp4.start();
 
-  // Drive samples → decoder → encoder → flushChunk loop until done
-  // (mp4box delivers samples synchronously inside flush; but appendBuffer is async)
-
-  // After mp4 is fully fed, samplesQueue contains all audio samples
-  while (samplesQueue.length || decodedFrames.length || encodedChunks.length || !extractDone) {
+  // Drive samples → decoder → encoder → flushChunk loop until done.
+  // Exit only when the stream is fully drained AND all queues are empty.
+  // Without the streamingDone guard, the loop can exit early on large files
+  // when the producer hasn't fed any samples yet (all queues momentarily empty).
+  while (!streamingDone || samplesQueue.length || decodedFrames.length || encodedChunks.length) {
     if (decoderError) throw decoderError;
     if (encoderError) throw encoderError;
 
@@ -160,10 +167,15 @@ export async function* extractAudioChunks(
       }
     }
 
-    if (samplesQueue.length === 0 && decodedFrames.length === 0 && encodedChunks.length === 0) {
-      extractDone = true;
+    // If stream isn't done yet and all queues are empty, yield to the event loop
+    // so the streaming promise can make progress before we spin again.
+    if (!streamingDone && samplesQueue.length === 0 && decodedFrames.length === 0 && encodedChunks.length === 0) {
+      await new Promise<void>((r) => setTimeout(r, 0));
     }
   }
+
+  // Ensure the stream completed without error.
+  await streamPromise;
 
   // Final flush
   await encoder.flush();
@@ -182,30 +194,52 @@ export async function* extractAudioChunks(
   decoder.close();
 }
 
-async function streamFileToMp4(file: File, mp4: ReturnType<typeof createFile>): Promise<void> {
+async function streamFileToMp4(
+  file: File,
+  mp4: ReturnType<typeof createFile>,
+  signal?: AbortSignal,
+): Promise<void> {
   const reader = file.stream().getReader();
   let offset = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      mp4.flush();
-      return;
+  try {
+    while (true) {
+      if (signal?.aborted) {
+        const err = new DOMException("Aborted", "AbortError");
+        reader.cancel(err);
+        throw err;
+      }
+      const { done, value } = await reader.read();
+      if (done) {
+        mp4.flush();
+        return;
+      }
+      const ab = MP4BoxBuffer.fromArrayBuffer(value.buffer, offset);
+      mp4.appendBuffer(ab);
+      offset += value.byteLength;
     }
-    const ab = MP4BoxBuffer.fromArrayBuffer(value.buffer, offset);
-    mp4.appendBuffer(ab);
-    offset += value.byteLength;
+  } catch (e) {
+    reader.cancel(e);
+    throw e;
   }
 }
 
 export async function probeMp4DurationSeconds(file: File): Promise<number> {
   const mp4 = createFile();
+  const abort = new AbortController();
   const info = await new Promise<Movie>((resolve, reject) => {
     mp4.onError = (e: unknown) => reject(new Error(`mp4box error: ${e}`));
-    mp4.onReady = (info: Movie) => resolve(info);
+    mp4.onReady = (info: Movie) => {
+      // Stop streaming immediately — we have all the metadata we need.
+      abort.abort();
+      resolve(info);
+    };
     // Only stream the head — most MP4 moov atoms are within first 5 MB.
     // For non-faststart files the moov is at the end; in that case we fall through
     // and consume the whole file. Acceptable for this probe.
-    streamFileToMp4(file, mp4).catch(reject);
+    streamFileToMp4(file, mp4, abort.signal).catch((e) => {
+      // AbortError is expected when onReady fires early; suppress it.
+      if ((e as Error)?.name !== "AbortError") reject(e);
+    });
   });
   return info.duration / info.timescale;
 }
