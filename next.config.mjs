@@ -9,35 +9,19 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     after: true,
-    // Keep ffmpeg-static unbundled (this only affects Server Components, but
-    // we keep it for parity with the webpack rule below).
+    // Mark ffmpeg-static as external so its index.js stays in node_modules
+    // (where __dirname resolves correctly to the binary's actual location).
     serverComponentsExternalPackages: ["ffmpeg-static"],
-  },
-  // Belt-and-suspenders for ffmpeg-static: mark it external in the server
-  // webpack build so its index.js (and __dirname-based binary path) stays
-  // in node_modules instead of being relocated into .next/server/chunks
-  // — which produces "spawn .../chunks/ffmpeg ENOENT" at runtime.
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      const externals = config.externals;
-      if (Array.isArray(externals)) {
-        externals.push({ "ffmpeg-static": "commonjs ffmpeg-static" });
-      } else if (typeof externals === "function") {
-        const original = externals;
-        config.externals = async (ctx, ...rest) => {
-          if (ctx.request === "ffmpeg-static") return "commonjs ffmpeg-static";
-          return original(ctx, ...rest);
-        };
-      } else {
-        config.externals = [{ "ffmpeg-static": "commonjs ffmpeg-static" }];
-      }
-    }
-    return config;
-  },
-  // Ensure the ffmpeg binary itself is shipped into the serverless function
-  // (the externals rule keeps the JS reference, this carries the binary).
-  outputFileTracingIncludes: {
-    "/api/worker/run-scheduled": ["./node_modules/ffmpeg-static/**"],
+    // Force the ffmpeg binary (and its package metadata) into the serverless
+    // function bundle. ffmpeg-static's package.json doesn't list the binary
+    // in its `files` field (it's downloaded post-install), so Next's NFT
+    // tracer skips it without these explicit includes.
+    // Note: in Next 14.2 this option is read from `config.experimental`
+    // despite newer docs showing it at the top level.
+    // Note: ffmpeg-static binary inclusion is handled via Vercel's
+    // `includeFiles` in vercel.json — Next 14.2's outputFileTracingIncludes
+    // doesn't reliably pick up files for App Router route handlers in this
+    // repo, regardless of key format.
   },
   async headers() {
     return [

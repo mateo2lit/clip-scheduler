@@ -3,7 +3,31 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
-import ffmpegPath from "ffmpeg-static";
+
+/**
+ * Resolve the ffmpeg binary path at runtime.
+ *
+ * We deliberately avoid `import ffmpegPath from "ffmpeg-static"`: webpack
+ * inlines the package's index.js into a chunk file, which rewrites the
+ * `__dirname`-based binary lookup to a non-existent path inside
+ * `.next/server/chunks/`. Using `eval("require")` is opaque to webpack's
+ * static analysis, so the require runs at runtime against the real
+ * `node_modules/ffmpeg-static/index.js` whose `__dirname` resolves correctly.
+ *
+ * The binary file itself is shipped into the lambda via
+ * outputFileTracingIncludes in next.config.mjs (the package's package.json
+ * does not list the binary in its `files` field, so Next's file tracer
+ * doesn't pull it in automatically).
+ */
+function resolveFfmpegPath(): string | null {
+  // eslint-disable-next-line no-eval
+  const runtimeRequire = eval("require") as NodeRequire;
+  try {
+    return runtimeRequire("ffmpeg-static") as string;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Inspect the ISOBMFF `ftyp` box at the start of a video file to determine
@@ -45,7 +69,8 @@ export function detectVideoContainer(
  * Returns the remuxed bytes.
  */
 export async function remuxToMp4(input: Buffer): Promise<Buffer> {
-  if (!ffmpegPath) throw new Error("ffmpeg-static binary path is unavailable");
+  const ffmpegBin = resolveFfmpegPath();
+  if (!ffmpegBin) throw new Error("ffmpeg-static binary path is unavailable");
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "remux-"));
   const id = crypto.randomBytes(4).toString("hex");
@@ -57,7 +82,7 @@ export async function remuxToMp4(input: Buffer): Promise<Buffer> {
 
     await new Promise<void>((resolve, reject) => {
       const proc = spawn(
-        ffmpegPath as string,
+        ffmpegBin,
         [
           "-y",
           "-i", inputPath,
