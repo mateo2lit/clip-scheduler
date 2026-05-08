@@ -1,0 +1,190 @@
+# .github/workflows/ai-clips-merge.yml
+name: AI Clips — Merge & Detect
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "ai_clip_jobs row ID"
+        required: true
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install minimal deps
+        run: npm install --no-save @anthropic-ai/sdk@^0.74.0 @supabase/supabase-js@^2.93.3 tsx
+
+      - name: Fetch chunk results + run merge
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          npx tsx <<'TSEOF'
+          import { mergeChunkTranscripts } from "./src/lib/aiClipsTranscriptMerge.ts";
+          import Anthropic from "@anthropic-ai/sdk";
+
+          const SB = process.env.SUPABASE_URL!;
+          const SR = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+          const JOB = process.env.JOB_ID!;
+
+          async function rest(path: string, init: RequestInit = {}) {
+            const r = await fetch(`${SB}/rest/v1/${path}`, {
+              ...init,
+              headers: {
+                ...(init.headers || {}),
+                apikey: SR,
+                Authorization: `Bearer ${SR}`,
+                "Content-Type": "application/json",
+              },
+            });
+            if (!r.ok) throw new Error(`${path} → ${r.status} ${await r.text()}`);
+            return r.json();
+          }
+
+          // 1. Pull job + chunks
+          const [job] = await rest(`ai_clip_jobs?id=eq.${JOB}&select=*`);
+          if (!job) throw new Error("job not found");
+
+          const chunks: any[] = await rest(`ai_clip_audio_chunks?job_id=eq.${JOB}&order=chunk_index.asc&select=*`);
+          if (!chunks.length) throw new Error("no chunks");
+
+          const failed = chunks.filter((c) => c.status !== "done");
+          if (failed.length) {
+            await rest(`ai_clip_jobs?id=eq.${JOB}`, {
+              method: "PATCH",
+              body: JSON.stringify({
+                status: "failed",
+                error: `${failed.length} chunk(s) failed to transcribe`,
+                updated_at: new Date().toISOString(),
+              }),
+            });
+            process.exit(1);
+          }
+
+          // 2. Merge
+          const merged = mergeChunkTranscripts(chunks);
+          await rest(`ai_clip_jobs?id=eq.${JOB}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              transcript: merged.transcript,
+              status: "detecting",
+              updated_at: new Date().toISOString(),
+            }),
+          });
+
+          // 3. Claude detection (single-pass for now; map-reduce TBD if transcript too long)
+          const anthropic = new Anthropic();
+          const detectPrompt = `You are picking the best ${job.clip_count} short moments from this transcript for social-media clips. Each clip should be 15-90 seconds. Return JSON only:
+[{"start_sec":<number>,"end_sec":<number>,"title":"<short>"}]
+
+Transcript:
+${merged.transcript.slice(0, 100_000)}`;
+
+          const resp = await anthropic.messages.create({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 2000,
+            messages: [{ role: "user", content: detectPrompt }],
+          });
+          const txt = (resp.content[0] as any).text;
+          const jsonMatch = txt.match(/\[[\s\S]*\]/);
+          let moments: any[] = [];
+          try {
+            moments = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+          } catch { moments = []; }
+
+          // Fallback: evenly spaced
+          if (!moments.length) {
+            const dur = job.source_duration_minutes * 60;
+            const step = dur / job.clip_count;
+            moments = Array.from({ length: job.clip_count }, (_, i) => ({
+              start_sec: Math.round(i * step),
+              end_sec: Math.round(i * step + Math.min(60, step * 0.8)),
+              title: `Moment ${i + 1}`,
+            }));
+          }
+
+          // Attach subtitle word_segments per moment
+          const enriched = moments.map((m, i) => ({
+            index: i,
+            start_sec: m.start_sec,
+            end_sec: m.end_sec,
+            title: m.title || `Moment ${i + 1}`,
+            subtitles_json: merged.word_segments_json.filter(
+              (w) => w.start >= m.start_sec && w.end <= m.end_sec
+            ),
+          }));
+
+          await rest(`ai_clip_jobs?id=eq.${JOB}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              status: "done",
+              clips_generated: enriched.length,
+              result_moments_json: enriched,
+              updated_at: new Date().toISOString(),
+            }),
+          });
+
+          // 4. Email user
+          if (job.notify_email && process.env.RESEND_API_KEY) {
+            const { createClient } = await import("@supabase/supabase-js");
+            const sb = createClient(SB, SR);
+            const [team] = await rest(`teams?id=eq.${job.team_id}&select=owner_id`);
+            let email: string | null = null;
+            if (team?.owner_id) {
+              const { data: u } = await sb.auth.admin.getUserById(team.owner_id);
+              email = u?.user?.email ?? null;
+            }
+            if (email) {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "notifications@clipdash.org",
+                  to: email,
+                  subject: `Your AI clips are ready (${enriched.length} clips)`,
+                  html: `<p>Your clips are ready: <a href="https://clipdash.org/ai-clips/${JOB}">View clips →</a></p>`,
+                }),
+              });
+              await rest(`ai_clip_jobs?id=eq.${JOB}`, {
+                method: "PATCH",
+                body: JSON.stringify({ notify_email_sent_at: new Date().toISOString() }),
+              });
+            }
+          }
+
+          console.log("Merge + detection complete.");
+          TSEOF
+
+      - name: Cleanup audio chunks
+        if: success()
+        run: |
+          curl -sS -X DELETE \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"prefixes":["ai_audio_chunks/${{ inputs.job_id }}/"]}' || true
+
+      - name: Mark job failed on error
+        if: failure()
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"failed","error":"merge workflow failed","updated_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
