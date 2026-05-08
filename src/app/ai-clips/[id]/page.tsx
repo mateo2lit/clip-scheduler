@@ -7,20 +7,31 @@ import { supabase } from "@/app/login/supabaseClient";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { ClipCard, type DownloadInfo } from "@/components/ai-clips/ClipCard";
-import { CaretLeft, CaretRight, X as XIcon } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, X as XIcon, Calendar } from "@phosphor-icons/react/dist/ssr";
 
 type AiClipJobStatus =
   | "pending" | "uploading" | "transcribing" | "detecting" | "cutting" | "done" | "failed";
+
+type MomentResult = {
+  index: number;
+  start_sec: number;
+  end_sec: number;
+  title?: string;
+  score?: number;
+  reason?: string;
+};
 
 type AiClipJob = {
   id: string;
   clip_count: number;
   source_duration_minutes: number;
   status: AiClipJobStatus;
+  processing_path?: "small" | "large";
   clips_generated: number | null;
   result_upload_ids: string[] | null;
   result_titles: string[] | null;
   result_subtitles: any[] | null;
+  result_moments_json?: MomentResult[] | null;
   error: string | null;
   created_at: string;
 };
@@ -176,6 +187,12 @@ export default function AiClipProjectPage() {
   const [modalIndex, setModalIndex] = useState(0);
   const [downloadInfo, setDownloadInfo] = useState<DownloadInfo>(null);
 
+  // Large-path lazy encode state
+  const [encoding, setEncoding] = useState<{ momentIdx: number; pct: number } | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [encodeError, setEncodeError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -230,6 +247,46 @@ export default function AiClipProjectPage() {
         }
       } catch {}
     }, 2500);
+  }
+
+  async function lazyEncodeAndUpload(moment: MomentResult): Promise<string> {
+    if (!originalFile) throw new Error("Original source file not available — pick the file again to encode.");
+    const { encodeClip } = await import("@/lib/aiClips/clipEncoder");
+    setEncoding({ momentIdx: moment.index, pct: 0 });
+    const blob = await encodeClip(originalFile, {
+      startSec: moment.start_sec,
+      endSec: moment.end_sec,
+      onProgress: (i, total) => {
+        setEncoding({ momentIdx: moment.index, pct: total ? Math.round((i / total) * 100) : 0 });
+      },
+    });
+    const fd = new FormData();
+    fd.append("file", blob, `clip_${moment.index}.mp4`);
+    const res = await fetch("/api/uploads", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: fd,
+    });
+    const json = await res.json();
+    setEncoding(null);
+    if (!json.ok) throw new Error(json.error || "Upload failed");
+    return json.uploadId as string;
+  }
+
+  async function handleScheduleLargeMoment(moment: MomentResult) {
+    setEncodeError(null);
+    if (!originalFile) {
+      setEncodeError("To finalize this clip, please reconnect your source file using the banner above.");
+      fileInputRef.current?.click();
+      return;
+    }
+    try {
+      const uploadId = await lazyEncodeAndUpload(moment);
+      handleScheduled(uploadId, moment.title ?? `Clip ${moment.index + 1}`);
+    } catch (e: any) {
+      setEncoding(null);
+      setEncodeError(e?.message || "Encode failed. Please try again.");
+    }
   }
 
   function handleScheduled(uploadId: string, title: string) {
@@ -357,8 +414,109 @@ export default function AiClipProjectPage() {
           </div>
         )}
 
-        {/* Clips */}
-        {job.status === "done" && job.result_upload_ids && authToken && (
+        {/* Large-path: reconnect source file banner */}
+        {job.processing_path === "large" && job.status === "done" && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) { setOriginalFile(f); setEncodeError(null); }
+              }}
+            />
+            {!originalFile && (
+              <div className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-3 text-xs text-blue-300">
+                To schedule clips, reconnect your source file. (We don't store it on our servers.)
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="ml-2 underline hover:text-blue-200 transition-colors"
+                >
+                  Reconnect file
+                </button>
+              </div>
+            )}
+            {originalFile && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-400 flex items-center justify-between">
+                <span>Source file connected: <span className="font-medium">{originalFile.name}</span></span>
+                <button
+                  onClick={() => { setOriginalFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                  className="ml-3 text-emerald-300/60 hover:text-emerald-300 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {encodeError && (
+              <p className="text-xs text-red-400">{encodeError}</p>
+            )}
+          </>
+        )}
+
+        {/* Large-path: moments grid */}
+        {job.processing_path === "large" && job.status === "done" && job.result_moments_json && (
+          <div className="space-y-3">
+            <p className="text-sm text-white/40">
+              {job.result_moments_json.length} moment{job.result_moments_json.length !== 1 ? "s" : ""} detected — click Post to encode and schedule
+            </p>
+            {job.result_moments_json.map((moment) => {
+              const durationSec = Math.round(moment.end_sec - moment.start_sec);
+              const startLabel = new Date(moment.start_sec * 1000).toISOString().slice(11, 19).replace(/^00:/, "");
+              const isEncoding = encoding?.momentIdx === moment.index;
+              return (
+                <div
+                  key={moment.index}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 flex items-center gap-4"
+                >
+                  {/* Index badge */}
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-xs font-semibold text-violet-300">
+                    {moment.index + 1}
+                  </div>
+
+                  {/* Meta */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {moment.title ?? `Clip ${moment.index + 1}`}
+                    </p>
+                    <p className="text-xs text-white/30 mt-0.5">
+                      {startLabel} · {durationSec}s
+                      {moment.score !== undefined && (
+                        <span className="ml-2 text-white/20">score {moment.score.toFixed(2)}</span>
+                      )}
+                    </p>
+                    {moment.reason && (
+                      <p className="text-[11px] text-white/25 mt-1 line-clamp-2">{moment.reason}</p>
+                    )}
+                  </div>
+
+                  {/* Post button */}
+                  <button
+                    onClick={() => handleScheduleLargeMoment(moment)}
+                    disabled={!!encoding}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300 hover:bg-violet-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isEncoding ? (
+                      <>
+                        <span className="inline-block h-3 w-3 rounded-full border-2 border-violet-300/30 border-t-violet-300 animate-spin" />
+                        <span>{encoding.pct > 0 ? `${encoding.pct}%` : "Encoding…"}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-3 h-3" weight="duotone" />
+                        <span>Post</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Small-path clips */}
+        {job.processing_path !== "large" && job.status === "done" && job.result_upload_ids && authToken && (
           <>
             {/* Subtitle quick controls + format selector */}
             <SubtitleQuickBar
@@ -398,7 +556,7 @@ export default function AiClipProjectPage() {
       </div>
 
       {/* Large preview modal — always mounted once job is done so ClipCard download state survives close */}
-      {job.status === "done" && job.result_upload_ids && authToken && (() => {
+      {job.processing_path !== "large" && job.status === "done" && job.result_upload_ids && authToken && (() => {
         // Use previewClipIndex when open, fall back to modalIndex when closed so ClipCard stays mounted
         const mi = previewClipIndex ?? modalIndex;
         return (
