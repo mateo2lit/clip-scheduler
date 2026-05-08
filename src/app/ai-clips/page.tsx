@@ -47,16 +47,37 @@ const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: 
   failed:       { label: "Failed",                min: 100, max: 100, color: "from-red-500 to-rose-500" },
 };
 
+// ─── Large-path imports + constants ──────────────────────────────────────────
+
+import { detectCodecCapabilities } from "@/lib/aiClips/codecDetect";
+import { probeMp4DurationSeconds } from "@/lib/aiClips/audioExtractor";
+
+const LARGE_ENABLED = process.env.NEXT_PUBLIC_AI_CLIPS_LARGE_ENABLED === "true";
+const FILE_SIZE_THRESHOLD_BYTES = 1024 * 1024 * 1024;       // 1 GB
+const DURATION_THRESHOLD_SECONDS = 30 * 60;                 // 30 min
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function readVideoDuration(file: File): Promise<number> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => { URL.revokeObjectURL(video.src); resolve(video.duration / 60); };
-    video.onerror = () => resolve(0);
-    video.src = URL.createObjectURL(file);
-  });
+async function readVideoDurationSafe(file: File): Promise<{ minutes: number; useLargePath: boolean }> {
+  // Always try mp4box first — it's instant and doesn't hang
+  let durationSec = 0;
+  try {
+    durationSec = await probeMp4DurationSeconds(file);
+  } catch {
+    // Fall back to <video> blob URL with a 10s timeout for non-MP4 small files
+    durationSec = await new Promise<number>((resolve) => {
+      const video = document.createElement("video");
+      const timer = setTimeout(() => { URL.revokeObjectURL(video.src); resolve(0); }, 10_000);
+      video.preload = "metadata";
+      video.onloadedmetadata = () => { clearTimeout(timer); URL.revokeObjectURL(video.src); resolve(video.duration); };
+      video.onerror = () => { clearTimeout(timer); resolve(0); };
+      video.src = URL.createObjectURL(file);
+    });
+  }
+
+  const minutes = durationSec / 60;
+  const useLargePath = file.size > FILE_SIZE_THRESHOLD_BYTES || durationSec > DURATION_THRESHOLD_SECONDS;
+  return { minutes: Math.ceil(minutes * 10) / 10, useLargePath };
 }
 
 function uploadFileWithProgress(file: File, signedUrl: string, onProgress: (pct: number) => void): Promise<void> {
@@ -247,6 +268,11 @@ export default function AiClipsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Large-path state
+  const [largePathCaps, setLargePathCaps] = useState<import("@/types/aiClipsLarge").CodecCapabilities | null>(null);
+  const [largePathRefusal, setLargePathRefusal] = useState<string | null>(null);
+  const [extractionProgress, setExtractionProgress] = useState({ done: 0, total: 0, sec: 0, totalSec: 0 });
+
   const [activeJob, setActiveJob] = useState<AiClipJob | null>(null);
   const [pastJobs, setPastJobs] = useState<AiClipJob[]>([]);
 
@@ -361,8 +387,26 @@ export default function AiClipsPage() {
   async function handleFileSelected(selectedFile: File) {
     setFile(selectedFile);
     setSubmitError(null);
-    const duration = await readVideoDuration(selectedFile);
-    setFileDurationMinutes(Math.ceil(duration * 10) / 10);
+    setLargePathRefusal(null);
+
+    const { minutes, useLargePath } = await readVideoDurationSafe(selectedFile);
+    setFileDurationMinutes(minutes);
+
+    if (useLargePath && !LARGE_ENABLED) {
+      setSubmitError("This file is too large for the current pipeline. Compress to under 1 GB or paste a URL instead.");
+      setFile(null);
+      return;
+    }
+
+    if (useLargePath) {
+      const caps = await detectCodecCapabilities(selectedFile);
+      setLargePathCaps(caps);
+      if (!caps.canExtract) {
+        setLargePathRefusal(caps.reasons.join(" "));
+      }
+    } else {
+      setLargePathCaps(null);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -454,6 +498,90 @@ export default function AiClipsPage() {
       });
       const startJson = await startRes.json();
       if (!startJson.ok) { setSubmitError(startJson.error || "Failed to start processing."); setActiveJob(null); setSubmitting(false); return; }
+
+      setFile(null);
+      setFileDurationMinutes(0);
+      setSubmitting(false);
+      startPolling(jobId, authToken);
+    } catch (e: any) {
+      setSubmitError(e?.message || "Something went wrong.");
+      setSubmitting(false);
+      setActiveJob(null);
+    }
+  }
+
+  // ── Generate from file (large path) ─────────────────────────────────────
+
+  async function handleGenerateFromFileLarge() {
+    if (!file || !authToken || submitting || !largePathCaps?.canExtract) return;
+    setSubmitError(null);
+    setSubmitting(true);
+    setUploadProgress(0);
+    setExtractionProgress({ done: 0, total: 0, sec: 0, totalSec: 0 });
+
+    try {
+      // 1. Prepare large path job
+      const prepRes = await fetch("/api/ai-clips/prepare-large", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clip_count: clipCount,
+          source_duration_minutes: fileDurationMinutes,
+          genre,
+          clip_length: clipLength,
+          auto_hook: autoHook,
+          moment_prompt: momentPrompt,
+          notify_email: true,
+        }),
+      });
+      const prepJson = await prepRes.json();
+      if (!prepJson.ok) {
+        setSubmitError(prepJson.error || "Failed to create job.");
+        setSubmitting(false);
+        return;
+      }
+
+      const { jobId, chunkUploadToken } = prepJson;
+
+      const optimisticJob: AiClipJob = {
+        id: jobId, clip_count: clipCount, source_duration_minutes: fileDurationMinutes,
+        status: "uploading", clips_generated: null, result_upload_ids: null,
+        result_titles: null, result_subtitles: null, error: null,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      };
+      setActiveJob(optimisticJob);
+
+      // 2. Extract + upload chunks
+      const { extractAudioChunks } = await import("@/lib/aiClips/audioExtractor");
+      const { extractAudioChunksFfmpeg } = await import("@/lib/aiClips/ffmpegFallback");
+      const { uploadChunkStream } = await import("@/lib/aiClips/chunkedUploader");
+
+      const generator = largePathCaps.encoder === "webcodecs" && largePathCaps.container === "mp4"
+        ? extractAudioChunks(file, {
+            chunkSeconds: 30,
+            onProgress: (sec, totalSec) => setExtractionProgress((p) => ({ ...p, sec, totalSec })),
+          })
+        : extractAudioChunksFfmpeg(file, {
+            chunkSeconds: 30,
+            onProgress: (sec, totalSec) => setExtractionProgress((p) => ({ ...p, sec, totalSec })),
+          });
+
+      await uploadChunkStream(generator, chunkUploadToken, {
+        onChunkUploaded: (idx) => setExtractionProgress((p) => ({ ...p, done: idx + 1 })),
+      });
+
+      // 3. Start the matrix
+      const startRes = await fetch(`/api/ai-clips/large/${jobId}/start`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const startJson = await startRes.json();
+      if (!startJson.ok) {
+        setSubmitError(startJson.error || "Failed to start processing.");
+        setActiveJob(null);
+        setSubmitting(false);
+        return;
+      }
 
       setFile(null);
       setFileDurationMinutes(0);
@@ -734,16 +862,35 @@ export default function AiClipsPage() {
                     </div>
                   )}
 
+                  {largePathRefusal && (
+                    <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-xs text-amber-300">
+                      ⚠️ {largePathRefusal}
+                    </div>
+                  )}
+
                   {file && (
                     <button
-                      onClick={() => { setInputMode("file"); handleGenerateFromFile(); }}
-                      disabled={submitting || !file || fileDurationMinutes <= 0 || wouldExceedLimit || hasActiveJob || planOk !== true}
+                      onClick={() => {
+                        setInputMode("file");
+                        if (largePathCaps?.canExtract) handleGenerateFromFileLarge();
+                        else handleGenerateFromFile();
+                      }}
+                      disabled={
+                        submitting || !file || fileDurationMinutes <= 0 || wouldExceedLimit ||
+                        hasActiveJob || planOk !== true || !!largePathRefusal
+                      }
                       className="w-full rounded-2xl bg-gradient-to-r from-violet-500 to-purple-500 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {submitting && inputMode === "file" ? (
                         <span className="flex items-center justify-center gap-2">
                           <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                          {uploadProgress > 0 && uploadProgress < 100 ? `Uploading ${uploadProgress}%…` : "Starting…"}
+                          {largePathCaps?.canExtract
+                            ? extractionProgress.totalSec > 0
+                              ? `Extracting audio ${Math.round((extractionProgress.sec / extractionProgress.totalSec) * 100)}%`
+                              : "Preparing…"
+                            : uploadProgress > 0 && uploadProgress < 100
+                              ? `Uploading ${uploadProgress}%…`
+                              : "Starting…"}
                         </span>
                       ) : (
                         "✨ Generate AI Clips"

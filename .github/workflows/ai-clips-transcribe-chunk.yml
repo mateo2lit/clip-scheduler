@@ -1,0 +1,131 @@
+# .github/workflows/ai-clips-transcribe-chunk.yml
+name: AI Clips — Transcribe Chunks (matrix)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "ai_clip_jobs row ID"
+        required: true
+      chunks_total:
+        description: "Total number of audio chunks to transcribe"
+        required: true
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      indices: ${{ steps.gen.outputs.indices }}
+    steps:
+      - name: Generate chunk index matrix
+        id: gen
+        run: |
+          N=${{ inputs.chunks_total }}
+          INDICES=$(python3 -c "import json; print(json.dumps(list(range(int('$N')))))")
+          echo "indices=$INDICES" >> $GITHUB_OUTPUT
+
+  transcribe:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        chunk_index: ${{ fromJSON(needs.build-matrix.outputs.indices) }}
+    continue-on-error: true
+    steps:
+      - name: Install dependencies
+        run: |
+          if ! command -v ffmpeg &>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          pip install -q faster-whisper
+
+      - name: Download chunk
+        run: |
+          IDX=${{ matrix.chunk_index }}
+          PADDED=$(printf "%03d" $IDX)
+          STORAGE_PATH="ai_audio_chunks/${{ inputs.job_id }}/chunk_${PADDED}.opus"
+          curl -fsS -o /tmp/chunk.opus \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${STORAGE_PATH}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          ls -la /tmp/chunk.opus
+
+      - name: Mark chunk as transcribing
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"transcribing","updated_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
+
+      - name: Transcribe with distil-whisper
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          from faster_whisper import WhisperModel
+
+          # distil-whisper-medium.en is fast on CPU and high quality for English.
+          model = WhisperModel("distil-medium.en", device="cpu", compute_type="int8")
+          segments, info = model.transcribe(
+              "/tmp/chunk.opus",
+              beam_size=5,
+              language="en",
+              vad_filter=True,
+              word_timestamps=True,
+          )
+
+          words = []
+          lines = []
+          for seg in segments:
+              lines.append(seg.text.strip())
+              if seg.words:
+                  for w in seg.words:
+                      words.append({"start": round(w.start, 3), "end": round(w.end, 3), "word": w.word.strip()})
+
+          out = {"transcript": " ".join(lines), "word_segments_json": words}
+          with open("/tmp/result.json", "w") as f:
+              json.dump(out, f)
+          print(f"Transcribed {len(words)} words")
+          PYEOF
+
+      - name: Persist chunk result
+        run: |
+          BODY=$(jq -Rs --argjson result "$(cat /tmp/result.json)" '{
+            status: "done",
+            transcript: $result.transcript,
+            word_segments_json: $result.word_segments_json,
+            updated_at: (now | todate)
+          } * {transcript: $result.transcript, word_segments_json: $result.word_segments_json}' <<<'')
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/result.json
+
+      - name: Mark chunk failed on error
+        if: failure()
+        run: |
+          curl -sS -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"failed","error":"transcribe job failed"}'
+
+  trigger-merge:
+    needs: transcribe
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Dispatch merge workflow
+        run: |
+          curl -fsS -X POST \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ai-clips-merge.yml/dispatches" \
+            -H "Authorization: Bearer ${{ secrets.WORKFLOW_DISPATCH_PAT || secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"ref":"main","inputs":{"job_id":"${{ inputs.job_id }}"}}'
