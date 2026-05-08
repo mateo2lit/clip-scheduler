@@ -9,11 +9,33 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     after: true,
-    // Keep ffmpeg-static unbundled so Next/Webpack doesn't try to inline the
-    // ~80 MB native binary (used by Bluesky uploads to remux QuickTime → MP4).
+    // Keep ffmpeg-static unbundled (this only affects Server Components, but
+    // we keep it for parity with the webpack rule below).
     serverComponentsExternalPackages: ["ffmpeg-static"],
   },
-  // Ensure the ffmpeg binary is included in the serverless function bundle.
+  // Belt-and-suspenders for ffmpeg-static: mark it external in the server
+  // webpack build so its index.js (and __dirname-based binary path) stays
+  // in node_modules instead of being relocated into .next/server/chunks
+  // — which produces "spawn .../chunks/ffmpeg ENOENT" at runtime.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const externals = config.externals;
+      if (Array.isArray(externals)) {
+        externals.push({ "ffmpeg-static": "commonjs ffmpeg-static" });
+      } else if (typeof externals === "function") {
+        const original = externals;
+        config.externals = async (ctx, ...rest) => {
+          if (ctx.request === "ffmpeg-static") return "commonjs ffmpeg-static";
+          return original(ctx, ...rest);
+        };
+      } else {
+        config.externals = [{ "ffmpeg-static": "commonjs ffmpeg-static" }];
+      }
+    }
+    return config;
+  },
+  // Ensure the ffmpeg binary itself is shipped into the serverless function
+  // (the externals rule keeps the JS reference, this carries the binary).
   outputFileTracingIncludes: {
     "/api/worker/run-scheduled": ["./node_modules/ffmpeg-static/**"],
   },
