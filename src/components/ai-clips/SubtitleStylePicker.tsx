@@ -695,9 +695,18 @@ export function SubtitleStylePicker({
   // Build a Blob URL for the source file so the preview can show actual video
   // frames behind the captions. Cleaned up on file change / unmount to avoid
   // leaking the underlying file reference.
+  //
+  // Cap at 2 GB — for larger files Chrome's <video> element + a concurrent
+  // audio extraction pass both holding read references to the same big file
+  // can blow past the tab's memory budget and crash the page (NotReadableError).
+  const PREVIEW_MAX_BYTES = 2 * 1024 * 1024 * 1024;
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const previewSkippedForSize = !!sourceFile && sourceFile.size > PREVIEW_MAX_BYTES;
   useEffect(() => {
-    if (!sourceFile) { setVideoUrl(null); return; }
+    if (!sourceFile || sourceFile.size > PREVIEW_MAX_BYTES) {
+      setVideoUrl(null);
+      return;
+    }
     const url = URL.createObjectURL(sourceFile);
     setVideoUrl(url);
     return () => { URL.revokeObjectURL(url); };
@@ -841,6 +850,11 @@ export function SubtitleStylePicker({
         </div>
       ) : (
         <div className="mx-4 mb-4 space-y-1">
+          {previewSkippedForSize && (
+            <p className="text-[10px] text-white/40 text-center pb-1">
+              Live video preview disabled for files over 2 GB to avoid memory issues. Caption styling will still be applied.
+            </p>
+          )}
           {(style.titleEnabled ?? true) && (
             <div className="relative rounded-lg bg-black/30 border border-white/10 overflow-hidden flex items-center justify-center px-3 py-1.5">
               <p

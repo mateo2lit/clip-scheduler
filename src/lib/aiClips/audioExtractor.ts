@@ -109,8 +109,15 @@ export async function* extractAudioChunks(
   const samplesQueue: Sample[] = [];
   let streamingDone = false;
 
-  mp4.onSamples = (_id: number, _user: unknown, samples: Sample[]) => {
+  mp4.onSamples = (trackId: number, _user: unknown, samples: Sample[]) => {
     samplesQueue.push(...samples);
+    // Free mp4box's internal storage for these samples — otherwise its buffer
+    // grows unbounded and crashes the tab on multi-GB files. Sample.number is
+    // mp4box's per-track sample index (1-based).
+    if (samples.length > 0) {
+      const lastSampleNumber = samples[samples.length - 1].number;
+      mp4.releaseUsedSamples(trackId, lastSampleNumber);
+    }
   };
 
   // Stream just the BODY (between head and tail) since the head + tail are already
