@@ -1058,14 +1058,41 @@ export default function UploadsPage() {
   }
 
   // Extract thumbnail + dimensions + duration from a video URL (Supabase signed URL, etc).
-  // crossOrigin="anonymous" lets the canvas read pixels for thumbnail capture.
+  // Two passes so dimensions are reliable even when Supabase CORS isn't configured:
+  //   1. Load without crossOrigin to read dims/duration from metadata (always works).
+  //   2. Best-effort second load with crossOrigin to capture a thumbnail frame (requires CORS).
   async function extractMetaAndThumbFromUrl(url: string): Promise<{
     thumb: Blob | null;
     width: number | null;
     height: number | null;
     duration: number | null;
   }> {
-    return new Promise((resolve) => {
+    const meta = await new Promise<{ width: number | null; height: number | null; duration: number | null }>((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+
+      let resolved = false;
+      const finish = (r: { width: number | null; height: number | null; duration: number | null }) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(r);
+      };
+
+      video.onloadedmetadata = () => finish({
+        width: video.videoWidth || null,
+        height: video.videoHeight || null,
+        duration: isFinite(video.duration) ? video.duration : null,
+      });
+      video.onerror = () => finish({ width: null, height: null, duration: null });
+      setTimeout(() => finish({ width: null, height: null, duration: null }), 15000);
+    });
+
+    if (meta.width == null) return { thumb: null, ...meta };
+
+    const thumb = await new Promise<Blob | null>((resolve) => {
       const video = document.createElement("video");
       video.preload = "metadata";
       video.muted = true;
@@ -1074,24 +1101,16 @@ export default function UploadsPage() {
       video.src = url;
 
       let resolved = false;
-      const finish = (result: { thumb: Blob | null; width: number | null; height: number | null; duration: number | null }) => {
+      const finish = (b: Blob | null) => {
         if (resolved) return;
         resolved = true;
-        resolve(result);
+        resolve(b);
       };
-
-      const dims = () => ({
-        width: video.videoWidth || null,
-        height: video.videoHeight || null,
-        duration: isFinite(video.duration) ? video.duration : null,
-      });
 
       video.onloadedmetadata = () => {
         video.currentTime = Math.min(1, (video.duration || 1) * 0.1);
       };
-
       video.onseeked = () => {
-        const d = dims();
         try {
           const canvas = document.createElement("canvas");
           const maxDim = 640;
@@ -1099,22 +1118,18 @@ export default function UploadsPage() {
           canvas.width = Math.round(video.videoWidth * ratio);
           canvas.height = Math.round(video.videoHeight * ratio);
           const ctx = canvas.getContext("2d");
-          if (!ctx) { finish({ thumb: null, ...d }); return; }
+          if (!ctx) { finish(null); return; }
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => {
-            finish({ thumb: blob ?? null, ...d });
-          }, "image/jpeg", 0.82);
+          canvas.toBlob((blob) => finish(blob ?? null), "image/jpeg", 0.82);
         } catch {
-          // Canvas likely tainted (CORS) — still return dims/duration we got from metadata.
-          finish({ thumb: null, ...d });
+          finish(null);
         }
       };
-
-      video.onerror = () => finish({ thumb: null, width: null, height: null, duration: null });
-
-      // Safety timeout in case the video never loads or seeks.
-      setTimeout(() => finish({ thumb: null, ...dims() }), 15000);
+      video.onerror = () => finish(null);
+      setTimeout(() => finish(null), 10000);
     });
+
+    return { thumb, ...meta };
   }
 
   function handleFileSelect(f: File | null) {
@@ -3692,13 +3707,10 @@ export default function UploadsPage() {
           setLastUploadId(uploadId);
           setTitle(importedTitle);
           setStep("details");
-          try {
-            const res = await fetch(`/api/uploads/${uploadId}`, {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            const json = await res.json();
-            if (json.ok && json.signedUrl) setVideoPreviewUrl(json.signedUrl);
-          } catch {}
+          // Fetch signed URL and bootstrap thumbnail + dimensions + duration so
+          // the post-upload "Convert to 9:16" card and Enhance Video preview both
+          // have the data they need.
+          await swapPreviewToUpload(uploadId, accessToken);
         }}
       />
     )}
