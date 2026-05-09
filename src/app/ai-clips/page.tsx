@@ -58,8 +58,8 @@ const DURATION_THRESHOLD_SECONDS = 30 * 60;                 // 30 min
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function readVideoDurationSafe(file: File): Promise<{ minutes: number; useLargePath: boolean }> {
-  // Always try mp4box first — it's instant and doesn't hang
+async function readVideoDurationSafe(file: File): Promise<{ minutes: number; useLargePath: boolean; failed: boolean }> {
+  // Always try mp4box first — fast and doesn't hang
   let durationSec = 0;
   try {
     durationSec = await probeMp4DurationSeconds(file);
@@ -76,8 +76,9 @@ async function readVideoDurationSafe(file: File): Promise<{ minutes: number; use
   }
 
   const minutes = durationSec / 60;
+  const failed = !Number.isFinite(durationSec) || durationSec <= 0;
   const useLargePath = file.size > FILE_SIZE_THRESHOLD_BYTES || durationSec > DURATION_THRESHOLD_SECONDS;
-  return { minutes: Math.ceil(minutes * 10) / 10, useLargePath };
+  return { minutes: Math.ceil(minutes * 10) / 10, useLargePath, failed };
 }
 
 function uploadFileWithProgress(file: File, signedUrl: string, onProgress: (pct: number) => void): Promise<void> {
@@ -389,8 +390,17 @@ export default function AiClipsPage() {
     setSubmitError(null);
     setLargePathRefusal(null);
 
-    const { minutes, useLargePath } = await readVideoDurationSafe(selectedFile);
+    const { minutes, useLargePath, failed } = await readVideoDurationSafe(selectedFile);
     setFileDurationMinutes(minutes);
+
+    if (failed) {
+      setSubmitError(
+        `Couldn't read the duration of "${selectedFile.name}". This usually means the file isn't an MP4 (H.264) video — for example .mpg, .mpeg, .ts, .flv, or .wmv files aren't supported by browsers. Convert to MP4 first using HandBrake or: ffmpeg -i input -c:v libx264 -c:a aac -movflags +faststart output.mp4`
+      );
+      setFile(null);
+      setFileDurationMinutes(0);
+      return;
+    }
 
     if (useLargePath && !LARGE_ENABLED) {
       setSubmitError("This file is too large for the current pipeline. Compress to under 1 GB or paste a URL instead.");
