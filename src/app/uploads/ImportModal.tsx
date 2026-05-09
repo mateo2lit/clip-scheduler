@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X as XIcon, Check, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { X as XIcon, Check, Crop } from "@phosphor-icons/react/dist/ssr";
 
 type JobStatus = "pending" | "fetching" | "uploading" | "done" | "failed";
 
@@ -34,7 +34,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
-        checked ? "bg-purple-600" : "bg-white/15"
+        checked ? "bg-blue-500" : "bg-white/15"
       }`}
     >
       <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${checked ? "translate-x-4" : "translate-x-0"}`} />
@@ -240,37 +240,40 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
             </div>
 
             {/* Convert to 9:16 — captured up-front since Twitch/Kick are 16:9 by default */}
-            <div className="rounded-2xl border border-purple-400/20 bg-purple-400/[0.04] p-3">
-              <div className="flex items-start gap-3">
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-purple-400/15">
-                  <Sparkle className="h-3.5 w-3.5 text-purple-300" weight="duotone" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-white">Convert to 9:16</p>
-                    <Toggle checked={convertTo916} onChange={setConvertTo916} />
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+                    <Crop className="h-4 w-4 text-white/60" weight="bold" />
                   </div>
-                  <p className="mt-0.5 text-xs text-white/40">Reformat for TikTok, Reels, and YouTube Shorts.</p>
-                  {convertTo916 && (
-                    <div className="mt-2 flex gap-1.5">
-                      {(["blur", "crop"] as const).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setConvertStyle(s)}
-                          className={`flex-1 rounded-lg border px-2 py-1 text-[11px] transition-all ${
-                            convertStyle === s
-                              ? "border-purple-400/50 bg-purple-400/20 text-purple-200"
-                              : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
-                          }`}
-                        >
-                          {s === "blur" ? "Blur background" : "Crop center"}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white">Convert to 9:16</p>
+                    <p className="mt-0.5 text-[11px] text-white/40">Reformat for TikTok, Reels, and Shorts.</p>
+                  </div>
                 </div>
+                <Toggle checked={convertTo916} onChange={setConvertTo916} />
               </div>
+              {convertTo916 && (
+                <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-white/30 mb-2">Style</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(["blur", "crop"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setConvertStyle(s)}
+                        className={`rounded-lg border px-3 py-2 text-xs transition-all ${
+                          convertStyle === s
+                            ? "border-white/30 bg-white/10 text-white"
+                            : "border-white/10 bg-white/[0.02] text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {s === "blur" ? "Blur background" : "Crop center"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button

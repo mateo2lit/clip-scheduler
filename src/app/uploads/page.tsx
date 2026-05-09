@@ -34,6 +34,7 @@ import {
   Image as ImageIcon,
   Clock,
   Lock,
+  Crop,
 } from "@phosphor-icons/react/dist/ssr";
 
 const EMOJI_CATEGORIES = {
@@ -1964,22 +1965,27 @@ export default function UploadsPage() {
                           type="button"
                           disabled={planActive === false}
                           onClick={() => setShowUploadConvertPicker((v) => !v)}
-                          className="rounded-full border border-purple-400/40 bg-purple-400/10 px-4 py-2 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-2"
                         >
+                          <Crop className="h-4 w-4" weight="bold" />
                           Upload &amp; Convert to 9:16
                         </button>
                       )}
                     </div>
                     {showUploadConvertPicker && (videoWidth === null || videoHeight === null || videoWidth > videoHeight) && (
-                      <div className="w-full max-w-sm space-y-2 rounded-2xl border border-purple-400/20 bg-purple-400/5 p-3">
-                        <p className="text-xs text-purple-300/80">Choose a style for vertical conversion:</p>
-                        <div className="flex gap-2">
+                      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+                        <p className="text-[10px] uppercase tracking-[0.08em] text-white/30 mb-2">Style</p>
+                        <div className="grid grid-cols-2 gap-1.5">
                           {(["blur", "crop"] as const).map((s) => (
                             <button
                               key={s}
                               type="button"
                               onClick={() => setVerticalStyle(s)}
-                              className={`flex-1 rounded-xl border px-3 py-2 text-sm transition-all ${verticalStyle === s ? "border-purple-400/50 bg-purple-400/20 text-purple-200" : "border-white/10 bg-white/5 text-white/50 hover:border-purple-300/30 hover:text-white/70"}`}
+                              className={`rounded-lg border px-3 py-2 text-xs transition-all ${
+                                verticalStyle === s
+                                  ? "border-white/30 bg-white/10 text-white"
+                                  : "border-white/10 bg-white/[0.02] text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+                              }`}
                             >
                               {s === "blur" ? "Blur background" : "Crop center"}
                             </button>
@@ -1989,7 +1995,7 @@ export default function UploadsPage() {
                           type="button"
                           onClick={() => { setShowUploadConvertPicker(false); doUpload(true); }}
                           disabled={planActive === false}
-                          className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 py-2 text-sm font-semibold text-white transition-all hover:from-blue-400 hover:to-purple-400 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="mt-2 w-full rounded-lg bg-white py-2 text-sm font-semibold text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Upload &amp; Convert
                         </button>
@@ -3531,41 +3537,44 @@ export default function UploadsPage() {
               && conversionStatus !== "pending" && conversionStatus !== "processing"
               && !verticalUploadId
               && !burnUploadId && (
-              <div className="rounded-2xl border border-purple-400/20 bg-purple-400/[0.04] p-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-purple-400/15">
-                    <Sparkle className="h-4 w-4 text-purple-300" weight="duotone" />
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+                    <Crop className="h-4 w-4 text-white/60" weight="bold" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white">Convert to 9:16</p>
-                    <p className="mt-0.5 text-xs text-white/50">Reformat this clip for TikTok, Reels, and YouTube Shorts.</p>
+                    <p className="mt-0.5 text-xs text-white/40">Reformat this clip for TikTok, Reels, and YouTube Shorts.</p>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {(["blur", "crop"] as const).map((s) => (
+                <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-white/30 mb-2">Style</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(["blur", "crop"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setVerticalStyle(s)}
+                        className={`rounded-lg border px-3 py-1.5 text-xs transition-all ${
+                          verticalStyle === s
+                            ? "border-white/30 bg-white/10 text-white"
+                            : "border-white/10 bg-white/[0.02] text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {s === "blur" ? "Blur background" : "Crop center"}
+                      </button>
+                    ))}
                     <button
-                      key={s}
                       type="button"
-                      onClick={() => setVerticalStyle(s)}
-                      className={`rounded-xl border px-3 py-1.5 text-xs transition-all ${
-                        verticalStyle === s
-                          ? "border-purple-400/50 bg-purple-400/20 text-purple-200"
-                          : "border-white/10 bg-white/5 text-white/50 hover:border-purple-300/30 hover:text-white/70"
-                      }`}
+                      onClick={async () => {
+                        setVerticalEnabled(true);
+                        await startConversion(lastUploadId);
+                      }}
+                      className="ml-auto rounded-lg bg-white px-4 py-1.5 text-xs font-semibold text-black transition-all hover:bg-white/90"
                     >
-                      {s === "blur" ? "Blur background" : "Crop center"}
+                      {conversionStatus === "failed" ? "Retry conversion" : "Convert to 9:16"}
                     </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setVerticalEnabled(true);
-                      await startConversion(lastUploadId);
-                    }}
-                    className="ml-auto rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-1.5 text-xs font-semibold text-white transition-all hover:from-blue-400 hover:to-purple-400"
-                  >
-                    {conversionStatus === "failed" ? "Retry conversion" : "Convert to 9:16 →"}
-                  </button>
+                  </div>
                 </div>
               </div>
             )}

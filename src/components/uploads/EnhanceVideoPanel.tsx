@@ -54,7 +54,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
-        checked ? "bg-purple-600" : "bg-white/15"
+        checked ? "bg-blue-500" : "bg-white/15"
       }`}
     >
       <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${checked ? "translate-x-4" : "translate-x-0"}`} />
@@ -201,12 +201,12 @@ export function EnhanceVideoPanel({
         className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors"
       >
         <div className="flex items-center gap-2">
-          <PencilSimple className="w-4 h-4 text-purple-400" weight="duotone" />
+          <PencilSimple className="w-4 h-4 text-white/70" weight="bold" />
           <span className="text-sm font-medium text-white/80">Enhance Video</span>
-          {hasContent && <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-300">Active</span>}
-          {isRunning && <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300">Processing…</span>}
-          {burnStatus === "done" && <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] text-green-300">Done</span>}
-          {burnStatus === "failed" && <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] text-red-300">Failed</span>}
+          {hasContent && <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] text-white/70">Active</span>}
+          {isRunning && <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-300">Processing…</span>}
+          {burnStatus === "done" && <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] text-green-300">Done</span>}
+          {burnStatus === "failed" && <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] text-red-300">Failed</span>}
         </div>
         <CaretDown className={`w-4 h-4 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
       </button>
@@ -221,8 +221,10 @@ export function EnhanceVideoPanel({
                 key={m}
                 type="button"
                 onClick={() => setConfig((c) => ({ ...c, mode: m }))}
-                className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                  config.mode === m ? "bg-purple-600 text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
+                className={`rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
+                  config.mode === m
+                    ? "border-white/30 bg-white/10 text-white"
+                    : "border-transparent bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white/70"
                 }`}
               >
                 {m === "landscape" ? "16:9" : m === "portrait_blur" ? "9:16 Blur" : "9:16 Crop"}
@@ -350,9 +352,9 @@ export function EnhanceVideoPanel({
               type="button"
               onClick={handleBurn}
               disabled={submitting || isRunning || !uploadId || !hasContent}
-              className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-purple-500 hover:to-violet-500 disabled:opacity-40 transition-all"
+              className="w-full rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-lg hover:bg-white/90 disabled:opacity-40 transition-all"
             >
-              {submitting ? "Starting…" : isRunning ? "Burn in progress…" : burnStatus === "done" ? "✨ Re-burn with new settings" : "✨ Burn & Schedule"}
+              {submitting ? "Starting…" : isRunning ? "Burn in progress…" : burnStatus === "done" ? "Re-burn with new settings" : "Burn & Schedule"}
             </button>
             <p className="text-[10px] text-white/25 text-center">
               {!hasContent
@@ -470,7 +472,7 @@ function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
           <p className={labelCls}>Size — {layer.fontSize}pt</p>
           <input type="range" min={24} max={120} step={2} value={layer.fontSize}
             onChange={(e) => onUpdate({ fontSize: Number(e.target.value) } as Partial<TitleLayer>)}
-            className="mt-1.5 w-full accent-purple-500" />
+            className="mt-1.5 w-full accent-blue-500" />
         </div>
         <div className="flex-shrink-0">
           <p className={labelCls}>Position</p>
@@ -478,9 +480,10 @@ function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
             {(["top", "bottom"] as const).map((p) => (
               <button key={p} type="button"
                 onClick={() => onUpdate({ position: p, customY: null } as Partial<TitleLayer>)}
-                className={`rounded-lg px-3 py-1 text-xs capitalize transition-colors ${
+                className={`rounded-lg border px-3 py-1 text-xs capitalize transition-colors ${
                   layer.position === p && layer.customY == null
-                    ? "bg-purple-600 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"
+                    ? "border-white/30 bg-white/10 text-white"
+                    : "border-transparent bg-white/[0.03] text-white/40 hover:bg-white/[0.06] hover:text-white/70"
                 }`}
               >{p}</button>
             ))}
@@ -492,7 +495,7 @@ function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
           <p className={labelCls}>Vertical — {Math.round(layer.customY * 100)}% from top</p>
           <input type="range" min={0} max={100} step={1} value={Math.round((layer.customY ?? 0) * 100)}
             onChange={(e) => onUpdate({ customY: Number(e.target.value) / 100 } as Partial<TitleLayer>)}
-            className="mt-1.5 w-full accent-purple-500" />
+            className="mt-1.5 w-full accent-blue-500" />
         </div>
       )}
       <p className="text-[10px] text-white/25 italic">Drag in the preview to set a custom position</p>
@@ -527,7 +530,7 @@ function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
               <p className={labelCls}>Stroke width — {layer.stroke.width}px</p>
               <input type="range" min={0} max={8} step={0.5} value={layer.stroke.width}
                 onChange={(e) => onUpdate({ stroke: { ...layer.stroke, width: Number(e.target.value) } } as Partial<TitleLayer>)}
-                className="mt-1.5 w-full accent-purple-500" />
+                className="mt-1.5 w-full accent-blue-500" />
             </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -544,7 +547,7 @@ function TitleEditor({ layer, onUpdate, showMore, onToggleMore }: {
                 <p className={labelCls}>Opacity — {layer.background.opacity}%</p>
                 <input type="range" min={0} max={100} value={layer.background.opacity}
                   onChange={(e) => onUpdate({ background: { ...layer.background, opacity: Number(e.target.value) } } as Partial<TitleLayer>)}
-                  className="mt-1.5 w-full accent-purple-500" />
+                  className="mt-1.5 w-full accent-blue-500" />
               </div>
             </div>
           )}
@@ -568,7 +571,7 @@ function TextEditor({ layer, onUpdate, showMore, onToggleMore }: {
         <p className={labelCls}>Size — {layer.fontSize}pt</p>
         <input type="range" min={16} max={100} step={2} value={layer.fontSize}
           onChange={(e) => onUpdate({ fontSize: Number(e.target.value) } as Partial<TextLayer>)}
-          className="mt-1.5 w-full accent-purple-500" />
+          className="mt-1.5 w-full accent-blue-500" />
       </div>
       <p className="text-[10px] text-white/25 italic">Drag in the preview to reposition</p>
       <button type="button" onClick={onToggleMore} className="text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
@@ -607,7 +610,7 @@ function TextEditor({ layer, onUpdate, showMore, onToggleMore }: {
                 <p className={labelCls}>Opacity — {layer.background.opacity}%</p>
                 <input type="range" min={0} max={100} value={layer.background.opacity}
                   onChange={(e) => onUpdate({ background: { ...layer.background, opacity: Number(e.target.value) } } as Partial<TextLayer>)}
-                  className="mt-1.5 w-full accent-purple-500" />
+                  className="mt-1.5 w-full accent-blue-500" />
               </div>
             </div>
           )}
