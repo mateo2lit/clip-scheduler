@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X as XIcon, Check } from "@phosphor-icons/react/dist/ssr";
+import { X as XIcon, Check, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 type JobStatus = "pending" | "fetching" | "uploading" | "done" | "failed";
 
@@ -15,10 +15,31 @@ interface ImportJob {
   duration_seconds?: number | null;
 }
 
+export interface ImportConvertOptions {
+  convertTo916: boolean;
+  convertStyle: "blur" | "crop";
+}
+
 interface Props {
   token: string;
   onClose: () => void;
-  onImported: (uploadId: string, title: string) => void;
+  onImported: (uploadId: string, title: string, options?: ImportConvertOptions) => void;
+}
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+        checked ? "bg-purple-600" : "bg-white/15"
+      }`}
+    >
+      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${checked ? "translate-x-4" : "translate-x-0"}`} />
+    </button>
+  );
 }
 
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -88,6 +109,10 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
+  // 9:16 conversion intent — captured before import, applied by parent after import done.
+  // Default ON because Twitch/Kick clips are virtually always 16:9 and most users want shorts.
+  const [convertTo916, setConvertTo916] = useState(true);
+  const [convertStyle, setConvertStyle] = useState<"blur" | "crop">("blur");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartRef = useRef<number | null>(null);
 
@@ -213,12 +238,47 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
               <span>Twitch</span>
               <span>Kick</span>
             </div>
+
+            {/* Convert to 9:16 — captured up-front since Twitch/Kick are 16:9 by default */}
+            <div className="rounded-2xl border border-purple-400/20 bg-purple-400/[0.04] p-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-purple-400/15">
+                  <Sparkle className="h-3.5 w-3.5 text-purple-300" weight="duotone" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-white">Convert to 9:16</p>
+                    <Toggle checked={convertTo916} onChange={setConvertTo916} />
+                  </div>
+                  <p className="mt-0.5 text-xs text-white/40">Reformat for TikTok, Reels, and YouTube Shorts.</p>
+                  {convertTo916 && (
+                    <div className="mt-2 flex gap-1.5">
+                      {(["blur", "crop"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setConvertStyle(s)}
+                          className={`flex-1 rounded-lg border px-2 py-1 text-[11px] transition-all ${
+                            convertStyle === s
+                              ? "border-purple-400/50 bg-purple-400/20 text-purple-200"
+                              : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+                          }`}
+                        >
+                          {s === "blur" ? "Blur background" : "Crop center"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={startImport}
               disabled={submitting || !url.trim()}
               className="w-full rounded-2xl bg-gradient-to-r from-blue-500 to-purple-500 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {submitting ? "Starting…" : "Import clip →"}
+              {submitting ? "Starting…" : convertTo916 ? "Import & convert →" : "Import clip →"}
             </button>
           </div>
         )}
@@ -312,10 +372,14 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
                   </div>
                 )}
                 <button
-                  onClick={() => onImported(job.upload_id!, job.title || "Imported clip")}
+                  onClick={() => onImported(
+                    job.upload_id!,
+                    job.title || "Imported clip",
+                    { convertTo916, convertStyle },
+                  )}
                   className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
                 >
-                  Schedule this clip →
+                  {convertTo916 ? "Schedule & convert to 9:16 →" : "Schedule this clip →"}
                 </button>
               </div>
             )}

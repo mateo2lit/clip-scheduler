@@ -892,20 +892,25 @@ export default function UploadsPage() {
   // Swap the post-preview + thumbnail to a freshly produced upload (conversion or burn output).
   // Fetches a signed URL, points videoPreviewUrl at it, then re-extracts thumbnail + dims so
   // the YouTube/TikTok/etc. previews and the Enhance Video panel reflect the new clip.
-  async function swapPreviewToUpload(uploadId: string, token: string) {
+  // Returns the dims so callers can decide downstream actions (e.g. skip 9:16 convert if
+  // the source is already portrait).
+  async function swapPreviewToUpload(uploadId: string, token: string): Promise<{ width: number | null; height: number | null }> {
     try {
       const res = await fetch(`/api/uploads/${uploadId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      if (!json.ok || !json.signedUrl) return;
+      if (!json.ok || !json.signedUrl) return { width: null, height: null };
       setVideoPreviewUrl(json.signedUrl);
       const meta = await extractMetaAndThumbFromUrl(json.signedUrl);
       if (meta.thumb) setAutoThumb(meta.thumb);
       if (meta.width) setVideoWidth(meta.width);
       if (meta.height) setVideoHeight(meta.height);
       if (meta.duration) setVideoDuration(meta.duration);
-    } catch {}
+      return { width: meta.width, height: meta.height };
+    } catch {
+      return { width: null, height: null };
+    }
   }
 
   // Poll vertical conversion job status
@@ -1809,17 +1814,19 @@ export default function UploadsPage() {
     setShowUploadConvertPicker(false);
   }
 
-  async function startConversion(overrideUploadId?: string) {
+  async function startConversion(overrideUploadId?: string, overrideStyle?: "crop" | "blur") {
     const { data: sess } = await supabase.auth.getSession();
     const token = sess.session?.access_token;
     const uploadId = overrideUploadId ?? lastUploadId;
+    // Accept an explicit style param so callers don't have to race a setVerticalStyle update.
+    const style = overrideStyle ?? verticalStyle;
     if (!token || !uploadId) return;
     setConversionStatus("pending");
     setConversionError(null);
     const res = await fetch("/api/conversions", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ upload_id: uploadId, style: verticalStyle }),
+      body: JSON.stringify({ upload_id: uploadId, style }),
     });
     const json = await res.json();
     if (json.ok) {
@@ -3702,7 +3709,7 @@ export default function UploadsPage() {
       <ImportModal
         token={accessToken}
         onClose={() => setShowImportModal(false)}
-        onImported={async (uploadId, importedTitle) => {
+        onImported={async (uploadId, importedTitle, options) => {
           setShowImportModal(false);
           setLastUploadId(uploadId);
           setTitle(importedTitle);
@@ -3710,7 +3717,18 @@ export default function UploadsPage() {
           // Fetch signed URL and bootstrap thumbnail + dimensions + duration so
           // the post-upload "Convert to 9:16" card and Enhance Video preview both
           // have the data they need.
-          await swapPreviewToUpload(uploadId, accessToken);
+          const { width, height } = await swapPreviewToUpload(uploadId, accessToken);
+          // If the user opted into 9:16 conversion in the import modal, kick it off
+          // automatically. Skip when we know the source is already portrait — but if
+          // dims couldn't be read, honor the user's intent and convert anyway.
+          if (options?.convertTo916) {
+            const isLandscapeOrUnknown = width == null || height == null || width > height;
+            if (isLandscapeOrUnknown) {
+              setVerticalEnabled(true);
+              setVerticalStyle(options.convertStyle);
+              await startConversion(uploadId, options.convertStyle);
+            }
+          }
         }}
       />
     )}
