@@ -797,7 +797,18 @@ export default function UploadsPage() {
           if (uploadJson.ok && uploadJson.upload) {
             setLastUploadId(preloadUploadId);
             if (preloadTitle) setTitle(decodeURIComponent(preloadTitle));
-            if (uploadJson.signedUrl) setVideoPreviewUrl(uploadJson.signedUrl);
+            if (uploadJson.signedUrl) {
+              setVideoPreviewUrl(uploadJson.signedUrl);
+              // Bootstrap thumbnail + dimensions + duration in the background.
+              // The file-watcher effect only fires for File objects (line ~858), so imported/AI-clip
+              // uploads need an explicit pull from the signed URL.
+              extractMetaAndThumbFromUrl(uploadJson.signedUrl).then((meta) => {
+                if (meta.thumb) setAutoThumb(meta.thumb);
+                if (meta.width) setVideoWidth(meta.width);
+                if (meta.height) setVideoHeight(meta.height);
+                if (meta.duration) setVideoDuration(meta.duration);
+              });
+            }
             setStep("details");
           }
         } catch {}
@@ -878,6 +889,25 @@ export default function UploadsPage() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  // Swap the post-preview + thumbnail to a freshly produced upload (conversion or burn output).
+  // Fetches a signed URL, points videoPreviewUrl at it, then re-extracts thumbnail + dims so
+  // the YouTube/TikTok/etc. previews and the Enhance Video panel reflect the new clip.
+  async function swapPreviewToUpload(uploadId: string, token: string) {
+    try {
+      const res = await fetch(`/api/uploads/${uploadId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!json.ok || !json.signedUrl) return;
+      setVideoPreviewUrl(json.signedUrl);
+      const meta = await extractMetaAndThumbFromUrl(json.signedUrl);
+      if (meta.thumb) setAutoThumb(meta.thumb);
+      if (meta.width) setVideoWidth(meta.width);
+      if (meta.height) setVideoHeight(meta.height);
+      if (meta.duration) setVideoDuration(meta.duration);
+    } catch {}
+  }
+
   // Poll vertical conversion job status
   useEffect(() => {
     if (!conversionJobId || conversionStatus === "done" || conversionStatus === "failed") return;
@@ -892,7 +922,10 @@ export default function UploadsPage() {
         const json = await res.json();
         if (json.ok && json.job) {
           setConversionStatus(json.job.status);
-          if (json.job.status === "done") setVerticalUploadId(json.job.result_upload_id);
+          if (json.job.status === "done") {
+            setVerticalUploadId(json.job.result_upload_id);
+            swapPreviewToUpload(json.job.result_upload_id, token);
+          }
           if (json.job.status === "failed") setConversionError(json.job.error);
         }
       } catch {}
@@ -914,7 +947,10 @@ export default function UploadsPage() {
         const json = await res.json();
         if (json.ok && json.job) {
           setBurnStatus(json.job.status);
-          if (json.job.status === "done") setBurnUploadId(json.job.result_upload_id);
+          if (json.job.status === "done") {
+            setBurnUploadId(json.job.result_upload_id);
+            swapPreviewToUpload(json.job.result_upload_id, token);
+          }
           if (json.job.status === "failed") setBurnError(json.job.error || "Burn failed");
         }
       } catch {}
@@ -1018,6 +1054,66 @@ export default function UploadsPage() {
         URL.revokeObjectURL(url);
         resolve(null);
       };
+    });
+  }
+
+  // Extract thumbnail + dimensions + duration from a video URL (Supabase signed URL, etc).
+  // crossOrigin="anonymous" lets the canvas read pixels for thumbnail capture.
+  async function extractMetaAndThumbFromUrl(url: string): Promise<{
+    thumb: Blob | null;
+    width: number | null;
+    height: number | null;
+    duration: number | null;
+  }> {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      video.crossOrigin = "anonymous";
+      video.src = url;
+
+      let resolved = false;
+      const finish = (result: { thumb: Blob | null; width: number | null; height: number | null; duration: number | null }) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(result);
+      };
+
+      const dims = () => ({
+        width: video.videoWidth || null,
+        height: video.videoHeight || null,
+        duration: isFinite(video.duration) ? video.duration : null,
+      });
+
+      video.onloadedmetadata = () => {
+        video.currentTime = Math.min(1, (video.duration || 1) * 0.1);
+      };
+
+      video.onseeked = () => {
+        const d = dims();
+        try {
+          const canvas = document.createElement("canvas");
+          const maxDim = 640;
+          const ratio = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
+          canvas.width = Math.round(video.videoWidth * ratio);
+          canvas.height = Math.round(video.videoHeight * ratio);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { finish({ thumb: null, ...d }); return; }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            finish({ thumb: blob ?? null, ...d });
+          }, "image/jpeg", 0.82);
+        } catch {
+          // Canvas likely tainted (CORS) — still return dims/duration we got from metadata.
+          finish({ thumb: null, ...d });
+        }
+      };
+
+      video.onerror = () => finish({ thumb: null, width: null, height: null, duration: null });
+
+      // Safety timeout in case the video never loads or seeks.
+      setTimeout(() => finish({ thumb: null, ...dims() }), 15000);
     });
   }
 
@@ -3402,6 +3498,52 @@ export default function UploadsPage() {
                   ) : (
                     <p className="text-xs text-white/40">No boards found. Make sure your Pinterest account has at least one board.</p>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Post-upload 9:16 convert card — for imported clips and any landscape upload not yet converted */}
+            {lastUploadId
+              && postMode !== "text"
+              && videoWidth != null && videoHeight != null && videoWidth > videoHeight
+              && conversionStatus !== "pending" && conversionStatus !== "processing"
+              && !verticalUploadId
+              && !burnUploadId && (
+              <div className="rounded-2xl border border-purple-400/20 bg-purple-400/[0.04] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-purple-400/15">
+                    <Sparkle className="h-4 w-4 text-purple-300" weight="duotone" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">Convert to 9:16</p>
+                    <p className="mt-0.5 text-xs text-white/50">Reformat this clip for TikTok, Reels, and YouTube Shorts.</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {(["blur", "crop"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setVerticalStyle(s)}
+                      className={`rounded-xl border px-3 py-1.5 text-xs transition-all ${
+                        verticalStyle === s
+                          ? "border-purple-400/50 bg-purple-400/20 text-purple-200"
+                          : "border-white/10 bg-white/5 text-white/50 hover:border-purple-300/30 hover:text-white/70"
+                      }`}
+                    >
+                      {s === "blur" ? "Blur background" : "Crop center"}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setVerticalEnabled(true);
+                      await startConversion(lastUploadId);
+                    }}
+                    className="ml-auto rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-1.5 text-xs font-semibold text-white transition-all hover:from-blue-400 hover:to-purple-400"
+                  >
+                    {conversionStatus === "failed" ? "Retry conversion" : "Convert to 9:16 →"}
+                  </button>
                 </div>
               </div>
             )}
