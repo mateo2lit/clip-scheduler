@@ -102,7 +102,10 @@ export async function POST(req: Request) {
         id: jobId,
         team_id: teamId,
         user_id: userId,
-        source_file_path: null,                                // never uploaded for large path
+        // No actual source file is uploaded for the large path (the source stays
+        // on the user's machine). The schema's NOT NULL constraint requires some
+        // string here — use a sentinel that documents what's going on.
+        source_file_path: `local/${jobId}`,
         source_bucket: "clips",
         source_duration_minutes,
         clip_count,
@@ -116,7 +119,10 @@ export async function POST(req: Request) {
       });
 
     if (insertErr) {
-      return NextResponse.json({ ok: false, error: "Failed to create job." }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: `Failed to create job: ${insertErr.message}` },
+        { status: 500 }
+      );
     }
 
     const chunkUploadToken = signChunkUploadToken(jobId, userId);
