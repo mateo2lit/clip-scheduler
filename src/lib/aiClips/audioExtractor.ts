@@ -33,11 +33,11 @@ export async function* extractAudioChunks(
   const chunkSeconds = opts.chunkSeconds ?? DEFAULT_CHUNK_SECONDS;
 
   const mp4 = createFile();
-  const info = await new Promise<Movie>((resolve, reject) => {
-    mp4.onError = (e: unknown) => reject(new Error(`mp4box error: ${e}`));
-    mp4.onReady = (info: Movie) => resolve(info);
-    streamFileToMp4(file, mp4).catch(reject);
-  });
+  // Prime mp4box with head+tail so moov is parsed BEFORE we start streaming the body.
+  // This works for both faststart MP4s (moov at start) and non-faststart MP4s
+  // (moov at end — typical of OBS/screen recordings). Without this, mp4box can
+  // get lost inside multi-GB mdat boxes and never find moov.
+  const info = await primeMp4WithMoov(file, mp4);
 
   const audioTrack: Track | undefined = info.tracks.find((t) => t.type === "audio");
   if (!audioTrack) throw new Error("No audio track in source file.");
@@ -113,9 +113,12 @@ export async function* extractAudioChunks(
     samplesQueue.push(...samples);
   };
 
-  // Start streaming concurrently; set streamingDone only after flush completes.
-  // We await the promise after the loop so streaming errors are surfaced properly.
-  const streamPromise = streamFileToMp4(file, mp4).then(() => {
+  // Stream just the BODY (between head and tail) since the head + tail are already
+  // in mp4box's buffer from primeMp4WithMoov. mp4box uses the moov info (already
+  // parsed) to extract audio samples as their bytes arrive in the body.
+  const bodyStart = Math.min(file.size, PROBE_HEAD_SIZE);
+  const bodyEnd = Math.max(bodyStart, file.size - PROBE_TAIL_SIZE);
+  const streamPromise = streamFileToMp4(file, mp4, undefined, bodyStart, bodyEnd).then(() => {
     streamingDone = true;
   });
 
@@ -198,9 +201,19 @@ async function streamFileToMp4(
   file: File,
   mp4: ReturnType<typeof createFile>,
   signal?: AbortSignal,
+  rangeStart?: number,
+  rangeEnd?: number,
 ): Promise<void> {
-  const reader = file.stream().getReader();
-  let offset = 0;
+  // If range bounds provided, stream only that slice; otherwise stream the whole file.
+  const start = rangeStart ?? 0;
+  const end = rangeEnd ?? file.size;
+  if (start >= end) {
+    mp4.flush();
+    return;
+  }
+  const slice = (start === 0 && end === file.size) ? file : file.slice(start, end);
+  const reader = slice.stream().getReader();
+  let offset = start;
   try {
     while (true) {
       if (signal?.aborted) {
@@ -213,7 +226,14 @@ async function streamFileToMp4(
         mp4.flush();
         return;
       }
-      const ab = MP4BoxBuffer.fromArrayBuffer(value.buffer, offset);
+      // Slice the underlying ArrayBuffer to exactly the chunk's bytes — value.buffer
+      // may be larger than value.byteLength if it's a view. mp4box uses the buffer's
+      // full byteLength to determine how much data was provided, so passing a view
+      // would feed garbage past the actual chunk content.
+      const chunkAb = value.byteOffset === 0 && value.byteLength === value.buffer.byteLength
+        ? value.buffer
+        : value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+      const ab = MP4BoxBuffer.fromArrayBuffer(chunkAb, offset);
       mp4.appendBuffer(ab);
       offset += value.byteLength;
     }
@@ -223,23 +243,132 @@ async function streamFileToMp4(
   }
 }
 
+const PROBE_HEAD_SIZE = 5 * 1024 * 1024;   // 5 MB
+const PROBE_TAIL_SIZE = 10 * 1024 * 1024;  // 10 MB
+const PROBE_TIMEOUT_MS = 15_000;
+
+/**
+ * Probe a video's duration by parsing only the moov atom. Tries the head first
+ * (works for faststart MP4s — moov near start). If that doesn't reveal moov within
+ * the timeout, tries head+tail (works for non-faststart MP4s — moov at end, typical
+ * of OBS recordings, screen recorders, and Twitch VOD downloads).
+ *
+ * Hard 15s timeout per attempt prevents hangs on broken / unparseable files.
+ */
 export async function probeMp4DurationSeconds(file: File): Promise<number> {
-  const mp4 = createFile();
-  const abort = new AbortController();
-  const info = await new Promise<Movie>((resolve, reject) => {
-    mp4.onError = (e: unknown) => reject(new Error(`mp4box error: ${e}`));
+  // Attempt 1: head only — fast for faststart MP4s
+  try {
+    return await probeFromRanges(file, [
+      { start: 0, end: Math.min(file.size, PROBE_HEAD_SIZE) },
+    ]);
+  } catch {
+    // Attempt 2: head + tail — works for non-faststart MP4s
+    if (file.size <= PROBE_HEAD_SIZE) {
+      throw new Error("Could not parse MP4 metadata from this file");
+    }
+    const tailStart = Math.max(PROBE_HEAD_SIZE, file.size - PROBE_TAIL_SIZE);
+    return probeFromRanges(file, [
+      { start: 0, end: PROBE_HEAD_SIZE },
+      { start: tailStart, end: file.size },
+    ]);
+  }
+}
+
+async function probeFromRanges(
+  file: File,
+  ranges: { start: number; end: number }[],
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const mp4 = createFile();
+    let settled = false;
+
+    const finish = (action: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      action();
+    };
+
+    const timer = setTimeout(
+      () => finish(() => reject(new Error("mp4box probe timeout"))),
+      PROBE_TIMEOUT_MS,
+    );
+
+    mp4.onError = (e: unknown) => finish(() => reject(new Error(`mp4box error: ${e}`)));
+    mp4.onReady = (info: Movie) => finish(() => resolve(info.duration / info.timescale));
+
+    void (async () => {
+      try {
+        for (const { start, end } of ranges) {
+          if (settled) return;
+          const ab = await file.slice(start, end).arrayBuffer();
+          if (settled) return;
+          const buf = MP4BoxBuffer.fromArrayBuffer(ab, start);
+          mp4.appendBuffer(buf);
+        }
+        if (!settled) mp4.flush();
+      } catch (e) {
+        finish(() => reject(e));
+      }
+    })();
+  });
+}
+
+/**
+ * Prime an mp4box instance with the head + tail of a file so it has moov parsed
+ * before we start streaming the body. Required for non-faststart MP4s (moov at end).
+ * Returns the parsed Movie info.
+ */
+async function primeMp4WithMoov(
+  file: File,
+  mp4: ReturnType<typeof createFile>,
+): Promise<Movie> {
+  return new Promise<Movie>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("Could not find moov atom in head or tail of file"));
+    }, 30_000);
+
     mp4.onReady = (info: Movie) => {
-      // Stop streaming immediately — we have all the metadata we need.
-      abort.abort();
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       resolve(info);
     };
-    // Only stream the head — most MP4 moov atoms are within first 5 MB.
-    // For non-faststart files the moov is at the end; in that case we fall through
-    // and consume the whole file. Acceptable for this probe.
-    streamFileToMp4(file, mp4, abort.signal).catch((e) => {
-      // AbortError is expected when onReady fires early; suppress it.
-      if ((e as Error)?.name !== "AbortError") reject(e);
-    });
+    mp4.onError = (e: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(new Error(`mp4box error: ${e}`));
+    };
+
+    void (async () => {
+      try {
+        // Always feed head first
+        const headEnd = Math.min(file.size, PROBE_HEAD_SIZE);
+        const headBuf = await file.slice(0, headEnd).arrayBuffer();
+        if (settled) return;
+        mp4.appendBuffer(MP4BoxBuffer.fromArrayBuffer(headBuf, 0));
+
+        // If onReady didn't fire from head alone (faststart case), give it a tick
+        // then also feed the tail (non-faststart case).
+        await new Promise((r) => setTimeout(r, 50));
+        if (settled) return;
+
+        if (file.size > PROBE_HEAD_SIZE) {
+          const tailStart = Math.max(PROBE_HEAD_SIZE, file.size - PROBE_TAIL_SIZE);
+          const tailBuf = await file.slice(tailStart, file.size).arrayBuffer();
+          if (settled) return;
+          mp4.appendBuffer(MP4BoxBuffer.fromArrayBuffer(tailBuf, tailStart));
+        }
+      } catch (e) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(e);
+      }
+    })();
   });
-  return info.duration / info.timescale;
 }
