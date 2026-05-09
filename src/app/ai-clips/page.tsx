@@ -1026,7 +1026,7 @@ export default function AiClipsPage() {
                     </button>
                     {showSubtitleConfig && (
                       <div className="mt-4">
-                        <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} />
+                        <SubtitleStylePicker style={subtitleStyle} onChange={setSubtitleStyle} sourceFile={file} />
                       </div>
                     )}
                   </div>

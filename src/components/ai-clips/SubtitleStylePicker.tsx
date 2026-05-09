@@ -682,13 +682,26 @@ export function SubtitleStylePicker({
   style,
   onChange,
   hideTitleTab = false,
+  sourceFile = null,
 }: {
   style: SubtitleStyle;
   onChange: (s: SubtitleStyle) => void;
   hideTitleTab?: boolean;
+  sourceFile?: File | null;
 }) {
   const [tab, setTab] = useState<Tab>("presets");
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+
+  // Build a Blob URL for the source file so the preview can show actual video
+  // frames behind the captions. Cleaned up on file change / unmount to avoid
+  // leaking the underlying file reference.
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sourceFile) { setVideoUrl(null); return; }
+    const url = URL.createObjectURL(sourceFile);
+    setVideoUrl(url);
+    return () => { URL.revokeObjectURL(url); };
+  }, [sourceFile]);
 
   useEffect(() => {
     setCustomPresets(loadCustomPresets());
@@ -779,35 +792,83 @@ export function SubtitleStylePicker({
         {tab === "title" && <TitleTab style={style} onUpdate={update} />}
       </div>
 
-      {/* Live preview strip — shows both title and caption example */}
-      <div className="mx-4 mb-4 space-y-1">
-        {(style.titleEnabled ?? true) && (
-          <div className="relative rounded-lg bg-black/30 border border-white/10 overflow-hidden flex items-center justify-center px-3 py-1.5">
-            <p
-              className="text-center text-[10px] leading-tight"
-              style={{
-                color: style.titleColor ?? "#000000",
-                fontWeight: (style.titleBold ?? true) ? 900 : 400,
-                fontFamily: (style.titleFontFamily ?? "Montserrat") + ", sans-serif",
-                WebkitTextStroke: (style.titleStrokeWidth ?? 0) > 0 ? `${style.titleStrokeWidth}px ${style.titleStrokeColor ?? "#000000"}` : undefined,
-                background: (style.titleBg ?? true) && (style.titleBgOpacity ?? 100) > 0
-                  ? `rgba(${parseInt((style.titleBgColor ?? "#ffffff").slice(1,3),16)},${parseInt((style.titleBgColor ?? "#ffffff").slice(3,5),16)},${parseInt((style.titleBgColor ?? "#ffffff").slice(5,7),16)},${(style.titleBgOpacity ?? 100)/100})`
-                  : undefined,
-                borderRadius: "4px",
-                padding: "1px 6px",
-                paintOrder: "stroke fill" as any,
-              }}
-            >
-              {style.titleText?.trim() || "Title Preview"}
-            </p>
+      {/* Live preview strip
+          - When a source file is loaded: render a 9:16 vertical preview with
+            the video playing in the background and captions / title overlaid,
+            mimicking the burned-in output format.
+          - When no source file: fall back to the previous text-only stripped-down
+            preview (used in flows where there's no video yet, like editing
+            standalone presets). */}
+      {videoUrl ? (
+        <div className="mx-4 mb-4 flex justify-center">
+          <div className="relative aspect-[9/16] w-[180px] rounded-lg overflow-hidden bg-black border border-white/10">
+            <video
+              src={videoUrl}
+              muted
+              loop
+              autoPlay
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {/* Title overlay (top) */}
+            {(style.titleEnabled ?? true) && (
+              <div className="absolute top-2 left-0 right-0 flex justify-center pointer-events-none px-2">
+                <p
+                  className="text-center leading-tight"
+                  style={{
+                    fontSize: "10px",
+                    color: style.titleColor ?? "#000000",
+                    fontWeight: (style.titleBold ?? true) ? 900 : 400,
+                    fontFamily: (style.titleFontFamily ?? "Montserrat") + ", sans-serif",
+                    WebkitTextStroke: (style.titleStrokeWidth ?? 0) > 0 ? `${style.titleStrokeWidth}px ${style.titleStrokeColor ?? "#000000"}` : undefined,
+                    background: (style.titleBg ?? true) && (style.titleBgOpacity ?? 100) > 0
+                      ? `rgba(${parseInt((style.titleBgColor ?? "#ffffff").slice(1,3),16)},${parseInt((style.titleBgColor ?? "#ffffff").slice(3,5),16)},${parseInt((style.titleBgColor ?? "#ffffff").slice(5,7),16)},${(style.titleBgOpacity ?? 100)/100})`
+                      : undefined,
+                    borderRadius: "4px",
+                    padding: "2px 6px",
+                    paintOrder: "stroke fill" as any,
+                  }}
+                >
+                  {style.titleText?.trim() || "Title Preview"}
+                </p>
+              </div>
+            )}
+            {/* Caption overlay (positioned per style.position) */}
+            {style.animation !== "none" && (
+              <SubtitlePreview style={style} preview />
+            )}
           </div>
-        )}
-        {style.animation !== "none" && (
-          <div className="relative h-10 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center">
-            <SubtitlePreview style={style} preview />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="mx-4 mb-4 space-y-1">
+          {(style.titleEnabled ?? true) && (
+            <div className="relative rounded-lg bg-black/30 border border-white/10 overflow-hidden flex items-center justify-center px-3 py-1.5">
+              <p
+                className="text-center text-[10px] leading-tight"
+                style={{
+                  color: style.titleColor ?? "#000000",
+                  fontWeight: (style.titleBold ?? true) ? 900 : 400,
+                  fontFamily: (style.titleFontFamily ?? "Montserrat") + ", sans-serif",
+                  WebkitTextStroke: (style.titleStrokeWidth ?? 0) > 0 ? `${style.titleStrokeWidth}px ${style.titleStrokeColor ?? "#000000"}` : undefined,
+                  background: (style.titleBg ?? true) && (style.titleBgOpacity ?? 100) > 0
+                    ? `rgba(${parseInt((style.titleBgColor ?? "#ffffff").slice(1,3),16)},${parseInt((style.titleBgColor ?? "#ffffff").slice(3,5),16)},${parseInt((style.titleBgColor ?? "#ffffff").slice(5,7),16)},${(style.titleBgOpacity ?? 100)/100})`
+                    : undefined,
+                  borderRadius: "4px",
+                  padding: "1px 6px",
+                  paintOrder: "stroke fill" as any,
+                }}
+              >
+                {style.titleText?.trim() || "Title Preview"}
+              </p>
+            </div>
+          )}
+          {style.animation !== "none" && (
+            <div className="relative h-10 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center">
+              <SubtitlePreview style={style} preview />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
