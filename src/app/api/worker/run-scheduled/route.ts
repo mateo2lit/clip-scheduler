@@ -769,7 +769,10 @@ async function runWorker(req: Request) {
         // TikTok has a single caption field (no separate title), so compose it from
         // title + description (honoring per-platform overrides). Without this, posts
         // would show only the title and drop the user's caption + hashtags entirely.
-        const ttTitle = ttSettings.title_override || post.title || "";
+        // Also treat the legacy "Untitled Clip" placeholder as empty so rows created
+        // before the create-route fix don't get the placeholder prepended.
+        const rawTitle = ttSettings.title_override || post.title || "";
+        const ttTitle = rawTitle === "Untitled Clip" ? "" : rawTitle;
         const ttDescription = ttSettings.description_override ?? post.description ?? "";
         const ttCaption = [ttTitle, ttDescription]
           .map((s) => (s || "").trim())

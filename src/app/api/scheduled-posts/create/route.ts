@@ -95,7 +95,9 @@ export async function POST(req: Request) {
       upload_id: upload_id || null,
       provider: normalizedProvider,
       platform_account_id: platform_account_id || null,
-      title: title ?? (isTextPost ? "" : "Untitled Clip"),
+      // TikTok has no separate title field — its caption comes from title+description.
+      // If we default to "Untitled Clip" here, the worker will prepend it to the caption.
+      title: title ?? (isTextPost || normalizedProvider === "tiktok" ? "" : "Untitled Clip"),
       description: description ?? "",
       privacy_status: privacy_status ?? "private",
       scheduled_for: scheduled_for || null,
