@@ -1668,7 +1668,17 @@ export default function UploadsPage() {
             ? verticalUploadId
             : lastUploadId;
           body.title = title || null;
-          body.description = description || null;
+          // Hashtags are entered as a separate input but the worker doesn't read them as
+          // a column — append them to whichever description field the worker reads so they
+          // actually show up in the published caption on every platform.
+          const hashtagSuffix = hashtags.length > 0 ? hashtags.map((t) => `#${t}`).join(" ") : "";
+          const appendTags = (text: string | null | undefined): string | null => {
+            const base = (text || "").trim();
+            if (!hashtagSuffix) return base || null;
+            if (!base) return hashtagSuffix;
+            return `${base}\n\n${hashtagSuffix}`;
+          };
+          body.description = appendTags(description);
           body.privacy_status = platform === "tiktok" ? ttPrivacyLevel : ytVisibility;
           body.hashtags = hashtags;
         }
@@ -1678,9 +1688,16 @@ export default function UploadsPage() {
         }
 
         if (!isTextPost) {
-        // Apply per-platform caption overrides
+        // Apply per-platform caption overrides. Hashtags get appended here too so the
+        // worker's "override ?? description" fallback always carries the user's tags.
+        const hashtagSuffix = hashtags.length > 0 ? hashtags.map((t) => `#${t}`).join(" ") : "";
+        const appendTagsToOverride = (text: string | undefined): string | undefined => {
+          if (!text) return undefined;
+          if (!hashtagSuffix) return text;
+          return `${text}\n\n${hashtagSuffix}`;
+        };
         if (platformTitleOverrides[platform]) body.title = platformTitleOverrides[platform];
-        if (platformDescOverrides[platform]) body.description = platformDescOverrides[platform];
+        if (platformDescOverrides[platform]) body.description = appendTagsToOverride(platformDescOverrides[platform]);
 
         if (platform === "youtube") {
           body.youtube_settings = {
@@ -1692,7 +1709,7 @@ export default function UploadsPage() {
             made_for_kids: ytMadeForKids,
             public_stats_viewable: ytPublicStats,
             title_override: platformTitleOverrides.youtube || undefined,
-            description_override: platformDescOverrides.youtube || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.youtube),
           };
         }
 
@@ -1715,14 +1732,14 @@ export default function UploadsPage() {
             brand_content_toggle: ttBrandContent,
             aigc_disclosure: ttAigcDisclosure,
             title_override: platformTitleOverrides.tiktok || undefined,
-            description_override: platformDescOverrides.tiktok || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.tiktok),
           };
         }
 
         if (platform === "facebook") {
           body.facebook_settings = {
             title_override: platformTitleOverrides.facebook || undefined,
-            description_override: platformDescOverrides.facebook || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.facebook),
           };
         }
 
@@ -1731,14 +1748,14 @@ export default function UploadsPage() {
             ig_type: igType,
             first_comment: igFirstComment || undefined,
             title_override: platformTitleOverrides.instagram || undefined,
-            description_override: platformDescOverrides.instagram || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.instagram),
           };
         }
 
         if (platform === "linkedin") {
           body.linkedin_settings = {
             title_override: platformTitleOverrides.linkedin || undefined,
-            description_override: platformDescOverrides.linkedin || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.linkedin),
             visibility: linkedinVisibility !== "PUBLIC" ? linkedinVisibility : undefined,
           };
         }
@@ -1746,20 +1763,20 @@ export default function UploadsPage() {
         if (platform === "threads") {
           body.threads_settings = {
             title_override: platformTitleOverrides.threads || undefined,
-            description_override: platformDescOverrides.threads || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.threads),
           };
         }
 
         if (platform === "bluesky") {
           body.bluesky_settings = {
             title_override: platformTitleOverrides.bluesky || undefined,
-            description_override: platformDescOverrides.bluesky || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.bluesky),
           };
         }
 
         if (platform === "x") {
           body.x_settings = {
-            description_override: platformDescOverrides.x || undefined,
+            description_override: appendTagsToOverride(platformDescOverrides.x),
             reply_settings: xReplySettings !== "everyone" ? xReplySettings : undefined,
           };
         }

@@ -766,6 +766,16 @@ async function runWorker(req: Request) {
           ttSettings = ttRow?.tiktok_settings || {};
         } catch {}
 
+        // TikTok has a single caption field (no separate title), so compose it from
+        // title + description (honoring per-platform overrides). Without this, posts
+        // would show only the title and drop the user's caption + hashtags entirely.
+        const ttTitle = ttSettings.title_override || post.title || "";
+        const ttDescription = ttSettings.description_override ?? post.description ?? "";
+        const ttCaption = [ttTitle, ttDescription]
+          .map((s) => (s || "").trim())
+          .filter(Boolean)
+          .join("\n\n") || "Clip Scheduler Upload";
+
         const tt = await uploadSupabaseVideoToTikTok({
           userId: post.user_id,
           platformAccountId: acct.id,
@@ -774,7 +784,7 @@ async function runWorker(req: Request) {
           expiresAt: acct.expiry,
           bucket,
           storagePath,
-          title: post.title ?? "Clip Scheduler Upload",
+          title: ttCaption,
           privacyLevel: ttSettings.privacy_level || "SELF_ONLY",
           allowComments: ttSettings.allow_comments ?? false,
           allowDuet: ttSettings.allow_duet ?? false,
