@@ -8,14 +8,23 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.error;
 
   const { teamId } = auth.ctx;
+  const { searchParams } = new URL(req.url);
+  const accountId = searchParams.get("accountId");
 
-  // Look up TikTok platform account for this team
-  const { data: acct, error: acctErr } = await supabaseAdmin
+  // Look up TikTok platform account for this team.
+  // When accountId is provided, scope the lookup to that specific account (still team-scoped for safety).
+  // Otherwise, pick the first matching TikTok row — multiple accounts per team are allowed,
+  // so .maybeSingle() would incorrectly error in that case.
+  let query = supabaseAdmin
     .from("platform_accounts")
     .select("id, user_id, access_token, refresh_token, expiry")
     .eq("team_id", teamId)
-    .eq("provider", "tiktok")
-    .maybeSingle();
+    .eq("provider", "tiktok");
+
+  if (accountId) query = query.eq("id", accountId);
+
+  const { data: rows, error: acctErr } = await query.limit(1);
+  const acct = rows?.[0];
 
   if (acctErr || !acct) {
     return NextResponse.json(
@@ -81,6 +90,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
+    account_id: acct.id,
     creator_info: {
       nickname: info.creator_nickname || null,
       privacy_level_options: info.privacy_level_options || [],

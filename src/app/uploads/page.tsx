@@ -428,7 +428,10 @@ export default function UploadsPage() {
   const [ttAllowDuet, setTtAllowDuet] = useState(false);
   const [ttAllowStitch, setTtAllowStitch] = useState(false);
 
-  // TikTok creator info
+  // TikTok creator info — stored per-account so multi-account posting can honor each
+  // account's TikTok-side constraints (privacy options, comment/duet/stitch disable flags,
+  // max duration) independently. The UI shows a derived aggregate (see ttAggregate below)
+  // but submit derives per-account tiktok_settings from the raw map.
   type TtCreatorInfo = {
     nickname: string | null;
     privacy_level_options: string[];
@@ -438,9 +441,9 @@ export default function UploadsPage() {
     max_video_post_duration_sec: number;
     can_post: boolean;
   };
-  const [ttCreatorInfo, setTtCreatorInfo] = useState<TtCreatorInfo | null>(null);
+  const [ttCreatorInfoMap, setTtCreatorInfoMap] = useState<Record<string, TtCreatorInfo>>({});
   const [ttCreatorLoading, setTtCreatorLoading] = useState(false);
-  const [ttCreatorError, setTtCreatorError] = useState<string | null>(null);
+  const [ttCreatorErrorsMap, setTtCreatorErrorsMap] = useState<Record<string, string>>({});
   const [ttCommercialToggle, setTtCommercialToggle] = useState(false);
   const [ttBrandOrganic, setTtBrandOrganic] = useState(false);
   const [ttBrandContent, setTtBrandContent] = useState(false);
@@ -677,8 +680,9 @@ export default function UploadsPage() {
             } else if (row.platform === "tiktok") {
               // TikTok privacy, comments, duet, and stitch settings must be chosen
               // manually on each upload per TikTok UX requirements — never pre-fill.
-              // Reset creator info cache so it re-fetches fresh.
-              setTtCreatorInfo(null);
+              // Reset creator info cache so it re-fetches fresh per account.
+              setTtCreatorInfoMap({});
+              setTtCreatorErrorsMap({});
             } else if (row.platform === "instagram") {
               if (s.igType) setIgType(s.igType);
               if (typeof s.firstComment === "string") setIgFirstComment(s.firstComment);
@@ -823,41 +827,127 @@ export default function UploadsPage() {
     setSelectedPlatforms((prev) => prev.filter((p) => p !== "threads"));
   }, [threadsEnabled]);
 
-  // Fetch TikTok creator info when TikTok is selected
+  // Fetch TikTok creator info for each selected TikTok account.
+  // Multiple accounts are fetched in parallel; results are cached per-account id so toggling
+  // a checkbox doesn't refetch what we already have. Each account's failure is tracked
+  // independently — one bad token shouldn't block the other account's UI.
+  const selectedTtAccountIdsKey = (selectedAccountIds.tiktok || []).join(",");
   useEffect(() => {
-    if (!selectedPlatforms.includes("tiktok") || ttCreatorInfo) return;
+    if (!selectedPlatforms.includes("tiktok")) return;
+    const ids = (selectedAccountIds.tiktok || []).filter(Boolean);
+    if (ids.length === 0) return;
+    const missing = ids.filter((id) => !ttCreatorInfoMap[id] && !ttCreatorErrorsMap[id]);
+    if (missing.length === 0) return;
+
     let cancelled = false;
 
-    async function fetchCreatorInfo() {
+    async function fetchAll() {
       setTtCreatorLoading(true);
-      setTtCreatorError(null);
       try {
         const { data: sess } = await supabase.auth.getSession();
         const token = sess.session?.access_token;
         if (!token) return;
 
-        const res = await fetch("/api/tiktok/creator-info", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        if (cancelled) return;
-
-        if (!json.ok) {
-          setTtCreatorError(json.error || "Failed to load TikTok creator info");
-          return;
-        }
-
-        setTtCreatorInfo(json.creator_info);
-      } catch (e: any) {
-        if (!cancelled) setTtCreatorError(e?.message || "Failed to load TikTok creator info");
+        await Promise.all(
+          missing.map(async (accountId) => {
+            try {
+              const res = await fetch(`/api/tiktok/creator-info?accountId=${encodeURIComponent(accountId)}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const json = await res.json();
+              if (cancelled) return;
+              if (!json.ok) {
+                setTtCreatorErrorsMap((prev) => ({ ...prev, [accountId]: json.error || "Failed to load TikTok creator info" }));
+                return;
+              }
+              setTtCreatorInfoMap((prev) => ({ ...prev, [accountId]: json.creator_info }));
+            } catch (e: any) {
+              if (!cancelled) {
+                setTtCreatorErrorsMap((prev) => ({ ...prev, [accountId]: e?.message || "Failed to load TikTok creator info" }));
+              }
+            }
+          })
+        );
       } finally {
         if (!cancelled) setTtCreatorLoading(false);
       }
     }
 
-    fetchCreatorInfo();
+    fetchAll();
     return () => { cancelled = true; };
-  }, [selectedPlatforms, ttCreatorInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlatforms, selectedTtAccountIdsKey]);
+
+  // Aggregate creator info across all selected TikTok accounts. Used to drive the single
+  // visible TikTok settings card while staying TikTok-compliant per account:
+  // - privacy_level_options: intersection (the user picks ONE level all accounts support)
+  // - max_video_post_duration_sec: min positive value (most restrictive limit wins)
+  // - can_post: all accounts must be eligible
+  // - comment/duet/stitch: "any disabled" + "all disabled" flags; per-account flags are
+  //   re-derived at submit time so one account's disabled state doesn't suppress another
+  const ttAggregate = useMemo(() => {
+    const ids = (selectedAccountIds.tiktok || []).filter((id) => ttCreatorInfoMap[id]);
+    if (ids.length === 0) return null;
+    const infos = ids.map((id) => ttCreatorInfoMap[id]);
+    const acctList = platformAccountsList.tiktok || [];
+    const nicknameFor = (id: string) => {
+      const info = ttCreatorInfoMap[id];
+      if (info?.nickname) return info.nickname;
+      return acctList.find((a) => a.id === id)?.profileName || "Account";
+    };
+
+    const privacyOptions = infos.reduce<string[]>(
+      (acc, info) => acc.filter((o) => info.privacy_level_options.includes(o)),
+      [...infos[0].privacy_level_options]
+    );
+
+    const anyCommentDisabled = infos.some((i) => i.comment_disabled);
+    const allCommentDisabled = infos.every((i) => i.comment_disabled);
+    const anyDuetDisabled = infos.some((i) => i.duet_disabled);
+    const allDuetDisabled = infos.every((i) => i.duet_disabled);
+    const anyStitchDisabled = infos.some((i) => i.stitch_disabled);
+    const allStitchDisabled = infos.every((i) => i.stitch_disabled);
+
+    const positiveMax = infos.map((i) => i.max_video_post_duration_sec).filter((n) => n > 0);
+    const maxDuration = positiveMax.length > 0 ? Math.min(...positiveMax) : 0;
+
+    const canPost = infos.every((i) => i.can_post);
+
+    // Affected-account name lists for UI hints
+    const namesWith = (pred: (i: TtCreatorInfo) => boolean) =>
+      ids.filter((_, idx) => pred(infos[idx])).map(nicknameFor);
+
+    return {
+      ids,
+      privacyOptions,
+      anyCommentDisabled,
+      allCommentDisabled,
+      anyDuetDisabled,
+      allDuetDisabled,
+      anyStitchDisabled,
+      allStitchDisabled,
+      maxDuration,
+      canPost,
+      nicknames: ids.map(nicknameFor),
+      commentDisabledAccounts: namesWith((i) => i.comment_disabled),
+      duetDisabledAccounts: namesWith((i) => i.duet_disabled),
+      stitchDisabledAccounts: namesWith((i) => i.stitch_disabled),
+      cannotPostAccounts: namesWith((i) => !i.can_post),
+    };
+  }, [selectedAccountIds.tiktok, ttCreatorInfoMap, platformAccountsList.tiktok]);
+
+  // Surface per-account errors as a single string so existing single-banner UI keeps working.
+  // Listing the affected account names lets the user know exactly which one to reconnect.
+  const ttCreatorError = useMemo(() => {
+    const ids = (selectedAccountIds.tiktok || []).filter((id) => ttCreatorErrorsMap[id]);
+    if (ids.length === 0) return null;
+    const acctList = platformAccountsList.tiktok || [];
+    const lines = ids.map((id) => {
+      const name = acctList.find((a) => a.id === id)?.profileName || "Account";
+      return `${name}: ${ttCreatorErrorsMap[id]}`;
+    });
+    return lines.join(" • ");
+  }, [selectedAccountIds.tiktok, ttCreatorErrorsMap, platformAccountsList.tiktok]);
 
   // Enforce branded content constraint: if branded content selected, SELF_ONLY not allowed
   useEffect(() => {
@@ -1012,16 +1102,24 @@ export default function UploadsPage() {
   const ttValidationError = useMemo(() => {
     if (!selectedPlatforms.includes("tiktok")) return null;
     if (ttCreatorError) return ttCreatorError;
-    if (ttCreatorInfo && !ttCreatorInfo.can_post) return "Your TikTok account is not currently eligible to post. Please try again later.";
+    if (ttAggregate && !ttAggregate.canPost) {
+      const names = ttAggregate.cannotPostAccounts;
+      if (names.length === ttAggregate.ids.length) return "Your TikTok account is not currently eligible to post. Please try again later.";
+      return `These TikTok accounts can't currently post: ${names.join(", ")}. Uncheck them or try again later.`;
+    }
+    if (ttAggregate && ttAggregate.privacyOptions.length === 0) {
+      return `Your selected TikTok accounts have no overlapping privacy options (${ttAggregate.nicknames.join(", ")}). Uncheck one and post separately.`;
+    }
     if (!ttPrivacyLevel) return "Please select a privacy level for TikTok";
     if (ttCommercialToggle && !ttBrandOrganic && !ttBrandContent) return "You need to indicate if your content promotes yourself, a third party, or both.";
-    if (ttCreatorInfo && ttCreatorInfo.max_video_post_duration_sec > 0 && videoDuration !== null && videoDuration > ttCreatorInfo.max_video_post_duration_sec) {
-      return `Video exceeds TikTok's maximum duration of ${ttCreatorInfo.max_video_post_duration_sec}s for your account (video is ${Math.round(videoDuration)}s).`;
+    if (ttAggregate && ttAggregate.maxDuration > 0 && videoDuration !== null && videoDuration > ttAggregate.maxDuration) {
+      const suffix = ttAggregate.ids.length > 1 ? ` across your selected TikTok accounts` : ` for your account`;
+      return `Video exceeds TikTok's maximum duration of ${ttAggregate.maxDuration}s${suffix} (video is ${Math.round(videoDuration)}s).`;
     }
     if (!ttConsentChecked) return "Agree to TikTok's Music Usage Confirmation to continue";
     if (!ttContentRightsChecked) return "Confirm your content rights to continue";
     return null;
-  }, [selectedPlatforms, ttCreatorError, ttCreatorInfo, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked, ttContentRightsChecked]);
+  }, [selectedPlatforms, ttCreatorError, ttAggregate, ttPrivacyLevel, ttCommercialToggle, ttBrandOrganic, ttBrandContent, videoDuration, ttConsentChecked, ttContentRightsChecked]);
 
   async function extractVideoThumbnail(file: File): Promise<Blob | null> {
     return new Promise((resolve) => {
@@ -1599,11 +1697,20 @@ export default function UploadsPage() {
         }
 
         if (platform === "tiktok") {
+          // Per-account derivation: honor each TikTok account's account-level disable
+          // flags from creator_info. If the user enabled "Allow comments" but Account A
+          // has comments disabled at the account level, Account A's row still posts with
+          // comments off (which is what TikTok would do anyway), while Account B's row
+          // respects the user's choice.
+          const acctInfo = accountId ? ttCreatorInfoMap[accountId] : null;
+          const effectiveAllowComments = ttAllowComments && !(acctInfo?.comment_disabled);
+          const effectiveAllowDuet = ttAllowDuet && !(acctInfo?.duet_disabled);
+          const effectiveAllowStitch = ttAllowStitch && !(acctInfo?.stitch_disabled);
           body.tiktok_settings = {
             privacy_level: ttPrivacyLevel,
-            allow_comments: ttAllowComments,
-            allow_duet: ttAllowDuet,
-            allow_stitch: ttAllowStitch,
+            allow_comments: effectiveAllowComments,
+            allow_duet: effectiveAllowDuet,
+            allow_stitch: effectiveAllowStitch,
             brand_organic_toggle: ttBrandOrganic,
             brand_content_toggle: ttBrandContent,
             aigc_disclosure: ttAigcDisclosure,
@@ -1798,7 +1905,8 @@ export default function UploadsPage() {
     setTtCommercialToggle(false);
     setTtBrandOrganic(false);
     setTtBrandContent(false);
-    setTtCreatorInfo(null);
+    setTtCreatorInfoMap({});
+    setTtCreatorErrorsMap({});
     // Reset text post state
     setPostMode("video");
     setTextPostBody("");
@@ -2905,12 +3013,12 @@ export default function UploadsPage() {
                         {(selectedAccountIds.tiktok || []).map((id) => platformAccountsList.tiktok?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}
                       </span>
                     </div>
-                  ) : (ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName) ? (
+                  ) : (ttAggregate?.nicknames[0] || platformAccounts.tiktok?.profileName) ? (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.tiktok?.avatarUrl && (
                         <img src={proxiedAvatar(platformAccounts.tiktok.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />
                       )}
-                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttCreatorInfo?.nickname || platformAccounts.tiktok?.profileName}</span></span>
+                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{ttAggregate?.nicknames[0] || platformAccounts.tiktok?.profileName}</span></span>
                     </div>
                   ) : null}
                 </div>
@@ -2931,8 +3039,8 @@ export default function UploadsPage() {
                       className={`w-full rounded-lg border px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40 ${!ttPrivacyLevel ? "border-amber-500/30 bg-amber-500/5" : "border-white/10 bg-white/5"}`}
                     >
                       <option value="" className="bg-neutral-900">Select who can watch...</option>
-                      {ttCreatorInfo ? (
-                        ttCreatorInfo.privacy_level_options.map((opt) => (
+                      {ttAggregate ? (
+                        ttAggregate.privacyOptions.map((opt) => (
                           <option
                             key={opt}
                             value={opt}
@@ -2959,8 +3067,14 @@ export default function UploadsPage() {
                         </>
                       )}
                     </select>
-                    {!ttPrivacyLevel && <p className="text-xs text-amber-400/70">Required: select who can watch this video</p>}
+                    {ttAggregate && ttAggregate.privacyOptions.length === 0 && (
+                      <p className="text-xs text-red-400/80">Your selected TikTok accounts ({ttAggregate.nicknames.join(", ")}) don&apos;t share any privacy options. Uncheck one and post separately.</p>
+                    )}
+                    {!ttPrivacyLevel && (!ttAggregate || ttAggregate.privacyOptions.length > 0) && <p className="text-xs text-amber-400/70">Required: select who can watch this video</p>}
                     {ttBrandContent && <p className="text-xs text-amber-400/70">Branded content cannot be set to &quot;Private&quot;</p>}
+                    {ttAggregate && ttAggregate.ids.length > 1 && ttAggregate.privacyOptions.length > 0 && (
+                      <p className="text-xs text-white/40">Shown options are supported by all selected accounts ({ttAggregate.nicknames.join(", ")}).</p>
+                    )}
                   </div>
 
                   {/* ── Points 2–4: Interaction settings ── */}
@@ -2968,14 +3082,17 @@ export default function UploadsPage() {
                     <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Interaction settings</p>
 
                     {/* Point 2: Allow Comments */}
-                    <div className={`flex items-center justify-between ${ttCreatorInfo?.comment_disabled ? "opacity-40" : ""}`}>
+                    <div className={`flex items-center justify-between ${ttAggregate?.allCommentDisabled ? "opacity-40" : ""}`}>
                       <div>
                         <p className="text-sm text-white/80">Allow comments</p>
-                        {ttCreatorInfo?.comment_disabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                        {ttAggregate?.allCommentDisabled && <p className="text-xs text-white/30">Disabled on your TikTok account</p>}
+                        {ttAggregate && !ttAggregate.allCommentDisabled && ttAggregate.anyCommentDisabled && (
+                          <p className="text-xs text-white/30">Disabled at account level for: {ttAggregate.commentDisabledAccounts.join(", ")} — they&apos;ll post with comments off regardless.</p>
+                        )}
                       </div>
                       <button
                         type="button"
-                        disabled={!!ttCreatorInfo?.comment_disabled}
+                        disabled={!!ttAggregate?.allCommentDisabled}
                         onClick={() => setTtAllowComments((v) => !v)}
                         className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowComments ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
                       >
@@ -2984,34 +3101,44 @@ export default function UploadsPage() {
                     </div>
 
                     {/* Point 3: Allow Duet */}
-                    <div>
+                    <div className={ttAggregate?.allDuetDisabled ? "opacity-40" : ""}>
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-white/80">Allow Duet</p>
                         <button
                           type="button"
+                          disabled={!!ttAggregate?.allDuetDisabled}
                           onClick={() => setTtAllowDuet((v) => !v)}
-                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowDuet ? "bg-blue-500" : "bg-white/10"}`}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowDuet ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
                         >
                           <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowDuet ? "translate-x-5" : "translate-x-0"}`} />
                         </button>
                       </div>
+                      {ttAggregate?.allDuetDisabled && <p className="text-xs text-white/30 mt-1">Disabled on your TikTok account</p>}
+                      {ttAggregate && !ttAggregate.allDuetDisabled && ttAggregate.anyDuetDisabled && (
+                        <p className="text-xs text-white/30 mt-1">Disabled at account level for: {ttAggregate.duetDisabledAccounts.join(", ")} — they&apos;ll post with duet off regardless.</p>
+                      )}
                       {ttAllowDuet && ttPrivacyLevel === "SELF_ONLY" && (
                         <p className="text-xs text-amber-400/70 mt-1">Duet is not available for private posts — this setting will apply when posting publicly.</p>
                       )}
                     </div>
 
                     {/* Point 4: Allow Stitch */}
-                    <div>
+                    <div className={ttAggregate?.allStitchDisabled ? "opacity-40" : ""}>
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-white/80">Allow Stitch</p>
                         <button
                           type="button"
+                          disabled={!!ttAggregate?.allStitchDisabled}
                           onClick={() => setTtAllowStitch((v) => !v)}
-                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowStitch ? "bg-blue-500" : "bg-white/10"}`}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAllowStitch ? "bg-blue-500" : "bg-white/10"} disabled:cursor-not-allowed`}
                         >
                           <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAllowStitch ? "translate-x-5" : "translate-x-0"}`} />
                         </button>
                       </div>
+                      {ttAggregate?.allStitchDisabled && <p className="text-xs text-white/30 mt-1">Disabled on your TikTok account</p>}
+                      {ttAggregate && !ttAggregate.allStitchDisabled && ttAggregate.anyStitchDisabled && (
+                        <p className="text-xs text-white/30 mt-1">Disabled at account level for: {ttAggregate.stitchDisabledAccounts.join(", ")} — they&apos;ll post with stitch off regardless.</p>
+                      )}
                       {ttAllowStitch && ttPrivacyLevel === "SELF_ONLY" && (
                         <p className="text-xs text-amber-400/70 mt-1">Stitch is not available for private posts — this setting will apply when posting publicly.</p>
                       )}
@@ -3107,16 +3234,23 @@ export default function UploadsPage() {
                   </div>
 
                   {/* can_post warning */}
-                  {ttCreatorInfo && !ttCreatorInfo.can_post && (
+                  {ttAggregate && !ttAggregate.canPost && (
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                      <p className="text-sm text-amber-300">Your TikTok account is not currently eligible to post. Please try again later.</p>
+                      <p className="text-sm text-amber-300">
+                        {ttAggregate.cannotPostAccounts.length === ttAggregate.ids.length
+                          ? "Your TikTok account is not currently eligible to post. Please try again later."
+                          : `These TikTok accounts can't currently post: ${ttAggregate.cannotPostAccounts.join(", ")}. Uncheck them to continue.`}
+                      </p>
                     </div>
                   )}
 
                   {/* Duration warning */}
-                  {ttCreatorInfo && ttCreatorInfo.max_video_post_duration_sec > 0 && videoDuration !== null && videoDuration > ttCreatorInfo.max_video_post_duration_sec && (
+                  {ttAggregate && ttAggregate.maxDuration > 0 && videoDuration !== null && videoDuration > ttAggregate.maxDuration && (
                     <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-                      <p className="text-sm text-red-300">Video is {Math.round(videoDuration)}s — exceeds your TikTok account&apos;s maximum of {ttCreatorInfo.max_video_post_duration_sec}s.</p>
+                      <p className="text-sm text-red-300">
+                        Video is {Math.round(videoDuration)}s — exceeds the maximum of {ttAggregate.maxDuration}s
+                        {ttAggregate.ids.length > 1 ? " across your selected TikTok accounts." : " for your TikTok account."}
+                      </p>
                     </div>
                   )}
 
@@ -3702,7 +3836,7 @@ export default function UploadsPage() {
               videoPreviewUrl={postMode === "text" ? null : videoPreviewUrl}
               thumbnailPreview={postMode === "text" ? null : thumbnailPreview}
               platformAccounts={platformAccounts}
-              ttNickname={ttCreatorInfo?.nickname || null}
+              ttNickname={ttAggregate?.nicknames[0] || null}
               ytIsShort={ytIsShort}
               postMode={postMode}
               linkPreview={linkPreview}

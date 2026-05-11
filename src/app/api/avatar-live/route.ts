@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getTikTokAccessToken } from "@/lib/tiktok";
 
 export const runtime = "nodejs";
 
@@ -38,13 +39,14 @@ export async function GET(req: Request) {
 
   const { data: account } = await supabaseAdmin
     .from("platform_accounts")
-    .select("provider, access_token, avatar_url, page_id, ig_user_id, platform_user_id")
+    .select("provider, access_token, refresh_token, expiry, avatar_url, page_id, ig_user_id, platform_user_id")
     .eq("id", id)
     .maybeSingle();
 
   if (!account) return new NextResponse("Not found", { status: 404 });
 
-  const { provider, access_token, avatar_url, page_id, ig_user_id } = account;
+  const { provider, avatar_url, page_id, ig_user_id } = account;
+  let { access_token } = account;
 
   try {
     // Facebook: stable public picture URL — no signed tokens
@@ -69,8 +71,32 @@ export async function GET(req: Request) {
       }
     }
 
-    // TikTok: re-fetch avatar_url from API then immediately proxy it
-    if (provider === "tiktok" && access_token) {
+    // TikTok: refresh expired access token (TikTok tokens last ~24h), then re-fetch
+    // avatar_url and proxy it. Without the refresh, a second account whose token has
+    // expired since last upload returns 404 and the UI shows an empty avatar circle.
+    if (provider === "tiktok" && account.refresh_token) {
+      try {
+        const tokens = await getTikTokAccessToken({
+          refreshToken: account.refresh_token,
+          accessToken: access_token,
+          expiresAt: account.expiry,
+        });
+        if (tokens.accessToken !== access_token) {
+          access_token = tokens.accessToken;
+          // Persist refreshed tokens so the next call doesn't re-refresh
+          await supabaseAdmin
+            .from("platform_accounts")
+            .update({
+              access_token: tokens.accessToken,
+              refresh_token: tokens.refreshToken,
+              expiry: tokens.expiresAt.toISOString(),
+            })
+            .eq("id", id);
+        }
+      } catch {
+        // Refresh failed — fall through; the call below will likely 401 and we 404.
+      }
+
       const ttRes = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=avatar_url", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
