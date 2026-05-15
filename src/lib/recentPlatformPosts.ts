@@ -277,3 +277,45 @@ export async function fetchRecentXPosts(params: {
     return { posts: [], error: `X recent posts: ${e?.message || "Unknown error"}` };
   }
 }
+
+// ── Pinterest ────────────────────────────────────────────────────────
+
+export async function fetchRecentPinterestPosts(params: {
+  accessToken: string;
+  maxResults: number;
+  sinceIso?: string;
+}): Promise<{ posts: RecentPost[]; error?: string }> {
+  try {
+    const pageSize = Math.min(Math.max(params.maxResults, 1), 25);
+    const url = `https://api.pinterest.com/v5/pins?pin_type=VIDEO&page_size=${pageSize}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      return {
+        posts: [],
+        error: `Pinterest recent posts: ${errBody?.message || `HTTP ${res.status}`}`,
+      };
+    }
+
+    const json = await res.json();
+    const posts: RecentPost[] = [];
+    for (const item of json.items ?? []) {
+      const createdAt: string | null = item.created_at ?? null;
+      if (!isAfterSince(createdAt, params.sinceIso)) continue;
+      posts.push({
+        id: `pt-${item.id}`,
+        title: item.title || "Pinterest pin",
+        platform_post_id: item.id ?? null,
+        posted_at: createdAt,
+        thumbnail_url: item.media?.images?.["150x150"]?.url ?? null,
+      });
+    }
+
+    return { posts };
+  } catch (e: any) {
+    return { posts: [], error: `Pinterest recent posts: ${e?.message || "Unknown error"}` };
+  }
+}

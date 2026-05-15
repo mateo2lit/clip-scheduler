@@ -2,7 +2,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export type UnifiedMetric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x" | "pinterest";
   title: string;
   views: number;
   likes: number;
@@ -330,5 +330,70 @@ export async function fetchXMetrics(
     return { metrics };
   } catch (e: any) {
     return { metrics: [], error: `X: ${e?.message || "Unknown error"}` };
+  }
+}
+
+// ── Pinterest ────────────────────────────────────────────────────────
+
+export async function fetchPinterestMetrics(
+  posts: PostInfo[],
+  accessToken: string
+): Promise<{ metrics: UnifiedMetric[]; error?: string }> {
+  try {
+    const today = new Date();
+    const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+    const results = await Promise.allSettled(
+      posts.map(async (post) => {
+        const pinId = post.platform_post_id;
+        if (!pinId) return null;
+
+        const url = `https://api.pinterest.com/v5/pins/${encodeURIComponent(pinId)}/analytics?start_date=${fmt(startDate)}&end_date=${fmt(today)}&metric_types=IMPRESSION,SAVE,VIDEO_VIEW,PIN_CLICK`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!res.ok) return null;
+
+        const json = await res.json();
+        const daily: Record<string, number[]> = (json.all?.daily_metrics ?? []).reduce(
+          (acc: Record<string, number[]>, day: any) => {
+            for (const [k, v] of Object.entries(day.metrics ?? {})) {
+              if (!acc[k]) acc[k] = [];
+              acc[k].push(v as number);
+            }
+            return acc;
+          },
+          {} as Record<string, number[]>
+        );
+
+        const sum = (key: string) => (daily[key] ?? []).reduce((a, b) => a + b, 0);
+
+        return {
+          videoId: pinId,
+          platform: "pinterest" as const,
+          title: post.title ?? "Pinterest pin",
+          views: sum("VIDEO_VIEW"),
+          likes: sum("SAVE"),
+          comments: 0,
+          postedAt: post.posted_at ?? new Date().toISOString(),
+        };
+      })
+    );
+
+    const metrics: UnifiedMetric[] = [];
+    const errors: string[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value) metrics.push(r.value);
+      else if (r.status === "rejected") errors.push(r.reason?.message);
+    }
+
+    return {
+      metrics,
+      error: errors.length > 0 ? `Pinterest: ${errors[0]}` : undefined,
+    };
+  } catch (e: any) {
+    return { metrics: [], error: `Pinterest: ${e?.message || "Unknown error"}` };
   }
 }
