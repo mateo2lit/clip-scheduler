@@ -19,7 +19,7 @@ async function handler(req: Request) {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "boards:read,pins:write,user_accounts:read",
+    scope: "boards:read,pins:read,pins:write,user_accounts:read",
     state: generateOAuthState(userId),
   });
 
