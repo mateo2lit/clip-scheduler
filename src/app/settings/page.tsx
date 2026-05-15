@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
-import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import {
   CaretLeft,
   Check,
@@ -18,7 +17,7 @@ import {
   Warning,
 } from "@phosphor-icons/react/dist/ssr";
 
-type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "threads" | "bluesky" | "x" | "pinterest" | "telegram";
+type ProviderKey = "youtube" | "tiktok" | "instagram" | "facebook" | "linkedin" | "bluesky" | "x" | "pinterest";
 const SPOTLIGHT_DISABLED_KEY = "clipdash:disable-hover-spotlight";
 const SPOTLIGHT_PREF_EVENT = "clipdash:spotlight-pref-change";
 
@@ -108,17 +107,6 @@ const PLATFORMS: PlatformConfig[] = [
     ),
   },
   {
-    key: "threads" as ProviderKey,
-    name: "Threads",
-    description: "Post videos to your Threads account (Meta Graph API)",
-    available: true,
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.05-4.073 1.364-7.298 3.905-9.58C7.628.302 10.594-.06 12.186 0c2.64.065 4.955.942 6.681 2.534.94.861 1.696 1.957 2.25 3.258l-2.145.9c-.427-1.012-1.03-1.881-1.793-2.582-1.33-1.218-3.15-1.872-5.053-1.915-1.275-.032-3.6.239-5.392 1.913C4.899 5.69 3.884 8.26 3.84 11.998c.038 3.733 1.053 6.3 3.014 7.847 1.782 1.374 4.107 1.662 5.367 1.682 1.254-.005 3.424-.237 5.25-1.624.926-.71 1.63-1.63 2.09-2.73-1.208-.226-2.457-.285-3.73-.147-2.02.217-3.717-.185-5.04-1.196-.959-.728-1.505-1.833-1.514-2.949-.013-1.208.496-2.372 1.389-3.191 1.083-.994 2.67-1.487 4.712-1.487a11.91 11.91 0 0 1 1.96.164c-.143-.49-.38-.882-.714-1.165-.522-.442-1.329-.667-2.396-.667l-.118.001c-.899.01-2.094.317-2.823 1.218l-1.617-1.38C9.5 7.067 11.083 6.5 12.72 6.5l.156-.001c1.597-.007 2.936.388 3.88 1.168.99.815 1.534 2.016 1.617 3.578.1 1.828-.265 3.382-1.086 4.624-.821 1.241-2.071 2.097-3.617 2.475a10.6 10.6 0 0 1-2.52.296c-2.01-.003-3.41-.55-4.165-1.636-.48-.687-.636-1.504-.49-2.413.215-1.326 1.1-2.477 2.482-3.235 1.028-.565 2.2-.808 3.468-.72.447.03.883.084 1.303.161-.12-.857-.477-1.423-.979-1.694-.545-.292-1.245-.355-1.78-.16-.617.224-1.126.747-1.516 1.555l-1.972-.906c.568-1.24 1.46-2.154 2.643-2.72 1.002-.476 2.123-.616 3.237-.405 1.4.267 2.483 1.038 3.13 2.233.551 1.014.787 2.285.696 3.78a11.72 11.72 0 0 1-.1.99c-.11.762-.286 1.46-.52 2.083 1.58.048 3.121.386 4.573.996-.015.14-.03.278-.046.414-.257 2.155-1.023 3.932-2.278 5.282C17.236 22.803 14.85 23.975 12.186 24z"/>
-      </svg>
-    ),
-  },
-  {
     key: "bluesky" as ProviderKey,
     name: "Bluesky",
     description: "Post videos to your Bluesky account (AT Protocol)",
@@ -148,17 +136,6 @@ const PLATFORMS: PlatformConfig[] = [
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
-      </svg>
-    ),
-  },
-  {
-    key: "telegram" as ProviderKey,
-    name: "Telegram",
-    description: "Post videos to your Telegram channels via bot",
-    available: true,
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
       </svg>
     ),
   },
@@ -211,11 +188,9 @@ export default function SettingsPage() {
     instagram: [],
     facebook: [],
     linkedin: [],
-    threads: [],
     bluesky: [],
     x: [],
     pinterest: [],
-    telegram: [],
   });
   const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
 
@@ -236,11 +211,7 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const threadsEnabled = isThreadsEnabledForUserIdClient(userId);
-  const visiblePlatforms = useMemo(
-    () => PLATFORMS.filter((p) => p.key !== "threads" || threadsEnabled),
-    [threadsEnabled]
-  );
+  const visiblePlatforms = PLATFORMS;
 
   const banner = useMemo(() => {
     const conn = query.get("connected");
@@ -249,7 +220,6 @@ export default function SettingsPage() {
     if (conn === "facebook") return { kind: "success" as const, text: "Facebook connected successfully" };
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
-    if (conn === "threads") return { kind: "success" as const, text: "Threads connected successfully" };
     if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
     const error = query.get("error");
     if (error === "auth_denied") return { kind: "error" as const, text: "Connection was canceled." };
@@ -308,11 +278,9 @@ export default function SettingsPage() {
         instagram: [],
         facebook: [],
         linkedin: [],
-        threads: [],
         bluesky: [],
         x: [],
         pinterest: [],
-        telegram: [],
       };
 
       for (const r of rows) {
@@ -777,30 +745,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function connectThreads() {
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) { alert("Please log in first."); return; }
-      const res = await fetch("/api/auth/threads/start", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-      const { json } = await safeReadJson(res);
-      if (!res.ok || !json?.ok || !json?.url) { alert("Failed to start Threads connection. Please try again."); return; }
-      window.location.href = json.url;
-    } catch (e: any) { alert(e?.message || "Connect failed"); }
-  }
-
-  async function disconnectThreads() {
-    if (!confirm("Disconnect Threads?")) return;
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) return;
-      const res = await fetch("/api/platform-accounts?provider=threads", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      const { json } = await safeReadJson(res);
-      if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, threads: [] }));
-    } catch (e) { console.error(e); }
-  }
-
   async function connectX() {
     try {
       const { data: sess } = await supabase.auth.getSession();
@@ -850,36 +794,6 @@ export default function SettingsPage() {
       const { json } = await safeReadJson(res);
       if (res.ok && json?.ok) setAccounts((prev) => ({ ...prev, pinterest: [] }));
     } catch (e) { console.error(e); }
-  }
-
-  const [telegramBotToken, setTelegramBotToken] = useState("");
-  const [telegramChannelId, setTelegramChannelId] = useState("");
-  const [telegramLabel, setTelegramLabel] = useState("");
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const [telegramError, setTelegramError] = useState<string | null>(null);
-
-  async function connectTelegram() {
-    if (!telegramBotToken.trim() || !telegramChannelId.trim()) {
-      setTelegramError("Bot token and channel ID are required.");
-      return;
-    }
-    setTelegramConnecting(true);
-    setTelegramError(null);
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) { setTelegramError("Not logged in."); return; }
-      const res = await fetch("/api/auth/telegram/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ botToken: telegramBotToken.trim(), channelId: telegramChannelId.trim(), label: telegramLabel.trim() }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.ok) { setTelegramError(json?.error || "Connection failed"); return; }
-      setTelegramBotToken(""); setTelegramChannelId(""); setTelegramLabel("");
-      loadConnectedAccounts();
-    } catch (e: any) { setTelegramError(e?.message || "Connection failed"); }
-    finally { setTelegramConnecting(false); }
   }
 
   const [blueskyHandle, setBlueskyHandle] = useState("");
@@ -1566,7 +1480,6 @@ export default function SettingsPage() {
                 facebook: connectFacebook,
                 instagram: connectInstagram,
                 linkedin: connectLinkedIn,
-                threads: connectThreads,
                 x: connectX,
                 pinterest: connectPinterest,
               };
@@ -1601,7 +1514,7 @@ export default function SettingsPage() {
                         )}
                       </div>
                     </div>
-                    {canManage && platform.key !== "bluesky" && platform.key !== "telegram" && connectFn && (
+                    {canManage && platform.key !== "bluesky" && connectFn && (
                       <button
                         onClick={connectFn}
                         className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-medium text-white/55 hover:bg-white/[0.08] hover:text-white/80 transition-colors"
@@ -1665,42 +1578,6 @@ export default function SettingsPage() {
                           )}
                         </div>
                       ))}
-                    </div>
-                  )}
-
-                  {/* Telegram form */}
-                  {platform.key === "telegram" && canManage && (
-                    <div className={`${isConnected ? "border-t border-white/[0.06]" : ""} px-4 py-3`}>
-                      {isConnected ? (
-                        <details className="group">
-                          <summary className="cursor-pointer text-xs text-white/35 hover:text-white/60 transition-colors list-none flex items-center gap-1">
-                            <Plus className="w-3 h-3" weight="bold" />
-                            Add another Telegram channel
-                          </summary>
-                          <div className="mt-3 space-y-2">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                              <input type="password" placeholder="Bot token" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
-                              <input type="text" placeholder="@channel or -100..." value={telegramChannelId} onChange={(e) => setTelegramChannelId(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
-                              <input type="text" placeholder="Label (optional)" value={telegramLabel} onChange={(e) => setTelegramLabel(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
-                            </div>
-                            <button onClick={connectTelegram} disabled={telegramConnecting} className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50">{telegramConnecting ? "Connecting…" : "Add Channel"}</button>
-                            {telegramError && <p className="text-xs text-red-400">{telegramError}</p>}
-                          </div>
-                        </details>
-                      ) : (
-                        <div className="space-y-2">
-                          <p className="text-xs text-white/35">
-                            Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-white/55 underline underline-offset-2">@BotFather</a>, add it as admin to your channel, then paste its token and your channel ID below.
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <input type="password" placeholder="Bot token" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
-                            <input type="text" placeholder="@channel or -100..." value={telegramChannelId} onChange={(e) => setTelegramChannelId(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
-                            <input type="text" placeholder="Label (optional)" value={telegramLabel} onChange={(e) => setTelegramLabel(e.target.value)} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20" />
-                          </div>
-                          <button onClick={connectTelegram} disabled={telegramConnecting} className="rounded-xl bg-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50">{telegramConnecting ? "Connecting…" : "Add Channel"}</button>
-                          {telegramError && <p className="text-xs text-red-400">{telegramError}</p>}
-                        </div>
-                      )}
                     </div>
                   )}
 
