@@ -3,7 +3,7 @@ import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 export type UnifiedComment = {
   id: string;
   replyId?: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "x" | "threads";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "x";
   accountId: string;
   accountLabel: string;
   postTitle: string;
@@ -465,72 +465,3 @@ export async function fetchXComments(
   }
 }
 
-// ── Threads ────────────────────────────────────────────────────────
-
-export async function fetchThreadsComments(
-  posts: PostInfo[],
-  accessToken: string,
-  accountId: string,
-  accountLabel: string
-): Promise<{ comments: UnifiedComment[]; error?: string }> {
-  try {
-    const results = await Promise.allSettled(
-      posts.map(async (post) => {
-        const mediaId = post.platform_media_id || post.platform_post_id;
-        if (!mediaId || mediaId.startsWith("https://")) return [];
-
-        const url = `https://graph.threads.net/v1.0/${mediaId}/replies?fields=id,text,username,timestamp,likes&access_token=${encodeURIComponent(accessToken)}`;
-        const res = await fetch(url);
-
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          const code = errBody?.error?.code;
-          if (code === 190 || res.status === 403) {
-            throw new Error("reconnect_required");
-          }
-          return [];
-        }
-
-        const json = await res.json();
-        const items: any[] = json.data ?? [];
-
-        return items.map((item): UnifiedComment => ({
-          id: item.id ?? `threads-${mediaId}-${Math.random()}`,
-          replyId: item.id ?? undefined,
-          platform: "threads",
-          accountId,
-          accountLabel,
-          postTitle: post.title ?? "Untitled",
-          postId: mediaId,
-          postUrl: post.platform_post_id?.startsWith("https://") ? post.platform_post_id : undefined,
-          postThumbnailUrl: post.thumbnail_url ?? null,
-          authorName: item.username ?? "Unknown",
-          authorImageUrl: null,
-          text: item.text ?? "",
-          publishedAt: item.timestamp ?? new Date().toISOString(),
-          likeCount: item.likes ?? 0,
-        }));
-      })
-    );
-
-    let reconnectNeeded = false;
-    const comments: UnifiedComment[] = [];
-    for (const r of results) {
-      if (r.status === "fulfilled") {
-        comments.push(...r.value);
-      } else if (r.reason?.message === "reconnect_required") {
-        reconnectNeeded = true;
-      }
-    }
-
-    return {
-      comments,
-      error: reconnectNeeded ? "Reconnect Threads to see comments" : undefined,
-    };
-  } catch (e: any) {
-    if (e?.message === "reconnect_required") {
-      return { comments: [], error: "Reconnect Threads to see comments" };
-    }
-    return { comments: [], error: `Threads: ${e?.message || "Unknown error"}` };
-  }
-}
