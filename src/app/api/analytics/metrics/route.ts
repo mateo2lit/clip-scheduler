@@ -8,6 +8,7 @@ import {
   fetchBlueskyMetrics,
   fetchTikTokMetrics,
   fetchXMetrics,
+  fetchPinterestMetrics,
   type UnifiedMetric,
 } from "@/lib/metricsFetchers";
 import {
@@ -17,6 +18,7 @@ import {
   fetchRecentBlueskyPosts,
   fetchRecentTikTokPosts,
   fetchRecentXPosts,
+  fetchRecentPinterestPosts,
 } from "@/lib/recentPlatformPosts";
 
 export const runtime = "nodejs";
@@ -33,7 +35,7 @@ export async function GET(req: Request) {
       .from("platform_accounts")
       .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
       .eq("team_id", teamId)
-      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok", "x"]);
+      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok", "x", "pinterest"]);
 
     const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
@@ -171,6 +173,24 @@ export async function GET(req: Request) {
     for (const r of xResults) {
       if (r.status === "fulfilled") allMetrics.push(...r.value);
       else errors.push(r.reason?.message || "X fetch error");
+    }
+
+    // Fetch from all Pinterest accounts
+    const ptResults = await Promise.allSettled(
+      (acctsByProvider.get("pinterest") ?? [])
+        .filter((a) => a.access_token)
+        .map(async (a) => {
+          const recent = await fetchRecentPinterestPosts({ accessToken: a.access_token, maxResults, sinceIso });
+          if (recent.error) errors.push(recent.error);
+          if (recent.posts.length === 0) return [] as UnifiedMetric[];
+          const r = await fetchPinterestMetrics(recent.posts, a.access_token);
+          if (r.error) errors.push(r.error);
+          return r.metrics;
+        })
+    );
+    for (const r of ptResults) {
+      if (r.status === "fulfilled") allMetrics.push(...r.value);
+      else errors.push(r.reason?.message || "Pinterest fetch error");
     }
 
     // Sort by most recent first

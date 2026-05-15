@@ -16,7 +16,7 @@ import { ArrowUpRight, CaretLeft, Eye, Heart, ChatCircle, ShareNetwork, ChartBar
 
 type Metric = {
   videoId: string;
-  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x";
+  platform: "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x" | "pinterest";
   title: string;
   views: number;
   likes: number;
@@ -27,7 +27,7 @@ type Metric = {
 };
 
 type Totals = { views: number; likes: number; comments: number; shares: number };
-type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x";
+type PlatformFilter = "all" | "youtube" | "facebook" | "instagram" | "bluesky" | "tiktok" | "x" | "pinterest";
 type RangeFilter = "24h" | "1w" | "1m" | "1y";
 
 const platformLabels: Record<string, string> = {
@@ -37,6 +37,7 @@ const platformLabels: Record<string, string> = {
   bluesky: "Bluesky",
   tiktok: "TikTok",
   x: "X (Twitter)",
+  pinterest: "Pinterest",
 };
 
 const PLATFORM_STATS: Record<string, { views: boolean; likes: boolean; comments: boolean; shares: boolean }> = {
@@ -46,6 +47,7 @@ const PLATFORM_STATS: Record<string, { views: boolean; likes: boolean; comments:
   facebook:  { views: false, likes: true, comments: true,  shares: false },
   bluesky:   { views: false, likes: true, comments: true,  shares: false },
   x:         { views: true,  likes: true, comments: true,  shares: true  },
+  pinterest: { views: true,  likes: true, comments: false, shares: false },
 };
 
 function formatStat(n: number): string {
@@ -131,6 +133,7 @@ function PlatformPill({
     facebook: "border-blue-500/40 bg-blue-500/10 text-blue-300",
     bluesky: "border-sky-400/40 bg-sky-400/10 text-sky-300",
     x: "border-neutral-400/40 bg-neutral-400/10 text-neutral-300",
+    pinterest: "border-red-600/40 bg-red-600/10 text-red-300",
   };
 
   return (
@@ -367,7 +370,7 @@ export default function AnalyticsPage() {
 
           {/* Platform filters */}
           <div className="flex flex-wrap gap-1.5">
-            {(["all", "youtube", "tiktok", "instagram", "facebook", "bluesky", "x"] as PlatformFilter[]).map((p) => (
+            {(["all", "youtube", "tiktok", "instagram", "facebook", "bluesky", "x", "pinterest"] as PlatformFilter[]).map((p) => (
               <PlatformPill
                 key={p}
                 platform={p}
