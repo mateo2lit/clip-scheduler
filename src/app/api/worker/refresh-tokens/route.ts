@@ -8,6 +8,7 @@ import {
   refreshBlueskySession,
   resolveBlueskyPdsServiceUrl,
 } from "@/lib/blueskyUpload";
+import { refreshPinterestToken } from "@/lib/pinterest";
 import { sendReconnectEmail } from "@/lib/email";
 
 const RECONNECT_EMAIL_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -102,7 +103,7 @@ async function runRefresh(req: Request) {
     .select(
       "id, provider, access_token, refresh_token, expiry, team_id, platform_user_id, last_reconnect_email_at"
     )
-    .in("provider", ["facebook", "instagram", "x", "linkedin", "bluesky"])
+    .in("provider", ["facebook", "instagram", "x", "linkedin", "bluesky", "pinterest"])
     .order("expiry", { ascending: true, nullsFirst: true });
 
   if (error) {
@@ -233,6 +234,23 @@ async function runRefresh(req: Request) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", acct.id);
+      } else if (acct.provider === "pinterest") {
+          const token = acct.refresh_token ?? acct.access_token;
+          if (!token) throw new Error("No token to refresh");
+
+          const refreshed = await refreshPinterestToken(token);
+          newToken = refreshed.access_token;
+          newExpiry = new Date(Date.now() + (refreshed.expires_in || 2592000) * 1000).toISOString();
+
+          await supabaseAdmin
+            .from("platform_accounts")
+            .update({
+              access_token: newToken,
+              refresh_token: refreshed.refresh_token,
+              expiry: newExpiry,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", acct.id);
       } else {
         continue;
       }

@@ -65,3 +65,33 @@ export async function getPinterestUser(accessToken: string) {
     profile_image: (data.profile_image ?? null) as string | null,
   };
 }
+
+export async function refreshPinterestToken(refreshToken: string): Promise<{
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}> {
+  const { clientId, clientSecret } = getPinterestAuthConfig();
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const res = await fetch("https://api.pinterest.com/v5/oauth/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Pinterest token refresh failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return {
+    access_token: data.access_token as string,
+    refresh_token: (data.refresh_token ?? refreshToken) as string,
+    expires_in: (data.expires_in ?? 2592000) as number,
+  };
+}
