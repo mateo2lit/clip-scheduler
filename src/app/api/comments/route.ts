@@ -7,7 +7,6 @@ import {
   fetchInstagramComments,
   fetchBlueskyComments,
   fetchXComments,
-  fetchThreadsComments,
   type UnifiedComment,
 } from "@/lib/commentFetchers";
 import {
@@ -16,7 +15,6 @@ import {
   fetchRecentInstagramPosts,
   fetchRecentBlueskyPosts,
   fetchRecentXPosts,
-  fetchRecentThreadsPosts,
 } from "@/lib/recentPlatformPosts";
 import { getXAccessToken } from "@/lib/x";
 
@@ -34,7 +32,7 @@ export async function GET(req: Request) {
       .from("platform_accounts")
       .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id, profile_name, label, expiry")
       .eq("team_id", teamId)
-      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "x", "threads"]);
+      .in("provider", ["youtube", "facebook", "instagram", "bluesky", "x"]);
 
     const acctsByProvider = new Map<string, any[]>();
     for (const a of accounts ?? []) {
@@ -164,25 +162,6 @@ export async function GET(req: Request) {
     for (const r of xResults) {
       if (r.status === "fulfilled") allComments.push(...r.value);
       else errors.push(r.reason?.message || "X comment fetch error");
-    }
-
-    // ── Threads ──────────────────────────────────────────────────────
-    const threadsResults = await Promise.allSettled(
-      (acctsByProvider.get("threads") ?? [])
-        .filter((a) => a.platform_user_id && a.access_token)
-        .map(async (a) => {
-          const label = a.profile_name || a.label || "Threads";
-          const recent = await fetchRecentThreadsPosts({ threadsUserId: a.platform_user_id, accessToken: a.access_token, maxResults: 20, sinceIso });
-          if (recent.error) errors.push(recent.error);
-          if (recent.posts.length === 0) return [] as UnifiedComment[];
-          const r = await fetchThreadsComments(recent.posts, a.access_token, a.id, label);
-          if (r.error) errors.push(r.error);
-          return r.comments;
-        })
-    );
-    for (const r of threadsResults) {
-      if (r.status === "fulfilled") allComments.push(...r.value);
-      else errors.push(r.reason?.message || "Threads comment fetch error");
     }
 
     // Sort by most recent first
