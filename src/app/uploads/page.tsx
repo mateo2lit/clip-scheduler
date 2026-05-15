@@ -10,7 +10,6 @@ function proxiedAvatar(url: string | null | undefined): string | null {
   if (url.startsWith("/")) return url;
   return `/api/avatar-proxy?url=${encodeURIComponent(url)}`;
 }
-import { isThreadsEnabledForUserIdClient } from "@/lib/platformAccess";
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
@@ -73,13 +72,11 @@ const PLATFORM_SIZE_LIMITS: Record<string, { maxBytes: number; label: string }> 
   bluesky:   { maxBytes: 50  * 1024 * 1024,        label: "50 MB"  },
   x:         { maxBytes: 512 * 1024 * 1024,        label: "512 MB" },
   instagram: { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
-  threads:   { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
   tiktok:    { maxBytes: 4   * 1024 * 1024 * 1024, label: "4 GB"   },
   linkedin:  { maxBytes: 5   * 1024 * 1024 * 1024, label: "5 GB"   },
   facebook:  { maxBytes: 10  * 1024 * 1024 * 1024, label: "10 GB"  },
   youtube:   { maxBytes: 256 * 1024 * 1024 * 1024, label: "256 GB" },
   pinterest: { maxBytes: 2   * 1024 * 1024 * 1024, label: "2 GB"   },
-  telegram:  { maxBytes: 2   * 1024 * 1024 * 1024, label: "2 GB"   },
 };
 
 const PLATFORMS: PlatformConfig[] = [
@@ -139,17 +136,6 @@ const PLATFORMS: PlatformConfig[] = [
     ),
   },
   {
-    key: "threads",
-    name: "Threads",
-    available: true,
-    charLimit: 500,
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.05-4.073 1.364-7.298 3.905-9.58C7.628.302 10.594-.06 12.186 0c2.64.065 4.955.942 6.681 2.534.94.861 1.696 1.957 2.25 3.258l-2.145.9c-.427-1.012-1.03-1.881-1.793-2.582-1.33-1.218-3.15-1.872-5.053-1.915-1.275-.032-3.6.239-5.392 1.913C4.899 5.69 3.884 8.26 3.84 11.998c.038 3.733 1.053 6.3 3.014 7.847 1.782 1.374 4.107 1.662 5.367 1.682 1.254-.005 3.424-.237 5.25-1.624.926-.71 1.63-1.63 2.09-2.73-1.208-.226-2.457-.285-3.73-.147-2.02.217-3.717-.185-5.04-1.196-.959-.728-1.505-1.833-1.514-2.949-.013-1.208.496-2.372 1.389-3.191 1.083-.994 2.67-1.487 4.712-1.487a11.91 11.91 0 0 1 1.96.164c-.143-.49-.38-.882-.714-1.165-.522-.442-1.329-.667-2.396-.667l-.118.001c-.899.01-2.094.317-2.823 1.218l-1.617-1.38C9.5 7.067 11.083 6.5 12.72 6.5l.156-.001c1.597-.007 2.936.388 3.88 1.168.99.815 1.534 2.016 1.617 3.578.1 1.828-.265 3.382-1.086 4.624-.821 1.241-2.071 2.097-3.617 2.475a10.6 10.6 0 0 1-2.52.296c-2.01-.003-3.41-.55-4.165-1.636-.48-.687-.636-1.504-.49-2.413.215-1.326 1.1-2.477 2.482-3.235 1.028-.565 2.2-.808 3.468-.72.447.03.883.084 1.303.161-.12-.857-.477-1.423-.979-1.694-.545-.292-1.245-.355-1.78-.16-.617.224-1.126.747-1.516 1.555l-1.972-.906c.568-1.24 1.46-2.154 2.643-2.72 1.002-.476 2.123-.616 3.237-.405 1.4.267 2.483 1.038 3.13 2.233.551 1.014.787 2.285.696 3.78a11.72 11.72 0 0 1-.1.99c-.11.762-.286 1.46-.52 2.083 1.58.048 3.121.386 4.573.996-.015.14-.03.278-.046.414-.257 2.155-1.023 3.932-2.278 5.282C17.236 22.803 14.85 23.975 12.186 24z"/>
-      </svg>
-    ),
-  },
-  {
     key: "bluesky",
     name: "Bluesky",
     available: true,
@@ -179,17 +165,6 @@ const PLATFORMS: PlatformConfig[] = [
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
-      </svg>
-    ),
-  },
-  {
-    key: "telegram",
-    name: "Telegram",
-    available: true,
-    charLimit: 1024,
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
       </svg>
     ),
   },
@@ -318,7 +293,7 @@ export default function UploadsPage() {
   const [draftEditGroupId, setDraftEditGroupId] = useState<string | null>(null);
 
   // Text post mode
-  const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky", "x"]);
+  const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "bluesky", "x"]);
   const [postMode, setPostMode] = useState<PostMode>("video");
   const [textPostBody, setTextPostBody] = useState("");
   const [linkPreview, setLinkPreview] = useState<LinkPreviewData | null>(null);
@@ -331,11 +306,9 @@ export default function UploadsPage() {
     instagram: { profileName: null, avatarUrl: null },
     facebook: { profileName: null, avatarUrl: null },
     linkedin: { profileName: null, avatarUrl: null },
-    threads: { profileName: null, avatarUrl: null },
     bluesky: { profileName: null, avatarUrl: null },
     x: { profileName: null, avatarUrl: null },
     pinterest: { profileName: null, avatarUrl: null },
-    telegram: { profileName: null, avatarUrl: null },
   });
   // Full list of connected accounts per provider (for multi-account picker)
   const [platformAccountsList, setPlatformAccountsList] = useState<Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>>>({});
@@ -358,11 +331,7 @@ export default function UploadsPage() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const threadsEnabled = isThreadsEnabledForUserIdClient(userId);
-  const enabledPlatforms = useMemo(
-    () => PLATFORMS.filter((p) => p.key !== "threads" || threadsEnabled),
-    [threadsEnabled]
-  );
+  const enabledPlatforms = useMemo(() => PLATFORMS, []);
   const [scheduling, setScheduling] = useState(false);
 
   // AI suggestions
@@ -727,7 +696,7 @@ export default function UploadsPage() {
             setSelectedPlatforms(
               draftPosts
                 .map((p: any) => p.provider)
-                .filter((p: string) => Boolean(p) && (p !== "threads" || threadsEnabled))
+                .filter((p: string) => Boolean(p))
             );
 
             // Restore the specific account selected per platform (not all accounts)
@@ -821,11 +790,6 @@ export default function UploadsPage() {
     }
     loadSession();
   }, []);
-
-  useEffect(() => {
-    if (threadsEnabled) return;
-    setSelectedPlatforms((prev) => prev.filter((p) => p !== "threads"));
-  }, [threadsEnabled]);
 
   // Fetch TikTok creator info for each selected TikTok account.
   // Multiple accounts are fetched in parallel; results are cached per-account id so toggling
@@ -1621,7 +1585,6 @@ export default function UploadsPage() {
       const errors: string[] = [];
       const groupId = crypto.randomUUID();
       const platformsToSchedule = selectedPlatforms.filter((p) => {
-        if (p === "threads" && !threadsEnabled) return false;
         if (isTextPost && !TEXT_POST_PLATFORMS.has(p)) return false;
         return true;
       });
@@ -1760,13 +1723,6 @@ export default function UploadsPage() {
           };
         }
 
-        if (platform === "threads") {
-          body.threads_settings = {
-            title_override: platformTitleOverrides.threads || undefined,
-            description_override: appendTagsToOverride(platformDescOverrides.threads),
-          };
-        }
-
         if (platform === "bluesky") {
           body.bluesky_settings = {
             title_override: platformTitleOverrides.bluesky || undefined,
@@ -1865,7 +1821,7 @@ export default function UploadsPage() {
     setHashtags(t.hashtags);
     setSelectedPlatforms(
       t.platforms.filter(
-        (p) => enabledPlatforms.some((pl) => pl.key === p) && (p !== "threads" || threadsEnabled)
+        (p) => enabledPlatforms.some((pl) => pl.key === p)
       )
     );
     setShowTemplatesMenu(false);
@@ -2031,7 +1987,7 @@ export default function UploadsPage() {
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/70 sm:text-base">
               {postMode === "text"
-                ? "Write and schedule text posts to LinkedIn, Facebook, Threads, and Bluesky — no video required."
+                ? "Write and schedule text posts to LinkedIn, Facebook, and Bluesky — no video required."
                 : step === "upload"
                 ? "Drop in your video and move into platform setup in one smooth flow."
                 : draftEditGroupId ? "Update your draft settings and schedule or save it again." : "Tune copy, hashtags, media details, and schedule for each connected platform."}
@@ -3473,53 +3429,6 @@ export default function UploadsPage() {
                     <div className="mt-3 space-y-2">
                       <input type="text" value={platformTitleOverrides.linkedin || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, linkedin: e.target.value }))} placeholder="Title (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                       <textarea value={platformDescOverrides.linkedin || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, linkedin: e.target.value }))} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                    </div>
-                  )}
-                  </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Threads Settings */}
-            {selectedPlatforms.includes("threads") && (
-              <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
-                <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
-                  <div className="text-white/80">{PLATFORMS.find(p => p.key === "threads")?.icon}</div>
-                  <span className="font-medium">Threads Settings</span>
-                  {(platformAccountsList.threads?.length ?? 0) > 1 ? (
-                    <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-white/40">Posting to:</span>
-                      <span className="text-xs text-white/70">{(selectedAccountIds.threads || []).map((id) => platformAccountsList.threads?.find((a) => a.id === id)?.profileName || "Account").join(", ") || <span className="text-amber-400/70">none selected</span>}</span>
-                    </div>
-                  ) : platformAccounts.threads?.profileName ? (
-                    <div className="ml-auto flex items-center gap-1.5">
-                      {platformAccounts.threads.avatarUrl && <img src={proxiedAvatar(platformAccounts.threads.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
-                      <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.threads.profileName}</span></span>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="p-5">
-                  {postMode === "video" && (
-                    <p className="text-xs text-white/40 mb-3">Video will be posted as a Threads video post. Async publishing — takes 1–5 minutes.</p>
-                  )}
-                  {postMode === "text" && (
-                    <>
-                    <p className="text-xs text-white/40 mb-3">Optionally customize the text for Threads. Leave blank to use the base text.</p>
-                    <textarea value={platformDescOverrides.threads || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, threads: e.target.value }))} placeholder="Custom text for Threads (optional)" rows={3} maxLength={500} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                    <p className="mt-1.5 text-xs text-white/30 text-right">{(platformDescOverrides.threads || "").length}/500</p>
-                    </>
-                  )}
-                  {postMode === "video" && (
-                  <>
-                  <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "threads" ? null : "threads")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
-                    <CaretRight className={`w-3 h-3 transition-transform ${openCaptionOverride === "threads" ? "rotate-90" : ""}`} weight="bold" />
-                    Customize caption for Threads
-                  </button>
-                  {openCaptionOverride === "threads" && (
-                    <div className="mt-3 space-y-2">
-                      <input type="text" value={platformTitleOverrides.threads || ""} onChange={(e) => setPlatformTitleOverrides((p) => ({ ...p, threads: e.target.value }))} placeholder="Title (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                      <textarea value={platformDescOverrides.threads || ""} onChange={(e) => setPlatformDescOverrides((p) => ({ ...p, threads: e.target.value }))} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                     </div>
                   )}
                   </>
