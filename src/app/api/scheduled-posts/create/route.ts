@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
-import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
-
 export async function POST(req: Request) {
   try {
     const result = await getTeamContext(req);
@@ -51,14 +49,7 @@ export async function POST(req: Request) {
     const isDraft = requestedStatus === "draft";
     const normalizedProvider = String(provider || "youtube").toLowerCase();
     const isTextPost = post_type === "text";
-    const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "threads", "bluesky", "x"]);
-
-    if (normalizedProvider === "threads" && !isThreadsEnabledForUserId(userId)) {
-      return NextResponse.json(
-        { error: "Threads is not available for this account." },
-        { status: 403 }
-      );
-    }
+    const TEXT_POST_PLATFORMS = new Set(["linkedin", "facebook", "bluesky", "x"]);
 
     if (isTextPost) {
       if (!TEXT_POST_PLATFORMS.has(normalizedProvider)) {
