@@ -6,14 +6,11 @@ import { getTikTokAccessToken } from "@/lib/tiktok";
 import { uploadSupabaseVideoToFacebook, postTextToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 import { uploadSupabaseVideoToLinkedIn, postTextToLinkedIn } from "@/lib/linkedinUpload";
-import { createThreadsContainer, checkAndPublishThreadsContainer, createThreadsTextContainer } from "@/lib/threadsUpload";
 import { uploadToBluesky, postTextToBluesky } from "@/lib/blueskyUpload";
 import { uploadVideoToX, postTextToX } from "@/lib/xUpload";
 import { uploadToPinterest } from "@/lib/pinterestUpload";
-import { uploadToTelegram } from "@/lib/telegramUpload";
 import { uploadToSnapchat } from "@/lib/snapchatUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
-import { isThreadsEnabledForUserId } from "@/lib/platformAccess";
 import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
 
 export const runtime = "nodejs";
@@ -165,24 +162,20 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
-  // ── Process ig_processing posts first (YouTube Shorts + Instagram + Threads + TikTok) ─
+  // ── Process ig_processing posts first (YouTube Shorts + Instagram + TikTok) ─
   const igProcessingResults: any[] = [];
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
       .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, youtube_settings, group_id, title, platform_account_id")
       .eq("status", "ig_processing")
-      .in("provider", ["instagram", "threads", "tiktok", "youtube"])
+      .in("provider", ["instagram", "tiktok", "youtube"])
       .limit(5);
 
     if (!igErr && igPosts && igPosts.length > 0) {
       for (const igPost of igPosts) {
         try {
           const isTikTok = igPost.provider === "tiktok";
-          const isThreads = igPost.provider === "threads";
-          if (isThreads && !isThreadsEnabledForUserId(igPost.user_id)) {
-            throw new Error("Threads is not available for this account.");
-          }
 
           if (!igPost.ig_container_id) {
             throw new Error("Missing publish/container ID");
@@ -350,23 +343,16 @@ async function runWorker(req: Request) {
             .select("id, access_token, ig_user_id");
           const { data: acct } = igPost.platform_account_id
             ? await igAcctQ.eq("id", igPost.platform_account_id).maybeSingle()
-            : await igAcctQ.eq("team_id", igPost.team_id).eq("provider", isThreads ? "threads" : "instagram").maybeSingle();
+            : await igAcctQ.eq("team_id", igPost.team_id).eq("provider", "instagram").maybeSingle();
 
           if (!acct?.access_token || !acct?.ig_user_id) {
-            throw new Error(`Missing ${isThreads ? "Threads" : "Instagram"} account or container ID`);
+            throw new Error("Missing Instagram account or container ID");
           }
 
-          // Check + publish via provider-specific function
+          // Check + publish via Instagram
           let result: { status: "processing" | "posted" | "error"; mediaId?: string; error?: string };
 
-          if (isThreads) {
-            const r = await checkAndPublishThreadsContainer({
-              containerId: igPost.ig_container_id,
-              threadsUserId: acct.ig_user_id,
-              accessToken: acct.access_token,
-            });
-            result = { status: r.status, mediaId: r.threadsMediaId, error: r.error };
-          } else {
+          {
             const r = await checkAndPublishInstagramContainer({
               containerId: igPost.ig_container_id,
               igUserId: acct.ig_user_id,
@@ -434,7 +420,7 @@ async function runWorker(req: Request) {
             const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
             const tenMinAgo = Date.now() - 10 * 60 * 1000;
             if (createdAt < tenMinAgo) {
-              const timeoutMsg = `${igPost.provider === "threads" ? "Threads" : "Instagram"} processing timed out`;
+              const timeoutMsg = "Instagram processing timed out";
               await supabaseAdmin
                 .from("scheduled_posts")
                 .update({ status: "failed", last_error: timeoutMsg })
@@ -615,7 +601,7 @@ async function runWorker(req: Request) {
       }
 
       // Text posts on Threads/Bluesky use access_token; others need refresh_token
-      const needsRefreshToken = !isTextPost || !["threads", "bluesky"].includes(provider);
+      const needsRefreshToken = !isTextPost || provider !== "bluesky";
       if (needsRefreshToken && !acct?.refresh_token) {
         throw new Error(
           `${provider} not connected for scheduled_posts.user_id=${post.user_id}`
@@ -629,7 +615,7 @@ async function runWorker(req: Request) {
 
       // ── Text post execution ──────────────────────────────────────────────────
       if (isTextPost) {
-        const TEXT_POST_PLATFORMS = ["linkedin", "facebook", "threads", "bluesky", "x"];
+        const TEXT_POST_PLATFORMS = ["linkedin", "facebook", "bluesky", "x"];
         if (!TEXT_POST_PLATFORMS.includes(provider)) {
           throw new Error(`${provider} does not support text-only posts`);
         }
@@ -667,41 +653,6 @@ async function runWorker(req: Request) {
             linkUrl: textContent.link_url,
           });
           platformPostId = fb.facebookPostId;
-
-        } else if (provider === "threads") {
-          if (!isThreadsEnabledForUserId(post.user_id)) {
-            throw new Error("Threads is not available for this account.");
-          }
-          if (!acct.access_token || !acct.ig_user_id) {
-            throw new Error("Threads account not configured. Please reconnect your Threads account.");
-          }
-          // TEXT containers are ready immediately — create and publish in one tick
-          const { containerId } = await createThreadsTextContainer({
-            threadsUserId: acct.ig_user_id,
-            accessToken: acct.access_token,
-            text: fullText.slice(0, 500),
-            linkAttachmentUrl: textContent.link_url,
-          });
-          const publishResult = await checkAndPublishThreadsContainer({
-            containerId,
-            threadsUserId: acct.ig_user_id,
-            accessToken: acct.access_token,
-          });
-          if (publishResult.status === "error") {
-            throw new Error(publishResult.error || "Threads text publish failed");
-          }
-          if (publishResult.status === "processing") {
-            // Unexpected — fall back to async polling path
-            await supabaseAdmin.from("scheduled_posts").update({
-              status: "ig_processing",
-              ig_container_id: containerId,
-              ig_container_created_at: new Date().toISOString(),
-              last_error: null,
-            }).eq("id", post.id);
-            results.push({ id: post.id, ok: true, igProcessing: true, containerId });
-            continue;
-          }
-          platformPostId = publishResult.threadsMediaId || null;
 
         } else if (provider === "bluesky") {
           if (!acct.access_token || !acct.platform_user_id) {
@@ -867,35 +818,6 @@ async function runWorker(req: Request) {
 
         results.push({ id: post.id, ok: true, igProcessing: true, containerId });
         continue; // Skip the "mark posted" step below
-      } else if (provider === "threads") {
-        if (!isThreadsEnabledForUserId(post.user_id)) {
-          throw new Error("Threads is not available for this account.");
-        }
-
-        if (!acct.access_token || !acct.ig_user_id) {
-          throw new Error("Threads account not configured. Please reconnect your Threads account.");
-        }
-
-        const { containerId } = await createThreadsContainer({
-          threadsUserId: acct.ig_user_id,
-          accessToken: acct.access_token,
-          bucket,
-          storagePath,
-          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
-        });
-
-        await supabaseAdmin
-          .from("scheduled_posts")
-          .update({
-            status: "ig_processing",
-            ig_container_id: containerId,
-            ig_container_created_at: new Date().toISOString(),
-            last_error: null,
-          })
-          .eq("id", post.id);
-
-        results.push({ id: post.id, ok: true, igProcessing: true, containerId });
-        continue; // Skip mark-posted step
       } else if (provider === "bluesky") {
         if (!acct.access_token || !acct.platform_user_id) {
           throw new Error("Bluesky account not configured. Please reconnect your Bluesky account.");
@@ -992,18 +914,6 @@ async function runWorker(req: Request) {
           boardId,
         });
         platformPostId = pt.platform_post_id;
-      } else if (provider === "telegram") {
-        if (!acct.access_token || !acct.platform_user_id) {
-          throw new Error("Telegram channel not configured. Please reconnect.");
-        }
-        const tg = await uploadToTelegram({
-          botToken: acct.access_token,
-          channelId: acct.platform_user_id,
-          bucket,
-          storagePath,
-          caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
-        });
-        platformPostId = tg.platform_post_id;
       } else if (provider === "snapchat") {
         if (!acct.access_token || !acct.platform_user_id) {
           throw new Error("Snapchat account not configured.");
