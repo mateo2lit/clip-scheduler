@@ -13,6 +13,8 @@ const PROVIDER_LABELS: Record<string, string> = {
   facebook: "Facebook",
   linkedin: "LinkedIn",
   bluesky: "Bluesky",
+  x: "X",
+  pinterest: "Pinterest",
 };
 
 function label(provider: string | null | undefined): string {
