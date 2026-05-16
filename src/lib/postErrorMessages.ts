@@ -12,12 +12,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   instagram: "Instagram",
   facebook: "Facebook",
   linkedin: "LinkedIn",
-  threads: "Threads",
   bluesky: "Bluesky",
-  pinterest: "Pinterest",
-  telegram: "Telegram",
-  snapchat: "Snapchat",
-  x: "X",
 };
 
 function label(provider: string | null | undefined): string {
