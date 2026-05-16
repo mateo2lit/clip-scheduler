@@ -572,7 +572,7 @@ export default function OnboardingPage() {
                   <ul className="mb-8 flex-1 space-y-3 border-t border-white/8 pt-6 text-sm text-white/65">
                     {[
                       "Unlimited uploads & scheduled posts",
-                      "All 7 platforms",
+                      "All 8 platforms",
                       "Multiple accounts per platform",
                       "AI tag suggestions",
                       "Unified comments inbox",

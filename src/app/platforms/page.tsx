@@ -128,7 +128,7 @@ export default function PlatformsPage() {
         <div className="text-center mb-16">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Supported Platforms</h1>
           <p className="mt-5 text-lg text-white/50 max-w-2xl mx-auto">
-            Upload once and publish to all seven platforms simultaneously. Every platform gets its own native settings so your content looks exactly right, everywhere.
+            Upload once and publish to all eight platforms simultaneously. Every platform gets its own native settings so your content looks exactly right, everywhere.
           </p>
         </div>
 

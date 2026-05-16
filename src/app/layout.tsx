@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Clip Dash — Upload Once, Post to Every Platform",
     description:
-      "Stop logging into 7 apps to post the same video. Clip Dash auto-publishes to all platforms from one upload.",
+      "Stop logging into 8 apps to post the same video. Clip Dash auto-publishes to all platforms from one upload.",
     images: ["/opengraph-image"],
   },
   robots: {
@@ -101,7 +101,7 @@ export default function RootLayout({
                 },
               },
               featureList: [
-                "Upload once, publish to 7 platforms simultaneously",
+                "Upload once, publish to 8 platforms simultaneously",
                 "Import clips directly from Twitch and Kick URLs",
                 "Multiple accounts per platform",
                 "AI hashtag suggestions",

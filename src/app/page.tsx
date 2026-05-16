@@ -14,7 +14,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What platforms do you support?",
-    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, and X (Twitter) — 7 platforms total.",
+    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, X (Twitter), and Pinterest — 8 platforms total.",
   },
   {
     q: "Can I import clips from Twitch or Kick?",
@@ -225,7 +225,7 @@ export default function Home() {
           </span>
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-          Stop logging into 7 apps to post the same video. Upload once or use a Twitch/Kick clip link to auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X.</p>
+          Stop logging into 8 apps to post the same video. Upload once or use a Twitch/Kick clip link to auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest.</p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {loaded && (
             user ? (
@@ -295,7 +295,7 @@ export default function Home() {
               icon: (
                 <ShareNetwork className="w-6 h-6" weight="duotone" />
               ),
-              title: "7 Platforms, One Workflow",
+              title: "8 Platforms, One Workflow",
               desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X from a single upload.",
               color: "blue",
               extra: (
@@ -702,7 +702,7 @@ export default function Home() {
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Supported Platforms</h2>
           <p className="mt-3 text-white/40 max-w-md mx-auto">
-            Post to all 7 platforms from a single upload.
+            Post to all 8 platforms from a single upload.
           </p>
         </div>
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">

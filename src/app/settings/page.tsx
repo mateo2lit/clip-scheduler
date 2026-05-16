@@ -1300,7 +1300,7 @@ export default function SettingsPage() {
                   </div>
                   <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />Unlimited uploads</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />All 7 platforms</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />All 8 platforms</li>
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />25 GB storage</li>
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400 shrink-0" weight="bold" />1 team member (solo)</li>
                   </ul>
@@ -1330,7 +1330,7 @@ export default function SettingsPage() {
                   </div>
                   <ul className="space-y-2 text-sm text-white/60 mb-6 flex-1">
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />Unlimited uploads</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />All 7 platforms</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />All 8 platforms</li>
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />50 GB storage</li>
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-white/30 shrink-0" weight="bold" />Up to 5 team members</li>
                   </ul>

@@ -19,7 +19,7 @@ ClipDash is the fastest way for Twitch/Kick streamers and video creators to cros
 
 - **Video-first** — built for creators, not generic social media managers
 - **Streamer-focused** — direct Twitch and Kick clip URL imports (no other major tool does this)
-- **7 platforms supported** — YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X
+- **8 platforms supported** — YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, Pinterest
 - **AI-native** — virality scoring, caption generation, performance insights, hashtag suggestions
 - **Large file support** — up to 256GB per YouTube video, 10GB for Facebook
 - **Multiple accounts per platform** — unlimited connections per provider
@@ -40,7 +40,7 @@ ClipDash is the fastest way for Twitch/Kick streamers and video creators to cros
 
 ## Core Features
 
-- Upload once, publish to 7 platforms simultaneously
+- Upload once, publish to 8 platforms simultaneously
 - Import clips directly from Twitch and Kick URLs
 - Smart queue-based scheduling
 - Visual content calendar (drag-and-drop)
@@ -53,7 +53,7 @@ ClipDash is the fastest way for Twitch/Kick streamers and video creators to cros
 
 ## Pricing
 
-- **Creator**: $9.99/month or $98/year — unlimited posts, 7 platforms, 1 team member
+- **Creator**: $9.99/month or $98/year — unlimited posts, 8 platforms, 1 team member
 - **Team**: $19.99/month or $199/year — everything in Creator plus up to 5 team members, AI clip generation
 
 ## Links
