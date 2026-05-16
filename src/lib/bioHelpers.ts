@@ -60,9 +60,6 @@ export function resolvePostPermalink(
       return `https://www.facebook.com/${platformPostId}`;
     case "linkedin":
       return `https://www.linkedin.com/feed/update/${platformPostId}/`;
-    case "threads":
-      if (handle) return `https://www.threads.net/@${handle}/post/${platformPostId}`;
-      return null;
     case "bluesky":
       // platform_post_id is the AT URI or rkey; best effort
       if (handle && platformPostId.includes("/")) {

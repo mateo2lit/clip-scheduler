@@ -60,7 +60,7 @@ export default function CalendarPage() {
     ? allGroups
     : allGroups.filter(g => g.posts.some(p => (p.provider || "").toLowerCase() === platformFilter));
 
-  const activePlatforms = [...new Set(allGroups.flatMap(g => g.posts.map(p => (p.provider || "").toLowerCase())))].filter(p => Boolean(p) && p !== "threads");
+  const activePlatforms = [...new Set(allGroups.flatMap(g => g.posts.map(p => (p.provider || "").toLowerCase())))].filter(p => Boolean(p));
 
   // Navigation
   function prev() {
