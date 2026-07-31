@@ -128,7 +128,10 @@ function PostThumbnail({ group }: { group: PostGroup }) {
 
   const storedThumb = firstWithThumb ? getStoredThumbnailUrl(firstWithThumb.thumbnail_path) : null;
   const ytCandidates = firstYouTube?.platform_post_id ? getYouTubeThumbnailCandidates(firstYouTube.platform_post_id) : [];
-  const candidates = (hasYouTube ? [...ytCandidates] : [storedThumb, ...ytCandidates]).filter((u): u is string => !!u);
+  // Prefer the real YouTube thumbnail when available (avoids generic auto-extracted frames),
+  // but always keep the first-party stored thumbnail as a fallback in case the YouTube CDN
+  // candidates fail to load (blocked, not yet generated, video removed, etc).
+  const candidates = (hasYouTube ? [...ytCandidates, storedThumb] : [storedThumb, ...ytCandidates]).filter((u): u is string => !!u);
   const [idx, setIdx] = useState(0);
   const src = candidates[idx] ?? null;
 
