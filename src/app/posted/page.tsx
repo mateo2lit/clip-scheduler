@@ -111,9 +111,10 @@ function getStoredThumbnailUrl(thumbnailPath: string | null | undefined) {
 }
 
 function getYouTubeThumbnailCandidates(videoId: string): string[] {
+  // hqdefault.jpg is reliably generated for every processed public video (including
+  // Shorts, which never get a maxresdefault). Leading with it avoids wasting a
+  // guaranteed-404 request per row when the page renders many thumbnails at once.
   return [
-    `https://i.ytimg.com/vi_webp/${videoId}/maxresdefault.webp`,
-    `https://i.ytimg.com/vi_webp/${videoId}/hqdefault.webp`,
     `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
     `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
   ];
@@ -159,6 +160,8 @@ function PostThumbnail({ group }: { group: PostGroup }) {
       src={src}
       alt={group.title || "Post thumbnail"}
       className={cls}
+      loading="lazy"
+      decoding="async"
       onError={() => { if (idx < candidates.length - 1) setIdx((v) => v + 1); }}
     />
   );
