@@ -311,7 +311,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick access row */}
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
           <Link
             href="/comments"
             className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
@@ -330,16 +330,6 @@ export default function DashboardPage() {
             </div>
             <span className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Analytics</span>
           </Link>
-          <button
-            onClick={() => plan === "team" ? router.push("/ai-clips") : setShowUpgradeModal(true)}
-            className="group flex items-center gap-3 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] px-4 py-3 hover:bg-violet-500/[0.07] hover:border-violet-400/30 transition-all text-left w-full"
-          >
-            <div className="h-8 w-8 shrink-0 rounded-lg bg-violet-500/15 flex items-center justify-center group-hover:bg-violet-500/25 transition-colors">
-              <Sparkle className="w-4 h-4 text-violet-400" weight="duotone" />
-            </div>
-            <span className="text-sm font-medium text-violet-300/80 group-hover:text-violet-300 transition-colors">AI Clips</span>
-            <span className="ml-auto text-[9px] font-bold tracking-wider uppercase bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full">NEW</span>
-          </button>
           <Link
             href="/link-in-bio"
             className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.04] hover:border-white/20 transition-all"
