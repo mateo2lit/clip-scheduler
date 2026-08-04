@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { reapStaleAiClipJobs } from "@/lib/aiClipJobs";
 import { signChunkUploadToken } from "@/lib/aiClipsTokens";
 
 export const runtime = "nodejs";
@@ -50,6 +51,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // Close abandoned jobs first, otherwise a single orphaned row blocks this
+    // team from ever starting another job.
+    await reapStaleAiClipJobs(teamId);
 
     // One active job per team
     const { data: activeJobs } = await supabaseAdmin

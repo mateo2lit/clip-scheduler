@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
 
+import { reapStaleAiClipJobs } from "@/lib/aiClipJobs";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
@@ -79,6 +80,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // Close abandoned jobs first, otherwise a single orphaned row blocks this
+    // team from ever starting another job.
+    await reapStaleAiClipJobs(teamId);
 
     // Block if a job is already actively running for this team
     const { data: activeJobs } = await supabaseAdmin

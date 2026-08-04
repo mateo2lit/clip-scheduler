@@ -92,13 +92,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: `db upsert failed: ${dbErr.message}` }, { status: 500 });
     }
 
-    // Move job to 'uploading' on first chunk
-    if (job.status === "pending") {
-      await supabaseAdmin
-        .from("ai_clip_jobs")
-        .update({ status: "uploading", updated_at: new Date().toISOString() })
-        .eq("id", jobId);
-    }
+    // Touch the job on every chunk, not just the first. `updated_at` is the only
+    // liveness signal the stale-job reaper has, and a large upload can run for a
+    // long time without any other write to this row.
+    await supabaseAdmin
+      .from("ai_clip_jobs")
+      .update({
+        ...(job.status === "pending" ? { status: "uploading" } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", jobId);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
