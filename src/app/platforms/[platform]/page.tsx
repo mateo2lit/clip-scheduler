@@ -205,6 +205,33 @@ const PLATFORM_CONTENT: Record<string, {
     ],
     note: "Connect Bluesky using your handle (e.g. @you.bsky.social) and an App Password generated in your Bluesky settings. Regular account passwords are not accepted.",
   },
+  pinterest: {
+    name: "Pinterest",
+    tagline: "The Long-Tail Discovery Engine",
+    color: "from-red-500/[0.08] via-transparent to-transparent",
+    description: "Pinterest has over 500 million monthly active users who arrive with intent — they're actively searching for ideas to save, plan, and buy. Unlike feed-based platforms where a post dies in 48 hours, Pins keep surfacing in Pinterest search and Google Images for months or years after you publish. Video Pins get preferential placement and are still under-supplied relative to demand.",
+    signupUrl: "https://www.pinterest.com/business/create/",
+    signupLabel: "Create a Pinterest Business Account",
+    stats: [
+      { value: "500M+", label: "monthly active users" },
+      { value: "Months", label: "typical Pin discovery lifespan" },
+      { value: "80%", label: "of weekly Pinners discover new brands there" },
+      { value: "Search", label: "driven — not purely algorithmic" },
+    ],
+    why: [
+      "Pinterest is a search engine wearing a social network's clothes. A Pin you publish today can still be driving traffic a year from now, which is the opposite of how TikTok and Instagram behave.",
+      "Pinterest users show up in planning mode rather than passive-scroll mode, so click-through to external links is dramatically higher than on any feed-based platform.",
+      "Video Pins are still under-supplied relative to how much Pinterest promotes them — the same short-form video you already made for Reels performs here with no extra work.",
+      "Pins rank in Google Images and Google's main index, so publishing to Pinterest is effectively free SEO surface area for your video content.",
+    ],
+    features: [
+      { label: "Video Pin", detail: "Videos are published as native Pinterest video Pins via the Pinterest API v5." },
+      { label: "Board Selection", detail: "Choose which board each Pin publishes to from your connected account's boards." },
+      { label: "Title & Description", detail: "The post title becomes the Pin title and the description becomes the Pin description — both are indexed by Pinterest search, so keywords matter here more than on other platforms." },
+      { label: "Destination Link", detail: "Attach a destination URL so the Pin drives traffic back to your site, channel, or link-in-bio page." },
+    ],
+    note: "Pinterest requires a business account (free to convert from a personal account) to publish via the API.",
+  },
 };
 
 export function generateStaticParams() {

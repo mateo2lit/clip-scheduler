@@ -21,6 +21,10 @@ const FAQ_ITEMS = [
     a: "Yes. Paste a Twitch or Kick clip link on the uploads page and Clip Dash imports it into your library so you can cross-post it across your connected platforms.",
   },
   {
+    q: "Is the link in bio page really free?",
+    a: "Yes — it's included with every Clip Dash subscription at no extra cost, on both the Creator and Team plans. You get a page at your own handle with unlimited links, click tracking, a custom avatar, bio, accent colour, and light or dark theme. It also fills its Recent Content grid automatically from the videos you've already published through Clip Dash, so it stays current without you touching it.",
+  },
+  {
     q: "How many social accounts can I connect per platform?",
     a: "Unlimited. Connect multiple YouTube channels, TikTok accounts, Instagram profiles, and more. When scheduling, you choose which accounts to post to — including all of them at once with a single upload.",
   },
@@ -262,6 +266,7 @@ export default function Home() {
             { delay: "2.2s",   color: "text-blue-300",   glow: "drop-shadow(0 0 6px rgb(147 197 253)) drop-shadow(0 0 14px rgb(147 197 253 / 0.5))",  svg: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z"/></svg> },
             { delay: "2.75s",  color: "text-sky-400",    glow: "drop-shadow(0 0 6px rgb(56 189 248)) drop-shadow(0 0 14px rgb(56 189 248 / 0.5))",    svg: <svg className="w-6 h-6" viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg> },
             { delay: "3.3s",   color: "text-white/75",   glow: "drop-shadow(0 0 6px rgb(255 255 255 / 0.8)) drop-shadow(0 0 14px rgb(255 255 255 / 0.35))", svg: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg> },
+            { delay: "3.85s",  color: "text-red-500",    glow: "drop-shadow(0 0 6px rgb(239 68 68)) drop-shadow(0 0 14px rgb(239 68 68 / 0.5))",      svg: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0Z"/></svg> },
           ].map((p, i) => (
             <div
               key={i}
@@ -296,7 +301,7 @@ export default function Home() {
                 <ShareNetwork className="w-6 h-6" weight="duotone" />
               ),
               title: "8 Platforms, One Workflow",
-              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X from a single upload.",
+              desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest from a single upload.",
               color: "blue",
               extra: (
                 <div className="mt-4 flex items-center gap-3">
@@ -307,6 +312,8 @@ export default function Home() {
                     { c: "text-blue-400", s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073Z"/></svg> },
                     { c: "text-blue-300", s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z"/></svg> },
                     { c: "text-sky-400",  s: <svg className="w-4 h-4" viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg> },
+                    { c: "text-white/60", s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg> },
+                    { c: "text-red-500",  s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0Z"/></svg> },
                   ].map((p, i) => <div key={i} className={p.c}>{p.s}</div>)}
                 </div>
               ),
@@ -410,7 +417,7 @@ export default function Home() {
             Your entire content calendar,<br className="hidden sm:block" /> across all platforms.
           </h2>
           <p className="mt-4 text-white/40 text-lg max-w-2xl mx-auto">
-            Every scheduled post across YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X — visible in one view.
+            Every scheduled post across YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest — visible in one view.
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-2 shadow-[0_0_60px_rgba(96,165,250,0.08)]">
@@ -428,12 +435,96 @@ export default function Home() {
             { dot: "bg-pink-400", name: "Instagram" },
             { dot: "bg-blue-300", name: "LinkedIn" },
             { dot: "bg-sky-400",  name: "Bluesky" },
+            { dot: "bg-white/60", name: "X" },
+            { dot: "bg-red-500",  name: "Pinterest" },
           ].map((p) => (
             <div key={p.name} className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full shrink-0 ${p.dot}`} />
               <span>{p.name}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Link in Bio */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center">
+            {/* Left — copy */}
+            <div className="p-10 lg:p-14">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3.5 py-1 text-xs font-medium text-emerald-300 mb-6">
+                Included free · No extra cost
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
+                Your link in bio page,{" "}
+                <span className="bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent">
+                  free with every plan.
+                </span>
+              </h2>
+              <p className="mt-5 text-white/45 text-base leading-relaxed max-w-md">
+                Most creators pay for a link-in-bio tool and a scheduler separately. With Clip Dash the link page comes free with your subscription — and because it already knows what you published, it fills itself in.
+              </p>
+              <ul className="mt-7 space-y-3.5">
+                {[
+                  "A clean clipdash.org page at your own handle — set it up in about a minute.",
+                  "Your latest videos appear automatically, pulled from the posts you already scheduled.",
+                  "Unlimited links with click tracking, so you can see what your audience actually taps.",
+                  "Custom avatar, bio, accent colour, and light or dark theme.",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-white/60 leading-relaxed">
+                    <Check className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" weight="bold" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="/login"
+                className="mt-8 inline-block rounded-full bg-white px-7 py-3 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+              >
+                Claim your page — free with any plan
+              </a>
+            </div>
+
+            {/* Right — mock bio page */}
+            <div className="relative p-10 lg:p-14 flex justify-center border-t lg:border-t-0 lg:border-l border-white/[0.07]">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.09),transparent_65%)]" />
+              <div className="relative w-full max-w-[260px] rounded-[2rem] border border-white/12 bg-[#0a0a0a] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+                {/* Profile */}
+                <div className="text-center">
+                  <div className="mx-auto mb-3 h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400/30 to-teal-400/20 ring-2 ring-emerald-400/40" />
+                  <div className="text-sm font-semibold text-white">@yourhandle</div>
+                  <div className="mt-1 text-[11px] text-white/35">Clips, uploads, and everything else</div>
+                </div>
+                {/* Links */}
+                <div className="mt-5 space-y-2">
+                  {["Latest upload", "Twitch stream", "Merch store"].map((l) => (
+                    <div
+                      key={l}
+                      className="rounded-xl border border-emerald-400/20 bg-white/[0.04] py-2.5 text-center text-[11px] text-white/70"
+                    >
+                      {l}
+                    </div>
+                  ))}
+                </div>
+                {/* Auto-populated recent grid */}
+                <div className="mt-5">
+                  <div className="mb-2 text-[9px] uppercase tracking-wider text-white/30">Recent content</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      "from-red-500/35 to-red-500/10",
+                      "from-pink-500/35 to-pink-500/10",
+                      "from-white/25 to-white/5",
+                      "from-blue-500/35 to-blue-500/10",
+                      "from-sky-500/35 to-sky-500/10",
+                      "from-purple-500/35 to-purple-500/10",
+                    ].map((g, i) => (
+                      <div key={i} className={`aspect-square rounded-md bg-gradient-to-br ${g}`} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -607,6 +698,10 @@ export default function Home() {
                 <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
                 Analytics dashboard
               </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
+                Free link in bio page
+              </li>
             </ul>
             </div>
             <div className="rounded-2xl border border-blue-300/14 bg-blue-300/8 p-4 mb-6">
@@ -698,14 +793,14 @@ export default function Home() {
       </section>
 
       {/* Supported Platforms */}
-      <section className="relative z-10 mx-auto max-w-4xl px-6 py-20">
+      <section className="relative z-10 mx-auto max-w-5xl px-6 py-20">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Supported Platforms</h2>
           <p className="mt-3 text-white/40 max-w-md mx-auto">
             Post to all 8 platforms from a single upload.
           </p>
         </div>
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
           {[
             { key: "youtube",   name: "YouTube",   color: "text-red-400",   icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z"/></svg> },
             { key: "tiktok",    name: "TikTok",    color: "text-white",     icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg> },
@@ -714,11 +809,12 @@ export default function Home() {
             { key: "linkedin",  name: "LinkedIn",  color: "text-blue-300",  icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z"/></svg> },
             { key: "bluesky",   name: "Bluesky",   color: "text-sky-400",   icon: <svg className="w-10 h-10" viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z"/></svg> },
             { key: "x",         name: "X",         color: "text-white",     icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg> },
+            { key: "pinterest", name: "Pinterest", color: "text-red-500",   icon: <svg className="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0Z"/></svg> },
           ].map((p, i) => (
             <a
               key={p.key}
               href={`/platforms/${p.key}`}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-2 py-6 hover:bg-white/[0.04] hover:border-white/20 transition-all"
             >
               <div
                 className={`animate-float ${p.color}`}
@@ -726,7 +822,7 @@ export default function Home() {
               >
                 {p.icon}
               </div>
-              <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">{p.name}</span>
+              <span className="text-xs sm:text-sm font-medium text-white/70 group-hover:text-white transition-colors">{p.name}</span>
             </a>
           ))}
         </div>
