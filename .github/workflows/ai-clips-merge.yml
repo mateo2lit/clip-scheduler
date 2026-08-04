@@ -86,8 +86,25 @@ jobs:
 
           // 3. Claude detection (single-pass for now; map-reduce TBD if transcript too long)
           const anthropic = new Anthropic();
-          const detectPrompt = `You are picking the best ${job.clip_count} short moments from this transcript for social-media clips. Each clip should be 15-90 seconds. Return JSON only:
-          [{"start_sec":<number>,"end_sec":<number>,"title":"<short>"}]
+          // Kept deliberately in step with the small-path prompt in ai-clips.yml so a
+          // clip scored 90 here means the same thing as a clip scored 90 there.
+          const detectPrompt = `You are picking the best ${job.clip_count} short moments from this transcript for social-media clips. Each clip should be 15-90 seconds.
+
+          For each moment return:
+          - "start_sec" / "end_sec": seconds (numbers)
+          - "title": 5-10 words, descriptive, suitable as a post title
+          - "hook_title": an on-screen hook of AT MOST 8 words, written to stop a scroll. No trailing period.
+          - "score": integer 0-100 estimating how well this clip would perform as a standalone short
+          - "reason": ONE short sentence explaining the score
+
+          Score honestly and use the whole range — a flat list of 80s is useless:
+          - 85-100: strong hook in the first 3 seconds, clear payoff, stands alone with no missing context
+          - 65-84: interesting and self-contained, but a slow opening or a mild payoff
+          - 40-64: decent content that needs setup the viewer will not have, or it meanders
+          - 0-39: filler, small talk, or no discernible hook
+
+          Order the array from HIGHEST score to LOWEST. Return JSON only:
+          [{"start_sec":<number>,"end_sec":<number>,"title":"<short>","hook_title":"<hook>","score":<0-100>,"reason":"<one sentence>"}]
 
           Transcript:
           ${merged.transcript.slice(0, 100_000)}`;
@@ -115,12 +132,25 @@ jobs:
             }));
           }
 
+          // Score is advisory — a missing or junk value falls back to 50 (neutral)
+          // rather than 0, which would read as a verdict.
+          const clampScore = (raw) => {
+            const n = Math.round(Number(raw));
+            return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 50;
+          };
+
+          // Claude is asked to return best-first; re-sorting guarantees it.
+          moments.sort((a, b) => clampScore(b?.score) - clampScore(a?.score));
+
           // Attach subtitle word_segments per moment
           const enriched = moments.map((m, i) => ({
             index: i,
             start_sec: m.start_sec,
             end_sec: m.end_sec,
             title: m.title || `Moment ${i + 1}`,
+            hook_title: String(m.hook_title || "").slice(0, 100),
+            score: clampScore(m?.score),
+            reason: String(m.reason || "").slice(0, 300),
             subtitles_json: merged.word_segments_json.filter(
               (w) => w.start >= m.start_sec && w.end <= m.end_sec
             ),

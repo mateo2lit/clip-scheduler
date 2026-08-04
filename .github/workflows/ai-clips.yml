@@ -254,15 +254,32 @@ jobs:
               f"{hook_rule}"
               f"{moment_rule}"
               "- If transcript is sparse/silent, space clips evenly across the video\n"
-              "- Title should be 5-10 words, compelling, suitable for social media\n\n"
+              "- A clip should be self-contained: it must make sense to someone who has not seen the rest of the video\n"
+              "- Start the clip at the beginning of a thought, not mid-sentence\n\n"
+              "For each moment return these fields:\n"
+              '- "start" / "end": seconds (numbers)\n'
+              '- "title": 5-10 words, descriptive, suitable as a social media post title\n'
+              '- "hook_title": a punchy on-screen hook of AT MOST 8 words, written to stop a scroll. '
+              "Curiosity, conflict, a number, or a bold claim. This is overlay text, not a sentence — no trailing period.\n"
+              '- "score": an integer 0-100 estimating how well this clip would perform as a standalone short.\n'
+              '- "reason": ONE short sentence explaining the score.\n\n'
+              "Score honestly and use the whole range — a flat list of 80s is useless. Calibrate roughly like this:\n"
+              "- 85-100: a genuinely strong hook in the first 3 seconds, a clear payoff, and it stands alone with no missing context\n"
+              "- 65-84: interesting and self-contained, but the opening is slow or the payoff is mild\n"
+              "- 40-64: decent content that needs setup the viewer will not have, or it meanders\n"
+              "- 0-39: filler, small talk, or a section with no discernible hook at all\n"
+              "If the transcript is sparse or silent, score honestly low rather than inventing enthusiasm.\n\n"
+              "Order the array from HIGHEST score to LOWEST — the best clip must be first.\n\n"
               "Respond with ONLY valid JSON (no markdown, no code blocks):\n"
-              '[{"start": 45.2, "end": 98.7, "title": "Compelling title here"}, ...]\n\n'
+              '[{"start": 45.2, "end": 98.7, "title": "Compelling title here", '
+              '"hook_title": "He lost $40k in one trade", "score": 87, '
+              '"reason": "Opens on a concrete number and pays off within ten seconds."}, ...]\n\n'
               f"Return exactly {clip_count} items."
           )
 
           msg = client.messages.create(
               model="claude-haiku-4-5-20251001",
-              max_tokens=1024,
+              max_tokens=2048,
               messages=[{"role": "user", "content": prompt}]
           )
 
@@ -287,6 +304,14 @@ jobs:
                       "title": f"Clip {i + 1}"
                   })
 
+          def clamp_score(raw):
+              """Score is advisory, so a missing or junk value must never fail the run —
+              it falls back to 50 (neutral) rather than 0, which would read as a verdict."""
+              try:
+                  return max(0, min(100, int(round(float(raw)))))
+              except (TypeError, ValueError):
+                  return 50
+
           # Validate and clamp each moment
           validated = []
           for i, m in enumerate(moments[:clip_count]):
@@ -299,21 +324,39 @@ jobs:
               if end - start < 5:
                   end = min(start + 30, total_duration)
               title = str(m.get("title", f"Clip {i + 1}"))[:200]
-              validated.append({"start": round(start, 1), "end": round(end, 1), "title": title})
+              hook = str(m.get("hook_title") or "").strip()[:100]
+              reason = str(m.get("reason") or "").strip()[:300]
+              validated.append({
+                  "start": round(start, 1),
+                  "end": round(end, 1),
+                  "title": title,
+                  "hook_title": hook,
+                  "score": clamp_score(m.get("score")),
+                  "reason": reason,
+              })
 
           # Pad if Claude returned fewer than requested
           while len(validated) < clip_count:
               i = len(validated)
               start = round((total_duration / clip_count) * i, 1)
               end = round(min(start + 60, total_duration), 1)
-              validated.append({"start": start, "end": end, "title": f"Clip {i + 1}"})
+              validated.append({
+                  "start": start, "end": end, "title": f"Clip {i + 1}",
+                  "hook_title": "", "score": 50, "reason": "",
+              })
+
+          # Claude is asked to return best-first, but a re-sort guarantees it even when
+          # it doesn't comply — index 0 is the top clip everywhere downstream.
+          validated.sort(key=lambda m: m["score"], reverse=True)
 
           with open("/tmp/moments.json", "w") as f:
               json.dump(validated, f, indent=2)
 
           print(f"Moments saved ({len(validated)} clips):", flush=True)
           for m in validated:
-              print(f"  {m['start']:.1f}s-{m['end']:.1f}s ({m['end']-m['start']:.1f}s): {m['title']}", flush=True)
+              print(f"  [{m['score']:3d}] {m['start']:.1f}s-{m['end']:.1f}s ({m['end']-m['start']:.1f}s): {m['title']}", flush=True)
+              if m["reason"]:
+                  print(f"        {m['reason']}", flush=True)
           PYEOF
 
       - name: Mark job as cutting
@@ -356,6 +399,7 @@ jobs:
           result_upload_ids = []
           result_titles = []
           result_subtitles = []
+          result_moments = []
 
           for i, moment in enumerate(moments):
               start = moment["start"]
@@ -470,6 +514,15 @@ jobs:
               result_upload_ids.append(upload_id)
               result_titles.append(title)
               result_subtitles.append(clip_words)
+              result_moments.append({
+                  "index": i,
+                  "start_sec": start,
+                  "end_sec": end,
+                  "title": title,
+                  "hook_title": moment.get("hook_title", ""),
+                  "score": moment.get("score", 50),
+                  "reason": moment.get("reason", ""),
+              })
 
               print(f"  Created upload {upload_id} ({len(clip_words)} subtitle words)", flush=True)
               os.remove(out_path)
@@ -480,6 +533,7 @@ jobs:
                   "result_upload_ids": result_upload_ids,
                   "result_titles": result_titles,
                   "result_subtitles": result_subtitles,
+                  "result_moments_json": result_moments,
               }, f)
 
           print(f"\nAll {len(result_upload_ids)} clips created successfully", flush=True)
@@ -518,6 +572,7 @@ jobs:
               "result_upload_ids": results["result_upload_ids"],
               "result_titles": results["result_titles"],
               "result_subtitles": results["result_subtitles"],
+              "result_moments_json": results.get("result_moments_json", []),
               "updated_at": now,
           }).encode()
 

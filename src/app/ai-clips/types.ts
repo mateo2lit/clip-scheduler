@@ -191,3 +191,27 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   titleStrokeColor: "#000000",
   titleStrokeWidth: 0,
 };
+
+// ── Output format ────────────────────────────────────────────────────────────
+
+/**
+ * Output geometry for a burn. Must stay in sync with the TARGETS map in
+ * .github/workflows/ai-clip-burn.yml — the value is passed through to the
+ * workflow verbatim and any unknown value silently falls back to landscape.
+ */
+export type ConvertMode =
+  | "portrait_auto"
+  | "portrait_blur"
+  | "portrait_crop"
+  | "portrait_45"
+  | "square"
+  | "landscape";
+
+export const CONVERT_MODE_OPTIONS: { value: ConvertMode; label: string; hint: string }[] = [
+  { value: "portrait_auto", label: "9:16 Auto",  hint: "Crop follows the speaker" },
+  { value: "portrait_blur", label: "9:16 Blur",  hint: "Full frame over a blurred background" },
+  { value: "portrait_crop", label: "9:16 Crop",  hint: "Static centre crop" },
+  { value: "portrait_45",   label: "4:5",        hint: "Feed-friendly portrait" },
+  { value: "square",        label: "1:1",        hint: "Square" },
+  { value: "landscape",     label: "16:9",       hint: "Original framing, untouched" },
+];

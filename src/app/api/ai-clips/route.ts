@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const { data, error } = await supabaseAdmin
       .from("ai_clip_jobs")
       .select(
-        "id, clip_count, source_duration_minutes, status, clips_generated, result_upload_ids, result_titles, result_subtitles, error, created_at, updated_at"
+        "id, clip_count, source_duration_minutes, status, clips_generated, result_upload_ids, result_titles, result_subtitles, result_moments_json, error, created_at, updated_at"
       )
       .eq("team_id", teamId)
       .order("created_at", { ascending: false })

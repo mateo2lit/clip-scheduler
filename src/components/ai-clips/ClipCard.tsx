@@ -2,11 +2,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
-import { SubtitleStyle } from "@/app/ai-clips/types";
+import { SubtitleStyle, type ConvertMode } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 import { Play, Calendar, DownloadSimple, Prohibit, ArrowsOut } from "@phosphor-icons/react/dist/ssr";
 
-type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
 type TimedWord = { start: number; end: number; word: string };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -309,6 +308,29 @@ function CaptionDragHandle({
 
 export type DownloadInfo = { stage: string; stageIdx: number; progress: number } | null;
 
+// ── ViralityBadge ─────────────────────────────────────────────────────────────
+
+/** Colour bands match the calibration the model is given in ai-clips.yml. */
+export function viralityTier(score: number): { label: string; classes: string } {
+  if (score >= 85) return { label: "Excellent", classes: "bg-emerald-400/90 text-black" };
+  if (score >= 65) return { label: "Strong", classes: "bg-amber-300/90 text-black" };
+  if (score >= 40) return { label: "Fair", classes: "bg-white/80 text-black" };
+  return { label: "Weak", classes: "bg-white/25 text-white" };
+}
+
+function ViralityBadge({ score, reason }: { score: number; reason?: string }) {
+  const tier = viralityTier(score);
+  return (
+    <div
+      className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums shadow-lg ${tier.classes}`}
+      title={reason ? `${tier.label} · ${score}/100 — ${reason}` : `${tier.label} · ${score}/100`}
+    >
+      {score}
+      <span className="text-[8px] font-semibold opacity-60">/100</span>
+    </div>
+  );
+}
+
 function DownloadOverlay({ active, progress, stageIdx }: { active: boolean; progress: number; stageIdx: number }) {
   if (!active) return null;
 
@@ -356,10 +378,14 @@ export function ClipCard({
   cardWidth = 185,
   onExpand,
   onDownloadChange,
+  score,
+  reason,
 }: {
   index: number;
   uploadId: string;
   title: string;
+  score?: number;
+  reason?: string;
   subtitleWords: any[];
   subtitleStyle: SubtitleStyle;
   jobId: string;
@@ -635,6 +661,9 @@ export function ClipCard({
             <div className="h-6 w-6 rounded-full border-2 border-violet-400/30 border-t-violet-400 animate-spin" />
           </div>
         )}
+
+        {/* Virality score */}
+        {typeof score === "number" && <ViralityBadge score={score} reason={reason} />}
 
         {/* Title overlay — draggable */}
         <TitleOverlay

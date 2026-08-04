@@ -4,9 +4,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey } from "@/app/ai-clips/types";
+import {
+  SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey,
+  type ConvertMode, CONVERT_MODE_OPTIONS,
+} from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
-import { ClipCard, type DownloadInfo } from "@/components/ai-clips/ClipCard";
+import { ClipCard, viralityTier, type DownloadInfo } from "@/components/ai-clips/ClipCard";
 import { CaretLeft, CaretRight, X as XIcon, Calendar } from "@phosphor-icons/react/dist/ssr";
 
 type AiClipJobStatus =
@@ -17,6 +20,7 @@ type MomentResult = {
   start_sec: number;
   end_sec: number;
   title?: string;
+  hook_title?: string;
   score?: number;
   reason?: string;
 };
@@ -55,14 +59,6 @@ function formatMinutes(minutes: number): string {
 }
 
 // ── Subtitle quick bar ───────────────────────────────────────────────────────
-
-type ConvertMode = "portrait_blur" | "portrait_crop" | "landscape";
-
-const MODE_OPTIONS: { value: ConvertMode; label: string }[] = [
-  { value: "portrait_blur", label: "9:16 Blur" },
-  { value: "portrait_crop", label: "9:16 Crop" },
-  { value: "landscape",     label: "16:9" },
-];
 
 function SubtitleQuickBar({
   style,
@@ -120,12 +116,13 @@ function SubtitleQuickBar({
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] text-white/30 uppercase tracking-wider flex-shrink-0 w-16">Format</span>
 
-        {/* 3-way mode pills */}
+        {/* Output format pills */}
         <div className="flex rounded-lg overflow-hidden border border-white/10">
-          {MODE_OPTIONS.map((opt) => (
+          {CONVERT_MODE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onConvertMode(opt.value)}
+              title={opt.hint}
               className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
                 convertMode === opt.value
                   ? "bg-violet-500 text-white"
@@ -181,7 +178,7 @@ export default function AiClipProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
   const [expandedCaption, setExpandedCaption] = useState(false);
-  const [convertMode, setConvertMode] = useState<"portrait_blur" | "portrait_crop" | "landscape">("portrait_blur");
+  const [convertMode, setConvertMode] = useState<ConvertMode>("portrait_auto");
   const [previewClipIndex, setPreviewClipIndex] = useState<number | null>(null);
   // Tracks last non-null previewClipIndex so modal ClipCard stays mounted during close (preserves download state)
   const [modalIndex, setModalIndex] = useState(0);
@@ -291,6 +288,17 @@ export default function AiClipProjectPage() {
 
   function handleScheduled(uploadId: string, title: string) {
     window.location.href = `/uploads?uploadId=${encodeURIComponent(uploadId)}&title=${encodeURIComponent(title)}`;
+  }
+
+  /**
+   * Moment metadata is keyed by `index` rather than array position — a job written
+   * before scoring shipped has no moments at all, and the large path writes them in
+   * its own order.
+   */
+  function momentFor(i: number): MomentResult | undefined {
+    const moments = job?.result_moments_json;
+    if (!Array.isArray(moments)) return undefined;
+    return moments.find((m) => m?.index === i);
   }
 
   if (loading) {
@@ -536,6 +544,8 @@ export default function AiClipProjectPage() {
                   index={i}
                   uploadId={uploadId}
                   title={job.result_titles?.[i] ?? `Clip ${i + 1}`}
+                  score={momentFor(i)?.score}
+                  reason={momentFor(i)?.reason}
                   subtitleWords={job.result_subtitles?.[i] ?? []}
                   subtitleStyle={subtitleStyle}
                   jobId={job.id}
@@ -586,6 +596,8 @@ export default function AiClipProjectPage() {
                   index={mi}
                   uploadId={job.result_upload_ids[mi]}
                   title={job.result_titles?.[mi] ?? `Clip ${mi + 1}`}
+                  score={momentFor(mi)?.score}
+                  reason={momentFor(mi)?.reason}
                   subtitleWords={job.result_subtitles?.[mi] ?? []}
                   subtitleStyle={subtitleStyle}
                   jobId={job.id}
@@ -596,6 +608,50 @@ export default function AiClipProjectPage() {
                   onDownloadChange={setDownloadInfo}
                   cardWidth={320}
                 />
+
+                {/* Why this clip scored what it did, plus the AI's suggested hook */}
+                {(() => {
+                  const moment = momentFor(mi);
+                  if (!moment?.reason && !moment?.hook_title) return null;
+                  const tier = typeof moment.score === "number" ? viralityTier(moment.score) : null;
+                  return (
+                    <div className="w-[320px] rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2.5">
+                      {moment.reason && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[9px] uppercase tracking-wider text-white/30">Why this clip</span>
+                            {tier && (
+                              <span className="text-[9px] font-semibold text-white/45">
+                                {tier.label} · {moment.score}/100
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-white/55">{moment.reason}</p>
+                        </div>
+                      )}
+                      {moment.hook_title && (
+                        <div className="flex items-start gap-2 border-t border-white/[0.06] pt-2.5">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[9px] uppercase tracking-wider text-white/30 mb-0.5">Suggested hook</div>
+                            <p className="text-[11px] font-medium text-white/75 break-words">{moment.hook_title}</p>
+                          </div>
+                          <button
+                            onClick={() =>
+                              setSubtitleStyle((s) => ({
+                                ...s,
+                                titleEnabled: true,
+                                titleText: moment.hook_title!,
+                              }))
+                            }
+                            className="flex-shrink-0 rounded-md border border-violet-400/30 bg-violet-500/15 px-2 py-1 text-[10px] font-medium text-violet-200 hover:bg-violet-500/25 transition-colors"
+                          >
+                            Use as title
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Prev / next */}
                 {job.result_upload_ids.length > 1 && (

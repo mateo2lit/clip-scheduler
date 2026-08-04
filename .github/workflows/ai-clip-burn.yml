@@ -14,7 +14,7 @@ on:
         description: "Supabase Storage path for burned output"
         required: true
       mode:
-        description: "portrait_blur or landscape"
+        description: "portrait_blur | portrait_crop | portrait_auto | portrait_45 | square | landscape"
         required: false
         default: "landscape"
       team_id:
@@ -219,6 +219,76 @@ jobs:
               print(f"Written files: mode={db_mode}, words={len(words)}", flush=True)
           PYEOF
 
+      # Auto-reframe: find where the speaker is in each sampled frame so the 9:16 crop
+      # can follow them instead of sitting dead-centre. Best-effort by design — a
+      # missing wheel, a bad cascade, or a video with no detectable face all end with
+      # an empty track, and the burn step falls back to a static centre crop.
+      - name: Detect speaker position for auto-reframe
+        if: ${{ inputs.mode == 'portrait_auto' }}
+        continue-on-error: true
+        run: |
+          pip install --quiet --disable-pip-version-check opencv-python-headless || true
+          python3 - <<'PYEOF'
+          import json
+
+          SAMPLE_HZ = 2.0        # samples per second of video
+          DETECT_WIDTH = 480     # downscale before detection; faces are still well over minSize
+          track = []
+
+          try:
+              import cv2
+
+              cascade = cv2.CascadeClassifier(
+                  cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+              )
+              if cascade.empty():
+                  raise RuntimeError("haar cascade failed to load")
+
+              cap = cv2.VideoCapture("/tmp/clip.mp4")
+              if not cap.isOpened():
+                  raise RuntimeError("could not open clip")
+
+              fps = cap.get(cv2.CAP_PROP_FPS)
+              if not fps or fps <= 0 or fps > 240:
+                  fps = 30.0
+              step = max(1, int(round(fps / SAMPLE_HZ)))
+
+              idx = 0
+              while True:
+                  if not cap.grab():
+                      break
+                  if idx % step == 0:
+                      ok, frame = cap.retrieve()
+                      if ok and frame is not None:
+                          h, w = frame.shape[:2]
+                          if w > DETECT_WIDTH:
+                              scale = DETECT_WIDTH / float(w)
+                              frame = cv2.resize(frame, (int(w * scale), max(1, int(h * scale))))
+                          gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                          gray = cv2.equalizeHist(gray)
+                          faces = cascade.detectMultiScale(
+                              gray, scaleFactor=1.15, minNeighbors=5, minSize=(28, 28)
+                          )
+                          if len(faces):
+                              # Largest face wins — in a multi-person shot that is almost
+                              # always whoever is closest to camera, i.e. the speaker.
+                              fx, fy, fw, fh = max(faces, key=lambda f: f[2] * f[3])
+                              cx = (fx + fw / 2.0) / float(gray.shape[1])
+                              track.append([round(idx / fps, 2), round(float(cx), 4)])
+                  idx += 1
+
+              cap.release()
+              print(f"Scanned {idx} frames at {fps:.1f}fps (every {step}), {len(track)} with a face", flush=True)
+
+          except Exception as e:
+              print(f"Auto-reframe detection unavailable ({type(e).__name__}: {e}) — centre crop will be used", flush=True)
+              track = []
+
+          with open("/tmp/reframe_track.json", "w") as f:
+              json.dump(track, f)
+          print(f"Reframe samples written: {len(track)}", flush=True)
+          PYEOF
+
       - name: Generate ASS subtitle file and burn
         env:
           BURN_MODE: ${{ inputs.mode }}
@@ -318,8 +388,20 @@ jobs:
 
           print(f"Source dimensions: {src_w}x{src_h}, duration: {clip_duration:.1f}s, mode: {mode}", flush=True)
 
-          # ── Compute portrait dimensions ──────────────────────────────────────────
-          TW, TH = 1080, 1920  # target 9:16
+          # ── Compute target canvas ────────────────────────────────────────────────
+          # Every mode except landscape re-frames onto a fixed canvas. The crop family
+          # all share the same scale-to-fill maths; only the target size differs.
+          TARGETS = {
+              "portrait_blur": (1080, 1920),   # 9:16, letterboxed over a blurred fill
+              "portrait_crop": (1080, 1920),   # 9:16, static centre crop
+              "portrait_auto": (1080, 1920),   # 9:16, crop follows the speaker
+              "portrait_45":   (1080, 1350),   # 4:5, static centre crop
+              "square":        (1080, 1080),   # 1:1, static centre crop
+          }
+          CROP_MODES = ("portrait_crop", "portrait_auto", "portrait_45", "square")
+
+          TW, TH = TARGETS.get(mode, (1080, 1920))
+          reframe_cmds = []   # [(t_seconds, crop_x_px)] — populated for portrait_auto only
 
           if mode == "portrait_blur":
               scale_by_h_w = int(src_w * TH / src_h)
@@ -340,23 +422,76 @@ jobs:
               play_res_x, play_res_y = TW, TH
               print(f"Portrait blur: bg={bg_w}x{bg_h} crop_x={bg_crop_x} crop_y={bg_crop_y}, fg={fg_w}x{fg_h}", flush=True)
 
-          elif mode == "portrait_crop":
-              # Scale to fill 9:16, center crop — no blur
-              if src_w * TH > src_h * TW:   # source wider than 9:16 → scale by height, crop sides
+          elif mode in CROP_MODES:
+              # Scale to fill the target canvas, then crop the overflow — no blur
+              if src_w * TH > src_h * TW:   # source wider than target → scale by height, crop sides
                   pc_scale_h = TH
                   pc_scale_w = int(src_w * TH / src_h)
                   pc_scale_w += pc_scale_w % 2
-                  pc_crop_x  = (pc_scale_w - TW) // 2
-                  pc_crop_y  = 0
-              else:                          # source taller than 9:16 → scale by width, crop top/bottom
+              else:                          # source taller than target → scale by width, crop top/bottom
                   pc_scale_w = TW
                   pc_scale_h = int(src_h * TW / src_w)
                   pc_scale_h += pc_scale_h % 2
-                  pc_crop_x  = 0
-                  pc_crop_y  = (pc_scale_h - TH) // 2
+
+              pc_crop_x = max(0, (pc_scale_w - TW) // 2)
+              pc_crop_y = max(0, (pc_scale_h - TH) // 2)
+              max_crop_x = max(0, pc_scale_w - TW)
 
               play_res_x, play_res_y = TW, TH
-              print(f"Portrait crop: scale={pc_scale_w}x{pc_scale_h} crop_x={pc_crop_x} crop_y={pc_crop_y}", flush=True)
+              print(f"{mode}: scale={pc_scale_w}x{pc_scale_h} crop={TW}x{TH}+{pc_crop_x}+{pc_crop_y}", flush=True)
+
+              # ── Auto-reframe: turn the sampled face track into a crop-x timeline ──
+              if mode == "portrait_auto" and max_crop_x > 0:
+                  try:
+                      with open("/tmp/reframe_track.json") as f:
+                          raw_track = [(float(t), float(cx)) for t, cx in json.load(f)]
+                  except Exception as e:
+                      print(f"No reframe track ({type(e).__name__}) — centre crop", flush=True)
+                      raw_track = []
+
+                  if raw_track:
+                      raw_track.sort(key=lambda p: p[0])
+
+                      # Centred moving average. Raw per-frame detections jitter by a few
+                      # percent even on a motionless subject, and an unsmoothed crop makes
+                      # that jitter look like camera shake.
+                      SMOOTH_WINDOW = 2.0   # seconds either side
+                      smoothed = []
+                      for t, _ in raw_track:
+                          window = [c for tt, c in raw_track if abs(tt - t) <= SMOOTH_WINDOW]
+                          smoothed.append((t, sum(window) / len(window)))
+
+                      # Dead zone: hold position until the subject genuinely drifts, so the
+                      # frame stays locked during normal head movement instead of creeping.
+                      DEAD_ZONE = 0.04      # fraction of frame width
+                      held = []
+                      current = smoothed[0][1]
+                      for t, cx in smoothed:
+                          if abs(cx - current) > DEAD_ZONE:
+                              current = cx
+                          held.append((t, current))
+
+                      # Convert to pixel offsets in the scaled frame, dropping no-op moves.
+                      prev_px = None
+                      for t, cx in held:
+                          px = int(round(cx * pc_scale_w - TW / 2.0))
+                          px = max(0, min(max_crop_x, px))
+                          if prev_px is None or abs(px - prev_px) >= 2:
+                              reframe_cmds.append((t, px))
+                              prev_px = px
+
+                      if reframe_cmds:
+                          # Open on the tracked position rather than centre, otherwise the
+                          # first frame visibly snaps.
+                          pc_crop_x = reframe_cmds[0][1]
+                          print(
+                              f"Auto-reframe: {len(raw_track)} samples → {len(reframe_cmds)} crop moves, "
+                              f"x range {min(p for _, p in reframe_cmds)}-{max(p for _, p in reframe_cmds)} "
+                              f"(max {max_crop_x})",
+                              flush=True,
+                          )
+                  if not reframe_cmds:
+                      print("Auto-reframe: no usable track, falling back to centre crop", flush=True)
 
           else:
               play_res_x, play_res_y = src_w, src_h
@@ -544,8 +679,8 @@ jobs:
           # ── FFmpeg processing ────────────────────────────────────────────────────
           import shutil
 
-          if mode in ("portrait_blur", "portrait_crop"):
-              # Pass 1: Convert to 9:16 portrait (no subtitles yet)
+          if mode in ("portrait_blur",) + CROP_MODES:
+              # Pass 1: Convert geometry to the target canvas (no subtitles yet)
               if mode == "portrait_blur":
                   bg_chain  = f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg]"
                   fg_chain  = f"[0:v]scale={fg_w}:{fg_h}[fg]"
@@ -559,21 +694,49 @@ jobs:
                       "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
                       "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
                   ]
-              else:  # portrait_crop
-                  crop_vf = f"scale={pc_scale_w}:{pc_scale_h},crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
-                  p1_cmd = [
-                      "ffmpeg", "-i", "/tmp/clip.mp4",
-                      "-vf", crop_vf, "-map", "0:v:0", "-map", "0:a:0?",
-                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                      "-pix_fmt", "yuv420p", "-r", "30",
-                      "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
-                      "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
-                  ]
+              else:  # crop family: portrait_crop / portrait_auto / portrait_45 / square
+                  static_vf = f"scale={pc_scale_w}:{pc_scale_h},crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
+
+                  if reframe_cmds:
+                      # Drive the crop filter's x over time. crop exposes x as a runtime
+                      # command, so sendcmd can pan the window frame-accurately without
+                      # re-encoding per segment.
+                      with open("/tmp/reframe.cmd", "w") as f:
+                          for t, px in reframe_cmds:
+                              f.write(f"{t:.2f} crop x {px};\n")
+                      vf = (
+                          f"scale={pc_scale_w}:{pc_scale_h},"
+                          f"sendcmd=f=/tmp/reframe.cmd,"
+                          f"crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
+                      )
+                  else:
+                      vf = static_vf
+
+                  def crop_cmd(filter_str):
+                      return [
+                          "ffmpeg", "-i", "/tmp/clip.mp4",
+                          "-vf", filter_str, "-map", "0:v:0", "-map", "0:a:0?",
+                          "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                          "-pix_fmt", "yuv420p", "-r", "30",
+                          "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+                          "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
+                      ]
+
+                  p1_cmd = crop_cmd(vf)
 
               proc1 = subprocess.run(p1_cmd, capture_output=True, text=True)
+
+              # A malformed sendcmd script is the one new way pass 1 can fail, and it
+              # only costs the pan — retry once as a plain centre crop rather than
+              # failing a burn that would otherwise have succeeded.
+              if proc1.returncode != 0 and reframe_cmds:
+                  print(f"Auto-reframe pass failed (rc={proc1.returncode}), retrying as centre crop", flush=True)
+                  print(f"stderr:\n{proc1.stderr[-600:]}", flush=True)
+                  proc1 = subprocess.run(crop_cmd(static_vf), capture_output=True, text=True)
+
               if proc1.returncode != 0:
                   print(f"FFmpeg pass 1 stderr:\n{proc1.stderr[-1000:]}", flush=True)
-                  raise RuntimeError(f"FFmpeg portrait conversion failed (rc={proc1.returncode})")
+                  raise RuntimeError(f"FFmpeg geometry conversion failed (rc={proc1.returncode})")
               print(f"Pass 1 done: {os.path.getsize('/tmp/portrait.mp4'):,} bytes", flush=True)
 
               # Pass 2: Burn subtitles/title via a clean separate -vf ass= pass

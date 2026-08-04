@@ -13,7 +13,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const { data, error } = await supabaseAdmin
       .from("ai_clip_jobs")
       .select(
-        "id, clip_count, source_duration_minutes, status, clips_generated, result_upload_ids, result_titles, result_subtitles, error, created_at, updated_at"
+        // processing_path and result_moments_json are what the detail page needs to
+        // render the large-video branch and the per-clip virality scores — without
+        // them the large path renders an empty grid.
+        "id, clip_count, source_duration_minutes, status, clips_generated, result_upload_ids, result_titles, result_subtitles, result_moments_json, processing_path, error, created_at, updated_at"
       )
       .eq("id", params.id)
       .eq("team_id", teamId)

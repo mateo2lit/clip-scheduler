@@ -8,6 +8,18 @@ export const maxDuration = 30;
 const GITHUB_PAT = process.env.GITHUB_PAT!;
 const GITHUB_REPO = process.env.GITHUB_REPO || "mateo2lit/clip-scheduler";
 
+// Must match the TARGETS map in .github/workflows/ai-clip-burn.yml. Anything else
+// would silently fall through to landscape in the workflow, which looks like a bug
+// to the user rather than a rejected input.
+const BURN_MODES = [
+  "portrait_auto",
+  "portrait_blur",
+  "portrait_crop",
+  "portrait_45",
+  "square",
+  "landscape",
+] as const;
+
 async function dispatchBurnWorkflow(inputs: Record<string, string>) {
   if (!GITHUB_PAT) throw new Error("GITHUB_PAT not set.");
   const res = await fetch(
@@ -54,7 +66,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const body = await req.json().catch(() => ({}));
     const clip_index = Number(body.clip_index ?? 0);
     const subtitle_style = body.subtitle_style ?? {};
-    const mode = (body.mode as string) || "landscape";
+    const requestedMode = (body.mode as string) || "landscape";
+    if (!BURN_MODES.includes(requestedMode as (typeof BURN_MODES)[number])) {
+      return NextResponse.json(
+        { ok: false, error: `Unsupported output format: ${requestedMode}` },
+        { status: 400 }
+      );
+    }
+    const mode = requestedMode;
 
     const uploadIds: string[] = job.result_upload_ids ?? [];
     if (clip_index < 0 || clip_index >= uploadIds.length) {

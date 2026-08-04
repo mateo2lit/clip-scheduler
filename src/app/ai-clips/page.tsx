@@ -28,6 +28,7 @@ type AiClipJob = {
   result_upload_ids: string[] | null;
   result_titles: string[] | null;
   result_subtitles: any[] | null;
+  result_moments_json?: { index: number; score?: number; title?: string }[] | null;
   error: string | null;
   created_at: string;
   updated_at: string;
@@ -158,6 +159,13 @@ function ProjectCard({ job, token }: { job: AiClipJob; token: string | null }) {
   const gradient = gradients[gradientIdx];
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // Jobs generated before virality scoring shipped have no moments — the badge
+  // just doesn't render for those.
+  const scores = (job.result_moments_json ?? [])
+    .map((m) => m?.score)
+    .filter((s): s is number => typeof s === "number");
+  const topScore = scores.length ? Math.max(...scores) : null;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -206,6 +214,14 @@ function ProjectCard({ job, token }: { job: AiClipJob; token: string | null }) {
               <div className="absolute top-2 right-2 z-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-400 font-medium">
                 Ready
               </div>
+              {topScore !== null && (
+                <div
+                  className="absolute top-2 left-2 z-10 rounded-full bg-black/55 backdrop-blur-sm border border-white/15 px-2 py-0.5 text-[10px] font-semibold text-white/85 tabular-nums"
+                  title="Highest virality score in this project"
+                >
+                  ★ {topScore}
+                </div>
+              )}
             </>
           ) : (
             <>
