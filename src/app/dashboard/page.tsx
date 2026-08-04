@@ -28,9 +28,7 @@ type PostCounts = {
 
 type AnalyticsTotals = {
   views: number;
-  likes: number;
   prevViews: number;
-  prevLikes: number;
 };
 
 function formatStat(n: number): string {
@@ -125,15 +123,15 @@ export default function DashboardPage() {
 
       // Analytics totals — slow (external API calls), loads separately
       // Use localStorage as a stale-while-revalidate cache keyed by teamId
-      const cacheKey = `dashboard_stats_v2_${teamId}`;
+      const cacheKey = `dashboard_stats_v3_${teamId}`;
       const cacheTtl = 15 * 60 * 1000; // 15 min
       let cacheHit = false;
       try {
         const raw = localStorage.getItem(cacheKey);
         if (raw) {
-          const cached = JSON.parse(raw) as { views: number; likes: number; prevViews: number; prevLikes: number; cachedAt: number };
+          const cached = JSON.parse(raw) as { views: number; prevViews: number; cachedAt: number };
           if (!cancelled) {
-            setTotals({ views: cached.views, likes: cached.likes, prevViews: cached.prevViews, prevLikes: cached.prevLikes });
+            setTotals({ views: cached.views, prevViews: cached.prevViews });
             setTotalsLoading(false);
           }
           cacheHit = true;
@@ -156,9 +154,7 @@ export default function DashboardPage() {
           const prevMonth = metrics.filter((m) => new Date(m.postedAt).getTime() < thirtyDaysAgo);
           const fresh = {
             views: thisMonth.reduce((s: number, m: any) => s + (m.views ?? 0), 0),
-            likes: thisMonth.reduce((s: number, m: any) => s + (m.likes ?? 0), 0),
             prevViews: prevMonth.reduce((s: number, m: any) => s + (m.views ?? 0), 0),
-            prevLikes: prevMonth.reduce((s: number, m: any) => s + (m.likes ?? 0), 0),
           };
           setTotals(fresh);
           try {
@@ -194,7 +190,7 @@ export default function DashboardPage() {
 
       <div className="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-16">
         {/* Stats row */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {/* Total Views */}
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
             <p className="text-xs text-white/40 uppercase tracking-wider">Views <span className="normal-case tracking-normal text-white/20">· 30d</span></p>
@@ -216,32 +212,6 @@ export default function DashboardPage() {
                     <ArrowDown className="w-3 h-3" weight="bold" />
                   )}
                   {Math.abs(Math.round(((totals.views - totals.prevViews) / totals.prevViews) * 100))}%
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Total Likes */}
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] px-5 py-4">
-            <p className="text-xs text-white/40 uppercase tracking-wider">Likes <span className="normal-case tracking-normal text-white/20">· 30d</span></p>
-            <div className="flex items-end gap-2 mt-1.5">
-              <p className="text-3xl font-bold tabular-nums text-white">
-                {totalsLoading ? (
-                  <span className="inline-block w-12 h-8 rounded bg-white/[0.06] animate-pulse" />
-                ) : totals ? (
-                  formatStat(totals.likes)
-                ) : (
-                  <span className="text-white/20 text-2xl">—</span>
-                )}
-              </p>
-              {!totalsLoading && totals && totals.prevLikes > 0 && (
-                <span className={`mb-1 flex items-center gap-0.5 text-xs font-medium ${totals.likes >= totals.prevLikes ? "text-emerald-400" : "text-red-400"}`}>
-                  {totals.likes >= totals.prevLikes ? (
-                    <ArrowUp className="w-3 h-3" weight="bold" />
-                  ) : (
-                    <ArrowDown className="w-3 h-3" weight="bold" />
-                  )}
-                  {Math.abs(Math.round(((totals.likes - totals.prevLikes) / totals.prevLikes) * 100))}%
                 </span>
               )}
             </div>
