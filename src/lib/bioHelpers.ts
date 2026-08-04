@@ -14,6 +14,31 @@ export function resolveThumbnailUrl(path: string | null | undefined): string | n
 }
 
 /**
+ * Derives a public thumbnail URL straight from the platform's CDN using the ID we
+ * stored when the post published. Used as a fallback for posts that have no
+ * first-party `thumbnail_path` — which is most of them, since that column is only
+ * populated when the user uploaded a custom thumbnail.
+ *
+ * Only providers with a stable, unauthenticated, guessable thumbnail URL are
+ * covered. TikTok cover URLs are IP-signed and Instagram media requires an
+ * authenticated Graph call, so neither can be derived from an ID alone.
+ */
+export function resolvePlatformThumbnail(
+  provider: string | null | undefined,
+  platformPostId: string | null | undefined
+): string | null {
+  if (!provider || !platformPostId) return null;
+
+  if (provider === "youtube") {
+    // platform_post_id is the video ID. hqdefault always exists for public videos;
+    // maxresdefault 404s on anything not uploaded in HD, so it's not worth the request.
+    return `https://i.ytimg.com/vi/${platformPostId}/hqdefault.jpg`;
+  }
+
+  return null;
+}
+
+/**
  * Ensures a user-entered URL is safe to use as an absolute navigation target.
  * If the URL starts with "http://" or "https://", returns as-is.
  * If it starts with "//", prepends "https:".

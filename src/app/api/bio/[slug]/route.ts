@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { resolvePostPermalink, resolveThumbnailUrl, normalizeExternalUrl } from "@/lib/bioHelpers";
+import {
+  resolvePostPermalink,
+  resolveThumbnailUrl,
+  resolvePlatformThumbnail,
+  normalizeExternalUrl,
+} from "@/lib/bioHelpers";
 
 export const runtime = "nodejs";
 
@@ -40,29 +45,64 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
         .eq("team_id", page.team_id)
         .eq("status", "posted")
         .order("posted_at", { ascending: false })
-        .limit(81); // over-fetch to get 9 unique groups (worst case: 9 platforms each)
+        .limit(120); // over-fetch so every sibling of the newest 9 groups is present
 
-      // Deduplicate by group_id (or upload_id as fallback) — one entry per upload session
-      const seen = new Set<string>();
-      const unique: any[] = [];
+      // Group by group_id (or upload_id as fallback) — one tile per upload session.
+      // Order is preserved from the query, so `order` is newest-first.
+      const order: string[] = [];
+      const groups = new Map<string, any[]>();
       for (const p of posts || []) {
         const key = p.group_id || p.upload_id || p.id;
-        if (!seen.has(key)) {
-          seen.add(key);
-          unique.push(p);
-          if (unique.length >= 9) break;
+        if (!groups.has(key)) {
+          groups.set(key, []);
+          order.push(key);
         }
+        groups.get(key)!.push(p);
       }
 
-      recentPosts = unique.map((p: any) => ({
-        id: p.id,
-        title: p.title,
-        description: p.description,
-        provider: p.provider,
-        thumbnail_url: resolveThumbnailUrl(p.thumbnail_path),
-        permalink: resolvePostPermalink(p.provider, p.platform_post_id, p.platform_accounts),
-        posted_at: p.posted_at,
-      }));
+      recentPosts = order.slice(0, 9).map((key) => {
+        const rows = groups.get(key)!;
+        const newest = rows[0];
+
+        // A group is one video posted to several platforms, and only some of those
+        // rows can produce an image: a stored thumbnail beats a platform-CDN one,
+        // and either beats nothing. Picking the first row per group (the old
+        // behaviour) meant a Bluesky or LinkedIn sibling could hide a YouTube
+        // thumbnail that was sitting right there.
+        let imageRow: any = null;
+        let thumbnailUrl: string | null = null;
+        let bestRank = 3;
+
+        for (const r of rows) {
+          const stored = resolveThumbnailUrl(r.thumbnail_path);
+          const derived = resolvePlatformThumbnail(r.provider, r.platform_post_id);
+          const rank = stored ? 0 : derived ? 1 : 3;
+          if (rank < bestRank) {
+            bestRank = rank;
+            imageRow = r;
+            thumbnailUrl = stored ?? derived;
+            if (rank === 0) break;
+          }
+        }
+
+        // Link to the platform whose thumbnail we're showing when we can, so the
+        // badge and the destination agree; otherwise take the first row that
+        // resolves to anything linkable.
+        const linkRow =
+          [imageRow, ...rows].find(
+            (r) => r && resolvePostPermalink(r.provider, r.platform_post_id, r.platform_accounts)
+          ) ?? newest;
+
+        return {
+          id: newest.id,
+          title: newest.title,
+          description: newest.description,
+          provider: (imageRow ?? linkRow ?? newest).provider,
+          thumbnail_url: thumbnailUrl,
+          permalink: resolvePostPermalink(linkRow.provider, linkRow.platform_post_id, linkRow.platform_accounts),
+          posted_at: newest.posted_at,
+        };
+      });
     }
 
     return NextResponse.json({

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { PlatformIcon, PLATFORM_LABELS, PLATFORM_COLORS } from "@/components/PlatformIcon";
 
 type BioPage = {
   display_name: string;
@@ -29,6 +30,85 @@ type RecentPost = {
   permalink: string | null;
   posted_at: string;
 };
+
+/**
+ * One tile in the Recent Content grid.
+ *
+ * Thumbnails come from three sources of decreasing reliability (a stored
+ * first-party image, a platform CDN URL, or nothing), and the CDN ones can 404
+ * at render time — so image failure is tracked in state rather than by hiding
+ * the <img>, which previously left an unreadable black square behind.
+ */
+function RecentPostTile({ post, isDark }: { post: RecentPost; isDark: boolean }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasImage = !!post.thumbnail_url && !imgFailed;
+
+  const Wrapper: any = post.permalink ? "a" : "div";
+  const wrapperProps = post.permalink
+    ? { href: post.permalink, target: "_blank", rel: "noopener noreferrer" }
+    : {};
+
+  const accent = PLATFORM_COLORS[post.provider] ?? "#8b5cf6";
+  const label = PLATFORM_LABELS[post.provider] ?? post.provider;
+
+  return (
+    <Wrapper
+      {...wrapperProps}
+      title={post.title}
+      className={`block aspect-square rounded-xl overflow-hidden relative group ${
+        isDark ? "bg-white/[0.04]" : "bg-gray-100"
+      }`}
+    >
+      {hasImage ? (
+        <img
+          src={post.thumbnail_url!}
+          alt={post.title || ""}
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        // No image available — a platform-tinted panel reads as intentional in a
+        // way a flat grey square doesn't.
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(145deg, ${accent}33, ${accent}0d 60%, transparent)`,
+          }}
+        />
+      )}
+
+      {/* Title: always visible without an image, on hover with one */}
+      <div
+        className={`absolute inset-0 flex items-center justify-center p-2 ${
+          hasImage ? "opacity-0 group-hover:opacity-100 bg-black/60 transition-opacity" : ""
+        }`}
+      >
+        <p
+          className={`text-[10px] text-center line-clamp-3 font-medium ${
+            hasImage ? "text-white" : isDark ? "text-white/70" : "text-gray-600"
+          }`}
+        >
+          {post.title}
+        </p>
+      </div>
+
+      {/* Platform badge */}
+      {PLATFORM_LABELS[post.provider] && (
+        <div
+          className="absolute bottom-1.5 right-1.5 h-5 w-5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 flex items-center justify-center"
+          aria-label={label}
+        >
+          <PlatformIcon
+            provider={post.provider}
+            className="h-2.5 w-2.5"
+            style={{ color: accent }}
+          />
+        </div>
+      )}
+    </Wrapper>
+  );
+}
 
 export default function PublicBioPage() {
   const params = useParams();
@@ -151,54 +231,9 @@ export default function PublicBioPage() {
               Recent Content
             </h2>
             <div className="grid grid-cols-3 gap-2">
-              {posts.map((post) => {
-                const Wrapper: any = post.permalink ? "a" : "div";
-                const wrapperProps = post.permalink
-                  ? { href: post.permalink, target: "_blank", rel: "noopener noreferrer" }
-                  : {};
-                return (
-                  <Wrapper
-                    key={post.id}
-                    {...wrapperProps}
-                    className={`block aspect-square rounded-xl overflow-hidden relative group ${
-                      isDark ? "bg-white/[0.04]" : "bg-gray-100"
-                    }`}
-                  >
-                    {post.thumbnail_url ? (
-                      <img
-                        src={post.thumbnail_url}
-                        alt=""
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        onError={(e) => {
-                          // If thumbnail fails to load, hide the img and let the fallback show
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    ) : null}
-                    {/* Fallback / overlay shown when no thumbnail or on image error */}
-                    <div
-                      className={`absolute inset-0 flex items-center justify-center p-2 ${
-                        post.thumbnail_url
-                          ? "opacity-0 group-hover:opacity-100 bg-black/60 transition-opacity"
-                          : ""
-                      }`}
-                    >
-                      <p
-                        className={`text-[10px] text-center line-clamp-3 font-medium ${
-                          post.thumbnail_url
-                            ? "text-white"
-                            : isDark
-                              ? "text-white/40"
-                              : "text-gray-500"
-                        }`}
-                      >
-                        {post.title}
-                      </p>
-                    </div>
-                  </Wrapper>
-                );
-              })}
+              {posts.map((post) => (
+                <RecentPostTile key={post.id} post={post} isDark={isDark} />
+              ))}
             </div>
           </div>
         )}
