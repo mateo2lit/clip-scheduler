@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { resolvePlatformSettings } from "@/lib/scheduledPostSettings";
+
 export async function POST(req: Request) {
   try {
     const result = await getTeamContext(req);
@@ -37,14 +39,11 @@ export async function POST(req: Request) {
       privacy_status,
       scheduled_for,
       status: requestedStatus,
-      tiktok_settings,
-      facebook_settings,
-      instagram_settings,
-      youtube_settings,
-      linkedin_settings,
       thumbnail_path,
       group_id,
     } = body;
+    // Per-platform *_settings are read straight off `body` by
+    // resolvePlatformSettings below, so they are deliberately not destructured here.
 
     const isDraft = requestedStatus === "draft";
     const normalizedProvider = String(provider || "youtube").toLowerCase();
@@ -108,24 +107,13 @@ export async function POST(req: Request) {
       insertRow.thumbnail_path = thumbnail_path;
     }
 
-    if (tiktok_settings && provider === "tiktok") {
-      insertRow.tiktok_settings = tiktok_settings;
-    }
-
-    if (facebook_settings && provider === "facebook") {
-      insertRow.facebook_settings = facebook_settings;
-    }
-
-    if (instagram_settings && provider === "instagram") {
-      insertRow.instagram_settings = instagram_settings;
-    }
-
-    if (youtube_settings && provider === "youtube") {
-      insertRow.youtube_settings = youtube_settings;
-    }
-
-    if (linkedin_settings && normalizedProvider === "linkedin") {
-      insertRow.linkedin_settings = linkedin_settings;
+    // Persist this provider's settings blob. Driven by a shared map rather than a
+    // block per platform, because the hand-rolled version drifted: the worker read
+    // eight settings types while this route only saved five, silently dropping
+    // Pinterest (which fails the post outright — board_id is required), Bluesky and X.
+    const platformSettings = resolvePlatformSettings(normalizedProvider, body);
+    if (platformSettings) {
+      insertRow[platformSettings.column] = platformSettings.value;
     }
 
     const { data, error } = await supabaseAdmin
