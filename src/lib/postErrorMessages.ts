@@ -116,6 +116,17 @@ export function humanizePostError(
     }
   }
 
+  if (provider === "pinterest") {
+    // Pinterest apps start on Trial access, which cannot create pins against the
+    // production API at all. This is an app-approval state, not an account
+    // permission — the fix is applying for Standard access in the developer
+    // portal, so the generic 403 "permission denied" points users at entirely the
+    // wrong thing (their board, their account, reconnecting).
+    if (r.includes("trial access") || /\bcode":\s*29\b/.test(r)) {
+      return "Pinterest app needs Standard access — apply in the developer portal";
+    }
+  }
+
   // ── Missing OAuth scope ───────────────────────────────────────────────────
   // Platforms return this as a 401, so it must be handled before the generic
   // status-code mapping below. Reporting it as "authentication failed" sends

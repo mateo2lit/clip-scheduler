@@ -67,6 +67,42 @@ check("404 unchanged", humanizePostError("pinterest", "404 not found"), "Pintere
 check("500 unchanged", humanizePostError("pinterest", "500 oops"), "Pinterest server error — will retry");
 check("empty error unchanged", humanizePostError("pinterest", ""), "Failed");
 
+// --- Pinterest Trial access ------------------------------------------------
+// Arrives as 403 and fell through to "Pinterest permission denied", which reads
+// like a board/account permission problem. It is neither: the developer app is
+// not approved for production, and no amount of reconnecting or re-permissioning
+// the account will change that.
+const TRIAL =
+  `Pinterest pin creation failed: 403 {"code":29,"message":"Apps with Trial access ` +
+  `may not create Pins in production https://api.pinterest.com - use API Sandbox ` +
+  `https://api-sandbox.pinterest.com instead."}`;
+
+check(
+  "trial-access error mentions Standard access",
+  humanizePostError("pinterest", TRIAL),
+  (s) => /standard access/i.test(s)
+);
+check(
+  "trial-access error does not read as a generic permission denial",
+  humanizePostError("pinterest", TRIAL),
+  (s) => s !== "Pinterest permission denied"
+);
+check(
+  "trial-access error does not tell the user to reconnect",
+  humanizePostError("pinterest", TRIAL),
+  (s) => !/reconnect/i.test(s)
+);
+check(
+  "trial-access error is one short line",
+  humanizePostError("pinterest", TRIAL),
+  (s) => s.length <= 90 && !s.includes("\n")
+);
+check(
+  "an ordinary pinterest 403 is still a permission denial",
+  humanizePostError("pinterest", "403 forbidden"),
+  "Pinterest permission denied"
+);
+
 // --- Works for any provider, not just Pinterest ---------------------------
 check(
   "scope handling is provider-agnostic",
