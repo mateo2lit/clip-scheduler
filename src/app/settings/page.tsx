@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
+import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import {
   CaretLeft,
   Check,
@@ -1508,6 +1509,7 @@ export default function SettingsPage() {
                               {accts.length > 1 ? `${accts.length} accounts` : "Connected"}
                             </span>
                           )}
+                          <ComingSoonBadge provider={platform.key} />
                         </div>
                         {!isConnected && (
                           <p className="text-xs text-white/30 mt-0.5">{platform.description}</p>
@@ -1523,6 +1525,8 @@ export default function SettingsPage() {
                       </button>
                     )}
                   </div>
+
+                  <ComingSoonNote provider={platform.key} className="mx-4 mb-3.5" />
 
                   {/* Connected account rows */}
                   {accts.length > 0 && (

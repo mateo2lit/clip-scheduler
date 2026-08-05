@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CaretLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
+import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 
 type Feature = { label: string; detail: string };
 type Stat = { value: string; label: string };
@@ -263,8 +264,12 @@ export default function PlatformDetailPage({ params }: { params: { platform: str
           All platforms
         </Link>
 
-        <h1 className="text-4xl font-bold tracking-tight">{content.name}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-4xl font-bold tracking-tight">{content.name}</h1>
+          <ComingSoonBadge provider={params.platform} className="!text-xs !px-2.5 !py-1" />
+        </div>
         <p className="mt-2 text-base text-white/40">{content.tagline}</p>
+        <ComingSoonNote provider={params.platform} className="mt-5 max-w-2xl" />
         <p className="mt-5 text-base text-white/55 leading-relaxed max-w-2xl">{content.description}</p>
 
         <a

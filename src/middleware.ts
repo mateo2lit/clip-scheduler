@@ -13,7 +13,10 @@ const PROTECTED_PATHS = [
   "/comments",
   "/settings",
   "/analytics",
-  "/platforms",
+  // NOTE: /platforms is deliberately NOT protected. Those pages are static
+  // marketing copy with no user data, linked from the public homepage grid and
+  // footer — gating them sent logged-out visitors to a login wall from the
+  // landing page and kept them out of search results.
   "/welcome",
   "/onboarding",
   "/support",

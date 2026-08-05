@@ -15,6 +15,8 @@ import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
 import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
+import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
+import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
 import {
   CaretLeft,
   CaretRight,
@@ -2158,6 +2160,13 @@ export default function UploadsPage() {
                     <span>{platform.icon}</span>
                     <span>{platform.name}</span>
                     {!platform.available && <span className="ml-1 text-[10px] text-white/20">Soon</span>}
+                    {/* Selectable, but not publishing yet — the user can set everything
+                        up now, so this marks rather than blocks. */}
+                    {platform.available && isComingSoon(platform.key) && (
+                      <span className="ml-0.5 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-medium text-amber-300">
+                        Soon
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -2180,6 +2189,20 @@ export default function UploadsPage() {
                   </div>
                 );
               })()}
+
+              {/* Warn as soon as a not-yet-publishing platform is picked, rather than
+                  letting the user find out when the scheduled post fails. */}
+              {selectedPlatforms.filter(isComingSoon).length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {selectedPlatforms.filter(isComingSoon).map((p) => (
+                    <div key={p} className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-300">
+                      <Warning className="h-3.5 w-3.5 shrink-0" weight="duotone" />
+                      <span className="capitalize font-medium">{p}</span>
+                      <span className="text-amber-300/70">— {comingSoonNotice(p)?.short}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Account selection for selected platforms */}
               {selectedPlatforms.some((p) => (platformAccountsList[p]?.length ?? 0) > 0) && (
@@ -3562,6 +3585,7 @@ export default function UploadsPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] p-4">
                   <div className="text-red-400">{PLATFORMS.find(p => p.key === "pinterest")?.icon}</div>
                   <span className="font-medium">Pinterest Settings</span>
+                  <ComingSoonBadge provider="pinterest" />
                   {platformAccounts.pinterest?.profileName && (
                     <div className="ml-auto flex items-center gap-1.5">
                       {platformAccounts.pinterest.avatarUrl && <img src={proxiedAvatar(platformAccounts.pinterest.avatarUrl) ?? ""} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-5 w-5 rounded-full object-cover ring-1 ring-white/10" />}
@@ -3570,6 +3594,7 @@ export default function UploadsPage() {
                   )}
                 </div>
                 <div className="p-5 space-y-4">
+                  <ComingSoonNote provider="pinterest" />
                   {pinterestBoards.length > 0 ? (
                     <div>
                       <label className="text-xs text-white/50 mb-1.5 block">Board</label>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { ComingSoonBadge } from "@/components/ComingSoonBadge";
 
 const PLATFORMS = [
   {
@@ -159,7 +160,10 @@ export default function PlatformsPage() {
               </div>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-lg font-semibold">{p.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold">{p.name}</h2>
+                    <ComingSoonBadge provider={p.key} />
+                  </div>
                   <p className="text-xs text-white/40 mt-0.5">{p.tagline}</p>
                 </div>
                 <CaretRight className="w-4 h-4 text-white/30 mt-1 group-hover:text-white/60 transition-colors shrink-0" weight="bold" />

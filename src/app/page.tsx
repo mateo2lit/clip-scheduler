@@ -6,6 +6,7 @@ import {
   ShareNetwork, LinkSimple, UsersThree, Sparkle, SquaresFour, Calendar,
   Lightning, Check, Lock, Clock, ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
+import { ComingSoonBadge } from "@/components/ComingSoonBadge";
 
 const FAQ_ITEMS = [
   {
@@ -14,7 +15,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What platforms do you support?",
-    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, X (Twitter), and Pinterest — 8 platforms total.",
+    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, and X (Twitter) are live today. Pinterest is built and connectable, but publishing is waiting on Pinterest's app review — you can set it up now and it will start posting as soon as they approve us.",
   },
   {
     q: "Can I import clips from Twitch or Kick?",
@@ -823,6 +824,7 @@ export default function Home() {
                 {p.icon}
               </div>
               <span className="text-xs sm:text-sm font-medium text-white/70 group-hover:text-white transition-colors">{p.name}</span>
+              <ComingSoonBadge provider={p.key} className="-mt-1" />
             </a>
           ))}
         </div>
