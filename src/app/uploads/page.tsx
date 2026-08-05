@@ -3791,6 +3791,7 @@ export default function UploadsPage() {
               ytIsShort={ytIsShort}
               postMode={postMode}
               linkPreview={linkPreview}
+              pinterestBoardName={pinterestBoards.find((b) => b.id === pinterestBoardId)?.name ?? null}
             />
           </div>
           </div>

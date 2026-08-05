@@ -22,6 +22,8 @@ type PostPreviewPanelProps = {
   ytIsShort?: boolean;
   postMode?: "video" | "text";
   linkPreview?: LinkPreviewData | null;
+  /** Name of the board the pin will be saved to, shown on the Pinterest preview. */
+  pinterestBoardName?: string | null;
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -32,6 +34,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   linkedin: "LinkedIn",
   bluesky: "Bluesky",
   x: "X (Twitter)",
+  pinterest: "Pinterest",
 };
 
 function PlatformIcon({ platform, className = "w-4 h-4" }: { platform: string; className?: string }) {
@@ -49,6 +52,8 @@ function PlatformIcon({ platform, className = "w-4 h-4" }: { platform: string; c
     return <svg className={className} viewBox="0 0 360 320" fill="currentColor"><path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 2 27.5-2 20 2 10 7.5 10 25.5 10 35V90c0 50 38 65 76 73-38 8-76 23-76 73v55c0 9.5 0 27.5 10 33 7.5 4 18 0 58-20 41.3-29.2 85.7-88.3 102-120zm0 0c16.3-31.7 60.7-90.8 102-120 40-20 50.5-24 58-20 10 5.5 10 23.5 10 33v55c0 50-38 65-76 73 38 8 76 23 76 73v55c0 9.5 0 27.5-10 33-7.5 4-18 0-58-20C240.7 230.8 196.3 171.7 180 142z" /></svg>;
   if (platform === "x")
     return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.261 5.635zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>;
+  if (platform === "pinterest")
+    return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0Z" /></svg>;
   return null;
 }
 
@@ -655,6 +660,55 @@ function XPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPrev
   );
 }
 
+// ── Pinterest Pin Preview ─────────────────────────────────────────────────────
+function PinterestPreview({ title, description, hashtags, videoPreviewUrl, thumbnailPreview, profileName, avatarUrl, boardName }: {
+  title: string; description: string; hashtags: string[];
+  videoPreviewUrl: string | null; thumbnailPreview: string | null;
+  profileName: string | null; avatarUrl: string | null;
+  boardName?: string | null;
+}) {
+  const name = profileName || "Your Pinterest";
+  const pinTitle = title || "Your pin title will appear here";
+  const caption = description || "";
+  const tags = hashtags.slice(0, 4).map((t) => `#${t}`).join(" ");
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111]">
+      {/* Pins are tall — 2:3 is Pinterest's canonical ratio, so a landscape video
+          is letterboxed here the same way it will be in the feed. */}
+      <div className="relative w-full bg-black" style={{ aspectRatio: "2/3" }}>
+        {videoPreviewUrl ? (
+          <video src={videoPreviewUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline />
+        ) : thumbnailPreview ? (
+          <img src={thumbnailPreview} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-b from-neutral-900 to-neutral-950" />
+        )}
+
+        <div className="absolute right-2.5 top-2.5 rounded-full bg-[#e60023] px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
+          Save
+        </div>
+
+        {boardName && (
+          <div className="absolute bottom-2.5 left-2.5 max-w-[80%] truncate rounded-full bg-black/65 px-2.5 py-1 text-[11px] text-white backdrop-blur-sm">
+            {boardName}
+          </div>
+        )}
+      </div>
+
+      <div className="p-3">
+        <p className="text-sm font-semibold leading-snug text-white line-clamp-2">{pinTitle}</p>
+        {caption && <p className="mt-1 text-xs leading-relaxed text-white/55 line-clamp-3">{caption}</p>}
+        {tags && <p className="mt-1 text-xs text-sky-300/70">{tags}</p>}
+        <div className="mt-3 flex items-center gap-2">
+          <Avatar name={name} avatarUrl={avatarUrl} size="sm" />
+          <span className="text-xs text-white/70">{name}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Panel ────────────────────────────────────────────────────────────────
 export default function PostPreviewPanel({
   selectedPlatforms,
@@ -668,6 +722,7 @@ export default function PostPreviewPanel({
   ytIsShort,
   postMode = "video",
   linkPreview,
+  pinterestBoardName,
 }: PostPreviewPanelProps) {
   const [activePlatform, setActivePlatform] = useState(selectedPlatforms[0] || "");
 
@@ -785,6 +840,15 @@ export default function PostPreviewPanel({
                 videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
                 profileName={accts.x?.profileName || null}
                 avatarUrl={accts.x?.avatarUrl || null}
+              />
+            )}
+            {activePlatform === "pinterest" && (
+              <PinterestPreview
+                title={title} description={description} hashtags={hashtags}
+                videoPreviewUrl={videoPreviewUrl} thumbnailPreview={thumbnailPreview}
+                profileName={accts.pinterest?.profileName || null}
+                avatarUrl={accts.pinterest?.avatarUrl || null}
+                boardName={pinterestBoardName}
               />
             )}
           </div>
