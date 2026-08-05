@@ -19,7 +19,11 @@ async function handler(req: Request) {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "boards:read,pins:read,pins:write,user_accounts:read",
+    // boards:write is required to create a pin — Pinterest treats adding a pin as
+    // writing to the board, not just writing a pin, and rejects pin creation with
+    // 401 "Missing: ['boards:write']" without it. Users who connected before this
+    // scope was added must reconnect to grant it.
+    scope: "boards:read,boards:write,pins:read,pins:write,user_accounts:read",
     state: generateOAuthState(userId),
   });
 

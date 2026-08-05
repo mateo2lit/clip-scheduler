@@ -116,6 +116,25 @@ export function humanizePostError(
     }
   }
 
+  // ── Missing OAuth scope ───────────────────────────────────────────────────
+  // Platforms return this as a 401, so it must be handled before the generic
+  // status-code mapping below. Reporting it as "authentication failed" sends
+  // users into a reconnect loop that cannot possibly work: the token is valid,
+  // the app simply never asked for the permission.
+  if (
+    r.includes("sufficient permission") ||
+    r.includes("insufficient scope") ||
+    r.includes("correct set of scopes") ||
+    /missing:\s*\[/.test(r)
+  ) {
+    // Surface the scope name when the platform names it — "grant boards:write"
+    // is a far better bug report than "permissions error".
+    const missing = raw.match(/missing:\s*\[\s*['"]?([^'"\]]+)/i)?.[1]?.trim();
+    return missing
+      ? `${name} needs the ${missing} permission — reconnect to grant it`
+      : `${name} is missing a required permission — reconnect to grant it`;
+  }
+
   // ── Generic HTTP status codes ─────────────────────────────────────────────
   if (/\b401\b/.test(r)) return `${name} authentication failed — reconnect`;
   if (/\b403\b/.test(r)) return `${name} permission denied`;
