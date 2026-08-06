@@ -96,9 +96,10 @@ export async function GET(req: Request) {
     return response;
   } catch (e: any) {
     const msg = e?.message || "";
+    console.error("[instagram-callback]", msg);
     if (msg.includes("expired")) return redirectError(req, "expired");
     if (msg.includes("OAuth state")) return redirectError(req, "invalid");
-    if (msg.includes("Instagram token") || msg.includes("Instagram profile")) return redirectError(req, "token_exchange");
+    if (msg.includes("token") || msg.includes("profile")) return redirectError(req, "token_exchange");
     return redirectError(req, "unknown");
   }
 }
