@@ -60,9 +60,17 @@ export async function exchangeCodeForToken(
     throw new Error(`Instagram token error: ${data.error_message || data.error_type}`);
   }
 
+  // Instagram API with Instagram Login wraps the result in a `data` array,
+  // unlike the legacy Basic Display API's flat response shape.
+  const result = Array.isArray(data.data) ? data.data[0] : data;
+
+  if (!result?.access_token) {
+    throw new Error("Instagram token error: missing access_token in response");
+  }
+
   return {
-    access_token: data.access_token,
-    user_id: String(data.user_id),
+    access_token: result.access_token,
+    user_id: String(result.user_id),
   };
 }
 
