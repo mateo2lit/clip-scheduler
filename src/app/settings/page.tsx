@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
+import { comingSoonNotice } from "@/lib/platformAvailability";
 import {
   CaretLeft,
   Check,
@@ -645,6 +646,12 @@ export default function SettingsPage() {
   }
 
   async function connectInstagram() {
+    const notice = comingSoonNotice("instagram");
+    if (notice?.blocksConnect) {
+      alert(notice.long);
+      return;
+    }
+
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;

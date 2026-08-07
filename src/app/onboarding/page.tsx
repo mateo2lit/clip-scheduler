@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../login/supabaseClient";
 import { Check } from "@phosphor-icons/react/dist/ssr";
+import { comingSoonNotice } from "@/lib/platformAvailability";
 
 const TOTAL_STEPS = 3;
 
@@ -174,6 +175,12 @@ export default function OnboardingPage() {
   }, [animating]);
 
   async function connectPlatform(platform: string) {
+    const notice = comingSoonNotice(platform);
+    if (notice?.blocksConnect) {
+      alert(notice.long);
+      return;
+    }
+
     document.cookie = "clip-onboarding=1; path=/; max-age=1800; SameSite=Lax";
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;

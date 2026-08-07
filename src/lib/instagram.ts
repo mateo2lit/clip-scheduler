@@ -10,7 +10,7 @@ export function getInstagramAuthConfig(): InstagramAuthConfig {
   const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.FACEBOOK_APP_SECRET;
 
   console.log(
-    `[instagram-auth-config] appId source=${process.env.INSTAGRAM_APP_ID ? "INSTAGRAM_APP_ID" : "FACEBOOK_APP_ID"} appIdLen=${appId?.length ?? 0} ` +
+    `[instagram-auth-config] appId=${appId} source=${process.env.INSTAGRAM_APP_ID ? "INSTAGRAM_APP_ID" : "FACEBOOK_APP_ID"} ` +
       `appSecret source=${process.env.INSTAGRAM_APP_SECRET ? "INSTAGRAM_APP_SECRET" : "FACEBOOK_APP_SECRET"} appSecretLen=${appSecret?.length ?? 0}`
   );
 
