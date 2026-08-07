@@ -105,8 +105,7 @@ export async function exchangeForLongLivedToken(shortToken: string): Promise<{
   });
 
   const res = await fetch(
-    `https://graph.instagram.com/access_token?${params.toString()}`,
-    { method: "POST" }
+    `https://graph.instagram.com/access_token?${params.toString()}`
   );
 
   if (!res.ok) {
@@ -140,8 +139,7 @@ export async function refreshInstagramToken(token: string): Promise<{
   });
 
   const res = await fetch(
-    `https://graph.instagram.com/refresh_access_token?${params.toString()}`,
-    { method: "POST" }
+    `https://graph.instagram.com/refresh_access_token?${params.toString()}`
   );
 
   if (!res.ok) {
