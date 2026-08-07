@@ -9,6 +9,11 @@ export function getInstagramAuthConfig(): InstagramAuthConfig {
   const appId = process.env.INSTAGRAM_APP_ID || process.env.FACEBOOK_APP_ID;
   const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.FACEBOOK_APP_SECRET;
 
+  console.log(
+    `[instagram-auth-config] appId source=${process.env.INSTAGRAM_APP_ID ? "INSTAGRAM_APP_ID" : "FACEBOOK_APP_ID"} appIdLen=${appId?.length ?? 0} ` +
+      `appSecret source=${process.env.INSTAGRAM_APP_SECRET ? "INSTAGRAM_APP_SECRET" : "FACEBOOK_APP_SECRET"} appSecretLen=${appSecret?.length ?? 0}`
+  );
+
   const siteUrl =
     process.env.SITE_URL ||
     process.env.NEXTAUTH_URL ||
@@ -64,6 +69,11 @@ export async function exchangeCodeForToken(
   // unlike the legacy Basic Display API's flat response shape.
   const result = Array.isArray(data.data) ? data.data[0] : data;
 
+  console.log(
+    `[instagram-code-exchange] topLevelKeys=${Object.keys(data).join(",")} wrapped=${Array.isArray(data.data)} ` +
+      `resultKeys=${result ? Object.keys(result).join(",") : "n/a"} tokenPrefix=${result?.access_token ? String(result.access_token).slice(0, 6) : "n/a"} tokenLen=${result?.access_token ? String(result.access_token).length : 0}`
+  );
+
   if (!result?.access_token) {
     throw new Error("Instagram token error: missing access_token in response");
   }
@@ -83,6 +93,10 @@ export async function exchangeForLongLivedToken(shortToken: string): Promise<{
   expires_in: number;
 }> {
   const { appSecret } = getInstagramAuthConfig();
+
+  console.log(
+    `[instagram-long-lived-exchange] shortTokenPrefix=${shortToken ? shortToken.slice(0, 6) : "n/a"} shortTokenLen=${shortToken?.length ?? 0} appSecretLen=${appSecret?.length ?? 0}`
+  );
 
   const params = new URLSearchParams({
     grant_type: "ig_exchange_token",
