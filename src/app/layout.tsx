@@ -52,6 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="facebook-domain-verification" content="s7cwnjpvlgwthi8fplmx2f85ycm8dt" />
         <meta name="theme-color" content="#0a0e17" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
