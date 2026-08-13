@@ -867,7 +867,8 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-white/30">
-              &copy; {new Date().getFullYear()} Clip Dash, operated by Shaky Ventures LLC. All rights reserved.
+              &copy; {new Date().getFullYear()} Clip Dash. All rights reserved.{" "}
+              <span className="text-xs text-white/15">(Shaky Ventures LLC)</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-white/40">
               <a href="/dashboard" className="hover:text-white/70 transition-colors">Dashboard</a>
