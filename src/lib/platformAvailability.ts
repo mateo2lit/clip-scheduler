@@ -32,15 +32,6 @@ export const PLATFORM_COMING_SOON: Record<string, ComingSoonNotice> = {
       "account and set up pins now, but anything you schedule will fail until Pinterest " +
       "approves us. Everything else — connections, boards, scheduling — is ready to go.",
   },
-  instagram: {
-    badge: "Temporary issue",
-    short: "Instagram connections are affected by a Meta platform issue right now.",
-    long:
-      "Meta is having an issue on their end that's blocking new Instagram connections. " +
-      "Email contact@shakyventure.com with your Instagram handle and we'll get you " +
-      "connected manually, usually within minutes, while this gets sorted out on Meta's side.",
-    blocksConnect: true,
-  },
 };
 
 /** The notice for a provider, or null when the platform is fully live. */
