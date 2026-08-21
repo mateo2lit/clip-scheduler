@@ -18,7 +18,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
           <h1 className="text-3xl font-semibold tracking-tight">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-white/50">Last updated: March 2026</p>
+          <p className="mt-2 text-sm text-white/50">Last updated: August 2026</p>
           <p className="mt-5 text-sm text-white/70 max-w-3xl">
             This Privacy Policy explains how Clip Dash collects, uses, stores, and shares your information when you use our video scheduling service. Please read it carefully.
           </p>
@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-base font-medium text-white mb-3">1. Who We Are</h2>
               <p>
-                Clip Dash ("Clip Dash", "we", "our", "us") operates the video scheduling and publishing service available at clipdash.org. We act as the data controller for personal data collected through this Service. For questions about this policy, contact us at{" "}
+                Clip Dash is operated by Shaky Ventures LLC, a Florida limited liability company ("Shaky Ventures", "Clip Dash", "we", "our", "us"). We operate the video scheduling and publishing service available at clipdash.org and act as the data controller for personal data collected through this Service. For questions about this policy, contact us at{" "}
                 <a href="mailto:privacy@clipdash.org" className="text-white/80 underline">privacy@clipdash.org</a>.
               </p>
             </section>
@@ -269,6 +269,9 @@ export default function PrivacyPolicyPage() {
               <p>
                 For questions, concerns, or requests regarding this Privacy Policy or your personal data, contact us at:{" "}
                 <a href="mailto:privacy@clipdash.org" className="text-white/80 underline">privacy@clipdash.org</a>
+              </p>
+              <p className="mt-2">
+                Postal address: Shaky Ventures LLC, 7901 4th St N, Ste 300, St. Petersburg, FL 33702, United States.
               </p>
             </section>
 

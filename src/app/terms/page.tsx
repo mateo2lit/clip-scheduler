@@ -18,7 +18,7 @@ export default function TermsOfServicePage() {
 
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8">
           <h1 className="text-3xl font-semibold tracking-tight">Terms of Service</h1>
-          <p className="mt-2 text-sm text-white/50">Last updated: March 2026</p>
+          <p className="mt-2 text-sm text-white/50">Last updated: August 2026</p>
           <p className="mt-5 text-sm text-white/70 max-w-3xl">
             These Terms of Service govern your access to and use of Clip Dash. By using the Service, you agree to be bound by these terms. If you do not agree, do not use the Service.
           </p>
@@ -30,7 +30,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-base font-medium text-white mb-3">1. Acceptance of Terms</h2>
               <p>
-                By creating an account, accessing, or using Clip Dash ("the Service"), you agree to be bound by these Terms of Service and our Privacy Policy. If you are using the Service on behalf of a business or organization, you represent that you have authority to bind that entity, and "you" refers to that entity. If you do not agree to all terms, do not use the Service.
+                By creating an account, accessing, or using Clip Dash ("the Service"), a service operated by Shaky Ventures LLC, a Florida limited liability company ("Shaky Ventures", "we", "our", "us"), you agree to be bound by these Terms of Service and our Privacy Policy. If you are using the Service on behalf of a business or organization, you represent that you have authority to bind that entity, and "you" refers to that entity. If you do not agree to all terms, do not use the Service.
               </p>
               <p className="mt-2">
                 You must be at least 13 years old to use the Service (or 16 in the EEA where applicable). By using the Service, you represent that you meet this age requirement.
@@ -283,6 +283,9 @@ export default function TermsOfServicePage() {
               <p>
                 For questions about these Terms of Service, contact us at{" "}
                 <a href="mailto:support@clipdash.org" className="text-white/80 underline">support@clipdash.org</a>.
+              </p>
+              <p className="mt-2">
+                Postal address: Shaky Ventures LLC, 7901 4th St N, Ste 300, St. Petersburg, FL 33702, United States.
               </p>
             </section>
 
