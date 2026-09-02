@@ -39,6 +39,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Meta reviewer test-account credentials — contains a live password
+docs/meta-reviewer-instructions.txt
+
 # vercel
 .vercel
 
