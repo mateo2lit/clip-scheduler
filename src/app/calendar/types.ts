@@ -31,6 +31,7 @@ export const PROVIDER_META: Record<string, { label: string; dotClass: string }> 
   facebook:  { label: "Facebook",  dotClass: "bg-blue-500"   },
   linkedin:  { label: "LinkedIn",  dotClass: "bg-sky-500"    },
   bluesky:   { label: "Bluesky",   dotClass: "bg-sky-400"    },
+  pinterest: { label: "Pinterest", dotClass: "bg-red-600"    },
   threads:   { label: "Threads",   dotClass: "bg-white/50"   },
 };
 

@@ -6,7 +6,7 @@ export const size = { width: 1200, height: 630 }
 export const alt = 'Clip Dash – Upload Once. Post Everywhere.'
 export const contentType = 'image/png'
 
-const platforms = ['YouTube', 'TikTok', 'Instagram', 'Facebook', 'LinkedIn', 'Bluesky', 'X']
+const platforms = ['YouTube', 'TikTok', 'Instagram', 'Facebook', 'LinkedIn', 'Bluesky', 'X', 'Pinterest']
 
 export default function OGImage() {
   return new ImageResponse(

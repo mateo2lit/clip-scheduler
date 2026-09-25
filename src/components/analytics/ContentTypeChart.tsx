@@ -21,6 +21,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   facebook: "#3b82f6",
   bluesky: "#38bdf8",
   x: "#a3a3a3",
+  pinterest: "#e60023",
   linkedin: "#0a66c2",
 };
 
@@ -31,6 +32,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   facebook: "Facebook",
   bluesky: "Bluesky",
   x: "X",
+  pinterest: "Pinterest",
   linkedin: "LinkedIn",
 };
 

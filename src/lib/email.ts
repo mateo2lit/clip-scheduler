@@ -18,6 +18,7 @@ function providerLabel(provider: string) {
     threads: "Threads",
     bluesky: "Bluesky",
     x: "X",
+    pinterest: "Pinterest",
   };
   return labels[String(provider || "").toLowerCase()] || provider;
 }

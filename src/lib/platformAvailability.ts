@@ -23,16 +23,7 @@ export type ComingSoonNotice = {
   blocksConnect?: boolean;
 };
 
-export const PLATFORM_COMING_SOON: Record<string, ComingSoonNotice> = {
-  pinterest: {
-    badge: "Coming soon",
-    short: "Pinterest publishing isn't live yet — scheduled pins won't post.",
-    long:
-      "Pinterest is still reviewing our app for publishing access. You can connect your " +
-      "account and set up pins now, but anything you schedule will fail until Pinterest " +
-      "approves us. Everything else — connections, boards, scheduling — is ready to go.",
-  },
-};
+export const PLATFORM_COMING_SOON: Record<string, ComingSoonNotice> = {};
 
 /** The notice for a provider, or null when the platform is fully live. */
 export function comingSoonNotice(provider: string | null | undefined): ComingSoonNotice | null {

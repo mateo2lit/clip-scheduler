@@ -8,6 +8,10 @@ export type UnifiedMetric = {
   likes: number;
   comments: number;
   shares?: number;
+  /** Times the post was shown. Only reported where the platform exposes it (Pinterest). */
+  impressions?: number;
+  /** Clicks on the post plus clicks through to its link (Pinterest). */
+  clicks?: number;
   thumbnailUrl?: string | null;
   postedAt: string;
 };
@@ -19,6 +23,7 @@ type PostInfo = {
   platform_media_id?: string | null;
   posted_at: string | null;
   thumbnail_url?: string | null;
+  lifetime_metrics?: Record<string, number> | null;
 };
 
 // ── YouTube ─────────────────────────────────────────────────────────
@@ -335,55 +340,77 @@ export async function fetchXMetrics(
 
 // ── Pinterest ────────────────────────────────────────────────────────
 
+function sumDailyMetrics(daily: any[] | undefined): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const day of daily ?? []) {
+    for (const [k, v] of Object.entries(day?.metrics ?? {})) {
+      if (typeof v === "number") totals[k] = (totals[k] ?? 0) + v;
+    }
+  }
+  return totals;
+}
+
 export async function fetchPinterestMetrics(
   posts: PostInfo[],
   accessToken: string
 ): Promise<{ metrics: UnifiedMetric[]; error?: string }> {
   try {
+    // The analytics API only reaches 90 days back, so its numbers are "last 90 days".
+    // For older pins, the lifetime counters from the listing call (impressions,
+    // clicks, comments) are larger and win. Video views and saves have no lifetime
+    // equivalent, so those stay 90-day figures.
     const today = new Date();
-    const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDate = new Date(today.getTime() - 89 * 24 * 60 * 60 * 1000);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    // Must be valid VideoPinMetricTypes, or Pinterest rejects the whole request.
+    const metricTypes = "IMPRESSION,SAVE,VIDEO_MRC_VIEW,PIN_CLICK,OUTBOUND_CLICK,TOTAL_COMMENTS";
 
+    const errors: string[] = [];
     const results = await Promise.allSettled(
       posts.map(async (post) => {
         const pinId = post.platform_post_id;
         if (!pinId) return null;
 
-        const url = `https://api.pinterest.com/v5/pins/${encodeURIComponent(pinId)}/analytics?start_date=${fmt(startDate)}&end_date=${fmt(today)}&metric_types=IMPRESSION,SAVE,VIDEO_VIEW,PIN_CLICK`;
+        const url = `https://api.pinterest.com/v5/pins/${encodeURIComponent(pinId)}/analytics?start_date=${fmt(startDate)}&end_date=${fmt(today)}&metric_types=${metricTypes}`;
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
 
-        if (!res.ok) return null;
+        let period: Record<string, number> = {};
+        let lifetimeTotals: Record<string, number> = {};
+        if (res.ok) {
+          const json = await res.json();
+          const block = json.all ?? Object.values(json)[0] ?? {};
+          period = block.summary_metrics ?? sumDailyMetrics(block.daily_metrics);
+          lifetimeTotals = block.lifetime_metrics ?? {};
+        } else {
+          // Keep the pin (lifetime counters may still be available) but surface the failure.
+          const errBody = await res.json().catch(() => ({}));
+          errors.push(errBody?.message || `HTTP ${res.status}`);
+        }
 
-        const json = await res.json();
-        const daily: Record<string, number[]> = (json.all?.daily_metrics ?? []).reduce(
-          (acc: Record<string, number[]>, day: any) => {
-            for (const [k, v] of Object.entries(day.metrics ?? {})) {
-              if (!acc[k]) acc[k] = [];
-              acc[k].push(v as number);
-            }
-            return acc;
-          },
-          {} as Record<string, number[]>
-        );
-
-        const sum = (key: string) => (daily[key] ?? []).reduce((a, b) => a + b, 0);
+        const life = post.lifetime_metrics ?? {};
+        const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
         return {
           videoId: pinId,
           platform: "pinterest" as const,
           title: post.title ?? "Pinterest pin",
-          views: sum("VIDEO_VIEW"),
-          likes: sum("SAVE"),
-          comments: 0,
+          views: n(period.VIDEO_MRC_VIEW),
+          likes: Math.max(n(period.SAVE), n(life.save)),
+          comments: Math.max(n(period.TOTAL_COMMENTS), n(lifetimeTotals.TOTAL_COMMENTS), n(life.comment)),
+          impressions: Math.max(n(period.IMPRESSION), n(life.impression)),
+          clicks: Math.max(
+            n(period.PIN_CLICK) + n(period.OUTBOUND_CLICK),
+            n(life.pin_click) + n(life.clickthrough)
+          ),
+          thumbnailUrl: post.thumbnail_url ?? null,
           postedAt: post.posted_at ?? new Date().toISOString(),
         };
       })
     );
 
     const metrics: UnifiedMetric[] = [];
-    const errors: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled" && r.value) metrics.push(r.value);
       else if (r.status === "rejected") errors.push(r.reason?.message);

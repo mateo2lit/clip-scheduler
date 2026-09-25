@@ -11,6 +11,7 @@ type Metric = {
   likes: number;
   comments: number;
   shares?: number;
+  impressions?: number;
   thumbnailUrl?: string | null;
   postedAt: string;
 };
@@ -24,6 +25,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   facebook: "Facebook",
   bluesky: "Bluesky",
   x: "X",
+  pinterest: "Pinterest",
 };
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -33,6 +35,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   facebook: "bg-blue-500/20 text-blue-300",
   bluesky: "bg-sky-500/20 text-sky-300",
   x: "bg-neutral-500/20 text-neutral-300",
+  pinterest: "bg-red-600/20 text-red-300",
 };
 
 function formatNum(n: number): string {
@@ -169,6 +172,11 @@ export default function TopPosts({ metrics }: { metrics: Metric[] }) {
                 >
                   {PLATFORM_LABELS[m.platform] || m.platform}
                 </span>
+                {m.impressions ? (
+                  <span className="ml-1.5 text-[10px] text-white/30 tabular-nums">
+                    {formatNum(m.impressions)} impressions
+                  </span>
+                ) : null}
               </div>
             </div>
 

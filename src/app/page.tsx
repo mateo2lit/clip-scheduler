@@ -15,7 +15,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What platforms do you support?",
-    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, and X (Twitter) are live today. Pinterest is built and connectable, but publishing is waiting on Pinterest's app review — you can set it up now and it will start posting as soon as they approve us.",
+    a: "YouTube, TikTok, Instagram (Reels & Stories), Facebook, LinkedIn, Bluesky, X (Twitter), and Pinterest (video pins to any of your boards). Connect as many accounts per platform as you like and post to all of them from one upload.",
   },
   {
     q: "Can I import clips from Twitch or Kick?",

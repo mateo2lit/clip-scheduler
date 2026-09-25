@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import { CaretLeft, Check, ArrowSquareOut, FilmSlate } from "@phosphor-icons/react/dist/ssr";
+import { PlatformIcon } from "@/components/PlatformIcon";
 
 type PostedPost = {
   id: string;
@@ -63,6 +64,7 @@ function providerLabel(provider: string | null) {
   const labels: Record<string, string> = {
     youtube: "YouTube", tiktok: "TikTok", instagram: "Instagram",
     facebook: "Facebook", linkedin: "LinkedIn", bluesky: "Bluesky",
+    pinterest: "Pinterest",
   };
   return labels[provider.toLowerCase()] || provider;
 }
@@ -75,6 +77,7 @@ function ProviderIcon({ provider, className = "w-4 h-4" }: { provider: string | 
   if (p === "tiktok") return <svg className={`${className} text-white/80`} viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07Z" /></svg>;
   if (p === "linkedin") return <svg className={`${className} text-blue-400`} viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z" /></svg>;
   if (p === "bluesky") return <svg className={`${className} text-sky-400`} viewBox="0 0 600 530" fill="currentColor"><path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.106 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z" /></svg>;
+  if (p === "pinterest") return <PlatformIcon provider="pinterest" className={`${className} text-red-500`} />;
   return <span className="text-[10px] text-white/40">{providerLabel(provider)}</span>;
 }
 
@@ -84,6 +87,7 @@ function getPostUrl(provider: string | null, platformPostId: string | null) {
   if (provider === "facebook") return `https://www.facebook.com/${platformPostId}`;
   if (provider === "linkedin") return `https://www.linkedin.com/feed/update/${platformPostId}`;
   if (provider === "instagram" && platformPostId.startsWith("https://")) return platformPostId;
+  if (provider === "pinterest") return `https://www.pinterest.com/pin/${platformPostId}/`;
   return null;
 }
 

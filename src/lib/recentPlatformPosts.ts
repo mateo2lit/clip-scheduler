@@ -7,6 +7,8 @@ export type RecentPost = {
   platform_media_id?: string | null;
   posted_at: string | null;
   thumbnail_url?: string | null;
+  /** Lifetime counters the listing call already returned (Pinterest `pin_metrics`), keyed by the platform's own names. */
+  lifetime_metrics?: Record<string, number> | null;
 };
 
 function isAfterSince(dateIso: string | null | undefined, sinceIso?: string): boolean {
@@ -286,32 +288,52 @@ export async function fetchRecentPinterestPosts(params: {
   sinceIso?: string;
 }): Promise<{ posts: RecentPost[]; error?: string }> {
   try {
-    const pageSize = Math.min(Math.max(params.maxResults, 1), 25);
-    const url = `https://api.pinterest.com/v5/pins?pin_type=VIDEO&page_size=${pageSize}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${params.accessToken}` },
-    });
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      return {
-        posts: [],
-        error: `Pinterest recent posts: ${errBody?.message || `HTTP ${res.status}`}`,
-      };
-    }
-
-    const json = await res.json();
+    // `pin_type` only accepts PRIVATE, so video pins are picked out by media_type
+    // below. `pin_metrics=true` returns lifetime counters with the listing, which
+    // fetchPinterestMetrics uses for pins older than the analytics API's 90-day window.
+    const maxResults = Math.max(params.maxResults, 1);
     const posts: RecentPost[] = [];
-    for (const item of json.items ?? []) {
-      const createdAt: string | null = item.created_at ?? null;
-      if (!isAfterSince(createdAt, params.sinceIso)) continue;
-      posts.push({
-        id: `pt-${item.id}`,
-        title: item.title || "Pinterest pin",
-        platform_post_id: item.id ?? null,
-        posted_at: createdAt,
-        thumbnail_url: item.media?.images?.["150x150"]?.url ?? null,
+    let bookmark: string | null = null;
+
+    for (let page = 0; page < 10 && posts.length < maxResults; page++) {
+      const qs = new URLSearchParams({ page_size: "100", pin_metrics: "true" });
+      if (bookmark) qs.set("bookmark", bookmark);
+      const res = await fetch(`https://api.pinterest.com/v5/pins?${qs}`, {
+        headers: { Authorization: `Bearer ${params.accessToken}` },
       });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        return {
+          posts,
+          error: `Pinterest recent posts: ${errBody?.message || `HTTP ${res.status}`}`,
+        };
+      }
+
+      const json = await res.json();
+      let reachedOlder = false;
+      for (const item of json.items ?? []) {
+        const createdAt: string | null = item.created_at ?? null;
+        if (!isAfterSince(createdAt, params.sinceIso)) {
+          reachedOlder = true;
+          continue;
+        }
+        const mediaType = String(item.media?.media_type ?? "");
+        if (mediaType !== "video" && mediaType !== "multiple_videos") continue;
+        posts.push({
+          id: `pt-${item.id}`,
+          title: item.title || "Pinterest pin",
+          platform_post_id: item.id ?? null,
+          posted_at: createdAt,
+          thumbnail_url: item.media?.cover_image_url ?? item.media?.images?.["150x150"]?.url ?? null,
+          lifetime_metrics: item.pin_metrics?.lifetime_metrics ?? null,
+        });
+        if (posts.length >= maxResults) break;
+      }
+
+      bookmark = json.bookmark ?? null;
+      // Pins come back newest first, so once we pass the window there's nothing left to find.
+      if (!bookmark || reachedOlder) break;
     }
 
     return { posts };

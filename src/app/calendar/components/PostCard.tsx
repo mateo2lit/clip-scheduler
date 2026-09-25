@@ -18,6 +18,7 @@ const PLATFORM_BORDER: Record<string, string> = {
   facebook:  "border-blue-500/70",
   linkedin:  "border-sky-500/70",
   bluesky:   "border-cyan-500/70",
+  pinterest: "border-red-600/70",
   threads:   "border-zinc-400/60",
 };
 
@@ -28,6 +29,7 @@ const PLATFORM_GRADIENT: Record<string, string> = {
   facebook:  "bg-gradient-to-br from-blue-950 to-blue-900/60",
   linkedin:  "bg-gradient-to-br from-sky-950 to-sky-900/60",
   bluesky:   "bg-gradient-to-br from-sky-950 to-cyan-900/60",
+  pinterest: "bg-gradient-to-br from-red-950 to-rose-900/60",
   threads:   "bg-gradient-to-br from-zinc-900 to-zinc-800",
 };
 

@@ -40,7 +40,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-base font-medium text-white mb-3">2. Description of Service</h2>
               <p>
-                Clip Dash is a video scheduling and publishing platform that allows content creators and teams to upload video content and schedule it for automatic publication across connected social media platforms, including YouTube, TikTok, Instagram (Business/Creator accounts only), Facebook, LinkedIn, and Bluesky. The Service acts as an authorized intermediary, publishing content on your behalf using the access credentials you explicitly grant.
+                Clip Dash is a video scheduling and publishing platform that allows content creators and teams to upload video content and schedule it for automatic publication across connected social media platforms, including YouTube, TikTok, Instagram (Business/Creator accounts only), Facebook, LinkedIn, Bluesky, and Pinterest. The Service acts as an authorized intermediary, publishing content on your behalf using the access credentials you explicitly grant.
               </p>
               <p className="mt-2">
                 The Service includes features for team collaboration, post scheduling, content templates, analytics viewing, comment management, and AI-assisted caption suggestions.
