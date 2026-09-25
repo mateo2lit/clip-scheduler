@@ -19,22 +19,18 @@ function check(label, actual, expected) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${ok ? "" : `\n        got ${JSON.stringify(actual)}`}`);
 }
 
-// --- Pinterest is the one pending platform --------------------------------
-check("pinterest is coming soon", isComingSoon("pinterest"), true);
-check("pinterest has a notice", comingSoonNotice("pinterest"), (n) => n !== null);
-check("only pinterest is pending", comingSoonProviders(), (p) =>
-  p.length === 1 && p[0] === "pinterest"
-);
+// --- Pinterest Standard access is active ----------------------------------
+check("no platforms are pending", comingSoonProviders(), (p) => p.length === 0);
 
 // --- Live platforms must never show a notice ------------------------------
-for (const p of ["youtube", "tiktok", "instagram", "facebook", "linkedin", "bluesky", "x"]) {
+for (const p of ["youtube", "tiktok", "instagram", "facebook", "linkedin", "bluesky", "x", "pinterest"]) {
   check(`${p} is live`, isComingSoon(p), false);
   check(`${p} has no notice`, comingSoonNotice(p), null);
 }
 
 // --- Callers pass raw provider strings from several sources ---------------
-check("casing is normalised", isComingSoon("Pinterest"), true);
-check("whitespace is tolerated", isComingSoon(" pinterest "), true);
+check("casing is normalised", isComingSoon("Pinterest"), false);
+check("whitespace is tolerated", isComingSoon(" pinterest "), false);
 check("null provider is safe", isComingSoon(null), false);
 check("undefined provider is safe", isComingSoon(undefined), false);
 check("empty provider is safe", isComingSoon(""), false);
