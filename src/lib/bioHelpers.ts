@@ -76,9 +76,9 @@ export function resolvePostPermalink(
       if (handle) return `https://www.tiktok.com/@${handle}/video/${platformPostId}`;
       return `https://www.tiktok.com/video/${platformPostId}`;
     case "instagram":
-      // Instagram returns a media ID; we can't build a guaranteed URL without a shortcode.
-      // The platform_post_id for IG media is usually "{account}_{media}" — no public URL pattern works reliably.
-      // Best effort: link to the profile.
+      // New posts store the real permalink (fetched after publishing). Older posts only have a
+      // numeric media ID, which can't be turned into a URL, so those fall back to the profile.
+      if (platformPostId.startsWith("https://")) return platformPostId;
       if (handle) return `https://www.instagram.com/${handle}/`;
       return null;
     case "facebook":

@@ -350,7 +350,7 @@ async function runWorker(req: Request) {
           }
 
           // Check + publish via Instagram
-          let result: { status: "processing" | "posted" | "error"; mediaId?: string; error?: string };
+          let result: { status: "processing" | "posted" | "error"; mediaId?: string; permalink?: string; error?: string };
 
           {
             const r = await checkAndPublishInstagramContainer({
@@ -358,7 +358,7 @@ async function runWorker(req: Request) {
               igUserId: acct.ig_user_id,
               accessToken: acct.access_token,
             });
-            result = { status: r.status, mediaId: r.instagramMediaId || r.permalink, error: r.error };
+            result = { status: r.status, mediaId: r.instagramMediaId, permalink: r.permalink, error: r.error };
           }
 
           if (result.status === "posted") {
@@ -367,7 +367,9 @@ async function runWorker(req: Request) {
               .update({
                 status: "posted",
                 posted_at: new Date().toISOString(),
-                platform_post_id: result.mediaId || null,
+                // The permalink is what the Posted page links to; the numeric media ID stays in
+                // platform_media_id, which the metrics and comments fetchers read first.
+                platform_post_id: result.permalink || result.mediaId || null,
                 platform_media_id: result.mediaId || null,
                 last_error: null,
               })

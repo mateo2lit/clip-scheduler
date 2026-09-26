@@ -85,28 +85,35 @@ export async function GET(req: Request) {
 
     if (pages.length === 0) return redirectError(req, "no_pages");
 
-    // Auto-select first page
-    const page = pages[0];
+    // Save every Page the user granted on Facebook's consent screen, not just the first,
+    // so someone who manages several Pages can post to all of them. A Page without its
+    // own access token can't be posted to, so it's skipped.
+    const now = new Date().toISOString();
+    const rows = pages
+      .filter((page) => page.id && page.access_token)
+      .map((page) => {
+        const profileName: string | null = page.name || null;
+        return {
+          user_id: userId,
+          team_id: teamId,
+          provider: "facebook",
+          access_token: longLivedToken,
+          refresh_token: longLivedToken,
+          expiry: expiresAt,
+          platform_user_id: page.id,
+          page_id: page.id,
+          page_access_token: page.access_token,
+          profile_name: profileName,
+          avatar_url: `https://graph.facebook.com/${page.id}/picture?type=large`,
+          label: profileName,
+          updated_at: now,
+        };
+      });
 
-    const profileName: string | null = page.name || null;
-    const avatarUrl = `https://graph.facebook.com/${page.id}/picture?type=large`;
+    if (rows.length === 0) return redirectError(req, "no_pages");
 
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
-      {
-        user_id: userId,
-        team_id: teamId,
-        provider: "facebook",
-        access_token: longLivedToken,
-        refresh_token: longLivedToken,
-        expiry: expiresAt,
-        platform_user_id: page.id,
-        page_id: page.id,
-        page_access_token: page.access_token,
-        profile_name: profileName,
-        avatar_url: avatarUrl,
-        label: profileName,
-        updated_at: new Date().toISOString(),
-      },
+      rows,
       { onConflict: "team_id,provider,platform_user_id" }
     );
 

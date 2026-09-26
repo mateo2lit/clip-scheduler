@@ -54,10 +54,11 @@ async function fetchTikTokFollowers(accessToken: string): Promise<number | null>
   }
 }
 
-async function fetchInstagramFollowers(igUserId: string, accessToken: string): Promise<number | null> {
+async function fetchInstagramFollowers(accessToken: string): Promise<number | null> {
   try {
+    // Instagram Login tokens only work on graph.instagram.com, not graph.facebook.com.
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${igUserId}?fields=followers_count&access_token=${accessToken}`
+      `https://graph.instagram.com/v21.0/me?fields=followers_count&access_token=${encodeURIComponent(accessToken)}`
     );
     const data = await res.json();
     return data.followers_count ?? null;
@@ -145,7 +146,7 @@ export async function POST(req: Request) {
           if (acct.access_token) followers = await fetchTikTokFollowers(acct.access_token);
           break;
         case "instagram":
-          if (acct.ig_user_id && acct.access_token) followers = await fetchInstagramFollowers(acct.ig_user_id, acct.access_token);
+          if (acct.access_token) followers = await fetchInstagramFollowers(acct.access_token);
           break;
         case "facebook":
           if (acct.page_id && acct.page_access_token) followers = await fetchFacebookFollowers(acct.page_id, acct.page_access_token);
