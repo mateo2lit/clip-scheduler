@@ -72,7 +72,7 @@ export function humanizePostError(
       return "Video format not accepted by Bluesky — try a true MP4 file";
     }
     if (r.includes("blob") && r.includes("size")) {
-      return "Video too large for Bluesky (50 MB max)";
+      return "Video too large for Bluesky (300 MB / 10 min max)";
     }
   }
   if (provider === "instagram") {

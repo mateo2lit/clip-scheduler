@@ -71,7 +71,8 @@ type PlatformConfig = {
 };
 
 const PLATFORM_SIZE_LIMITS: Record<string, { maxBytes: number; label: string }> = {
-  bluesky:   { maxBytes: 50  * 1024 * 1024,        label: "50 MB"  },
+  // Bluesky's video limit (app.bsky.embed.video maxSize) is 300,000,000 bytes, 10 minutes.
+  bluesky:   { maxBytes: 300 * 1000 * 1000,        label: "300 MB" },
   x:         { maxBytes: 512 * 1024 * 1024,        label: "512 MB" },
   instagram: { maxBytes: 1   * 1024 * 1024 * 1024, label: "1 GB"   },
   tiktok:    { maxBytes: 4   * 1024 * 1024 * 1024, label: "4 GB"   },

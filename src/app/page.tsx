@@ -31,7 +31,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What types of content can I post?",
-    a: "Video content — YouTube videos and Shorts (up to 256 GB / 12 hrs), TikTok clips (up to 60 min), Instagram Reels (up to 15 min) and Stories, Facebook video posts, LinkedIn videos (up to 15 min), Bluesky videos (up to 3 min / 100 MB).",
+    a: "Video content — YouTube videos and Shorts (up to 256 GB / 12 hrs), TikTok clips (up to 60 min), Instagram Reels (up to 15 min) and Stories, Facebook video posts, LinkedIn videos (up to 15 min), Bluesky videos (up to 10 min / 300 MB).",
   },
   {
     q: "How much storage do I get?",

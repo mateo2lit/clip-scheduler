@@ -256,9 +256,11 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     }
   }
 
-  // Convert to a fresh Uint8Array — fetch's BodyInit accepts Uint8Array
-  // unambiguously, regardless of which Buffer<...> type TS infers above.
-  const videoBytes = new Uint8Array(videoBuffer);
+  // A Uint8Array view over the same memory (no copy): fetch's BodyInit accepts
+  // Uint8Array unambiguously, and Bluesky videos can now be up to 300 MB, so an
+  // extra copy would double the worker's memory use.
+  // Node Buffers sit on a regular ArrayBuffer (never shared memory), so the cast is safe.
+  const videoBytes = new Uint8Array(videoBuffer.buffer as ArrayBuffer, videoBuffer.byteOffset, videoBuffer.byteLength);
   const uploadBlob = (jwt: string) =>
     fetch(`${serviceUrl}/xrpc/com.atproto.repo.uploadBlob`, {
       method: "POST",
