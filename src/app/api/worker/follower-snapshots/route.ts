@@ -103,6 +103,19 @@ async function fetchXFollowers(accessToken: string, platformUserId: string): Pro
   }
 }
 
+async function fetchPinterestFollowers(accessToken: string): Promise<number | null> {
+  try {
+    const res = await fetch("https://api.pinterest.com/v5/user_account", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.follower_count === "number" ? data.follower_count : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   if (!requireWorkerAuth(req)) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -113,7 +126,7 @@ export async function POST(req: Request) {
     const { data: accounts, error: acctErr } = await supabaseAdmin
       .from("platform_accounts")
       .select("id, team_id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
-      .in("provider", ["youtube", "tiktok", "instagram", "facebook", "bluesky", "x"]);
+      .in("provider", ["youtube", "tiktok", "instagram", "facebook", "bluesky", "x", "pinterest"]);
 
     if (acctErr || !accounts) {
       return NextResponse.json({ ok: false, error: acctErr?.message || "No accounts found" });
@@ -142,6 +155,9 @@ export async function POST(req: Request) {
           break;
         case "x":
           if (acct.access_token && acct.platform_user_id) followers = await fetchXFollowers(acct.access_token, acct.platform_user_id);
+          break;
+        case "pinterest":
+          if (acct.access_token) followers = await fetchPinterestFollowers(acct.access_token);
           break;
       }
 

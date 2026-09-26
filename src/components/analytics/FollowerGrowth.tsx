@@ -19,6 +19,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   facebook: "#3b82f6",
   bluesky: "#38bdf8",
   x: "#a3a3a3",
+  pinterest: "#e60023",
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -28,6 +29,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   facebook: "Facebook",
   bluesky: "Bluesky",
   x: "X",
+  pinterest: "Pinterest",
 };
 
 function formatFollowers(n: number): string {

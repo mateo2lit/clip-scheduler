@@ -12,7 +12,7 @@ import ContentTypeChart from "@/components/analytics/ContentTypeChart";
 import HashtagPerformance from "@/components/analytics/HashtagPerformance";
 import FollowerGrowth from "@/components/analytics/FollowerGrowth";
 import ExportReport from "@/components/analytics/ExportReport";
-import { ArrowUpRight, CaretLeft, Eye, Heart, ChatCircle, ShareNetwork, ChartBar } from "@phosphor-icons/react/dist/ssr";
+import { ArrowUpRight, CaretLeft, Eye, Heart, ChatCircle, ShareNetwork, ChartBar, Binoculars, CursorClick, Warning } from "@phosphor-icons/react/dist/ssr";
 
 type Metric = {
   videoId: string;
@@ -22,6 +22,8 @@ type Metric = {
   likes: number;
   comments: number;
   shares?: number;
+  impressions?: number;
+  clicks?: number;
   thumbnailUrl?: string | null;
   postedAt: string;
 };
@@ -47,7 +49,15 @@ const PLATFORM_STATS: Record<string, { views: boolean; likes: boolean; comments:
   facebook:  { views: false, likes: true, comments: true,  shares: false },
   bluesky:   { views: false, likes: true, comments: true,  shares: false },
   x:         { views: true,  likes: true, comments: true,  shares: true  },
-  pinterest: { views: true,  likes: true, comments: false, shares: false },
+  pinterest: { views: true,  likes: true, comments: true,  shares: false },
+};
+
+// Tailwind needs literal class names, so map card counts to them.
+const LG_COLS: Record<number, string> = {
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-4",
+  5: "lg:grid-cols-5",
+  6: "lg:grid-cols-6",
 };
 
 function formatStat(n: number): string {
@@ -161,6 +171,7 @@ export default function AnalyticsPage() {
   const [prevTotals, setPrevTotals] = useState<Totals>({ views: 0, likes: 0, comments: 0, shares: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [filter, setFilter] = useState<PlatformFilter>("all");
   const [range, setRange] = useState<RangeFilter>("1w");
   const [activeTab, setActiveTab] = useState<"overview" | "posts">("overview");
@@ -199,6 +210,7 @@ export default function AnalyticsPage() {
     async function loadMetrics() {
       setLoading(true);
       setError(null);
+      setWarnings([]);
       try {
         // Fetch current and previous period in parallel
         const [currentRes, prevRes] = await Promise.all([
@@ -218,6 +230,9 @@ export default function AnalyticsPage() {
         if (currentJson.ok) {
           setMetrics(currentJson.metrics);
           setTotals(currentJson.totals);
+          // Per-platform failures come back alongside ok:true; without these a broken
+          // integration just looks like "no data".
+          setWarnings(Array.from(new Set<string>((currentJson.errors ?? []).filter(Boolean))));
         } else {
           setError(currentJson.error || "Failed to load metrics");
         }
@@ -287,6 +302,18 @@ export default function AnalyticsPage() {
   const platformSupport = filter === "all" ? null : (PLATFORM_STATS[filter] ?? null);
   const showViews = !platformSupport || platformSupport.views;
   const showShares = hasTikTok && (!platformSupport || platformSupport.shares);
+  // Impressions and clicks are Pinterest-only, so they'd be misleading next to other platforms' totals.
+  const showReach = filter === "pinterest";
+  const reach = {
+    impressions: filtered.reduce((s, m) => s + (m.impressions ?? 0), 0),
+    clicks: filtered.reduce((s, m) => s + (m.clicks ?? 0), 0),
+  };
+  const prevReach = {
+    impressions: filteredPrev.reduce((s, m) => s + (m.impressions ?? 0), 0),
+    clicks: filteredPrev.reduce((s, m) => s + (m.clicks ?? 0), 0),
+  };
+  const kpiCount = 3 + (showViews ? 1 : 0) + (showShares ? 1 : 0) + (showReach ? 2 : 0);
+  const kpiCols = LG_COLS[Math.min(kpiCount, 6)] ?? "lg:grid-cols-4";
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
@@ -388,8 +415,31 @@ export default function AnalyticsPage() {
           </div>
         )}
 
+        {!loading && warnings.length > 0 && (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-4 mb-6 flex gap-3">
+            <Warning className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" weight="bold" />
+            <div className="min-w-0">
+              <p className="text-sm text-amber-300">Some platforms couldn&apos;t load — their numbers may be missing or incomplete.</p>
+              <ul className="mt-1.5 space-y-0.5">
+                {warnings.slice(0, 5).map((w) => (
+                  <li key={w} className="text-xs text-amber-200/60 break-words">{w}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* KPI Cards */}
-        <div className={`grid gap-3 mb-6 ${showShares ? "grid-cols-2 lg:grid-cols-5" : showViews ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3"}`}>
+        <div className={`grid gap-3 mb-6 grid-cols-2 ${kpiCols}`}>
+          {showReach && (
+            <KpiCard
+              label="Impressions"
+              value={reach.impressions}
+              prevValue={prevReach.impressions}
+              loading={loading}
+              icon={<Binoculars className="w-4 h-4" weight="duotone" />}
+            />
+          )}
           {showViews && (
             <KpiCard
               label="Views"
@@ -402,7 +452,7 @@ export default function AnalyticsPage() {
             />
           )}
           <KpiCard
-            label="Likes"
+            label={filter === "pinterest" ? "Saves" : "Likes"}
             value={filteredTotals.likes}
             prevValue={filteredPrevTotals.likes}
             loading={loading}
@@ -428,6 +478,15 @@ export default function AnalyticsPage() {
               icon={
                 <ShareNetwork className="w-4 h-4" weight="duotone" />
               }
+            />
+          )}
+          {showReach && (
+            <KpiCard
+              label="Clicks"
+              value={reach.clicks}
+              prevValue={prevReach.clicks}
+              loading={loading}
+              icon={<CursorClick className="w-4 h-4" weight="duotone" />}
             />
           )}
           <KpiCard

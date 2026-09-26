@@ -11,6 +11,8 @@ type Metric = {
   likes: number;
   comments: number;
   shares?: number;
+  impressions?: number;
+  clicks?: number;
   postedAt: string;
 };
 
@@ -29,6 +31,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   facebook: "Facebook",
   bluesky: "Bluesky",
   x: "X",
+  pinterest: "Pinterest",
 };
 
 export default function ExportReport({
@@ -197,7 +200,7 @@ export default function ExportReport({
   }
 
   async function exportCSV() {
-    const headers = ["Title", "Platform", "Views", "Likes", "Comments", "Shares", "Posted At"];
+    const headers = ["Title", "Platform", "Views", "Likes", "Comments", "Shares", "Impressions", "Clicks", "Posted At"];
     const rows = metrics.map((m) => [
       `"${m.title.replace(/"/g, '""')}"`,
       m.platform,
@@ -205,6 +208,8 @@ export default function ExportReport({
       m.likes,
       m.comments,
       m.shares ?? 0,
+      m.impressions ?? "",
+      m.clicks ?? "",
       m.postedAt,
     ]);
 

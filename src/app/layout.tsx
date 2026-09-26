@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s — Clip Dash",
   },
   description:
-    "Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X simultaneously. The cross-posting tool built for streamers and video creators.",
+    "Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest simultaneously. The cross-posting tool built for streamers and video creators.",
   keywords: [
     "post video to multiple platforms",
     "cross post videos",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     siteName: "Clip Dash",
     title: "Clip Dash — Upload Once, Post to Every Platform",
     description:
-      "Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X simultaneously. Built for streamers and video creators.",
+      "Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest simultaneously. Built for streamers and video creators.",
     url: "https://clipdash.org",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Clip Dash — Upload Once, Post Everywhere" }],
   },
@@ -89,7 +89,7 @@ export default function RootLayout({
               applicationCategory: "VideoEditingApplication",
               operatingSystem: "Web",
               description:
-                "Cross-posting tool for video creators and streamers. Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, and X simultaneously.",
+                "Cross-posting tool for video creators and streamers. Upload one video and auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest simultaneously.",
               offers: {
                 "@type": "Offer",
                 price: "9.99",
