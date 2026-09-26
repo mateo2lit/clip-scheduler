@@ -82,7 +82,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: "What are the video size and length limits per platform?",
-        a: "TikTok: 4 GB / 10 min. Instagram: 1 GB / 15 min. YouTube: 256 GB / 12 hours. Facebook: 10 GB / 4 hours. LinkedIn: 5 GB / 15 min. Bluesky: 50 MB / 60 seconds. For short-form video we recommend staying under 60 seconds for maximum reach.",
+        a: "TikTok: 4 GB / 10 min. Instagram: 1 GB / 15 min. YouTube: 256 GB / 12 hours. Facebook: 10 GB / 4 hours. LinkedIn: 5 GB / 15 min. Bluesky: 50 MB / 3 minutes. For short-form video we recommend staying under 60 seconds for maximum reach.",
       },
     ],
   },
@@ -161,7 +161,7 @@ const ARTICLES = [
 
 **Crop to 9:16 for vertical platforms.** TikTok, Instagram Reels, and Facebook Reels all want vertical. Use your editing tool to export a 1080×1920 crop. Most modern cameras and phones capture enough resolution that a crop looks clean.
 
-**Trim to under 60 seconds for Bluesky.** Bluesky has a 60-second cap. Pull your strongest 60 seconds for this platform.
+**Keep Bluesky uploads under 50 MB.** Bluesky allows up to 3 minutes, but Clip Dash accepts Bluesky files up to 50 MB, so compress longer clips.
 
 **Adjust captions per platform tone.** TikTok rewards casual, hook-first captions. LinkedIn rewards professional framing. Instagram sits in the middle. Use Clip Dash's per-platform description overrides to write once and customize per platform — without re-uploading.
 
@@ -208,11 +208,11 @@ Creators who batch report spending 80% less mental energy on content distributio
 | YouTube Shorts | 1080×1920 | 9:16 | 256 GB | 60 sec (Shorts badge) | Under 60 sec |
 | Facebook Reels | 1080×1920 | 9:16 | 10 GB | 90 sec | 15–60 sec |
 | LinkedIn | 1080×1920 or 1920×1080 | 9:16 or 16:9 | 5 GB | 15 min | Under 3 min |
-| Bluesky | 1080×1920 | 9:16 | 50 MB | 60 sec | Under 60 sec |
+| Bluesky | 1080×1920 | 9:16 | 50 MB | 3 min | Under 60 sec |
 
 **Format:** MP4 with H.264 video codec and AAC audio works on every platform. Avoid HEVC/H.265 for broadest compatibility.
 
-**Bluesky note:** The 50 MB limit is strict — a 60-second video at 1080p will likely exceed this. Compress to ~720p or reduce bitrate before uploading.
+**Bluesky note:** The 50 MB limit is strict — a 60-second video at 1080p can exceed this. Compress to ~720p or reduce bitrate before uploading.
 
 **YouTube Shorts:** Videos up to 3 minutes can be uploaded, but only videos under 60 seconds receive the "Shorts" badge and Short feed placement.`,
   },

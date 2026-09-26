@@ -67,7 +67,7 @@ export default function BlogPage() {
               <p className="mt-2 text-sm text-white/50 leading-relaxed line-clamp-2">{post.description}</p>
               <div className="mt-4 flex items-center gap-4 text-xs text-white/30">
                 <time dateTime={post.date}>
-                  {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
                 </time>
                 <span>·</span>
                 <span>{post.readTime}</span>

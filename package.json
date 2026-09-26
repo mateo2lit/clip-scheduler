@@ -42,6 +42,7 @@
     "reading-time": "^1.5.0",
     "recharts": "^3.8.1",
     "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.9.2",
     "stripe": "^20.3.1"
   },

@@ -8,6 +8,7 @@ import matter from 'gray-matter'
 import { evaluate } from '@mdx-js/mdx'
 import * as runtime from 'react/jsx-runtime'
 import remarkFrontmatter from 'remark-frontmatter'
+import remarkGfm from 'remark-gfm'
 import { useMDXComponents } from '@/mdx-components'
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 
@@ -47,7 +48,8 @@ async function getMDXContent(slug: string) {
   const { content } = matter(raw)
   const { default: Component } = await evaluate(content, {
     ...(runtime as Parameters<typeof evaluate>[1]),
-    remarkPlugins: [remarkFrontmatter],
+    // remark-gfm renders markdown tables, strikethrough and autolinks.
+    remarkPlugins: [remarkFrontmatter, remarkGfm],
   })
   return Component
 }
@@ -70,7 +72,7 @@ export default async function BlogPostPage({ params }: Props) {
             headline: post.title,
             description: post.description,
             datePublished: post.date,
-            dateModified: post.date,
+            dateModified: post.updated ?? post.date,
             author: {
               "@type": "Organization",
               name: "Clip Dash",
@@ -132,8 +134,14 @@ export default async function BlogPostPage({ params }: Props) {
         {/* Meta */}
         <div className="mt-5 flex items-center gap-4 text-sm text-white/35 border-b border-white/10 pb-8 mb-8">
           <time dateTime={post.date}>
-            {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
           </time>
+          {post.updated && post.updated !== post.date && (
+            <>
+              <span>·</span>
+              <span>Updated <time dateTime={post.updated}>{new Date(post.updated).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</time></span>
+            </>
+          )}
           <span>·</span>
           <span>{post.readTime}</span>
         </div>
@@ -145,7 +153,7 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="mt-16 rounded-2xl border border-blue-500/20 bg-blue-500/[0.05] p-8 text-center">
           <h2 className="text-xl sm:text-2xl font-bold">Ready to stop posting manually?</h2>
           <p className="mt-3 text-white/50 text-sm max-w-md mx-auto">
-            Clip Dash auto-publishes to YouTube, TikTok, Instagram, Facebook, LinkedIn, and Bluesky from one upload. Start free for 7 days.
+            Clip Dash auto-publishes to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest from one upload. Start free for 7 days.
           </p>
           <Link
             href="/login"

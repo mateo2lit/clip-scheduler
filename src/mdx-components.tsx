@@ -38,6 +38,15 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     pre: ({ children }) => (
       <pre className="bg-white/[0.05] border border-white/10 rounded-xl p-4 mb-5 overflow-x-auto text-sm font-mono text-white/70">{children}</pre>
     ),
+    // Tables scroll sideways on small screens instead of widening the page.
+    table: ({ children }) => (
+      <div className="my-6 overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full border-collapse text-sm text-white/70">{children}</table>
+      </div>
+    ),
+    thead: ({ children }) => <thead className="bg-white/[0.05] text-left text-white">{children}</thead>,
+    th: ({ children }) => <th className="px-4 py-3 font-semibold border-b border-white/10">{children}</th>,
+    td: ({ children }) => <td className="px-4 py-3 border-b border-white/[0.06] align-top">{children}</td>,
     hr: () => (
       <hr className="border-white/10 my-10" />
     ),

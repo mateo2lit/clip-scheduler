@@ -8,6 +8,8 @@ export interface PostMeta {
   title: string
   description: string
   date: string
+  /** Set when a post is materially revised; drives dateModified and the sitemap. */
+  updated?: string
   slug: string
   readTime: string
   tags: string[]
