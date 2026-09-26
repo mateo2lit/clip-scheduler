@@ -80,7 +80,7 @@ const PRICING_PLANS = {
     ctaAnnual: "Start free trial",
     included: [
       "Unlimited uploads and scheduled posts",
-      "All 7 supported platforms",
+      "All 8 supported platforms",
       "Multiple accounts per platform",
       "AI tag suggestions and analytics",
       "Unified comments inbox",
@@ -545,7 +545,7 @@ export default function Home() {
                 </span>
               </h2>
               <p className="mt-5 text-white/45 text-base leading-relaxed max-w-md">
-                The average creator loses <strong className="text-white/70 font-medium">8–12 hours a week</strong> logging into platforms, re-uploading files, and copying captions. That's time that should go into making content — not managing it.
+                Posting one clip to eight apps means eight logins, eight uploads and eight rewritten captions. That's time that should go into making content, not managing it.
               </p>
               <p className="mt-3 text-white/45 text-base leading-relaxed max-w-md">
                 Clip Dash compresses an entire distribution workflow into a 60-second upload session. Schedule once, publish everywhere, automatically.
@@ -562,22 +562,22 @@ export default function Home() {
                   sub: "per video",
                 },
                 {
-                  before: "6 logins",
+                  before: "8 logins",
                   after: "1 upload",
                   label: "for full cross-platform distribution",
                   sub: "every time",
                 },
                 {
-                  before: "1 platform",
-                  after: "6x reach",
-                  label: "same content, more platforms, bigger audience",
-                  sub: "without filming anything extra",
+                  before: "1 caption",
+                  after: "8 captions",
+                  label: "each platform gets its own caption and settings",
+                  sub: "from the same upload",
                 },
                 {
                   before: "1–2 platforms",
-                  after: "All 6",
+                  after: "All 8",
                   label: "platforms reached with one upload",
-                  sub: "YouTube, TikTok, IG, FB, LinkedIn, Bluesky",
+                  sub: "YouTube, TikTok, IG, FB, LinkedIn, Bluesky, X, Pinterest",
                 },
               ].map((s) => (
                 <div key={s.label} className="p-8 flex flex-col justify-between gap-4">
@@ -681,7 +681,7 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
-                All 7 supported platforms
+                All 8 supported platforms
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" weight="bold" />
@@ -722,7 +722,7 @@ export default function Home() {
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $98/yr" : "Start free — 7 days, then $9.99/mo"}
             </a>
-            <p className="mt-2 text-center text-xs text-white/40">No Payment Necessary To Sign Up</p>
+            <p className="mt-2 text-center text-xs text-white/40">No payment needed to sign up</p>
           </div>
 
           {/* Team */}
@@ -788,7 +788,7 @@ export default function Home() {
             >
               {billingPeriod === "annual" ? "Start free — 7 days, then $199/yr" : "Start free — 7 days, then $19.99/mo"}
             </a>
-            <p className="mt-2 text-center text-xs text-violet-100/50">No Payment Necessary To Sign Up</p>
+            <p className="mt-2 text-center text-xs text-violet-100/50">No payment needed to sign up</p>
           </div>
         </div>
       </section>

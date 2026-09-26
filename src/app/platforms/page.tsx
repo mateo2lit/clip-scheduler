@@ -10,7 +10,6 @@ const PLATFORMS = [
     bg: "bg-red-500/10",
     border: "border-red-500/20",
     tagline: "Videos & Shorts",
-    stat: "2B+ logged-in users per month",
     description: "Schedule and auto-publish videos and Shorts to your YouTube channel with full control over privacy, categories, comments, and thumbnails.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -25,7 +24,6 @@ const PLATFORMS = [
     bg: "bg-white/10",
     border: "border-white/20",
     tagline: "Short-form Video",
-    stat: "1B+ users, 95 min avg daily watch time",
     description: "Publish videos directly to your TikTok account with privacy settings, interaction controls, and commercial disclosure options.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -40,7 +38,6 @@ const PLATFORMS = [
     bg: "bg-pink-500/10",
     border: "border-pink-500/20",
     tagline: "Reels & Stories",
-    stat: "2B+ monthly active users",
     description: "Post Reels and Stories to your Instagram Business or Creator account. Includes async publishing with first-comment support.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -55,7 +52,6 @@ const PLATFORMS = [
     bg: "bg-blue-500/10",
     border: "border-blue-500/20",
     tagline: "Page Videos",
-    stat: "3B+ monthly active users",
     description: "Post videos to your connected Facebook Page with title, description, and thumbnail support.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -70,7 +66,6 @@ const PLATFORMS = [
     bg: "bg-blue-400/10",
     border: "border-blue-400/20",
     tagline: "Professional Video",
-    stat: "1B+ members, best B2B reach",
     description: "Share video posts on your LinkedIn profile with title and description commentary for professional audiences.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -85,7 +80,6 @@ const PLATFORMS = [
     bg: "bg-sky-500/10",
     border: "border-sky-500/20",
     tagline: "Open & Decentralized",
-    stat: "30M+ users, chronological feed",
     description: "Publish to Bluesky via the AT Protocol. Reach a highly engaged, creator-friendly community with no algorithm suppression and full post ownership.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 360 320" fill="currentColor">
@@ -100,7 +94,6 @@ const PLATFORMS = [
     bg: "bg-white/10",
     border: "border-white/20",
     tagline: "Tweets & Video",
-    stat: "500M+ monthly users, real-time feed",
     description: "Post videos directly to X as tweets with reply controls and per-tweet text customization. Pay-as-you-go API means no fixed monthly platform fee.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -115,7 +108,6 @@ const PLATFORMS = [
     bg: "bg-red-500/10",
     border: "border-red-500/20",
     tagline: "Idea Pins & Video Pins",
-    stat: "500M+ monthly users with buying intent",
     description: "Publish video Pins to your Pinterest boards. Pins keep surfacing in search for months after you post, which makes Pinterest the longest-tail platform Clip Dash supports.",
     icon: (
       <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -168,7 +160,6 @@ export default function PlatformsPage() {
                 </div>
                 <CaretRight className="w-4 h-4 text-white/30 mt-1 group-hover:text-white/60 transition-colors shrink-0" weight="bold" />
               </div>
-              <p className="mt-1 text-xs font-medium text-white/30">{p.stat}</p>
               <p className="mt-3 text-sm text-white/50 leading-relaxed">{p.description}</p>
               <span className="mt-4 inline-flex items-center gap-1 text-sm text-white/40 group-hover:text-white/70 transition-colors">
                 Learn more

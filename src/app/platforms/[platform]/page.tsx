@@ -4,7 +4,6 @@ import { CaretLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 
 type Feature = { label: string; detail: string };
-type Stat = { value: string; label: string };
 
 const PLATFORM_CONTENT: Record<string, {
   name: string;
@@ -13,7 +12,6 @@ const PLATFORM_CONTENT: Record<string, {
   description: string;
   signupUrl: string;
   signupLabel: string;
-  stats: Stat[];
   why: string[];
   features: Feature[];
   note?: string;
@@ -25,12 +23,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "YouTube is the second most visited website on the internet with over 2 billion logged-in users per month. It's the top destination for long-form video content, tutorials, vlogs, gaming, and entertainment. Videos on YouTube have an indefinite shelf life — a video you post today can still drive views years from now.",
     signupUrl: "https://www.youtube.com/create_channel",
     signupLabel: "Create a YouTube Channel",
-    stats: [
-      { value: "2B+", label: "monthly logged-in users" },
-      { value: "500hrs", label: "of video uploaded every minute" },
-      { value: "#2", label: "most visited site globally" },
-      { value: "70%", label: "of watch time on mobile" },
-    ],
     why: [
       "YouTube has the best long-term content discovery of any platform — videos rank in Google Search and surface in YouTube recommendations for years.",
       "Monetization is built-in: once you hit 1,000 subscribers and 4,000 watch hours, you can join the YouTube Partner Program and earn ad revenue.",
@@ -55,17 +47,11 @@ const PLATFORM_CONTENT: Record<string, {
     description: "TikTok is the fastest-growing social platform in history with over 1 billion active users. Its algorithm is unmatched at surfacing content to new audiences — even a brand-new account with zero followers can go viral overnight. If you want to grow quickly, TikTok is where it happens.",
     signupUrl: "https://www.tiktok.com/signup",
     signupLabel: "Create a TikTok Account",
-    stats: [
-      { value: "1B+", label: "monthly active users" },
-      { value: "95 min", label: "average daily watch time per user" },
-      { value: "167M+", label: "videos watched every internet minute" },
-      { value: "18–34", label: "largest age demographic" },
-    ],
     why: [
       "TikTok's For You Page algorithm is the most powerful organic discovery engine on any platform — you don't need followers to reach millions.",
       "TikTok trends move fast: posting consistently gives you repeated opportunities to catch a trending sound or format and multiply your reach.",
       "The platform skews young (Gen Z and Millennials), making it the best place to build a young, engaged audience from scratch.",
-      "TikTok Creator Fund and TikTok Shop open monetization paths once you hit 10,000 followers and 100,000 video views.",
+      "TikTok's Creator Rewards Program and TikTok Shop open monetization paths once you meet their eligibility requirements.",
     ],
     features: [
       { label: "Privacy Level", detail: "Options are dynamically loaded from your TikTok creator info: Public, Friends, Followers, or Private (Self Only)." },
@@ -76,7 +62,6 @@ const PLATFORM_CONTENT: Record<string, {
       { label: "AI-Generated Content", detail: "Flag the video as AI-generated per TikTok's disclosure requirements." },
       { label: "Music Usage Confirmation", detail: "Confirm you have the rights to use any music in the video as required by TikTok." },
     ],
-    note: "TikTok requires app review and approval for the video.publish scope. Clip Dash has submitted for review — once approved, all scheduled TikTok posts will publish automatically.",
   },
   instagram: {
     name: "Instagram",
@@ -85,12 +70,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "Instagram has over 2 billion monthly active users and is the dominant platform for visual storytelling, lifestyle content, and brand building. Instagram Reels get the highest organic reach of any Instagram content type — they're surfaced to non-followers in the Explore tab and Reels feed.",
     signupUrl: "https://www.instagram.com/accounts/emailsignup/",
     signupLabel: "Create an Instagram Account",
-    stats: [
-      { value: "2B+", label: "monthly active users" },
-      { value: "200M+", label: "accounts visit a business profile daily" },
-      { value: "70%", label: "of shoppers use Instagram to discover products" },
-      { value: "Reels", label: "get 22% more interaction than regular video" },
-    ],
     why: [
       "Instagram Reels are currently prioritized in the algorithm — they reach non-followers and are the fastest way to grow an Instagram following in 2025.",
       "Instagram's shopping and brand partnership ecosystem is the most mature of any platform, making it the top choice for product-focused creators.",
@@ -111,12 +90,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "Facebook has over 3 billion monthly active users, making it the largest social network on the planet. While it skews older than TikTok and Instagram, Facebook's scale means even modest engagement rates translate to large absolute numbers. Facebook Pages are essential for business and brand creators.",
     signupUrl: "https://www.facebook.com/",
     signupLabel: "Create a Facebook Account",
-    stats: [
-      { value: "3B+", label: "monthly active users" },
-      { value: "#1", label: "most used social platform worldwide" },
-      { value: "1.5B+", label: "daily active users" },
-      { value: "65+", label: "fastest-growing demographic on Facebook" },
-    ],
     why: [
       "Facebook's sheer scale means your content can reach audiences that don't use any other platform — particularly users 35 and older.",
       "Facebook Groups are the most powerful community-building tool available: creators can build deeply engaged niche communities around their content.",
@@ -136,12 +109,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "LinkedIn has over 1 billion members and is the undisputed #1 platform for professional content, B2B marketing, and thought leadership. LinkedIn video gets 5× more engagement than text posts on average. If your content targets professionals, entrepreneurs, or business audiences, LinkedIn is essential.",
     signupUrl: "https://www.linkedin.com/signup",
     signupLabel: "Create a LinkedIn Account",
-    stats: [
-      { value: "1B+", label: "members in 200+ countries" },
-      { value: "5×", label: "more engagement for video vs. text" },
-      { value: "4 in 5", label: "LinkedIn members drive business decisions" },
-      { value: "$75K+", label: "average household income of users" },
-    ],
     why: [
       "LinkedIn's audience is uniquely high-intent: users come to learn and do business, so professional content converts far better than on entertainment-first platforms.",
       "LinkedIn's algorithm currently rewards video heavily — native video gets more reach than any other content type on the platform.",
@@ -161,12 +128,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "X (formerly Twitter) has over 500 million monthly active users and is the dominant platform for real-time conversation, breaking news, and direct creator-to-audience engagement. Short-form video on X gets strong organic reach, especially when paired with trending topics and replies.",
     signupUrl: "https://x.com/i/flow/signup",
     signupLabel: "Create an X Account",
-    stats: [
-      { value: "500M+", label: "monthly active users" },
-      { value: "350B+", label: "posts read per day" },
-      { value: "Real-time", label: "trending topic discovery" },
-      { value: "2hrs", label: "average daily time spent" },
-    ],
     why: [
       "X's real-time nature means content tied to trending topics, live events, or breaking news can go viral within hours — faster than any other platform.",
       "Video on X receives priority placement in the For You feed, giving even smaller accounts a chance to break through to new audiences organically.",
@@ -186,12 +147,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "Bluesky is the fastest-growing decentralized social platform built on the AT Protocol, with over 30 million users and growing rapidly. Unlike algorithmic platforms, Bluesky uses a chronological feed by default — your content is seen when it's posted, not buried by an algorithm. It's attracting a tech-savvy, creator-friendly audience.",
     signupUrl: "https://bsky.app",
     signupLabel: "Create a Bluesky Account",
-    stats: [
-      { value: "30M+", label: "registered users and growing fast" },
-      { value: "Chrono", label: "default feed — no algorithm suppression" },
-      { value: "Open", label: "protocol (AT Protocol) — you own your data" },
-      { value: "2024–25", label: "fastest growing alt-social platform" },
-    ],
     why: [
       "Bluesky's chronological feed means your posts reach your followers when you post them — no algorithmic gatekeeping or pay-to-play suppression.",
       "Bluesky's user base skews toward tech, journalism, and creative professionals who are actively seeking alternatives to mainstream platforms.",
@@ -213,12 +168,6 @@ const PLATFORM_CONTENT: Record<string, {
     description: "Pinterest has over 500 million monthly active users who arrive with intent — they're actively searching for ideas to save, plan, and buy. Unlike feed-based platforms where a post dies in 48 hours, Pins keep surfacing in Pinterest search and Google Images for months or years after you publish. Video Pins get preferential placement and are still under-supplied relative to demand.",
     signupUrl: "https://www.pinterest.com/business/create/",
     signupLabel: "Create a Pinterest Business Account",
-    stats: [
-      { value: "500M+", label: "monthly active users" },
-      { value: "Months", label: "typical Pin discovery lifespan" },
-      { value: "80%", label: "of weekly Pinners discover new brands there" },
-      { value: "Search", label: "driven — not purely algorithmic" },
-    ],
     why: [
       "Pinterest is a search engine wearing a social network's clothes. A Pin you publish today can still be driving traffic a year from now, which is the opposite of how TikTok and Instagram behave.",
       "Pinterest users show up in planning mode rather than passive-scroll mode, so click-through to external links is dramatically higher than on any feed-based platform.",
@@ -282,15 +231,6 @@ export default function PlatformDetailPage({ params }: { params: { platform: str
           <ArrowSquareOut className="w-3.5 h-3.5 opacity-60" weight="bold" />
         </a>
 
-        {/* Stats */}
-        <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {content.stats.map((s) => (
-            <div key={s.label} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-5 text-center">
-              <p className="text-2xl font-bold tracking-tight">{s.value}</p>
-              <p className="mt-1 text-xs text-white/40 leading-tight">{s.label}</p>
-            </div>
-          ))}
-        </div>
 
         {/* Why post here */}
         <div className="mt-14">
