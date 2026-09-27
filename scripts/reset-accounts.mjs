@@ -1,5 +1,5 @@
 // One-off script to fully reset accounts for onboarding testing.
-// Usage: node scripts/reset-accounts.mjs
+// Usage: node scripts/reset-accounts.mjs [email ...]
 // Requires .env.local to have NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from "@supabase/supabase-js";
@@ -24,11 +24,17 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-const EMAILS = [
-  "davidhershmansocial@gmail.com",
-  "dbh28tekkit@gmail.com",
-  "mateosocialcontact@gmail.com",
-];
+// Emails come from the command line, or RESET_ACCOUNT_EMAILS (comma-separated) in .env.local,
+// so no real addresses live in the repo.
+const EMAILS = (process.argv.slice(2).length > 0
+  ? process.argv.slice(2)
+  : (envVars["RESET_ACCOUNT_EMAILS"] || "").split(",")
+).map((e) => e.trim()).filter(Boolean);
+
+if (EMAILS.length === 0) {
+  console.error("No emails given. Pass them as arguments or set RESET_ACCOUNT_EMAILS in .env.local.");
+  process.exit(1);
+}
 
 async function resetAccount(email) {
   console.log(`\n--- Resetting: ${email} ---`);
