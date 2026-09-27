@@ -17,6 +17,7 @@ import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
+import { AI_LABEL_PLATFORMS, normalizeInstagramCollaborators, parseList, pinterestExtras } from "@/lib/postOptions";
 import {
   CaretLeft,
   CaretRight,
@@ -46,6 +47,38 @@ const EMOJI_CATEGORIES = {
 };
 
 type Privacy = "private" | "unlisted" | "public";
+
+const AI_LABEL_PLATFORM_NAMES: Record<string, string> = { tiktok: "TikTok", youtube: "YouTube", instagram: "Instagram" };
+
+// Offered for YouTube's default language and Bluesky's post language.
+const LANGUAGE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "pt", label: "Portuguese" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "it", label: "Italian" },
+  { value: "nl", label: "Dutch" },
+  { value: "pl", label: "Polish" },
+  { value: "tr", label: "Turkish" },
+  { value: "ru", label: "Russian" },
+  { value: "ar", label: "Arabic" },
+  { value: "hi", label: "Hindi" },
+  { value: "id", label: "Indonesian" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "zh-Hans", label: "Chinese (Simplified)" },
+  { value: "zh-Hant", label: "Chinese (Traditional)" },
+];
+
+/** "2.5" -> 2500. Blank, invalid, or past the end of the video -> undefined (not sent). */
+function secondsToMs(value: string, durationSec: number | null): number | undefined {
+  if (!value.trim()) return undefined;
+  const sec = Number(value);
+  if (!Number.isFinite(sec) || sec < 0) return undefined;
+  if (durationSec !== null && sec > durationSec) return undefined;
+  return Math.round(sec * 1000);
+}
 type Step = "upload" | "details";
 type PostMode = "video" | "text";
 type InstagramType = "post" | "reel" | "story";
@@ -421,7 +454,6 @@ export default function UploadsPage() {
   const [ttBrandContent, setTtBrandContent] = useState(false);
   const [ttConsentChecked, setTtConsentChecked] = useState(false);
   const [ttContentRightsChecked, setTtContentRightsChecked] = useState(false);
-  const [ttAigcDisclosure, setTtAigcDisclosure] = useState(false);
   const [ttDisclosureHover, setTtDisclosureHover] = useState(false);
 
   // Per-platform caption overrides
@@ -474,6 +506,65 @@ export default function UploadsPage() {
   const [igType, setIgType] = useState<InstagramType>("reel");
   const [igFirstComment, setIgFirstComment] = useState("");
   const [igShopLink, setIgShopLink] = useState("");
+  const [igCollaborators, setIgCollaborators] = useState("");
+  const [igShareToFeed, setIgShareToFeed] = useState(true);
+  const [igCoverSeconds, setIgCoverSeconds] = useState("");
+
+  // "Label as AI-generated" — one toggle that sets the platform's own AI label on
+  // every selected platform whose API supports it (AI_LABEL_PLATFORMS).
+  const [aiGenerated, setAiGenerated] = useState(false);
+  const [showAiLabelInfo, setShowAiLabelInfo] = useState(false);
+
+  // Extra per-platform options. All optional: left blank, nothing extra is sent
+  // (see src/lib/postOptions.ts).
+  const [ttCoverSeconds, setTtCoverSeconds] = useState("");
+  const [ytTags, setYtTags] = useState("");
+  const [ytLanguage, setYtLanguage] = useState("");
+  const [ytLicense, setYtLicense] = useState<"youtube" | "creativeCommon">("youtube");
+  const [ytPlaylists, setYtPlaylists] = useState<Array<{ id: string; title: string }>>([]);
+  const [ytPlaylistsFor, setYtPlaylistsFor] = useState<string | null>(null);
+  const [ytPlaylistId, setYtPlaylistId] = useState("");
+  const [bskyLanguage, setBskyLanguage] = useState("");
+  const [bskyAltText, setBskyAltText] = useState("");
+  const [bskyReplyGate, setBskyReplyGate] = useState<"everyone" | "following" | "mentioned" | "followers" | "nobody">("everyone");
+  const [pinLink, setPinLink] = useState("");
+  const [pinAltText, setPinAltText] = useState("");
+
+  // Playlists belong to one channel, so "Add to playlist" is only offered when
+  // exactly one YouTube account will receive the post.
+  const ytSingleAccountId: string | null =
+    (selectedAccountIds.youtube || []).length === 1
+      ? selectedAccountIds.youtube[0]
+      : (selectedAccountIds.youtube || []).length === 0 && (platformAccountsList.youtube?.length ?? 0) === 1
+      ? platformAccountsList.youtube[0].id
+      : null;
+
+  useEffect(() => {
+    if (!ytSingleAccountId || postMode !== "video" || !selectedPlatforms.includes("youtube")) return;
+    if (ytPlaylistsFor === ytSingleAccountId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`/api/youtube/playlists?accountId=${encodeURIComponent(ytSingleAccountId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        setYtPlaylists(json?.ok && Array.isArray(json.playlists) ? json.playlists : []);
+        setYtPlaylistsFor(ytSingleAccountId);
+      } catch {
+        if (cancelled) return;
+        setYtPlaylists([]);
+        setYtPlaylistsFor(ytSingleAccountId);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ytSingleAccountId, postMode, selectedPlatforms, ytPlaylistsFor]);
+
+  const aiLabelTargets = AI_LABEL_PLATFORMS.filter((p) => selectedPlatforms.includes(p));
 
   // Scheduling
   const defaultWhen = useMemo(() => {
@@ -733,6 +824,11 @@ export default function UploadsPage() {
               if (s.allow_embedding !== undefined) setYtAllowEmbedding(s.allow_embedding);
               if (s.made_for_kids !== undefined) setYtMadeForKids(s.made_for_kids);
               if (s.public_stats_viewable !== undefined) setYtPublicStats(s.public_stats_viewable);
+              if (s.contains_synthetic_media === true) setAiGenerated(true);
+              if (typeof s.tags === "string") setYtTags(s.tags);
+              if (typeof s.default_language === "string") setYtLanguage(s.default_language);
+              if (s.license === "creativeCommon") setYtLicense("creativeCommon");
+              if (typeof s.playlist_id === "string") setYtPlaylistId(s.playlist_id);
             }
             if (ytPost?.privacy_status) setYtVisibility(ytPost.privacy_status);
 
@@ -743,6 +839,8 @@ export default function UploadsPage() {
               if (s.allow_comments !== undefined) setTtAllowComments(s.allow_comments);
               if (s.allow_duet !== undefined) setTtAllowDuet(s.allow_duet);
               if (s.allow_stitch !== undefined) setTtAllowStitch(s.allow_stitch);
+              if (s.aigc_disclosure === true) setAiGenerated(true);
+              if (typeof s.cover_timestamp_ms === "number") setTtCoverSeconds(String(s.cover_timestamp_ms / 1000));
             }
 
             const igPost = draftPosts.find((p: any) => p.provider === "instagram");
@@ -750,6 +848,25 @@ export default function UploadsPage() {
               const s = igPost.instagram_settings;
               if (s.ig_type) setIgType(s.ig_type);
               if (s.first_comment !== undefined) setIgFirstComment(s.first_comment);
+              if (s.ai_generated === true) setAiGenerated(true);
+              if (typeof s.collaborators === "string") setIgCollaborators(s.collaborators);
+              if (s.share_to_feed === false) setIgShareToFeed(false);
+              if (typeof s.cover_offset_ms === "number") setIgCoverSeconds(String(s.cover_offset_ms / 1000));
+            }
+
+            const bskyPost = draftPosts.find((p: any) => p.provider === "bluesky");
+            if (bskyPost?.bluesky_settings) {
+              const s = bskyPost.bluesky_settings;
+              if (typeof s.language === "string") setBskyLanguage(s.language);
+              if (typeof s.alt_text === "string") setBskyAltText(s.alt_text);
+              if (["following", "mentioned", "followers", "nobody"].includes(s.reply_gate)) setBskyReplyGate(s.reply_gate);
+            }
+
+            const pinPost = draftPosts.find((p: any) => p.provider === "pinterest");
+            if (pinPost?.pinterest_settings) {
+              const s = pinPost.pinterest_settings;
+              if (typeof s.link === "string") setPinLink(s.link);
+              if (typeof s.alt_text === "string") setPinAltText(s.alt_text);
             }
 
             setDraftEditGroupId(draftGroupId);
@@ -1676,6 +1793,15 @@ export default function UploadsPage() {
             allow_embedding: ytAllowEmbedding,
             made_for_kids: ytMadeForKids,
             public_stats_viewable: ytPublicStats,
+            contains_synthetic_media: aiGenerated || undefined,
+            tags: ytTags.trim() || undefined,
+            default_language: ytLanguage || undefined,
+            license: ytLicense !== "youtube" ? ytLicense : undefined,
+            playlist_id:
+              ytPlaylistId && ytSingleAccountId && ytPlaylistsFor === ytSingleAccountId && (accountId === null || accountId === ytSingleAccountId)
+              && ytPlaylists.some((pl) => pl.id === ytPlaylistId)
+                ? ytPlaylistId
+                : undefined,
             title_override: platformTitleOverrides.youtube || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.youtube),
           };
@@ -1698,7 +1824,8 @@ export default function UploadsPage() {
             allow_stitch: effectiveAllowStitch,
             brand_organic_toggle: ttBrandOrganic,
             brand_content_toggle: ttBrandContent,
-            aigc_disclosure: ttAigcDisclosure,
+            aigc_disclosure: aiGenerated,
+            cover_timestamp_ms: secondsToMs(ttCoverSeconds, videoDuration),
             title_override: platformTitleOverrides.tiktok || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.tiktok),
           };
@@ -1715,6 +1842,10 @@ export default function UploadsPage() {
           body.instagram_settings = {
             ig_type: igType,
             first_comment: igFirstComment || undefined,
+            ai_generated: aiGenerated || undefined,
+            collaborators: igCollaborators.trim() || undefined,
+            share_to_feed: igShareToFeed ? undefined : false,
+            cover_offset_ms: secondsToMs(igCoverSeconds, videoDuration),
             title_override: platformTitleOverrides.instagram || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.instagram),
           };
@@ -1732,6 +1863,9 @@ export default function UploadsPage() {
           body.bluesky_settings = {
             title_override: platformTitleOverrides.bluesky || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.bluesky),
+            language: bskyLanguage || undefined,
+            alt_text: bskyAltText.trim() || undefined,
+            reply_gate: bskyReplyGate !== "everyone" ? bskyReplyGate : undefined,
           };
         }
 
@@ -1743,7 +1877,11 @@ export default function UploadsPage() {
         }
 
         if (platform === "pinterest") {
-          body.pinterest_settings = { board_id: pinterestBoardId };
+          body.pinterest_settings = {
+            board_id: pinterestBoardId,
+            link: pinLink.trim() || undefined,
+            alt_text: pinAltText.trim() || undefined,
+          };
         }
         } // end !isTextPost block
 
@@ -1876,7 +2014,7 @@ export default function UploadsPage() {
     setTtPrivacyLevel("");
     setTtConsentChecked(false);
     setTtContentRightsChecked(false);
-    setTtAigcDisclosure(false);
+    setAiGenerated(false);
     setTtAllowComments(false);
     setTtAllowDuet(false);
     setTtAllowStitch(false);
@@ -1885,6 +2023,20 @@ export default function UploadsPage() {
     setTtBrandContent(false);
     setTtCreatorInfoMap({});
     setTtCreatorErrorsMap({});
+    setTtCoverSeconds("");
+    // Reset the extra per-platform options
+    setYtTags("");
+    setYtLanguage("");
+    setYtLicense("youtube");
+    setYtPlaylistId("");
+    setIgCollaborators("");
+    setIgShareToFeed(true);
+    setIgCoverSeconds("");
+    setBskyLanguage("");
+    setBskyAltText("");
+    setBskyReplyGate("everyone");
+    setPinLink("");
+    setPinAltText("");
     // Reset text post state
     setPostMode("video");
     setTextPostBody("");
@@ -2644,6 +2796,63 @@ export default function UploadsPage() {
               </div>
               {/* end hashtags */}
 
+              {/* Label as AI-generated — video mode only */}
+              {postMode === "video" && (
+              <div className="border-b border-white/10 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm text-white">Label as AI-generated</p>
+                      <div
+                        className="relative"
+                        onMouseEnter={() => setShowAiLabelInfo(true)}
+                        onMouseLeave={() => setShowAiLabelInfo(false)}
+                      >
+                        <button
+                          type="button"
+                          aria-label="Which platforms support the AI label"
+                          aria-expanded={showAiLabelInfo}
+                          onClick={() => setShowAiLabelInfo((v) => !v)}
+                          onBlur={() => setShowAiLabelInfo(false)}
+                          className="flex text-white/40 transition-colors hover:text-white/70"
+                        >
+                          <Info className="h-4 w-4" weight="bold" />
+                        </button>
+                        {showAiLabelInfo && (
+                          <div role="tooltip" className="absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border border-white/15 bg-neutral-900 p-3 text-xs text-white/70 shadow-xl">
+                            <p className="mb-1.5 font-medium text-white">Adds each platform&apos;s own AI label on:</p>
+                            <ul className="space-y-0.5">
+                              <li><span className="text-white">TikTok</span>: &quot;Creator labeled as AI-generated&quot;</li>
+                              <li><span className="text-white">YouTube</span>: &quot;Altered or synthetic content&quot;</li>
+                              <li><span className="text-white">Instagram</span>: &quot;AI info&quot;</li>
+                            </ul>
+                            <p className="mt-2 text-white/50">Facebook, LinkedIn, X, Bluesky and Pinterest don&apos;t let apps set an AI label. They detect AI content from the video file on their own.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <p className="mt-0.5 text-xs text-white/40">
+                      {!aiGenerated
+                        ? "For realistic video made or altered with AI"
+                        : aiLabelTargets.length > 0
+                        ? `Will be labeled on ${aiLabelTargets.map((p) => AI_LABEL_PLATFORM_NAMES[p]).join(", ")}`
+                        : "None of your selected platforms support this label"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={aiGenerated}
+                    aria-label="Label as AI-generated"
+                    onClick={() => setAiGenerated((v) => !v)}
+                    className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${aiGenerated ? "bg-blue-500" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${aiGenerated ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+              </div>
+              )}
+
               {/* Thumbnail — video mode only */}
               {postMode === "video" && (
               <div className="border-b border-white/10 p-5">
@@ -2965,6 +3174,49 @@ export default function UploadsPage() {
                     </label>
                   </div>
 
+                  <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs text-white/40 mb-1.5">Tags</label>
+                      <input type="text" value={ytTags} onChange={(e) => setYtTags(e.target.value)} placeholder="Comma-separated, e.g. warzone, gaming highlights" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <p className="mt-1 text-xs text-white/30">Search keywords, separate from the hashtags in your description. 500 characters in total.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1.5">Video language</label>
+                      <select value={ytLanguage} onChange={(e) => setYtLanguage(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                        <option value="" className="bg-neutral-900">Not set</option>
+                        {LANGUAGE_OPTIONS.map((l) => (<option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1.5">License</label>
+                      <select value={ytLicense} onChange={(e) => setYtLicense(e.target.value as "youtube" | "creativeCommon")} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                        <option value="youtube" className="bg-neutral-900">Standard YouTube License</option>
+                        <option value="creativeCommon" className="bg-neutral-900">Creative Commons (Attribution)</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs text-white/40 mb-1.5">Add to playlist</label>
+                      {ytSingleAccountId ? (
+                        <>
+                          <select
+                            value={ytPlaylists.some((pl) => pl.id === ytPlaylistId) ? ytPlaylistId : ""}
+                            onChange={(e) => setYtPlaylistId(e.target.value)}
+                            disabled={ytPlaylistsFor !== ytSingleAccountId}
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40 disabled:opacity-50"
+                          >
+                            <option value="" className="bg-neutral-900">{ytPlaylistsFor !== ytSingleAccountId ? "Loading playlists..." : "None"}</option>
+                            {ytPlaylists.map((pl) => (<option key={pl.id} value={pl.id} className="bg-neutral-900">{pl.title}</option>))}
+                          </select>
+                          {ytPlaylistsFor === ytSingleAccountId && ytPlaylists.length === 0 && (
+                            <p className="mt-1 text-xs text-white/30">No playlists found on this channel.</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs text-white/40">Select a single YouTube channel to add this video to a playlist.</p>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Per-platform caption override */}
                   <div className="pt-4 border-t border-white/10">
                     <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "youtube" ? null : "youtube")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
@@ -3221,14 +3473,35 @@ export default function UploadsPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setTtAigcDisclosure((v) => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${ttAigcDisclosure ? "bg-blue-500" : "bg-white/10"}`}
+                        onClick={() => setAiGenerated((v) => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${aiGenerated ? "bg-blue-500" : "bg-white/10"}`}
                       >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${ttAigcDisclosure ? "translate-x-5" : "translate-x-0"}`} />
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${aiGenerated ? "translate-x-5" : "translate-x-0"}`} />
                       </button>
                     </div>
-                    {ttAigcDisclosure && (
-                      <p className="text-xs text-blue-400/70">TikTok will label this post as AI-generated content.</p>
+                    {aiGenerated && (
+                      <p className="text-xs text-blue-400/70">TikTok will label this post as AI-generated content. This is the same switch as &quot;Label as AI-generated&quot; in the post details.</p>
+                    )}
+                  </div>
+
+                  {/* Cover frame */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Cover frame</p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={ttCoverSeconds}
+                        onChange={(e) => setTtCoverSeconds(e.target.value)}
+                        placeholder="0"
+                        aria-label="TikTok cover frame, in seconds"
+                        className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                      />
+                      <span className="text-xs text-white/40">Seconds into the video. Optional: TikTok picks a frame if blank.</span>
+                    </div>
+                    {ttCoverSeconds.trim() !== "" && secondsToMs(ttCoverSeconds, videoDuration) === undefined && (
+                      <p className="text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
                     )}
                   </div>
 
@@ -3350,6 +3623,50 @@ export default function UploadsPage() {
                     <label className="block text-xs text-white/40 mb-1.5">First Comment</label>
                     <input type="text" value={igFirstComment} onChange={(e) => setIgFirstComment(e.target.value)} placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                   </div>
+                  {igType !== "story" && (
+                    <>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Collaborators</label>
+                        <input type="text" value={igCollaborators} onChange={(e) => setIgCollaborators(e.target.value)} placeholder="Up to 3 usernames, e.g. @friend, @brand" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                        {parseList(igCollaborators).length > normalizeInstagramCollaborators(igCollaborators).length ? (
+                          <p className="mt-1 text-xs text-amber-400/70">
+                            Only {normalizeInstagramCollaborators(igCollaborators).map((u) => `@${u}`).join(", ") || "valid usernames"} will be invited (max 3; letters, numbers, periods and underscores).
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-white/30">They get an invite to be shown as co-authors of the post.</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                        <div>
+                          <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
+                          {thumbnail || lastThumbnailPath ? (
+                            <p className="py-2 text-xs text-white/40">Using your custom thumbnail as the cover.</p>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.1}
+                                value={igCoverSeconds}
+                                onChange={(e) => setIgCoverSeconds(e.target.value)}
+                                placeholder="0"
+                                aria-label="Instagram cover frame, in seconds"
+                                className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                              />
+                              <span className="text-xs text-white/40">seconds in (optional)</span>
+                            </div>
+                          )}
+                        </div>
+                        <label className="flex cursor-pointer items-center gap-2 pb-2">
+                          <input type="checkbox" checked={igShareToFeed} onChange={(e) => setIgShareToFeed(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                          <span className="text-sm text-white/70">Also show in main feed</span>
+                        </label>
+                      </div>
+                      {!(thumbnail || lastThumbnailPath) && igCoverSeconds.trim() !== "" && secondsToMs(igCoverSeconds, videoDuration) === undefined && (
+                        <p className="text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
+                      )}
+                    </>
+                  )}
 
                   {/* Per-platform caption override */}
                   <div className="pt-4 border-t border-white/10">
@@ -3485,6 +3802,33 @@ export default function UploadsPage() {
                   {postMode === "video" && (
                     <p className="text-xs text-white/40 mb-3">Video will be posted as a Bluesky video post. Caption is limited to 300 characters.</p>
                   )}
+                  {postMode === "video" && (
+                    <div className="mb-4 space-y-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-xs text-white/40 mb-1.5">Who can reply</label>
+                          <select value={bskyReplyGate} onChange={(e) => setBskyReplyGate(e.target.value as typeof bskyReplyGate)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                            <option value="everyone" className="bg-neutral-900">Everyone</option>
+                            <option value="following" className="bg-neutral-900">People you follow</option>
+                            <option value="followers" className="bg-neutral-900">Your followers</option>
+                            <option value="mentioned" className="bg-neutral-900">People you mention</option>
+                            <option value="nobody" className="bg-neutral-900">Nobody</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/40 mb-1.5">Post language</label>
+                          <select value={bskyLanguage} onChange={(e) => setBskyLanguage(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                            <option value="" className="bg-neutral-900">Not set</option>
+                            {LANGUAGE_OPTIONS.map((l) => (<option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>))}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
+                        <textarea value={bskyAltText} onChange={(e) => setBskyAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
+                      </div>
+                    </div>
+                  )}
                   {postMode === "text" && (
                     <>
                     <p className="text-xs text-white/40 mb-3">Optionally customize the text for Bluesky. Leave blank to use the base text.</p>
@@ -3614,6 +3958,17 @@ export default function UploadsPage() {
                   ) : (
                     <p className="text-xs text-white/40">No boards found. Make sure your Pinterest account has at least one board.</p>
                   )}
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Destination link</label>
+                    <input type="url" value={pinLink} onChange={(e) => setPinLink(e.target.value)} placeholder="https://your-site.com (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    {pinLink.trim() !== "" && !pinterestExtras({ link: pinLink }).link && (
+                      <p className="mt-1 text-xs text-amber-400/70">Enter a full link starting with https://. This one will be skipped.</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
+                    <textarea value={pinAltText} onChange={(e) => setPinAltText(e.target.value)} maxLength={500} rows={2} placeholder="Describe the Pin for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
+                  </div>
                 </div>
               </div>
             )}

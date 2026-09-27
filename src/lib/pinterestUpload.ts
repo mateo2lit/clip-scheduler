@@ -7,6 +7,9 @@ type PinterestUploadArgs = {
   title: string;
   description?: string;
   boardId: string;
+  /** Optional destination link and alt text, from postOptions.ts. */
+  link?: string;
+  altText?: string;
 };
 
 async function getSignedUrl(bucket: string, path: string): Promise<string> {
@@ -22,7 +25,7 @@ async function sleep(ms: number) {
 }
 
 export async function uploadToPinterest(args: PinterestUploadArgs): Promise<{ platform_post_id: string }> {
-  const { accessToken, bucket, storagePath, title, description, boardId } = args;
+  const { accessToken, bucket, storagePath, title, description, boardId, link, altText } = args;
 
   const headers = {
     Authorization: `Bearer ${accessToken}`,
@@ -91,6 +94,8 @@ export async function uploadToPinterest(args: PinterestUploadArgs): Promise<{ pl
       board_id: boardId,
       title: title.slice(0, 100),
       description: (description ?? "").slice(0, 500),
+      ...(link ? { link } : {}),
+      ...(altText ? { alt_text: altText } : {}),
       media_source: {
         source_type: "video_id",
         media_id,

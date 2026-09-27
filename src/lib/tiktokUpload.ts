@@ -18,6 +18,8 @@ type UploadToTikTokArgs = {
   allowStitch?: boolean;
   brandOrganicToggle?: boolean;
   brandContentToggle?: boolean;
+  /** Optional post_info fields (is_aigc, video_cover_timestamp_ms) from postOptions.ts. */
+  extraPostInfo?: Record<string, unknown>;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -48,6 +50,7 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
     allowStitch = false,
     brandOrganicToggle = false,
     brandContentToggle = false,
+    extraPostInfo = {},
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -96,6 +99,7 @@ export async function uploadSupabaseVideoToTikTok(args: UploadToTikTokArgs): Pro
           disable_stitch: !allowStitch,
           brand_organic_toggle: brandOrganicToggle,
           brand_content_toggle: brandContentToggle,
+          ...extraPostInfo,
         },
         source_info: {
           source: "PULL_FROM_URL",

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./supabaseAdmin";
 import { detectVideoContainer, remuxToMp4 } from "./videoRemux";
+import { blueskyThreadgateAllow, type BlueskyReplyGate } from "./postOptions";
 
 type UploadToBlueskyArgs = {
   did: string;
@@ -9,6 +10,10 @@ type UploadToBlueskyArgs = {
   bucket: string;
   storagePath: string;
   caption: string;
+  /** Optional post language, video alt text and reply control, from postOptions.ts. */
+  langs?: string[];
+  alt?: string;
+  replyGate?: BlueskyReplyGate;
 };
 
 const BSKY_SERVICE = "https://bsky.social";
@@ -177,7 +182,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   accessJwt: string;
   refreshJwt: string;
 }> {
-  const { did, accessJwt, refreshJwt, bucket, storagePath, caption } = args;
+  const { did, accessJwt, refreshJwt, bucket, storagePath, caption, langs, alt, replyGate } = args;
   const session: SessionState = { accessJwt, refreshJwt };
   const serviceUrl = await resolvePdsServiceUrl(did);
 
@@ -289,7 +294,9 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     embed: {
       $type: "app.bsky.embed.video",
       video: blob,
+      ...(alt ? { alt } : {}),
     },
+    ...(langs && langs.length > 0 ? { langs } : {}),
   };
 
   const createRecord = (jwt: string) =>
@@ -309,6 +316,33 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
 
   const createData = await createRes.json();
   if (createData.error) throw new Error(`Bluesky post error: ${createData.message || createData.error}`);
+
+  // Reply control is a separate threadgate record whose rkey matches the post's.
+  // The post is already live, so a failure here is logged rather than thrown.
+  if (replyGate) {
+    try {
+      const rkey = String(createData.uri).split("/").pop();
+      const createGate = (jwt: string) =>
+        fetch(`${serviceUrl}/xrpc/com.atproto.repo.createRecord`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repo: did,
+            collection: "app.bsky.feed.threadgate",
+            rkey,
+            record: {
+              $type: "app.bsky.feed.threadgate",
+              post: createData.uri,
+              allow: blueskyThreadgateAllow(replyGate),
+              createdAt: now,
+            },
+          }),
+        });
+      await callWithRefresh(createGate, "Bluesky reply settings failed");
+    } catch (e: any) {
+      console.error("[Bluesky] Posted, but setting who can reply failed:", e?.message);
+    }
+  }
 
   return {
     uri: createData.uri,

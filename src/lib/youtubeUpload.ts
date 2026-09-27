@@ -22,6 +22,11 @@ type UploadToYouTubeArgs = {
   embeddable?: boolean;
   notifySubscribers?: boolean;
   publicStatsViewable?: boolean;
+
+  /** Optional snippet/status fields (tags, language, AI disclosure, license) from postOptions.ts. */
+  extraSnippet?: Record<string, unknown>;
+  extraStatus?: Record<string, unknown>;
+  playlistId?: string;
 };
 
 export const CATEGORY_IDS: Record<string, string> = {
@@ -92,6 +97,9 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
     embeddable,
     notifySubscribers,
     publicStatsViewable,
+    extraSnippet = {},
+    extraStatus = {},
+    playlistId,
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -140,12 +148,14 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
         title,
         description: description ?? "",
         categoryId: categoryId || undefined,
+        ...extraSnippet,
       },
       status: {
         privacyStatus,
         selfDeclaredMadeForKids: madeForKids ?? false,
         embeddable: embeddable ?? true,
         publicStatsViewable: publicStatsViewable ?? true,
+        ...extraStatus,
       },
     },
     media: {
@@ -178,6 +188,24 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
     } catch (thumbErr: any) {
       // Thumbnail set can fail if the channel isn't verified — don't fail the whole upload
       console.error(`[YouTube] Failed to set thumbnail for ${youtubeVideoId}:`, thumbErr?.message);
+    }
+  }
+
+  // Add to a playlist if one was chosen. Like the thumbnail, this must not fail an
+  // upload that has already succeeded.
+  if (playlistId) {
+    try {
+      await youtube.playlistItems.insert({
+        part: ["snippet"],
+        requestBody: {
+          snippet: {
+            playlistId,
+            resourceId: { kind: "youtube#video", videoId: youtubeVideoId },
+          },
+        },
+      });
+    } catch (plErr: any) {
+      console.error(`[YouTube] Failed to add ${youtubeVideoId} to playlist ${playlistId}:`, plErr?.message);
     }
   }
 

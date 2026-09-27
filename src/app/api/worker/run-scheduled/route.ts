@@ -12,6 +12,13 @@ import { uploadToPinterest } from "@/lib/pinterestUpload";
 import { uploadToSnapchat } from "@/lib/snapchatUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
+import {
+  tiktokPostInfoExtras,
+  youtubeExtras,
+  instagramContainerExtras,
+  blueskyExtras,
+  pinterestExtras,
+} from "@/lib/postOptions";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -758,6 +765,7 @@ async function runWorker(req: Request) {
           allowStitch: ttSettings.allow_stitch ?? false,
           brandOrganicToggle: ttSettings.brand_organic_toggle ?? false,
           brandContentToggle: ttSettings.brand_content_toggle ?? false,
+          extraPostInfo: tiktokPostInfoExtras(ttSettings),
         });
         // TikTok processes asynchronously — store publish_id and poll on next worker ticks
         await supabaseAdmin.from("scheduled_posts").update({
@@ -810,6 +818,7 @@ async function runWorker(req: Request) {
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
           mediaType,
+          extraParams: instagramContainerExtras(igSettings, mediaType, Boolean(post.thumbnail_path)),
         };
 
         if (post.thumbnail_path) {
@@ -846,6 +855,7 @@ async function runWorker(req: Request) {
           bucket,
           storagePath,
           caption: bskyCaption,
+          ...blueskyExtras(bskySettings),
         });
 
         if (
@@ -918,6 +928,7 @@ async function runWorker(req: Request) {
         const ptSettings = ((post as any).pinterest_settings ?? {}) as any;
         const boardId = ptSettings.board_id;
         if (!boardId) throw new Error("No Pinterest board selected for this post.");
+        const ptExtras = pinterestExtras(ptSettings);
         const pt = await uploadToPinterest({
           accessToken: acct.access_token,
           bucket,
@@ -925,6 +936,8 @@ async function runWorker(req: Request) {
           title: post.title ?? "Clip Dash Upload",
           description: post.description ?? "",
           boardId,
+          link: ptExtras.link,
+          altText: ptExtras.alt_text,
         });
         platformPostId = pt.platform_post_id;
       } else if (provider === "snapchat") {
@@ -961,6 +974,11 @@ async function runWorker(req: Request) {
           notifySubscribers: yts.notify_subscribers ?? true,
           publicStatsViewable: yts.public_stats_viewable ?? true,
         };
+
+        const ytExtras = youtubeExtras(yts);
+        ytArgs.extraSnippet = ytExtras.snippet;
+        ytArgs.extraStatus = ytExtras.status;
+        if (typeof yts.playlist_id === "string" && yts.playlist_id) ytArgs.playlistId = yts.playlist_id;
 
         if (post.thumbnail_path) {
           ytArgs.thumbnailBucket = bucket;

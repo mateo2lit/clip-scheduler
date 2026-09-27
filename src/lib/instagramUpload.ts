@@ -21,6 +21,8 @@ type CreateContainerArgs = {
   mediaType?: "REELS" | "STORIES";
   thumbnailBucket?: string;
   thumbnailPath?: string;
+  /** Optional container fields (is_ai_generated, collaborators, ...) from postOptions.ts. */
+  extraParams?: Record<string, string>;
 };
 
 type CheckAndPublishArgs = {
@@ -62,7 +64,7 @@ async function getSignedDownloadUrl(params: {
 export async function createInstagramContainer(args: CreateContainerArgs): Promise<{
   containerId: string;
 }> {
-  const { igUserId, accessToken, bucket, storagePath, caption, mediaType = "REELS", thumbnailBucket, thumbnailPath } = args;
+  const { igUserId, accessToken, bucket, storagePath, caption, mediaType = "REELS", thumbnailBucket, thumbnailPath, extraParams = {} } = args;
 
   assertOk(igUserId, "Missing igUserId");
   assertOk(accessToken, "Missing accessToken");
@@ -102,14 +104,30 @@ export async function createInstagramContainer(args: CreateContainerArgs): Promi
     }
   }
 
-  const containerRes = await fetch(
-    `https://graph.instagram.com/v21.0/${igUserId}/media`,
-    {
+  for (const [key, value] of Object.entries(extraParams)) {
+    containerParams.set(key, value);
+  }
+
+  const postContainer = () =>
+    fetch(`https://graph.instagram.com/v21.0/${igUserId}/media`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: containerParams,
+    });
+
+  let containerRes = await postContainer();
+
+  // Meta doesn't document which API version added is_ai_generated. If it is the
+  // parameter being rejected, post without the label rather than fail the post.
+  if (!containerRes.ok && containerParams.has("is_ai_generated")) {
+    const text = await containerRes.text();
+    if (!text.includes("is_ai_generated")) {
+      throw new Error(`Instagram container creation failed: ${containerRes.status} ${text}`);
     }
-  );
+    console.error("[Instagram] is_ai_generated rejected, retrying without the AI label:", text);
+    containerParams.delete("is_ai_generated");
+    containerRes = await postContainer();
+  }
 
   if (!containerRes.ok) {
     const text = await containerRes.text();
