@@ -608,7 +608,9 @@ export default function UploadsPage() {
           }
           for (const [provider, provAccts] of Object.entries(lists)) {
             if (provAccts.length > 0) {
-              autoSelect[provider] = provAccts.map((a) => a.id);
+              // Facebook can bring in several Pages at once when the user reconnects, including
+              // ones they never meant to post to, so with more than one Page nothing is preselected.
+              autoSelect[provider] = provider === "facebook" && provAccts.length > 1 ? [] : provAccts.map((a) => a.id);
               accts[provider] = { profileName: provAccts[0].profileName, avatarUrl: provAccts[0].avatarUrl };
             }
           }
@@ -3689,10 +3691,18 @@ export default function UploadsPage() {
             {(() => {
               const verticalPending = verticalEnabled && conversionStatus !== "done" && conversionStatus !== "failed";
               const burnPending = burnJobId !== null && burnStatus !== "done" && burnStatus !== "failed";
-              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || verticalPending || burnPending;
+              // A platform with several connected accounts needs at least one picked, or the post
+              // would go out with no account and fail in the worker.
+              const missingAccountPlatform = selectedPlatforms.find(
+                (p) => (platformAccountsList[p]?.length ?? 0) > 1 && (selectedAccountIds[p] || []).length === 0
+              );
+              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || !!missingAccountPlatform || verticalPending || burnPending;
               const blockReason = selectedPlatforms.length === 0
                 ? "Select at least one platform"
-                : ttValidationError || null;
+                : ttValidationError
+                  || (missingAccountPlatform
+                    ? `Choose which ${PLATFORMS.find((pl) => pl.key === missingAccountPlatform)?.name ?? missingAccountPlatform} accounts to post to`
+                    : null);
               return (
                 <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950 overflow-hidden">
                   {blockReason && (

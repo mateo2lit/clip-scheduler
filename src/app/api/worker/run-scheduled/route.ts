@@ -594,9 +594,20 @@ async function runWorker(req: Request) {
       const acctQ = supabaseAdmin
         .from("platform_accounts")
         .select("id, refresh_token, access_token, expiry, platform_user_id, page_id, page_access_token, ig_user_id");
-      const { data: acct, error: acctErr } = post.platform_account_id
-        ? await acctQ.eq("id", post.platform_account_id).maybeSingle()
-        : await acctQ.eq("team_id", post.team_id).eq("provider", provider).maybeSingle();
+      let acct: any = null;
+      let acctErr: { message: string } | null = null;
+      if (post.platform_account_id) {
+        ({ data: acct, error: acctErr } = await acctQ.eq("id", post.platform_account_id).maybeSingle());
+      } else {
+        // No account on the post: only safe when the team has exactly one account for this
+        // platform. With several, guessing could post to the wrong account, so fail instead.
+        const { data: rows, error } = await acctQ.eq("team_id", post.team_id).eq("provider", provider).limit(2);
+        acctErr = error;
+        if (rows && rows.length > 1) {
+          throw new Error(`Several ${provider} accounts are connected and this post doesn't say which one to use. Edit the post and choose an account.`);
+        }
+        acct = rows?.[0] ?? null;
+      }
 
       if (acctErr) {
         throw new Error(`Failed to load ${provider} account: ${acctErr.message}`);
