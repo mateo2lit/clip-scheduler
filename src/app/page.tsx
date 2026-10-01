@@ -4,7 +4,7 @@ import { useEffect, useState, Fragment } from "react";
 import { supabase } from "./login/supabaseClient";
 import {
   ShareNetwork, LinkSimple, UsersThree, Sparkle, SquaresFour, Calendar,
-  Lightning, Check, Lock, Clock, ArrowRight,
+  Lightning, Check, Clock, ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { ComingSoonBadge } from "@/components/ComingSoonBadge";
 
@@ -85,11 +85,6 @@ const PRICING_PLANS = {
       "AI tag suggestions and analytics",
       "Unified comments inbox",
       "Smart queue scheduling",
-    ],
-    locked: [
-      "AI Clips workspace",
-      "Up to 5 team members",
-      "Shared uploads and permissions",
     ],
   },
   team: {
@@ -672,7 +667,7 @@ export default function Home() {
                 </>
               )}
             </div>
-            <div className="rounded-2xl border border-white/8 bg-black/18 p-4 mb-5">
+            <div className="rounded-2xl border border-white/8 bg-black/18 p-4 mb-6">
             <div className="text-sm font-semibold text-white">Included</div>
             <ul className="space-y-3 text-sm text-white/68 mt-4">
               <li className="flex items-start gap-2">
@@ -704,17 +699,6 @@ export default function Home() {
                 Free link in bio page
               </li>
             </ul>
-            </div>
-            <div className="rounded-2xl border border-blue-300/14 bg-blue-300/8 p-4 mb-6">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-200/85">Upgrade unlocks</div>
-              <ul className="mt-3 space-y-2 text-sm text-white/60">
-                {PRICING_PLANS.creator.locked.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
-                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-blue-200/80" weight="duotone" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
             <a
               href="/login"
@@ -759,6 +743,10 @@ export default function Home() {
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />
                 Everything in Creator
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-4 h-4 text-violet-300 mt-0.5 shrink-0" weight="bold" />
+                <span><span className="font-medium text-white">AI Clips</span>: turn long videos into short clips automatically</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-white/30 mt-0.5 shrink-0" weight="bold" />

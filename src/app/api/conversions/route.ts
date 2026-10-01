@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { storageLimitBytes } from "@/lib/storageLimits";
 
 export const runtime = "nodejs";
 
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
       .eq("storage_deleted", false);
 
     const usedBytes = uploads?.reduce((sum, r) => sum + (r.file_size || 0), 0) ?? 0;
-    const limitBytes = team.plan === "team" ? 15 * 1024 ** 3 : 5 * 1024 ** 3;
+    const limitBytes = storageLimitBytes(team.plan);
     if (usedBytes > limitBytes * 0.85) {
       return NextResponse.json(
         { ok: false, error: "Storage nearly full. Delete old uploads before converting." },

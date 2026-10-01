@@ -372,7 +372,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleManageSubscription() {
+  async function handleManageSubscription(flow?: "change_plan") {
     setPlanLoading(true);
     try {
       const { data: sess } = await supabase.auth.getSession();
@@ -381,7 +381,8 @@ export default function SettingsPage() {
 
       const res = await fetch("/api/stripe/portal", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(flow ? { flow } : {}),
       });
 
       const json = await res.json();
@@ -1257,7 +1258,7 @@ export default function SettingsPage() {
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 flex items-center justify-between">
               <span>Payment failed — please update your payment method.</span>
               <button
-                onClick={handleManageSubscription}
+                onClick={() => handleManageSubscription()}
                 disabled={planLoading}
                 className="rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-black hover:bg-amber-400 transition-colors"
               >
@@ -1401,13 +1402,24 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     {teamRole === "owner" && (
-                      <button
-                        onClick={handleManageSubscription}
-                        disabled={planLoading}
-                        className="shrink-0 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-50"
-                      >
-                        {planLoading ? "Loading..." : "Manage"}
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {plan === "creator" && (
+                          <button
+                            onClick={() => handleManageSubscription("change_plan")}
+                            disabled={planLoading}
+                            className="rounded-full border border-violet-400/30 bg-violet-500/15 px-4 py-1.5 text-xs font-medium text-violet-100 hover:bg-violet-500/25 transition-colors disabled:opacity-50"
+                          >
+                            Upgrade to Team
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleManageSubscription()}
+                          disabled={planLoading}
+                          className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-50"
+                        >
+                          {planLoading ? "Loading..." : "Manage"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

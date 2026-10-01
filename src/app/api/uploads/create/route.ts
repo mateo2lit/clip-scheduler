@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { storageLimitBytes } from "@/lib/storageLimits";
 
 export const runtime = "nodejs";
 
@@ -39,11 +40,7 @@ export async function POST(req: Request) {
     }
 
     // Check active storage usage against plan limit
-    const STORAGE_LIMITS: Record<string, number> = {
-      creator: 25 * 1024 * 1024 * 1024,   // 25 GB
-      team:    50 * 1024 * 1024 * 1024,   // 50 GB
-    };
-    const planLimit = STORAGE_LIMITS[team?.plan ?? ""] ?? STORAGE_LIMITS.creator;
+    const planLimit = storageLimitBytes(team?.plan);
 
     const { data: usageRows } = await supabaseAdmin
       .from("uploads")
