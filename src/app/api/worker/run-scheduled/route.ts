@@ -6,7 +6,14 @@ import { getTikTokAccessToken } from "@/lib/tiktok";
 import { uploadSupabaseVideoToFacebook, postTextToFacebook } from "@/lib/facebookUpload";
 import { createInstagramContainer, checkAndPublishInstagramContainer } from "@/lib/instagramUpload";
 import { uploadSupabaseVideoToLinkedIn, postTextToLinkedIn } from "@/lib/linkedinUpload";
-import { uploadToBluesky, postTextToBluesky } from "@/lib/blueskyUpload";
+import {
+  uploadToBluesky,
+  BLUESKY_DIRECT_UPLOAD_MAX_BYTES,
+  startBlueskyVideoJob,
+  checkBlueskyVideoJob,
+  publishBlueskyVideoPost,
+  postTextToBluesky,
+} from "@/lib/blueskyUpload";
 import { uploadVideoToX, postTextToX } from "@/lib/xUpload";
 import { uploadToPinterest } from "@/lib/pinterestUpload";
 import { uploadToSnapchat } from "@/lib/snapchatUpload";
@@ -24,6 +31,8 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_BATCH = 5;
+/** Comfortably past maxDuration (5 min), so only posts from a killed run match. */
+const STUCK_POSTING_MINUTES = 15;
 
 function requireWorkerAuth(req: Request) {
   const workerSecret = process.env.WORKER_SECRET;
@@ -120,6 +129,18 @@ async function checkAndNotifyGroup(groupId: string, userId: string, postTitle: s
   }
 }
 
+/** Bluesky rotates the refresh token on every refresh, so the new pair must be saved. */
+async function saveBlueskyTokens(
+  acct: { id: string; access_token: string | null; refresh_token: string | null },
+  next: { accessJwt: string; refreshJwt: string }
+) {
+  if (next.accessJwt === acct.access_token && next.refreshJwt === (acct.refresh_token || acct.access_token)) return;
+  await supabaseAdmin
+    .from("platform_accounts")
+    .update({ access_token: next.accessJwt, refresh_token: next.refreshJwt, updated_at: new Date().toISOString() })
+    .eq("id", acct.id);
+}
+
 async function tryDeleteUploadFile(bucket: string, storagePath: string) {
   try {
     await supabaseAdmin.storage.from(bucket).remove([storagePath]);
@@ -169,14 +190,38 @@ async function runWorker(req: Request) {
 
   const DEFAULT_BUCKET = process.env.UPLOADS_BUCKET || "uploads";
 
-  // ── Process ig_processing posts first (YouTube Shorts + Instagram + TikTok) ─
+  // ── Fail posts whose worker run died mid-upload ────────────────────────────
+  // A claimed post sits in "posting" only while one run uploads it. Runs are capped at
+  // maxDuration, so a post still "posting" long after its claim (ig_container_created_at
+  // is stamped at claim time) belongs to a run that was killed and would never finish.
+  {
+    const stuckCutoff = new Date(Date.now() - STUCK_POSTING_MINUTES * 60 * 1000).toISOString();
+    const stuckMsg = "The upload stopped before it finished (it may have taken too long). Please retry.";
+    const { data: stuck } = await supabaseAdmin
+      .from("scheduled_posts")
+      .update({ status: "failed", last_error: stuckMsg })
+      .eq("status", "posting")
+      .lt("ig_container_created_at", stuckCutoff)
+      .select("id, user_id, provider, group_id, title");
+
+    for (const p of stuck ?? []) {
+      if (p.group_id) {
+        await checkAndNotifyGroup(p.group_id, p.user_id, p.title ?? "Untitled");
+      } else {
+        const info = await getNotificationInfo(p.user_id);
+        if (info?.notifyFailed) await sendPostFailedEmail(info.email, p.title ?? "Untitled", p.provider || "youtube", stuckMsg);
+      }
+    }
+  }
+
+  // ── Process ig_processing posts first (YouTube Shorts + Instagram + TikTok + Bluesky) ─
   const igProcessingResults: any[] = [];
   {
     const { data: igPosts, error: igErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, youtube_settings, group_id, title, platform_account_id")
+      .select("id, user_id, team_id, upload_id, provider, ig_container_id, ig_container_created_at, instagram_settings, youtube_settings, bluesky_settings, group_id, title, description, platform_account_id")
       .eq("status", "ig_processing")
-      .in("provider", ["instagram", "tiktok", "youtube"])
+      .in("provider", ["instagram", "tiktok", "youtube", "bluesky"])
       .limit(5);
 
     if (!igErr && igPosts && igPosts.length > 0) {
@@ -268,6 +313,62 @@ async function runWorker(req: Request) {
                 }
               }
               // else: still within window, next cron tick will check again
+            }
+            continue;
+          }
+
+          // ── Bluesky video job check ─────────────────────────────────
+          if (igPost.provider === "bluesky") {
+            const job = await checkBlueskyVideoJob(igPost.ig_container_id);
+
+            if (job.status === "processing") {
+              // Long videos can take a while to transcode, so allow 30 minutes
+              const createdAt = igPost.ig_container_created_at ? new Date(igPost.ig_container_created_at).getTime() : 0;
+              if (createdAt < Date.now() - 30 * 60 * 1000) {
+                throw new Error("Bluesky video processing timed out — please retry");
+              }
+              continue; // still within window, next tick will check again
+            }
+            if (job.status === "failed") throw new Error(job.error);
+
+            const { data: bsAcct } = await supabaseAdmin
+              .from("platform_accounts")
+              .select("id, access_token, refresh_token, platform_user_id")
+              .eq("id", igPost.platform_account_id)
+              .maybeSingle();
+            if (!bsAcct?.access_token || !bsAcct?.platform_user_id) {
+              throw new Error("Bluesky account not configured. Please reconnect your Bluesky account.");
+            }
+
+            const bskySettings = (igPost.bluesky_settings ?? {}) as any;
+            const bskyResult = await publishBlueskyVideoPost({
+              did: bsAcct.platform_user_id,
+              accessJwt: bsAcct.access_token,
+              refreshJwt: bsAcct.refresh_token || bsAcct.access_token,
+              blob: job.blob,
+              caption: bskySettings.description_override || `${igPost.title ?? ""}\n\n${igPost.description ?? ""}`.trim(),
+              ...blueskyExtras(bskySettings),
+            });
+            await saveBlueskyTokens(bsAcct, bskyResult);
+
+            await supabaseAdmin.from("scheduled_posts").update({
+              status: "posted", posted_at: new Date().toISOString(),
+              platform_post_id: bskyResult.uri, last_error: null,
+            }).eq("id", igPost.id);
+            igProcessingResults.push({ id: igPost.id, ok: true, platformPostId: bskyResult.uri });
+
+            if (igPost.group_id) {
+              await checkAndNotifyGroup(igPost.group_id, igPost.user_id, igPost.title ?? "Untitled");
+            } else {
+              const info = await getNotificationInfo(igPost.user_id);
+              if (info?.notifySuccess) await sendPostSuccessEmail(info.email, igPost.title ?? "Untitled", ["bluesky"]);
+            }
+            if (igPost.upload_id) {
+              const { data: bsUpload } = await supabaseAdmin.from("uploads").select("bucket, file_path, storage_path, path, object_path").eq("id", igPost.upload_id).maybeSingle();
+              if (bsUpload) {
+                const bsProbed = pickFirstNonEmpty(bsUpload, ["file_path", "storage_path", "path", "object_path"]);
+                if (bsProbed.value) await checkAndMaybeDeleteFile(igPost.group_id, bsUpload.bucket?.trim() || DEFAULT_BUCKET, bsProbed.value, igPost.upload_id);
+              }
             }
             continue;
           }
@@ -550,6 +651,7 @@ async function runWorker(req: Request) {
 
       let bucket: string = DEFAULT_BUCKET;
       let storagePath: string = "";
+      let fileSize: number | null = null;
 
       if (!isTextPost) {
         // Load upload row (probe schema)
@@ -587,6 +689,7 @@ async function runWorker(req: Request) {
             : DEFAULT_BUCKET;
 
         storagePath = probed.value;
+        fileSize = Number(uploadBase.file_size) || null;
       } else {
         // Text posts need content body
         if (!textContent?.body) {
@@ -845,34 +948,45 @@ async function runWorker(req: Request) {
           throw new Error("Bluesky account not configured. Please reconnect your Bluesky account.");
         }
 
-        const bskySettings = (post.bluesky_settings ?? {}) as any;
-        const bskyCaption = bskySettings.description_override || `${post.title ?? ""}\n\n${post.description ?? ""}`.trim();
-        const bskyResult = await uploadToBluesky({
-          did: acct.platform_user_id,
-          handle: acct.platform_user_id,
-          accessJwt: acct.access_token,
-          refreshJwt: acct.refresh_token || acct.access_token,
-          bucket,
-          storagePath,
-          caption: bskyCaption,
-          ...blueskyExtras(bskySettings),
-        });
+        // Small videos (or old uploads with no recorded size) post directly in this run, as before
+        if (fileSize === null || fileSize <= BLUESKY_DIRECT_UPLOAD_MAX_BYTES) {
+          const bskySettings = (post.bluesky_settings ?? {}) as any;
+          const bskyResult = await uploadToBluesky({
+            did: acct.platform_user_id,
+            handle: acct.platform_user_id,
+            accessJwt: acct.access_token,
+            refreshJwt: acct.refresh_token || acct.access_token,
+            bucket,
+            storagePath,
+            caption: bskySettings.description_override || `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
+            ...blueskyExtras(bskySettings),
+          });
+          await saveBlueskyTokens(acct, bskyResult);
+          platformPostId = bskyResult.uri;
+        } else {
+          // Larger videos go to Bluesky's video service — a later run publishes once it's processed
+          const bskyJob = await startBlueskyVideoJob({
+            did: acct.platform_user_id,
+            accessJwt: acct.access_token,
+            refreshJwt: acct.refresh_token || acct.access_token,
+            bucket,
+            storagePath,
+          });
+          await saveBlueskyTokens(acct, bskyJob);
 
-        if (
-          bskyResult.accessJwt !== acct.access_token ||
-          bskyResult.refreshJwt !== (acct.refresh_token || acct.access_token)
-        ) {
           await supabaseAdmin
-            .from("platform_accounts")
+            .from("scheduled_posts")
             .update({
-              access_token: bskyResult.accessJwt,
-              refresh_token: bskyResult.refreshJwt,
-              updated_at: new Date().toISOString(),
+              status: "ig_processing",
+              ig_container_id: bskyJob.jobId,
+              ig_container_created_at: new Date().toISOString(),
+              last_error: null,
             })
-            .eq("id", acct.id);
-        }
+            .eq("id", post.id);
 
-        platformPostId = bskyResult.uri;
+          results.push({ id: post.id, ok: true, status: "bsky_processing", jobId: bskyJob.jobId });
+          continue; // Skip the "mark posted" step below
+        }
       } else if (provider === "linkedin") {
         if (!acct.access_token || !acct.platform_user_id) {
           throw new Error("LinkedIn account not configured. Please reconnect your LinkedIn account.");

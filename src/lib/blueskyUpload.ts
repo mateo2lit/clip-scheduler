@@ -2,20 +2,6 @@ import { supabaseAdmin } from "./supabaseAdmin";
 import { detectVideoContainer, remuxToMp4 } from "./videoRemux";
 import { blueskyThreadgateAllow, type BlueskyReplyGate } from "./postOptions";
 
-type UploadToBlueskyArgs = {
-  did: string;
-  handle: string;
-  accessJwt: string;
-  refreshJwt: string;
-  bucket: string;
-  storagePath: string;
-  caption: string;
-  /** Optional post language, video alt text and reply control, from postOptions.ts. */
-  langs?: string[];
-  alt?: string;
-  replyGate?: BlueskyReplyGate;
-};
-
 const BSKY_SERVICE = "https://bsky.social";
 
 function hasExpiredTokenSignal(status: number, text: string) {
@@ -176,15 +162,9 @@ export function detectBlueskyFacets(text: string): BlueskyFacet[] {
 
 export { countBlueskyGraphemes } from "./blueskyUtils";
 
-export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
-  uri: string;
-  cid: string;
-  accessJwt: string;
-  refreshJwt: string;
-}> {
-  const { did, accessJwt, refreshJwt, bucket, storagePath, caption, langs, alt, replyGate } = args;
+/** Refreshes the session up front and returns a caller that retries once more on an expired token. */
+async function openSession(serviceUrl: string, accessJwt: string, refreshJwt: string) {
   const session: SessionState = { accessJwt, refreshJwt };
-  const serviceUrl = await resolvePdsServiceUrl(did);
 
   // Always refresh first so scheduled posts don't depend on a short-lived access token.
   try {
@@ -234,6 +214,43 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     return res;
   }
 
+  return { session, callWithRefresh };
+}
+
+// ── Small video posts (direct to the PDS) ─────────────────────────────────────
+
+/**
+ * A PDS's own uploadBlob takes blobs up to 50 MB. Videos at or under this size keep
+ * the direct, single-run path; larger ones go through the video service below, which
+ * also needs a verified email and has a daily cap, so it isn't used when not needed.
+ */
+export const BLUESKY_DIRECT_UPLOAD_MAX_BYTES = 50 * 1000 * 1000;
+
+type UploadToBlueskyArgs = {
+  did: string;
+  handle: string;
+  accessJwt: string;
+  refreshJwt: string;
+  bucket: string;
+  storagePath: string;
+  caption: string;
+  /** Optional post language, video alt text and reply control, from postOptions.ts. */
+  langs?: string[];
+  alt?: string;
+  replyGate?: BlueskyReplyGate;
+};
+
+export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
+  uri: string;
+  cid: string;
+  accessJwt: string;
+  refreshJwt: string;
+}> {
+  const { did, bucket, storagePath, caption, langs, alt, replyGate } = args;
+  const serviceUrl = await resolvePdsServiceUrl(did);
+  const opened = await openSession(serviceUrl, args.accessJwt, args.refreshJwt);
+  const { callWithRefresh } = opened;
+
   // Download video from Supabase Storage
   const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
     .from(bucket)
@@ -261,9 +278,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
     }
   }
 
-  // A Uint8Array view over the same memory (no copy): fetch's BodyInit accepts
-  // Uint8Array unambiguously, and Bluesky videos can now be up to 300 MB, so an
-  // extra copy would double the worker's memory use.
+  // A Uint8Array view over the same memory (no copy).
   // Node Buffers sit on a regular ArrayBuffer (never shared memory), so the cast is safe.
   const videoBytes = new Uint8Array(videoBuffer.buffer as ArrayBuffer, videoBuffer.byteOffset, videoBuffer.byteLength);
   const uploadBlob = (jwt: string) =>
@@ -283,8 +298,167 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   // After remux the blob server should store as video/mp4. Use whatever the
   // server actually returned — atproto strictly enforces that the embed
   // reference matches the stored blob's mimeType.
-  const blob = uploadData.blob;
+  return createVideoPostRecord(serviceUrl, opened, { did, blob: uploadData.blob, caption, langs, alt, replyGate });
+}
 
+// ── Large video posts (two phases, via Bluesky's video service) ───────────────
+//
+// A PDS's own uploadBlob caps blobs at 50 MB, so videos go through video.bsky.app,
+// which takes up to 300 MB / 10 minutes, transcodes, and then writes the blob to
+// the user's PDS itself. Processing can take minutes, so the worker starts the
+// job on one run and publishes from a later run, like Instagram containers.
+
+const BSKY_VIDEO_SERVICE = "https://video.bsky.app";
+
+type BlueskyJobStatus = {
+  jobId?: string;
+  state?: string;
+  blob?: unknown;
+  error?: string;
+  message?: string;
+};
+
+/** uploadVideo answers with a bare JobStatus; getJobStatus wraps it in { jobStatus }. */
+function readJobStatus(body: any): BlueskyJobStatus {
+  return (body?.jobStatus ?? body ?? {}) as BlueskyJobStatus;
+}
+
+type StartBlueskyVideoArgs = {
+  did: string;
+  accessJwt: string;
+  refreshJwt: string;
+  bucket: string;
+  storagePath: string;
+};
+
+/** Phase 1: upload the video to Bluesky's video service and return its processing job ID. */
+export async function startBlueskyVideoJob(args: StartBlueskyVideoArgs): Promise<{
+  jobId: string;
+  accessJwt: string;
+  refreshJwt: string;
+}> {
+  const { did, bucket, storagePath } = args;
+  const serviceUrl = await resolvePdsServiceUrl(did);
+  const { session, callWithRefresh } = await openSession(serviceUrl, args.accessJwt, args.refreshJwt);
+
+  // The video service writes the finished blob to the user's PDS, so it needs a
+  // token addressed to that PDS for uploadBlob. 30 minutes covers a slow upload.
+  const pdsDid = `did:web:${new URL(serviceUrl).hostname}`;
+  const exp = Math.floor(Date.now() / 1000) + 30 * 60;
+  const authRes = await callWithRefresh(
+    (jwt) =>
+      fetch(
+        `${serviceUrl}/xrpc/com.atproto.server.getServiceAuth?aud=${encodeURIComponent(pdsDid)}` +
+          `&lxm=com.atproto.repo.uploadBlob&exp=${exp}`,
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      ),
+    "Bluesky video authorization failed"
+  );
+  const { token: serviceToken } = await authRes.json();
+  if (!serviceToken) throw new Error("Bluesky video authorization failed: no service token returned");
+
+  // Download video from Supabase Storage
+  const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
+    .from(bucket)
+    .download(storagePath);
+
+  if (downloadErr || !fileData) {
+    throw new Error(`Failed to download video from storage: ${downloadErr?.message || "unknown"}`);
+  }
+
+  const videoBuffer: Buffer = Buffer.from(await fileData.arrayBuffer());
+
+  // The video service transcodes everything to MP4, so QuickTime clips need no remux;
+  // just label them honestly.
+  const container = detectVideoContainer(videoBuffer);
+  const contentType = container === "quicktime" ? "video/quicktime" : "video/mp4";
+  const name = storagePath.split("/").pop() || "video.mp4";
+
+  // A Uint8Array view over the same memory (no copy): videos can be up to 300 MB,
+  // so an extra copy would double the worker's memory use.
+  // Node Buffers sit on a regular ArrayBuffer (never shared memory), so the cast is safe.
+  const videoBytes = new Uint8Array(videoBuffer.buffer as ArrayBuffer, videoBuffer.byteOffset, videoBuffer.byteLength);
+  const uploadRes = await fetch(
+    `${BSKY_VIDEO_SERVICE}/xrpc/app.bsky.video.uploadVideo?did=${encodeURIComponent(did)}&name=${encodeURIComponent(name)}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceToken}`, "Content-Type": contentType },
+      body: videoBytes,
+    }
+  );
+
+  const text = await uploadRes.text();
+  let job: BlueskyJobStatus = {};
+  try {
+    job = readJobStatus(JSON.parse(text));
+  } catch {
+    // Not JSON; handled below.
+  }
+
+  // 409 means this exact video was already processed; its job ID still resolves to the blob.
+  if ((uploadRes.ok || uploadRes.status === 409) && job.jobId) {
+    return { jobId: job.jobId, accessJwt: session.accessJwt, refreshJwt: session.refreshJwt };
+  }
+
+  throw new Error(`Bluesky video upload failed: ${uploadRes.status} ${job.message || job.error || text}`);
+}
+
+/** Phase 2a: check a video job. "done" carries the blob to embed in the post. */
+export async function checkBlueskyVideoJob(jobId: string): Promise<
+  { status: "processing" } | { status: "done"; blob: unknown } | { status: "failed"; error: string }
+> {
+  const res = await fetch(
+    `${BSKY_VIDEO_SERVICE}/xrpc/app.bsky.video.getJobStatus?jobId=${encodeURIComponent(jobId)}`
+  );
+  const text = await res.text();
+  let job: BlueskyJobStatus = {};
+  try {
+    job = readJobStatus(JSON.parse(text));
+  } catch {
+    // Not JSON; handled below.
+  }
+
+  // A 5xx is the service having a bad moment; the next worker run checks again.
+  if (res.status >= 500) return { status: "processing" };
+  if (!res.ok) return { status: "failed", error: `Bluesky video check failed: ${res.status} ${job.message || job.error || text}` };
+
+  if (job.state === "JOB_STATE_FAILED") {
+    return { status: "failed", error: `Bluesky couldn't process the video: ${job.message || job.error || "unknown reason"}` };
+  }
+  if (job.blob) return { status: "done", blob: job.blob };
+  return { status: "processing" };
+}
+
+type PublishBlueskyVideoArgs = {
+  did: string;
+  accessJwt: string;
+  refreshJwt: string;
+  blob: unknown;
+  caption: string;
+  /** Optional post language, video alt text and reply control, from postOptions.ts. */
+  langs?: string[];
+  alt?: string;
+  replyGate?: BlueskyReplyGate;
+};
+
+/** Phase 2b: create the post that embeds a processed video blob. */
+export async function publishBlueskyVideoPost(args: PublishBlueskyVideoArgs): Promise<{
+  uri: string;
+  cid: string;
+  accessJwt: string;
+  refreshJwt: string;
+}> {
+  const serviceUrl = await resolvePdsServiceUrl(args.did);
+  const opened = await openSession(serviceUrl, args.accessJwt, args.refreshJwt);
+  return createVideoPostRecord(serviceUrl, opened, args);
+}
+
+/** Creates the video post (and its reply-control record) using an already-open session. */
+async function createVideoPostRecord(
+  serviceUrl: string,
+  { session, callWithRefresh }: Awaited<ReturnType<typeof openSession>>,
+  { did, blob, caption, langs, alt, replyGate }: Omit<PublishBlueskyVideoArgs, "accessJwt" | "refreshJwt">
+): Promise<{ uri: string; cid: string; accessJwt: string; refreshJwt: string }> {
   // Create post record with video embed
   const now = new Date().toISOString();
   const record: any = {
