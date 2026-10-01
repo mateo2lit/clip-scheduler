@@ -1,8 +1,8 @@
 name: Daily Follower Snapshots
 
+# Scheduled from Supabase pg_cron (docs/supabase-cron.sql), not here: GitHub turns off
+# scheduled workflows after 60 days without commits. Kept as a manual backup.
 on:
-  schedule:
-    - cron: "0 6 * * *" # daily at 6 AM UTC
   workflow_dispatch: {}
 
 jobs:

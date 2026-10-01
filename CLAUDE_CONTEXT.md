@@ -32,11 +32,11 @@ The site is live at clipdash.org.
 - **Supabase** — Auth (email login), Storage (video files), Postgres database
 - **Neon Postgres** — additional serverless Postgres connection (`@neondatabase/serverless`, `pg`)
 - **Next.js API Routes** — all backend logic in `src/app/api/`
-- **Supabase pg_cron + pg_net**: calls the post worker every minute (configured in the Supabase dashboard, not in this repo)
-- **GitHub Actions**: nightly token refresh and follower snapshots, plus on-demand clip/video processing jobs
+- **Supabase pg_cron + pg_net**: runs every scheduled job: the post worker every minute, token refresh at 03:00 UTC, follower snapshots at 06:00 UTC (see `docs/supabase-cron.sql`)
+- **GitHub Actions**: on-demand clip/video processing jobs; the refresh-tokens and follower-snapshots workflows remain only as manual backups
 ### Deployment
 - **Vercel** — hosting (Hobby plan) + **DNS** (clipdash.org nameservers point to Vercel, DNS records managed in Vercel Dashboard → Domains → clipdash.org)
-- **Scheduled jobs**: the post worker is triggered every minute by **Supabase pg_cron** (not GitHub). Token refresh (03:00 UTC) and follower snapshots (06:00 UTC) run on **GitHub Actions**. `run-worker.yml` and `worker-cron.yml` are intentionally disabled (duplicates).
+- **Scheduled jobs**: the post worker is triggered every minute by **Supabase pg_cron** (not GitHub). Token refresh (03:00 UTC) and follower snapshots (06:00 UTC) also run on **Supabase pg_cron** (`docs/supabase-cron.sql`), moved off GitHub because GitHub turns off scheduled workflows after 60 days without commits. `run-worker.yml` and `worker-cron.yml` are intentionally disabled (duplicates).
 
 ### Design
 - Dark theme (`bg-[#050505]`), gradient orbs, rounded cards with `border-white/10`, emerald accents for success states
@@ -212,7 +212,7 @@ The site is live at clipdash.org.
 
 ### Token Refresh Worker
 - **Route:** `/api/worker/refresh-tokens` (GET or POST)
-- **Cron:** Runs daily at 3:00 AM UTC via GitHub Actions (`refresh-tokens.yml`). GitHub auto-disables scheduled workflows after 60 days with no commits (this happened Jul 2026–Oct 2026, so check the Actions tab after any quiet period).
+- **Cron:** Runs daily at 3:00 AM UTC via Supabase pg_cron (`docs/supabase-cron.sql`). It used to run on GitHub Actions, which silently turned it off from Jul 2026 to Oct 2026 (the 60-days-without-commits rule); `refresh-tokens.yml` is now a manual backup.
 - Also hard-deletes storage for uploads whose posts all finished 7+ days ago
 - **Behavior:** Finds Facebook/Instagram tokens expiring within 7 days, refreshes them, updates DB
 - Also refreshes Facebook Page access tokens when refreshing the user token
@@ -475,7 +475,7 @@ These are small tasks that can be knocked out quickly to improve the product:
   - Returns 10-15 tags with reasons, mix of high-volume, medium-niche, and long-tail
   - Platform-specific optimization (YouTube SEO, TikTok FYP, IG explore, LinkedIn feed, Facebook reach)
   - Tags shown as selectable purple chips — users pick which ones to add
-- **Vercel Hobby plan limitations:** Cannot use `vercel.json` crons on Hobby plan (causes build failures). The post worker runs on Supabase pg_cron and the nightly jobs on GitHub Actions instead
+- **Vercel Hobby plan limitations:** Cannot use `vercel.json` crons on Hobby plan (causes build failures). All scheduled jobs run on Supabase pg_cron instead
 
 ---
 
@@ -709,7 +709,7 @@ Priority order:
 6. Remove hardcoded webhook tokens (5 min)
 7. Add settings page auth guard (10 min)
 8. Enable Delete Account button (15 min)
-9. Verify scheduled jobs are running (Supabase pg_cron for the post worker; GitHub Actions for the nightly jobs)
+9. Verify scheduled jobs are running (all in Supabase pg_cron: `select * from cron.job`)
 10. Test full end-to-end flow: signup → subscribe → upload → schedule → auto-post
 
 ---
@@ -835,6 +835,6 @@ Analyzed March 2026. Bootstrapped to $11K MRR by early 2025. Direct competitor i
 - Stripe pricing: $9.99/mo Creator (1 member), $19.99/mo Team (up to 5 members), both with 7-day free trials
 - Plan gating blocks both uploads and scheduling (not just scheduling)
 - X (Twitter) removed — $100/month API cost for video is not viable
-- Vercel crons don't work on Hobby plan. The post worker runs on Supabase pg_cron (every minute); nightly jobs run on GitHub Actions
+- Vercel crons don't work on Hobby plan. All scheduled jobs run on Supabase pg_cron (see `docs/supabase-cron.sql`)
 - AI suggestions use separate Anthropic API billing (not Claude Pro subscription credits)
 - TikTok Content Posting API requires app review approval (`video.publish` scope)
