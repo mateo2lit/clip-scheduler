@@ -64,7 +64,8 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
-          pip install faster-whisper anthropic yt-dlp 2>&1 | tail -5
+          # PyAV 19 removed av.open(metadata_errors=...), which faster-whisper 1.2.x still passes
+          pip install faster-whisper "av<19" anthropic yt-dlp 2>&1 | tail -5
           pip install -U yt-dlp 2>&1 | tail -3
           echo "yt-dlp version: $(yt-dlp --version)"
 
@@ -546,7 +547,7 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "[\"${{ inputs.source_file_path }}\"]" \
+            -d "{\"prefixes\":[\"${{ inputs.source_file_path }}\"]}" \
             || echo "Source cleanup failed (non-fatal)"
 
       - name: Mark job as done
@@ -615,7 +616,7 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "[\"${{ inputs.source_file_path }}\"]" \
+            -d "{\"prefixes\":[\"${{ inputs.source_file_path }}\"]}" \
             || true
 
           curl -sS -X PATCH \
@@ -623,4 +624,4 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\":\"failed\",\"error\":\"${ERR_MSG}\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "$(jq -nc --arg e "${ERR_MSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"

@@ -756,4 +756,4 @@ jobs:
             -H "apikey: ${SERVICE_KEY}" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal" \
-            -d "{\"status\":\"failed\",\"error\":\"${ERRMSG}\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "$(jq -nc --arg e "${ERRMSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"

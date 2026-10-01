@@ -41,7 +41,8 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
-          pip install -q faster-whisper
+          # PyAV 19 removed av.open(metadata_errors=...), which faster-whisper 1.2.x still passes
+          pip install -q faster-whisper "av<19"
 
       - name: Download chunk
         run: |
