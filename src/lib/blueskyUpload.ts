@@ -357,34 +357,35 @@ export async function startBlueskyVideoJob(args: StartBlueskyVideoArgs): Promise
   const { token: serviceToken } = await authRes.json();
   if (!serviceToken) throw new Error("Bluesky video authorization failed: no service token returned");
 
-  // Download video from Supabase Storage
-  const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
+  // Stream the file from storage straight into the upload. Buffering a 200 MB video
+  // (download + copies) peaks around 1 GB and gets the worker killed mid-upload, which
+  // leaves no error behind; streaming stays at a few MB beyond the baseline.
+  const { data: signed, error: signErr } = await supabaseAdmin.storage
     .from(bucket)
-    .download(storagePath);
-
-  if (downloadErr || !fileData) {
-    throw new Error(`Failed to download video from storage: ${downloadErr?.message || "unknown"}`);
+    .createSignedUrl(storagePath, 60 * 15);
+  if (signErr || !signed?.signedUrl) {
+    throw new Error(`Failed to read video from storage: ${signErr?.message || "no signed URL"}`);
+  }
+  const source = await fetch(signed.signedUrl);
+  const contentLength = source.headers.get("content-length");
+  if (!source.ok || !source.body || !contentLength) {
+    throw new Error(`Failed to download video from storage: ${source.status}`);
   }
 
-  const videoBuffer: Buffer = Buffer.from(await fileData.arrayBuffer());
-
-  // The video service transcodes everything to MP4, so QuickTime clips need no remux;
-  // just label them honestly.
-  const container = detectVideoContainer(videoBuffer);
-  const contentType = container === "quicktime" ? "video/quicktime" : "video/mp4";
+  // The video service transcodes everything to MP4 and detects the real container itself,
+  // so QuickTime clips need no remux; the extension is enough to label them.
   const name = storagePath.split("/").pop() || "video.mp4";
+  const contentType = /\.mov$/i.test(name) ? "video/quicktime" : "video/mp4";
 
-  // A Uint8Array view over the same memory (no copy): videos can be up to 300 MB,
-  // so an extra copy would double the worker's memory use.
-  // Node Buffers sit on a regular ArrayBuffer (never shared memory), so the cast is safe.
-  const videoBytes = new Uint8Array(videoBuffer.buffer as ArrayBuffer, videoBuffer.byteOffset, videoBuffer.byteLength);
   const uploadRes = await fetch(
     `${BSKY_VIDEO_SERVICE}/xrpc/app.bsky.video.uploadVideo?did=${encodeURIComponent(did)}&name=${encodeURIComponent(name)}`,
     {
       method: "POST",
-      headers: { Authorization: `Bearer ${serviceToken}`, "Content-Type": contentType },
-      body: videoBytes,
-    }
+      headers: { Authorization: `Bearer ${serviceToken}`, "Content-Type": contentType, "Content-Length": contentLength },
+      body: source.body,
+      // Required by Node's fetch for a streamed request body
+      duplex: "half",
+    } as RequestInit
   );
 
   const text = await uploadRes.text();

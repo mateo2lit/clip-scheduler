@@ -20,6 +20,7 @@ function fakeDb(responses, storageBytes = Buffer.from("fake-mp4-bytes")) {
     storage: {
       from: () => ({
         download: async () => ({ data: { arrayBuffer: async () => storageBytes }, error: null }),
+        createSignedUrl: async (p) => ({ data: { signedUrl: `https://storage.example.invalid/${p}` }, error: null }),
         remove: async () => ({ data: null, error: null }),
       }),
     },
@@ -66,6 +67,7 @@ function load(relative, mocks, { network = [], env = {} } = {}) {
       const next = pendingNetwork.shift();
       if (!next) throw new Error(`Unmocked network call blocked: ${url}`);
       next.inspect?.(new URL(String(url)), options);
+      if (next.raw !== undefined) return new Response(next.raw, { status: next.status ?? 200, headers: next.headers });
       return Response.json(next.body ?? {}, { status: next.status ?? 200 });
     },
   });
@@ -87,6 +89,11 @@ const serviceAuth = {
   body: { token: "service-token" },
 };
 
+const storageRead = {
+  inspect: (u) => assert.equal(u.host, "storage.example.invalid", "video is read from a signed URL, not downloaded into memory"),
+  raw: "fake-mp4-bytes", headers: { "content-length": "14" },
+};
+
 function loadBlueskyLib(network, db = fakeDb({})) {
   return load("src/lib/blueskyUpload.ts", {
     "./supabaseAdmin": { supabaseAdmin: db },
@@ -101,13 +108,16 @@ const startArgs = { did: "did:plc:me", accessJwt: "access-1", refreshJwt: "refre
 // ── Phase 1: upload to the video service ─────────────────────────────────────
 
 test("Bluesky: videos upload to video.bsky.app with a PDS service token, not to the PDS", async () => {
-  const lib = loadBlueskyLib([plc, refresh, serviceAuth, {
+  const lib = loadBlueskyLib([plc, refresh, serviceAuth, storageRead, {
     inspect: (u, o) => {
       assert.equal(u.origin + u.pathname, "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo");
       assert.equal(u.searchParams.get("did"), "did:plc:me");
       assert.equal(u.searchParams.get("name"), "clip.mp4");
       assert.equal(o.headers.Authorization, "Bearer service-token");
       assert.equal(o.headers["Content-Type"], "video/mp4");
+      assert.equal(o.headers["Content-Length"], "14", "length is sent so the body isn't chunked");
+      assert.equal(o.duplex, "half");
+      assert.ok(typeof o.body?.getReader === "function", "body is a stream, not a buffer");
     },
     body: { jobId: "job-1", did: "did:plc:me", state: "JOB_STATE_CREATED" },
   }]);
@@ -118,7 +128,7 @@ test("Bluesky: videos upload to video.bsky.app with a PDS service token, not to 
 });
 
 test("Bluesky: a video the service already processed (409) still yields its job ID", async () => {
-  const lib = loadBlueskyLib([plc, refresh, serviceAuth, {
+  const lib = loadBlueskyLib([plc, refresh, serviceAuth, storageRead, {
     status: 409, body: { jobId: "job-old", state: "JOB_STATE_COMPLETED", error: "already_exists", message: "Video already processed" },
   }]);
   const out = await lib.exports.startBlueskyVideoJob(startArgs);
@@ -126,7 +136,7 @@ test("Bluesky: a video the service already processed (409) still yields its job 
 });
 
 test("Bluesky: an upload rejection surfaces the service's message", async () => {
-  const lib = loadBlueskyLib([plc, refresh, serviceAuth, {
+  const lib = loadBlueskyLib([plc, refresh, serviceAuth, storageRead, {
     status: 400, body: { jobId: "", state: "", error: "unconfirmed_email", message: "Please confirm your email before uploading videos" },
   }]);
   await assert.rejects(lib.exports.startBlueskyVideoJob(startArgs), /400 Please confirm your email/);
@@ -239,7 +249,7 @@ for (const [label, size] of [["a 20 MB video", 20 * 1000 * 1000], ["an upload wi
 
 test("Worker: a 192 MB video goes to the video service and waits in processing", async () => {
   const db = dueBlueskyPostDb(201269266);
-  const worker = loadWorker(db, [plc, refresh, serviceAuth,
+  const worker = loadWorker(db, [plc, refresh, serviceAuth, storageRead,
     { inspect: (u) => assert.equal(u.host, "video.bsky.app"), body: { jobId: "job-big", state: "JOB_STATE_CREATED" } }]);
   const res = await worker.exports.GET(workerReq());
   assert.equal(res.status, 200);
