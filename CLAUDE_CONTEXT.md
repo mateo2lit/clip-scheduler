@@ -32,10 +32,11 @@ The site is live at clipdash.org.
 - **Supabase** — Auth (email login), Storage (video files), Postgres database
 - **Neon Postgres** — additional serverless Postgres connection (`@neondatabase/serverless`, `pg`)
 - **Next.js API Routes** — all backend logic in `src/app/api/`
- - GITRHUB ACTIONS FOR CRON JOB WORKER
+- **Supabase pg_cron + pg_net**: calls the post worker every minute (configured in the Supabase dashboard, not in this repo)
+- **GitHub Actions**: nightly token refresh and follower snapshots, plus on-demand clip/video processing jobs
 ### Deployment
 - **Vercel** — hosting (Hobby plan) + **DNS** (clipdash.org nameservers point to Vercel, DNS records managed in Vercel Dashboard → Domains → clipdash.org)
-- **GitHub Actions** — cron worker (runs every minute) and token refresh
+- **Scheduled jobs**: the post worker is triggered every minute by **Supabase pg_cron** (not GitHub). Token refresh (03:00 UTC) and follower snapshots (06:00 UTC) run on **GitHub Actions**. `run-worker.yml` and `worker-cron.yml` are intentionally disabled (duplicates).
 
 ### Design
 - Dark theme (`bg-[#050505]`), gradient orbs, rounded cards with `border-white/10`, emerald accents for success states
@@ -205,12 +206,14 @@ The site is live at clipdash.org.
 - **Route:** `/api/worker/run-scheduled` (GET or POST)
 - **Auth:** `WORKER_SECRET` query param (optional locally)
 - **Behavior:** Pulls up to 5 due `scheduled_posts`, claims them (concurrency-safe), uploads to the correct platform based on `provider` field, marks as posted/failed
-- **Cron:** Runs every minute via GitHub Actions (not Vercel cron — Hobby plan has limitations)
+- **Cron:** Called every minute by a Supabase pg_cron job using pg_net (User-Agent `pg_net/…` in Vercel logs). The URL and worker secret are stored in that Supabase job, so update it if `WORKER_SECRET` or the Vercel URL changes. Not Vercel cron (Hobby plan), and not GitHub (those workflows are disabled).
+- **Stuck posts:** a run killed by the 300 s limit or memory saves no error; the worker fails any post still `posting` 15+ minutes after its claim.
 - **Supports:** YouTube (with optional thumbnail), TikTok, Facebook, Instagram, LinkedIn
 
 ### Token Refresh Worker
 - **Route:** `/api/worker/refresh-tokens` (GET or POST)
-- **Cron:** Runs daily at 3:00 AM UTC via GitHub Actions
+- **Cron:** Runs daily at 3:00 AM UTC via GitHub Actions (`refresh-tokens.yml`). GitHub auto-disables scheduled workflows after 60 days with no commits (this happened Jul 2026–Oct 2026, so check the Actions tab after any quiet period).
+- Also hard-deletes storage for uploads whose posts all finished 7+ days ago
 - **Behavior:** Finds Facebook/Instagram tokens expiring within 7 days, refreshes them, updates DB
 - Also refreshes Facebook Page access tokens when refreshing the user token
 
@@ -472,7 +475,7 @@ These are small tasks that can be knocked out quickly to improve the product:
   - Returns 10-15 tags with reasons, mix of high-volume, medium-niche, and long-tail
   - Platform-specific optimization (YouTube SEO, TikTok FYP, IG explore, LinkedIn feed, Facebook reach)
   - Tags shown as selectable purple chips — users pick which ones to add
-- **Vercel Hobby plan limitations:** Cannot use `vercel.json` crons on Hobby plan (causes build failures). All cron scheduling done via GitHub Actions workflows instead
+- **Vercel Hobby plan limitations:** Cannot use `vercel.json` crons on Hobby plan (causes build failures). The post worker runs on Supabase pg_cron and the nightly jobs on GitHub Actions instead
 
 ---
 
@@ -615,7 +618,7 @@ These are small tasks that can be knocked out quickly to improve the product:
 
 5. **Verify Vercel cron / GitHub Actions are running**
    - The worker (`run-scheduled`) and token refresh (`refresh-tokens`) need to run on schedule
-   - Confirm GitHub Actions workflows are enabled and running correctly
+   - Post worker: Supabase pg_cron (dashboard → Integrations → Cron). Nightly jobs: confirm `refresh-tokens.yml` and `follower-snapshots.yml` are enabled in GitHub Actions
    - Without this, scheduled posts will never publish
 
 ### HIGH PRIORITY (should fix before launch)
@@ -706,7 +709,7 @@ Priority order:
 6. Remove hardcoded webhook tokens (5 min)
 7. Add settings page auth guard (10 min)
 8. Enable Delete Account button (15 min)
-9. Verify GitHub Actions crons are running (manual check)
+9. Verify scheduled jobs are running (Supabase pg_cron for the post worker; GitHub Actions for the nightly jobs)
 10. Test full end-to-end flow: signup → subscribe → upload → schedule → auto-post
 
 ---
@@ -832,6 +835,6 @@ Analyzed March 2026. Bootstrapped to $11K MRR by early 2025. Direct competitor i
 - Stripe pricing: $9.99/mo Creator (1 member), $19.99/mo Team (up to 5 members), both with 7-day free trials
 - Plan gating blocks both uploads and scheduling (not just scheduling)
 - X (Twitter) removed — $100/month API cost for video is not viable
-- Vercel crons don't work on Hobby plan — use GitHub Actions for all cron jobs
+- Vercel crons don't work on Hobby plan. The post worker runs on Supabase pg_cron (every minute); nightly jobs run on GitHub Actions
 - AI suggestions use separate Anthropic API billing (not Claude Pro subscription credits)
 - TikTok Content Posting API requires app review approval (`video.publish` scope)
