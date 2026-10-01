@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   getFacebookAuthConfig,
   exchangeForLongLivedToken,
+  getFacebookUserId,
   getFacebookUserPages,
 } from "@/lib/facebook";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
@@ -85,6 +86,9 @@ export async function GET(req: Request) {
 
     if (pages.length === 0) return redirectError(req, "no_pages");
 
+    // Lets Meta's data-deletion callback find this person's Pages later
+    const metaUserId = await getFacebookUserId(longLivedToken);
+
     // Save every Page the user granted on Facebook's consent screen, not just the first,
     // so someone who manages several Pages can post to all of them. A Page without its
     // own access token can't be posted to, so it's skipped.
@@ -106,6 +110,7 @@ export async function GET(req: Request) {
           profile_name: profileName,
           avatar_url: `https://graph.facebook.com/${page.id}/picture?type=large`,
           label: profileName,
+          meta_user_id: metaUserId,
           updated_at: now,
         };
       });

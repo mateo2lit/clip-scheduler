@@ -78,6 +78,8 @@ export async function GET(req: Request) {
         profile_name: profileName,
         avatar_url: avatarUrl,
         label: profileName,
+        // The app-scoped ID from the token exchange, which Meta's data-deletion requests use
+        meta_user_id: shortLived.user_id && shortLived.user_id !== "undefined" ? shortLived.user_id : null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "team_id,provider,platform_user_id" }

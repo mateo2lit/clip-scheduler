@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
@@ -129,42 +130,80 @@ export async function DELETE(req: Request) {
   }
 }
 
+function base64UrlDecode(s: string): Buffer {
+  return Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+}
+
+/** True when `sig` is the HMAC-SHA256 of `payload` under `secret` (Meta's signed_request scheme). */
+function signatureMatches(sig: string, payload: string, secret: string | undefined): boolean {
+  if (!secret) return false;
+  const expected = createHmac("sha256", secret).update(payload).digest();
+  const given = base64UrlDecode(sig);
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
 /**
- * POST handler — Meta's data deletion callback sends POST requests.
- * Returns a confirmation URL and tracking code per Meta's requirements.
+ * POST handler — Meta's data deletion callback.
+ *
+ * When someone removes Clip Dash in their Facebook or Instagram settings and asks for
+ * their data to be deleted, Meta POSTs a form field `signed_request` here. We verify it
+ * was signed with our Facebook or Instagram app secret, delete that person's connections
+ * from that app, and reply with a status URL and confirmation code as Meta requires.
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const signedRequest = body?.signed_request;
-
+    // Meta sends application/x-www-form-urlencoded; accept JSON too for manual testing.
+    const raw = await req.text();
+    let signedRequest: string | null = new URLSearchParams(raw).get("signed_request");
+    if (!signedRequest) {
+      try {
+        signedRequest = JSON.parse(raw)?.signed_request ?? null;
+      } catch {
+        // Not JSON either
+      }
+    }
     if (!signedRequest) {
       return NextResponse.json({ ok: false, error: "Missing signed_request" }, { status: 400 });
     }
 
-    // Parse the signed request to get user_id
-    // Meta sends base64url encoded JSON payload
-    const parts = signedRequest.split(".");
-    if (parts.length !== 2) {
+    const [sig, encodedPayload] = signedRequest.split(".");
+    if (!sig || !encodedPayload) {
       return NextResponse.json({ ok: false, error: "Invalid signed_request format" }, { status: 400 });
     }
 
-    const payload = JSON.parse(
-      Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()
-    );
+    const fromFacebook = signatureMatches(sig, encodedPayload, process.env.FACEBOOK_APP_SECRET);
+    const fromInstagram = signatureMatches(sig, encodedPayload, process.env.INSTAGRAM_APP_SECRET);
+    if (!fromFacebook && !fromInstagram) {
+      return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 403 });
+    }
 
-    const metaUserId = payload.user_id;
-    if (!metaUserId) {
+    let payload: any;
+    try {
+      payload = JSON.parse(base64UrlDecode(encodedPayload).toString("utf8"));
+    } catch {
+      return NextResponse.json({ ok: false, error: "Invalid signed_request payload" }, { status: 400 });
+    }
+    if (payload?.algorithm && String(payload.algorithm).toUpperCase() !== "HMAC-SHA256") {
+      return NextResponse.json({ ok: false, error: "Unsupported algorithm" }, { status: 400 });
+    }
+
+    const metaUserId = String(payload?.user_id ?? "");
+    if (!/^\d+$/.test(metaUserId)) {
       return NextResponse.json({ ok: false, error: "No user_id in signed request" }, { status: 400 });
     }
 
-    // Find the platform account by platform_user_id or ig_user_id
-    const { data: acct } = await supabaseAdmin
-      .from("platform_accounts")
-      .select("user_id")
-      .or(`platform_user_id.eq.${metaUserId},ig_user_id.eq.${metaUserId}`)
-      .limit(1)
-      .maybeSingle();
+    // Delete only the connections that came from the app that signed the request.
+    // Instagram rows made before meta_user_id existed are matched by their Instagram ID.
+    if (fromFacebook) {
+      await supabaseAdmin.from("platform_accounts").delete()
+        .eq("provider", "facebook").eq("meta_user_id", metaUserId);
+    }
+    if (fromInstagram) {
+      await supabaseAdmin.from("platform_accounts").delete()
+        .eq("provider", "instagram").eq("meta_user_id", metaUserId);
+      await supabaseAdmin.from("platform_accounts").delete()
+        .eq("provider", "instagram").eq("ig_user_id", metaUserId);
+    }
 
     const siteUrl =
       process.env.SITE_URL ||
@@ -179,9 +218,7 @@ export async function POST(req: Request) {
       confirmation_code: confirmationCode,
     });
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    console.error("[Meta data deletion] Error:", e?.message);
+    return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
   }
 }

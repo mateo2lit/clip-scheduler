@@ -66,6 +66,24 @@ export async function exchangeForLongLivedToken(shortToken: string): Promise<{
 /**
  * Fetch the user's Facebook Pages.
  */
+/**
+ * The app-scoped ID of the Facebook user who connected. Meta's data-deletion requests
+ * identify people by this ID, so it is saved on each of their Page rows. Returns null
+ * on failure rather than blocking the connection.
+ */
+export async function getFacebookUserId(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/me?fields=id&access_token=${encodeURIComponent(accessToken)}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.id ? String(data.id) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getFacebookUserPages(accessToken: string): Promise<
   Array<{ id: string; name: string; access_token: string }>
 > {

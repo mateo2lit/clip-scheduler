@@ -86,6 +86,7 @@ function facebookCallback(pages) {
       getFacebookAuthConfig: () => ({ appId: "app", appSecret: "secret", redirectUri: "https://example.invalid/cb" }),
       exchangeForLongLivedToken: async () => ({ access_token: "long-lived", expires_in: 5184000 }),
       getFacebookUserPages: async () => pages,
+      getFacebookUserId: async () => "fb-user-42",
     },
   }, { network: [{ inspect: (u) => assert.equal(u.pathname, "/v21.0/oauth/access_token"), body: { access_token: "short" } }],
     env: { NEXT_PUBLIC_SITE_URL: "https://clipdash.test" } });
@@ -106,6 +107,7 @@ test("Facebook: every granted Page is saved, not just the first", async () => {
   assert.deepEqual(upsert.payload.map((r) => [r.page_id, r.page_access_token, r.profile_name]),
     [["p1", "t1", "Main Page"], ["p2", "t2", "Second Page"]], "Pages without a token are skipped");
   assert.ok(upsert.payload.every((r) => r.team_id === "team-1" && r.provider === "facebook" && r.platform_user_id === r.page_id));
+  assert.ok(upsert.payload.every((r) => r.meta_user_id === "fb-user-42"), "the Facebook user ID is saved for data-deletion requests");
 });
 
 test("Facebook: a single granted Page behaves exactly as before", async () => {
