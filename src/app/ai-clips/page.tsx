@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/login/supabaseClient";
+import { GENERATION_COPY, generationEstimateSec, formatAbout, isSlow, SLOW_COPY, type GenerationStage } from "@/app/ai-clips/waitCopy";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { LinkSimple, Play, CaretRight, Check, CloudArrowUp } from "@phosphor-icons/react/dist/ssr";
@@ -39,11 +40,11 @@ type AiClipJob = {
 const MONTHLY_CREDIT_LIMIT = 300;
 
 const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: number; color: string }> = {
-  pending:      { label: "Queued",                min: 0,  max: 5,  color: "from-blue-500 to-purple-500" },
-  uploading:    { label: "Downloading video…",    min: 5,  max: 15, color: "from-blue-500 to-purple-500" },
-  transcribing: { label: "Transcribing audio…",   min: 15, max: 50, color: "from-blue-500 to-purple-500" },
-  detecting:    { label: "Finding best moments…", min: 50, max: 65, color: "from-violet-500 to-purple-500" },
-  cutting:      { label: "Cutting clips…",        min: 65, max: 95, color: "from-blue-500 to-purple-500" },
+  pending:      { label: `${GENERATION_COPY.pending.title}…`,      min: 0,  max: 5,  color: "from-blue-500 to-purple-500" },
+  uploading:    { label: `${GENERATION_COPY.uploading.title}…`,    min: 5,  max: 15, color: "from-blue-500 to-purple-500" },
+  transcribing: { label: `${GENERATION_COPY.transcribing.title}…`, min: 15, max: 50, color: "from-blue-500 to-purple-500" },
+  detecting:    { label: `${GENERATION_COPY.detecting.title}…`,    min: 50, max: 65, color: "from-violet-500 to-purple-500" },
+  cutting:      { label: `${GENERATION_COPY.cutting.title}…`,      min: 65, max: 95, color: "from-blue-500 to-purple-500" },
   done:         { label: "Done",                  min: 100, max: 100, color: "from-emerald-400 to-teal-400" },
   failed:       { label: "Failed",                min: 100, max: 100, color: "from-red-500 to-rose-500" },
 };
@@ -1101,9 +1102,22 @@ export default function AiClipsPage() {
                 );
               })}
             </div>
-            <p className="mt-3 text-xs text-white/30 text-center">
-              Once done, your clips will appear in Projects below.
-            </p>
+            {activeJob && activeJob.status in GENERATION_COPY && (() => {
+              const stage = activeJob.status as GenerationStage;
+              const est = generationEstimateSec(stage, activeJob.source_duration_minutes ?? 0, activeJob.clip_count ?? 5);
+              // updated_at changes on every stage transition, so it marks when this stage began
+              const elapsed = (Date.now() - new Date(activeJob.updated_at).getTime()) / 1000;
+              return (
+                <div className="mt-3 space-y-1 text-center">
+                  <p className="text-xs text-white/60">{GENERATION_COPY[stage].why}</p>
+                  <p className="text-xs text-white/40">
+                    {isSlow(elapsed, est)
+                      ? SLOW_COPY
+                      : `This step takes ${formatAbout(est)}. You can leave this page; your clips will be in Projects when they're done.`}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
 

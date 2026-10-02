@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { WAITING_FOR_CAPTIONS } from "@/app/ai-clips/waitCopy";
 import { CaretLeft, Clock, PencilSimple, Warning, CheckCircle, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 import { humanizePostError } from "@/lib/postErrorMessages";
 import { PlatformIcon } from "@/components/PlatformIcon";
@@ -18,6 +19,7 @@ type ScheduledPost = {
   last_error: string | null;
   group_id: string | null;
   thumbnail_path?: string | null;
+  upload_id?: string | null;
 };
 
 type PostGroup = {
@@ -200,6 +202,8 @@ function ScheduledThumbnail({ group }: { group: PostGroup }) {
 
 export default function ScheduledPage() {
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
+  // upload_id → render_status, for AI Clips posts whose captions are still rendering
+  const [renderStatuses, setRenderStatuses] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
@@ -224,12 +228,31 @@ export default function ScheduledPage() {
     if (!teamIdRef.current) return;
     const { data } = await supabase
       .from("scheduled_posts")
-      .select("id, title, description, provider, scheduled_for, status, created_at, last_error, group_id, thumbnail_path")
+      .select("id, title, description, provider, scheduled_for, status, created_at, last_error, group_id, thumbnail_path, upload_id")
       .eq("team_id", teamIdRef.current)
       .in("status", ["scheduled", "posting", "ig_processing", "failed"])
       .order("scheduled_for", { ascending: true });
 
     const newPosts = data ?? [];
+
+    // AI Clips posts can be scheduled before their captioned video finishes rendering
+    const renderUploadIds = Array.from(new Set(
+      newPosts.filter((p: any) => p.status === "scheduled" && p.upload_id).map((p: any) => p.upload_id as string)
+    ));
+    if (renderUploadIds.length > 0) {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const r = await fetch(`/api/uploads/render-status?ids=${renderUploadIds.join(",")}`, {
+          headers: { Authorization: `Bearer ${sess.session?.access_token}` },
+        });
+        const j = await r.json();
+        setRenderStatuses(j?.ok ? j.statuses : {});
+      } catch {
+        // Non-fatal: the label just doesn't show
+      }
+    } else {
+      setRenderStatuses({});
+    }
     const newStatusMap = new Map(newPosts.map((p) => [p.id, p.status]));
 
     if (initializedRef.current) {
@@ -672,6 +695,9 @@ export default function ScheduledPage() {
                                   >
                                     <ProviderIcon provider={post.provider} className="w-3 h-3" />
                                     {providerLabel(post.provider)}
+                                    {post.status === "scheduled" && post.upload_id && renderStatuses[post.upload_id] === "rendering" && (
+                                      <span className="text-violet-300" title={WAITING_FOR_CAPTIONS.why}>· {WAITING_FOR_CAPTIONS.label}</span>
+                                    )}
                                   </span>
                                 ))}
                               </div>
