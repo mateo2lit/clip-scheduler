@@ -155,3 +155,80 @@ test("Worker: waiting posts don't use up the batch", async () => {
   await loadWorker(db).exports.GET(workerReq());
   assert.deepEqual(claimed, ["p6"]);
 });
+
+// ── API routes ───────────────────────────────────────────────────────────────
+
+const teamAuthOk = { getTeamContext: async () => ({ ok: true, ctx: { teamId: "t", userId: "u", role: "owner" } }) };
+const nextServer = { NextResponse: { json: (body, init) => Response.json(body, init) } };
+const githubDispatch = { inspect: (u) => assert.match(u.pathname, /ai-clip-burn\.yml\/dispatches$/), status: 204, body: {} };
+
+function routeMocks(db, dispatched) {
+  return {
+    "next/server": nextServer,
+    "@/lib/supabaseAdmin": { supabaseAdmin: db },
+    "@/lib/teamAuth": teamAuthOk,
+    "@/lib/aiClipBurn": {
+      BURN_MODES: ["portrait_auto", "portrait_blur", "portrait_crop", "portrait_45", "square", "landscape"],
+      dispatchBurnWorkflow: async (inputs) => { dispatched.push(inputs); },
+    },
+  };
+}
+
+test("burn-clip reserves the captioned upload and returns its id", async () => {
+  const dispatched = [];
+  const db = fakeDb({
+    ai_clip_jobs: () => ({ data: { id: "j", team_id: "t", status: "done", result_upload_ids: ["src1"],
+      result_subtitles: [[]], result_titles: ["Hello"] }, error: null }),
+    uploads: (q) => q.ops.includes("insert") ? { data: null, error: null } : { data: { file_path: "t/src.mp4", bucket: "clips" }, error: null },
+    ai_clip_burn_jobs: () => ({ data: null, error: null }),
+  });
+  const route = load("src/app/api/ai-clips/[id]/burn-clip/route.ts", routeMocks(db, dispatched),
+    { network: [githubDispatch], env: { GITHUB_PAT: "pat" } });
+  const res = await route.exports.POST(new Request("https://x/api/ai-clips/j/burn-clip", { method: "POST",
+    body: JSON.stringify({ clip_index: 0, subtitle_style: {}, mode: "portrait_auto" }) }), { params: { id: "j" } });
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.ok(body.uploadId && body.burnJobId, "returns both ids");
+  const reserve = db.queries.find((q) => q.table === "uploads" && q.ops.includes("insert"));
+  assert.ok(reserve, "reserves an uploads row");
+  assert.equal(reserve.payload.id, body.uploadId);
+  assert.equal(reserve.payload.render_status, "rendering");
+  assert.equal(reserve.payload.render_job_id, body.burnJobId);
+  assert.equal(reserve.payload.file_path, `t/ai_burned_${body.burnJobId}.mp4`);
+  assert.equal(reserve.payload.file_size, null);
+  assert.ok(reserve.payload.render_started_at);
+  assert.equal(dispatched.at(-1)?.upload_id, body.uploadId, "workflow is told which row to fill");
+});
+
+test("retry re-renders into the same upload and restarts its clock", async () => {
+  const dispatched = [];
+  const db = fakeDb({
+    ai_clip_burn_jobs: (q) => q.ops.includes("insert") ? { data: null, error: null }
+      : { data: { id: "b1", team_id: "t", source_job_id: "j", clip_index: 0, source_clip_path: "t/src.mp4",
+          subtitle_data: [], subtitle_style: {}, mode: "portrait_auto", status: "failed" }, error: null },
+    uploads: (q) => {
+      if (q.ops.includes("update")) return { data: null, error: null };
+      if (eqArg(q, "render_job_id") === "b1") return { data: { id: "up1", file_path: "t/ai_burned_b1.mp4" }, error: null };
+      return { data: { bucket: "clips" }, error: null };
+    },
+    ai_clip_jobs: () => ({ data: { result_titles: ["Hello"] }, error: null }),
+  });
+  const route = load("src/app/api/ai-clips/burn/[id]/retry/route.ts", routeMocks(db, dispatched), { env: { GITHUB_PAT: "pat" } });
+  const res = await route.exports.POST(new Request("https://x", { method: "POST" }), { params: { id: "b1" } });
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.uploadId, "up1", "same reserved upload");
+  const upd = db.queries.find((q) => q.table === "uploads" && q.ops.includes("update"));
+  assert.equal(upd.payload.render_status, "rendering");
+  assert.equal(upd.payload.render_job_id, body.burnJobId);
+  assert.ok(upd.payload.render_started_at, "20-minute clock restarts");
+  assert.equal(dispatched.at(-1).output_path, "t/ai_burned_b1.mp4");
+  assert.equal(dispatched.at(-1).upload_id, "up1");
+});
+
+test("retry refuses a burn job that didn't fail", async () => {
+  const db = fakeDb({ ai_clip_burn_jobs: () => ({ data: { id: "b1", team_id: "t", status: "done" }, error: null }) });
+  const route = load("src/app/api/ai-clips/burn/[id]/retry/route.ts", routeMocks(db, []), { env: { GITHUB_PAT: "pat" } });
+  const res = await route.exports.POST(new Request("https://x", { method: "POST" }), { params: { id: "b1" } });
+  assert.equal(res.status, 409);
+});

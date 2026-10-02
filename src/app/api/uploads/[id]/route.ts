@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const { data, error } = await supabaseAdmin
       .from("uploads")
-      .select("id, bucket, file_path, file_size")
+      .select("id, bucket, file_path, file_size, render_status, render_job_id")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();

@@ -1,44 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
+import { BURN_MODES, dispatchBurnWorkflow } from "@/lib/aiClipBurn";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const GITHUB_PAT = process.env.GITHUB_PAT!;
-const GITHUB_REPO = process.env.GITHUB_REPO || "mateo2lit/clip-scheduler";
-
-// Must match the TARGETS map in .github/workflows/ai-clip-burn.yml. Anything else
-// would silently fall through to landscape in the workflow, which looks like a bug
-// to the user rather than a rejected input.
-const BURN_MODES = [
-  "portrait_auto",
-  "portrait_blur",
-  "portrait_crop",
-  "portrait_45",
-  "square",
-  "landscape",
-] as const;
-
-async function dispatchBurnWorkflow(inputs: Record<string, string>) {
-  if (!GITHUB_PAT) throw new Error("GITHUB_PAT not set.");
-  const res = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/ai-clip-burn.yml/dispatches`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GITHUB_PAT}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ref: "main", inputs }),
-    }
-  );
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`GitHub dispatch failed (${res.status}): ${err.slice(0, 200)}`);
-  }
-}
+const GITHUB_PAT = process.env.GITHUB_PAT;
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -126,6 +94,25 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Failed to create burn job." }, { status: 500 });
     }
 
+    // Reserve the captioned upload now, so the user can schedule it while it renders.
+    // The workflow fills in file_size and clears render_status when the file is ready.
+    const reservedUploadId = crypto.randomUUID();
+    const { error: reserveErr } = await supabaseAdmin.from("uploads").insert({
+      id: reservedUploadId,
+      user_id: userId,
+      team_id: teamId,
+      bucket: "clips",
+      file_path: burnedPath,
+      file_size: null,
+      storage_deleted: false,
+      render_status: "rendering",
+      render_job_id: burnJobId,
+      render_started_at: new Date().toISOString(),
+    });
+    if (reserveErr) {
+      return NextResponse.json({ ok: false, error: "Failed to reserve the captioned video." }, { status: 500 });
+    }
+
     // Dispatch burn workflow — pass signed URL so the runner doesn't need Storage auth
     if (GITHUB_PAT) {
       await dispatchBurnWorkflow({
@@ -136,12 +123,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         team_id: teamId,
         user_id: userId,
         clip_title: clipTitle,
+        upload_id: reservedUploadId,
       });
     } else {
       console.warn("GITHUB_PAT not set — burn workflow not dispatched");
     }
 
-    return NextResponse.json({ ok: true, burnJobId });
+    return NextResponse.json({ ok: true, burnJobId, uploadId: reservedUploadId });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Unknown error" },

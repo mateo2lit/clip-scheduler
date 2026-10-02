@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const { data, error } = await supabaseAdmin
       .from("ai_clip_burn_jobs")
-      .select("id, status, result_upload_id, error, created_at, updated_at")
+      .select("id, status, result_upload_id, error, created_at, updated_at, progress_stage, progress_pct")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
