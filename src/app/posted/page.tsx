@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { getPostUrl } from "@/lib/postLinks";
 import { CaretLeft, Check, ArrowSquareOut, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 import { PlatformIcon } from "@/components/PlatformIcon";
 
@@ -81,15 +82,6 @@ function ProviderIcon({ provider, className = "w-4 h-4" }: { provider: string | 
   return <span className="text-[10px] text-white/40">{providerLabel(provider)}</span>;
 }
 
-function getPostUrl(provider: string | null, platformPostId: string | null) {
-  if (!platformPostId) return null;
-  if (provider === "youtube") return `https://youtube.com/watch?v=${platformPostId}`;
-  if (provider === "facebook") return `https://www.facebook.com/${platformPostId}`;
-  if (provider === "linkedin") return `https://www.linkedin.com/feed/update/${platformPostId}`;
-  if (provider === "instagram" && platformPostId.startsWith("https://")) return platformPostId;
-  if (provider === "pinterest") return `https://www.pinterest.com/pin/${platformPostId}/`;
-  return null;
-}
 
 function groupPosts(posts: PostedPost[]): PostGroup[] {
   const groups = new Map<string, PostedPost[]>();
@@ -195,7 +187,7 @@ export default function PostedPage() {
 
       const { data } = await supabase
         .from("scheduled_posts")
-        .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status, group_id, thumbnail_path, privacy_status, platform_account_id")
+        .select("id, title, description, provider, scheduled_for, posted_at, platform_post_id, status, group_id, thumbnail_path, privacy_status, platform_account_id, youtube_settings")
         .eq("team_id", teamId)
         .eq("status", "posted")
         .order("posted_at", { ascending: false });
@@ -373,7 +365,7 @@ export default function PostedPage() {
                         {/* Platform pills */}
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {group.posts.map((post) => {
-                            const url = getPostUrl(post.provider, post.platform_post_id);
+                            const url = getPostUrl(post.provider, post.platform_post_id, { youtubeIsShort: (post as any).youtube_settings?.is_short === true });
                             const acct = post.platform_account_id ? accountMap.get(post.platform_account_id) : undefined;
                             const pillLabel = acct?.profileName || providerLabel(post.provider);
                             const pillContent = (

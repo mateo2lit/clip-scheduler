@@ -41,7 +41,7 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
     if (page.show_recent_posts) {
       const { data: posts } = await supabaseAdmin
         .from("scheduled_posts")
-        .select("id, title, description, provider, platform_post_id, thumbnail_path, posted_at, group_id, upload_id, platform_accounts!inner(profile_name,platform_user_id)")
+        .select("id, title, description, provider, platform_post_id, thumbnail_path, posted_at, group_id, upload_id, youtube_settings, platform_accounts!inner(profile_name,platform_user_id)")
         .eq("team_id", page.team_id)
         .eq("status", "posted")
         .order("posted_at", { ascending: false })
@@ -90,7 +90,7 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
         // resolves to anything linkable.
         const linkRow =
           [imageRow, ...rows].find(
-            (r) => r && resolvePostPermalink(r.provider, r.platform_post_id, r.platform_accounts)
+            (r) => r && resolvePostPermalink(r.provider, r.platform_post_id, r.platform_accounts, { youtubeIsShort: (r as any).youtube_settings?.is_short === true })
           ) ?? newest;
 
         return {
@@ -99,7 +99,7 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
           description: newest.description,
           provider: (imageRow ?? linkRow ?? newest).provider,
           thumbnail_url: thumbnailUrl,
-          permalink: resolvePostPermalink(linkRow.provider, linkRow.platform_post_id, linkRow.platform_accounts),
+          permalink: resolvePostPermalink(linkRow.provider, linkRow.platform_post_id, linkRow.platform_accounts, { youtubeIsShort: (linkRow as any).youtube_settings?.is_short === true }),
           posted_at: newest.posted_at,
         };
       });

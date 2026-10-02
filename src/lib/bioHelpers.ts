@@ -63,15 +63,18 @@ export function normalizeExternalUrl(url: string | null | undefined): string {
 export function resolvePostPermalink(
   provider: string,
   platformPostId: string | null | undefined,
-  account: { profile_name?: string | null; platform_user_id?: string | null } | null | undefined
+  account: { profile_name?: string | null; platform_user_id?: string | null } | null | undefined,
+  opts: { youtubeIsShort?: boolean } = {}
 ): string | null {
   if (!platformPostId) return null;
   const handle = account?.profile_name || account?.platform_user_id || "";
 
   switch (provider) {
     case "youtube":
-      // platform_post_id is the video ID
-      return `https://www.youtube.com/watch?v=${platformPostId}`;
+      // platform_post_id is the video ID. Shorts need /shorts/ to open in the Shorts player.
+      return opts.youtubeIsShort
+        ? `https://www.youtube.com/shorts/${platformPostId}`
+        : `https://www.youtube.com/watch?v=${platformPostId}`;
     case "tiktok":
       if (handle) return `https://www.tiktok.com/@${handle}/video/${platformPostId}`;
       return `https://www.tiktok.com/video/${platformPostId}`;
