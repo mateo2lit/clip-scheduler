@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         // processing_path and result_moments_json are what the detail page needs to
         // render the large-video branch and the per-clip virality scores — without
         // them the large path renders an empty grid.
-        "id, clip_count, source_duration_minutes, status, clips_generated, result_upload_ids, result_titles, result_subtitles, result_moments_json, processing_path, error, created_at, updated_at"
+        "id, clip_count, source_duration_minutes, status, clips_generated, result_upload_ids, result_titles, result_subtitles, result_moments_json, processing_path, error, created_at, updated_at, source_url, genre, clip_length, auto_hook, moment_prompt"
       )
       .eq("id", params.id)
       .eq("team_id", teamId)

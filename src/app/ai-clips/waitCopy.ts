@@ -65,6 +65,24 @@ export const WAITING_FOR_CAPTIONS = {
   why: "This post goes out as soon as its captions finish rendering, usually within a minute or two.",
 };
 
+/** Written by ai-clips.yml when a pasted link can't be downloaded. Keep the text in sync with it. */
+export const DOWNLOAD_FAILED = {
+  blocked: "YouTube blocked our download of this video. Upload the video file instead, and we'll use the same settings.",
+  unavailable: "We couldn't download this video. It may be private, age-restricted or region-locked. Upload the video file instead, and we'll use the same settings.",
+};
+export const UPLOAD_INSTEAD = {
+  button: "Upload the video file instead",
+  banner: "Choose the video from your computer. We've filled in the settings from your link.",
+};
+
+/** True for a job that failed because its link couldn't be downloaded (including the pre-2026-10 wording). */
+export function isDownloadFailure(error: string | null | undefined): boolean {
+  if (!error) return false;
+  return error === DOWNLOAD_FAILED.blocked
+    || error === DOWNLOAD_FAILED.unavailable
+    || error.startsWith("Failed to download video");
+}
+
 const RENDER_STAGE_TEXT: Record<string, string> = {
   starting: "Starting",
   preparing: "Preparing your clip",

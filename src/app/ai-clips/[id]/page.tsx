@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import { RENDER_WHY } from "@/app/ai-clips/waitCopy";
+import { RENDER_WHY, UPLOAD_INSTEAD, isDownloadFailure } from "@/app/ai-clips/waitCopy";
 import {
   SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey,
   type ConvertMode, CONVERT_MODE_OPTIONS,
@@ -420,7 +420,15 @@ export default function AiClipProjectPage() {
         {job.status === "failed" && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4">
             <p className="text-sm text-red-400">{job.error || "This job failed. Please try again from the AI Clips page."}</p>
-            <Link href="/ai-clips" className="text-xs text-red-300 hover:text-red-200 transition-colors mt-2 inline-block">
+            {isDownloadFailure(job.error) && (
+              <Link
+                href={`/ai-clips?from=${job.id}`}
+                className="mt-3 inline-block rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+              >
+                {UPLOAD_INSTEAD.button}
+              </Link>
+            )}
+            <Link href="/ai-clips" className="text-xs text-red-300 hover:text-red-200 transition-colors mt-2 block">
               ← Back to AI Clips
             </Link>
           </div>

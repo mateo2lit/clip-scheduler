@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/login/supabaseClient";
-import { GENERATION_COPY, generationEstimateSec, formatAbout, isSlow, SLOW_COPY, type GenerationStage } from "@/app/ai-clips/waitCopy";
+import { GENERATION_COPY, generationEstimateSec, formatAbout, isSlow, SLOW_COPY, UPLOAD_INSTEAD, isDownloadFailure, type GenerationStage } from "@/app/ai-clips/waitCopy";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { LinkSimple, Play, CaretRight, Check, CloudArrowUp } from "@phosphor-icons/react/dist/ssr";
@@ -293,6 +293,8 @@ export default function AiClipsPage() {
 
   const [activeJob, setActiveJob] = useState<AiClipJob | null>(null);
   const [pastJobs, setPastJobs] = useState<AiClipJob[]>([]);
+  // Set when a pasted link couldn't be downloaded and the user chose to upload the file instead.
+  const [uploadInsteadFor, setUploadInsteadFor] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -331,6 +333,12 @@ export default function AiClipsPage() {
           setPastJobs(past);
         }
       } catch {}
+
+      const fromJobId = new URLSearchParams(window.location.search).get("from");
+      if (fromJobId && !cancelled) {
+        window.history.replaceState(null, "", "/ai-clips");
+        prefillFromJob(fromJobId, token);
+      }
     }
 
     boot();
@@ -440,6 +448,27 @@ export default function AiClipsPage() {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
     if (f && f.type.startsWith("video/")) { handleFileSelected(f); setInputMode("file"); setShowFileOptions(true); }
+  }
+
+  // ── Upload instead of a link that couldn't be downloaded ────────────────
+
+  async function prefillFromJob(jobId: string, token: string) {
+    try {
+      const res = await fetch(`/api/ai-clips/${jobId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (!json.ok || !json.job) return;
+      const job = json.job;
+      if (job.clip_count) setClipCount(job.clip_count);
+      if (job.genre) setGenre(job.genre);
+      if (job.clip_length) setClipLength(job.clip_length);
+      if (typeof job.auto_hook === "boolean") setAutoHook(job.auto_hook);
+      if (typeof job.moment_prompt === "string") setMomentPrompt(job.moment_prompt);
+      setUploadInsteadFor(job.source_url || "your link");
+      setActiveJob((prev) => (prev?.id === jobId ? null : prev));
+      setSubmitError(null);
+      setInputMode("file");
+      setShowFileOptions(true);
+    } catch {}
   }
 
   // ── Generate from URL ────────────────────────────────────────────────────
@@ -628,6 +657,9 @@ export default function AiClipsPage() {
   const hasActiveJob = !!activeJob && activeJob.status !== "done" && activeJob.status !== "failed";
   const statusCfg = activeJob ? STATUS_CONFIG[activeJob.status] : null;
 
+  // The upload-instead banner has done its job once the new generation starts.
+  useEffect(() => { if (hasActiveJob) setUploadInsteadFor(null); }, [hasActiveJob]);
+
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
@@ -709,9 +741,51 @@ export default function AiClipsPage() {
           </div>
         )}
 
+        {/* A job that just failed */}
+        {activeJob?.status === "failed" && (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4">
+            <p className="text-sm text-red-400">{activeJob.error || "Generation failed. Please try again."}</p>
+            <div className="mt-3 flex items-center gap-4 flex-wrap">
+              {isDownloadFailure(activeJob.error) && authToken && (
+                <button
+                  onClick={() => prefillFromJob(activeJob.id, authToken)}
+                  className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                >
+                  {UPLOAD_INSTEAD.button}
+                </button>
+              )}
+              <button onClick={() => setActiveJob(null)} className="text-xs text-red-300 hover:text-red-200 transition-colors">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Input section */}
         {(!hasActiveJob) && (
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl p-6 space-y-5">
+
+            {uploadInsteadFor && (
+              <div className="rounded-2xl border border-violet-400/30 bg-violet-400/10 px-4 py-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-violet-200">{UPLOAD_INSTEAD.banner}</p>
+                  <p className="text-xs text-white/40 mt-0.5 truncate">{uploadInsteadFor}</p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {!file && (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity"
+                    >
+                      Choose video file
+                    </button>
+                  )}
+                  <button onClick={() => setUploadInsteadFor(null)} className="text-xs text-white/40 hover:text-white/70" aria-label="Dismiss">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* URL input — primary */}
             <div>

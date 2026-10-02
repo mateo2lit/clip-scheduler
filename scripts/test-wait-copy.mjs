@@ -48,3 +48,17 @@ test("renderBarPct maps real stages onto one bar (shared by the clip card and th
   assert.equal(w.renderBarPct("rendering", 100), 95);
   assert.equal(w.renderBarPct("uploading", 100), 97);
 });
+
+test("download failures are recognised, old wording included, and match the workflow text", async () => {
+  assert.equal(w.isDownloadFailure(w.DOWNLOAD_FAILED.blocked), true);
+  assert.equal(w.isDownloadFailure(w.DOWNLOAD_FAILED.unavailable), true);
+  assert.equal(w.isDownloadFailure("Failed to download video. The URL may be private, geo-restricted, or temporarily unavailable. Please try again."), true);
+  assert.equal(w.isDownloadFailure("Whisper ran out of memory"), false);
+  assert.equal(w.isDownloadFailure(null), false);
+
+  const { readFileSync } = await import("node:fs");
+  const yml = readFileSync(new URL("../.github/workflows/ai-clips.yml", import.meta.url), "utf8");
+  for (const msg of Object.values(w.DOWNLOAD_FAILED)) {
+    assert.ok(yml.includes(`ERR_MSG="${msg}"`), `ai-clips.yml must write: ${msg}`);
+  }
+});
