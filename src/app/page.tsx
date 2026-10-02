@@ -285,12 +285,17 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Built to handle the whole workflow</h2>
-          <p className="mt-4 text-white/40 text-lg">One tool to manage your entire content pipeline.</p>
+      <section aria-labelledby="workflow-heading" className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">
+            Workflow
+          </div>
+          <h2 id="workflow-heading" className="mt-5 text-4xl sm:text-5xl font-bold tracking-tight">
+            Built to handle <span className="bg-gradient-to-r from-blue-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">the whole workflow</span>
+          </h2>
+          <p className="mt-4 text-slate-300 text-lg max-w-2xl mx-auto">One tool to manage your entire content pipeline.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[
             {
               icon: (
@@ -299,8 +304,10 @@ export default function Home() {
               title: "8 Platforms, One Workflow",
               desc: "Auto-publish to YouTube, TikTok, Instagram, Facebook, LinkedIn, Bluesky, X, and Pinterest from a single upload.",
               color: "blue",
+              category: "Publishing",
               extra: (
-                <div className="mt-4 flex items-center gap-3">
+                <div aria-hidden="true" className="mt-auto pt-6">
+                  <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
                   {[
                     { c: "text-red-400",  s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> },
                     { c: "text-white/60", s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg> },
@@ -311,6 +318,7 @@ export default function Home() {
                     { c: "text-white/60", s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg> },
                     { c: "text-red-500",  s: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0Z"/></svg> },
                   ].map((p, i) => <div key={i} className={p.c}>{p.s}</div>)}
+                  </div>
                 </div>
               ),
             },
@@ -320,7 +328,8 @@ export default function Home() {
               ),
               title: "Import Twitch & Kick Clips by URL",
               desc: "Paste a Twitch or Kick clip link and turn it into a scheduled cross-post without manual downloading or re-uploading.",
-              color: "emerald",
+              color: "blue",
+              category: "Clip imports",
             },
             {
               icon: (
@@ -328,7 +337,8 @@ export default function Home() {
               ),
               title: "Multiple Accounts Per Platform",
               desc: "Connect multiple YouTube channels, TikTok accounts, or Instagram profiles and post to all of them at once.",
-              color: "pink",
+              color: "purple",
+              category: "Account management",
             },
             {
               icon: (
@@ -337,6 +347,7 @@ export default function Home() {
               title: "AI Tag Suggestions",
               desc: "Generate platform-aware hashtags in seconds based on your title, description, and target audience.",
               color: "purple",
+              category: "AI assistance",
             },
             {
               icon: (
@@ -344,7 +355,8 @@ export default function Home() {
               ),
               title: "Unified Comments Inbox",
               desc: "Read and reply to comments from YouTube, Instagram, Facebook, and Bluesky in one place so engagement never slips through.",
-              color: "emerald",
+              color: "blue",
+              category: "Community",
             },
             {
               icon: (
@@ -352,26 +364,32 @@ export default function Home() {
               ),
               title: "Smart Queue Scheduling",
               desc: "Set recurring time slots for each day of the week. Add to Queue on any upload and Clip Dash fills your next open slot automatically.",
-              color: "orange",
+              color: "purple",
+              category: "Automation",
             },
           ].map((f) => (
-            <div
+            <article
               key={f.title}
-              className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/20 transition-all flex flex-col"
+              className={`relative flex flex-col rounded-[1.75rem] border p-6 sm:p-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                f.color === "blue"
+                  ? "border-blue-300/20 bg-gradient-to-b from-[#18284f] via-[#1f1740] to-[#120c22]"
+                  : "border-violet-400/30 bg-gradient-to-b from-[#23103a] via-[#24103f] to-[#170b2c]"
+              }`}
             >
-              <div className={`inline-flex rounded-xl p-3 mb-4 ${
-                f.color === "blue"   ? "bg-blue-500/10 text-blue-400" :
-                f.color === "pink"   ? "bg-pink-500/10 text-pink-400" :
-                f.color === "purple" ? "bg-purple-500/10 text-purple-400" :
-                f.color === "orange" ? "bg-orange-500/10 text-orange-400" :
-                "bg-emerald-500/10 text-emerald-400"
+              <div aria-hidden="true" className={`inline-flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-xl ${
+                f.color === "blue" ? "bg-blue-400/15 text-blue-300" : "bg-violet-400/15 text-violet-200"
               }`}>
                 {f.icon}
               </div>
-              <h3 className="text-lg font-semibold">{f.title}</h3>
-              <p className="mt-2 text-sm text-white/50 leading-relaxed">{f.desc}</p>
+              <div className={`mt-5 inline-flex self-start rounded-full border px-3 py-1 text-[11px] font-medium ${
+                f.color === "blue" ? "border-blue-300/20 bg-blue-400/10 text-blue-200" : "border-violet-300/25 bg-violet-400/10 text-violet-100"
+              }`}>
+                {f.category}
+              </div>
+              <h3 className="mt-4 text-xl font-semibold leading-snug tracking-tight text-white">{f.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-300">{f.desc}</p>
               {"extra" in f && f.extra}
-            </div>
+            </article>
           ))}
         </div>
       </section>
