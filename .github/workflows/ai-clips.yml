@@ -75,17 +75,30 @@ jobs:
 
           if [ -n "$SOURCE_URL" ]; then
             echo "Downloading from URL: $SOURCE_URL"
-            timeout 480 yt-dlp \
-              -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best" \
-              --merge-output-format mp4 \
-              --max-filesize 2G \
-              --socket-timeout 60 \
-              --retries 10 \
-              --extractor-retries 5 \
-              --force-ipv4 \
-              --no-warnings \
-              -o /tmp/source.mp4 \
-              "$SOURCE_URL" 2>&1 | tee /tmp/yt_dlp_log.txt
+            fetch_source() {
+              timeout 480 yt-dlp "$@" \
+                -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best" \
+                --merge-output-format mp4 \
+                --max-filesize 2G \
+                --socket-timeout 60 \
+                --retries 10 \
+                --extractor-retries 5 \
+                --force-ipv4 \
+                --no-warnings \
+                -o /tmp/source.mp4 \
+                "$SOURCE_URL" 2>&1 | tee -a /tmp/yt_dlp_log.txt
+            }
+            if ! fetch_source; then
+              # YouTube asks GitHub's datacenter IPs to "sign in to confirm you're not a bot".
+              # Other player clients usually get through (same fallback as import-clip.yml).
+              if echo "$SOURCE_URL" | grep -qiE "youtube\.com|youtu\.be"; then
+                echo "First download attempt failed; retrying with alternate YouTube clients..." | tee -a /tmp/yt_dlp_log.txt
+                rm -f /tmp/source.mp4 /tmp/source.mp4.part
+                fetch_source --extractor-args "youtube:player_client=android,web,tv_embedded"
+              else
+                exit 1
+              fi
+            fi
           else
             echo "Downloading from Supabase Storage: ${{ inputs.source_file_path }}"
             HTTP_STATUS=$(curl -sS -o /tmp/source.mp4 -w "%{http_code}" \
