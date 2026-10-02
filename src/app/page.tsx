@@ -277,7 +277,7 @@ export default function Home() {
         {/* Product screenshot */}
         <div className="mt-14 rounded-2xl border border-white/10 bg-white/[0.02] p-2 shadow-[0_0_100px_rgba(96,165,250,0.12),0_0_50px_rgba(167,139,250,0.08)] text-left">
           <img
-            src="/product-scheduler.png"
+            src="/product-scheduler.png?v=privacy-1"
             alt="Clip Dash scheduling interface — configure platforms, accounts, and preview in one view"
             className="w-full rounded-xl"
           />
