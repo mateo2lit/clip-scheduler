@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/login/supabaseClient";
-import { GENERATION_COPY, generationEstimateSec, formatAbout, isSlow, SLOW_COPY, UPLOAD_INSTEAD, isDownloadFailure, type GenerationStage } from "@/app/ai-clips/waitCopy";
+import { GENERATION_COPY, generationEstimateSec, formatAbout, isSlow, SLOW_COPY, UPLOAD_INSTEAD, YOUTUBE_LINK_UNSUPPORTED, isDownloadFailure, type GenerationStage } from "@/app/ai-clips/waitCopy";
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
-import { LinkSimple, Play, CaretRight, Check, CloudArrowUp } from "@phosphor-icons/react/dist/ssr";
+import { LinkSimple, CaretRight, Check, CloudArrowUp } from "@phosphor-icons/react/dist/ssr";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,19 +101,6 @@ function formatMinutes(minutes: number): string {
   const h = Math.floor(m / 60);
   const rem = m % 60;
   return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
-}
-
-function parseYoutubeId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("?")[0] || null;
-    if (u.hostname.endsWith("youtube.com")) {
-      if (u.pathname.startsWith("/watch")) return u.searchParams.get("v");
-      const m = u.pathname.match(/^\/(shorts|live|embed)\/([^/?]+)/);
-      if (m) return m[2];
-    }
-  } catch {}
-  return null;
 }
 
 // ─── Progress hook ────────────────────────────────────────────────────────────
@@ -264,10 +251,6 @@ export default function AiClipsPage() {
   const [inputMode, setInputMode] = useState<"url" | "file">("url");
   const [urlInput, setUrlInput] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
-  const [urlPreview, setUrlPreview] = useState<{ videoId: string; thumbnailUrl: string } | null>(null);
-  const [urlMeta, setUrlMeta] = useState<{ title: string; authorName: string } | null>(null);
-  const [urlMetaLoading, setUrlMetaLoading] = useState(false);
-  const urlMetaAbortRef = useRef<AbortController | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileDurationMinutes, setFileDurationMinutes] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -375,37 +358,9 @@ export default function AiClipsPage() {
     }, 2500);
   }, []);
 
-  // ── URL preview ──────────────────────────────────────────────────────────
-
-  async function fetchUrlMeta(rawUrl: string) {
-    if (urlMetaAbortRef.current) urlMetaAbortRef.current.abort();
-    const ctrl = new AbortController();
-    urlMetaAbortRef.current = ctrl;
-    setUrlMetaLoading(true);
-    try {
-      const res = await fetch(`/api/ai-clips/url-meta?url=${encodeURIComponent(rawUrl)}`, { signal: ctrl.signal });
-      const json = await res.json();
-      if (!ctrl.signal.aborted && json.ok) {
-        setUrlMeta({ title: json.title, authorName: json.authorName });
-      }
-    } catch {}
-    if (!ctrl.signal.aborted) setUrlMetaLoading(false);
-  }
-
   function handleUrlChange(val: string) {
     setUrlInput(val);
     setUrlError(null);
-    const ytId = parseYoutubeId(val.trim());
-    if (ytId) {
-      setUrlPreview({ videoId: ytId, thumbnailUrl: `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` });
-      setUrlMeta(null);
-      fetchUrlMeta(val.trim());
-    } else {
-      setUrlPreview(null);
-      setUrlMeta(null);
-      if (urlMetaAbortRef.current) { urlMetaAbortRef.current.abort(); urlMetaAbortRef.current = null; }
-      setUrlMetaLoading(false);
-    }
   }
 
   // ── File handling ────────────────────────────────────────────────────────
@@ -480,8 +435,12 @@ export default function AiClipsPage() {
 
     const url = urlInput.trim();
     if (!url) { setUrlError("Please enter a URL."); return; }
-    if (!/^https?:\/\/(www\.)?(youtube\.com|youtu\.be|twitch\.tv)/i.test(url)) {
-      setUrlError("Only YouTube and Twitch URLs are supported.");
+    if (/^https?:\/\/([a-z]+\.)?(youtube\.com|youtu\.be)/i.test(url)) {
+      setUrlError(YOUTUBE_LINK_UNSUPPORTED);
+      return;
+    }
+    if (!/^https?:\/\/(www\.|m\.)?twitch\.tv\//i.test(url)) {
+      setUrlError("Only Twitch VOD links are supported. For other videos, upload the file.");
       return;
     }
 
@@ -510,8 +469,6 @@ export default function AiClipsPage() {
       };
       setActiveJob(optimisticJob);
       setUrlInput("");
-      setUrlPreview(null);
-      setUrlMeta(null);
       setSubmitting(false);
       startPolling(json.jobId, authToken);
     } catch (e: any) {
@@ -696,7 +653,7 @@ export default function AiClipsPage() {
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-white">AI Clips</h1>
             <p className="mt-1.5 text-sm text-white/50 max-w-lg">
-              Paste a YouTube or Twitch link — AI finds the best moments, cuts clips, and adds subtitles.
+              Paste a Twitch VOD link or upload a video. AI finds the best moments, cuts clips and adds subtitles.
             </p>
           </div>
 
@@ -789,98 +746,38 @@ export default function AiClipsPage() {
 
             {/* URL input — primary */}
             <div>
-              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">Paste a link</label>
-              <div className={urlPreview ? "" : "flex gap-2"}>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">Paste a Twitch VOD link</label>
+              <div className="flex gap-2">
                 <div className="relative flex-1">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
                     <LinkSimple className="w-4 h-4" weight="bold" />
                   </div>
                   <input
                     type="url"
-                    placeholder="https://youtube.com/watch?v=... or Twitch VOD URL"
+                    placeholder="https://www.twitch.tv/videos/..."
                     value={urlInput}
                     onChange={(e) => handleUrlChange(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !urlPreview) handleGenerateFromUrl(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleGenerateFromUrl(); }}
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-colors"
                   />
                 </div>
-                {/* Inline button only when no YouTube preview */}
-                {!urlPreview && (
-                  <button
-                    onClick={handleGenerateFromUrl}
-                    disabled={submitting || !urlInput.trim() || hasActiveJob || planOk !== true}
-                    className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {submitting && inputMode === "url" ? (
-                      <span className="flex items-center gap-2">
-                        <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        Starting…
-                      </span>
-                    ) : (
-                      "Generate clips →"
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={handleGenerateFromUrl}
+                  disabled={submitting || !urlInput.trim() || hasActiveJob || planOk !== true}
+                  className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {submitting && inputMode === "url" ? (
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Starting…
+                    </span>
+                  ) : (
+                    "Generate clips →"
+                  )}
+                </button>
               </div>
               {urlError && <p className="mt-1.5 text-xs text-red-400">{urlError}</p>}
-              {!urlPreview && <p className="mt-1.5 text-xs text-white/25">YouTube and Twitch VODs supported</p>}
-
-              {/* YouTube preview card */}
-              {urlPreview && (
-                <div className="mt-3 rounded-2xl overflow-hidden border border-white/10 bg-black">
-                  <div className="relative" style={{ aspectRatio: "16/9" }}>
-                    <img
-                      src={urlPreview.thumbnailUrl}
-                      alt="Video preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        if (img.src.includes("maxresdefault")) {
-                          img.src = `https://img.youtube.com/vi/${urlPreview.videoId}/hqdefault.jpg`;
-                        }
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
-                    {/* Play icon */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="rounded-full bg-black/50 backdrop-blur-sm p-4">
-                        <Play className="w-7 h-7 text-white" weight="fill" />
-                      </div>
-                    </div>
-                    {/* Title + channel overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      {urlMetaLoading ? (
-                        <div className="space-y-1.5">
-                          <div className="h-3.5 w-3/4 rounded bg-white/20 animate-pulse" />
-                          <div className="h-2.5 w-1/2 rounded bg-white/10 animate-pulse" />
-                        </div>
-                      ) : urlMeta ? (
-                        <>
-                          <p className="text-sm font-semibold text-white line-clamp-2 leading-snug">{urlMeta.title}</p>
-                          <p className="text-xs text-white/50 mt-0.5">{urlMeta.authorName}</p>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                  {/* Generate button attached to preview */}
-                  <div className="p-3">
-                    <button
-                      onClick={handleGenerateFromUrl}
-                      disabled={submitting || hasActiveJob || planOk !== true}
-                      className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {submitting && inputMode === "url" ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <span className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                          Starting…
-                        </span>
-                      ) : (
-                        "✨ Generate clips →"
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
+              <p className="mt-1.5 text-xs text-white/25">For YouTube videos, upload the file below.</p>
             </div>
 
             {/* Divider */}

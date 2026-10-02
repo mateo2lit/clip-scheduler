@@ -65,7 +65,10 @@ export const WAITING_FOR_CAPTIONS = {
   why: "This post goes out as soon as its captions finish rendering, usually within a minute or two.",
 };
 
-/** Written by ai-clips.yml when a pasted link can't be downloaded. Keep the text in sync with it. */
+/** Shown when someone pastes a YouTube link. YouTube blocks downloads from our servers, so only files work. */
+export const YOUTUBE_LINK_UNSUPPORTED = "YouTube links aren't supported. Download the video (YouTube Studio → Content → ⋮ → Download) and upload the file below.";
+
+/** Written by ai-clips.yml when a pasted link can't be downloaded. `blocked` is only on older YouTube jobs. */
 export const DOWNLOAD_FAILED = {
   blocked: "YouTube blocked our download of this video. Upload the video file instead, and we'll use the same settings.",
   unavailable: "We couldn't download this video. It may be private, age-restricted or region-locked. Upload the video file instead, and we'll use the same settings.",

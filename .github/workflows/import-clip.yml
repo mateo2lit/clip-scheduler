@@ -57,22 +57,6 @@ jobs:
           pip install --upgrade curl_cffi 2>&1 | tail -3 | tee -a /tmp/download_log.txt || echo "curl_cffi optional install skipped" | tee -a /tmp/download_log.txt
           echo "Install complete" | tee -a /tmp/download_log.txt
 
-      - name: Start YouTube token provider
-        # Generates the "proof of origin" tokens YouTube asks for. That lowers how often
-        # GitHub's datacenter IPs hit "Sign in to confirm you're not a bot". Optional: if
-        # it fails, yt-dlp runs without it.
-        if: contains(inputs.url, 'youtu')
-        continue-on-error: true
-        run: |
-          pip install -U bgutil-ytdlp-pot-provider 2>&1 | tail -2
-          docker run -d --name pot-provider -p 4416:4416 --init brainicism/bgutil-ytdlp-pot-provider
-          for i in $(seq 1 30); do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:4416/ping || true)
-            if [ "$CODE" != "000" ]; then echo "Token provider ready (HTTP $CODE)"; exit 0; fi
-            sleep 1
-          done
-          echo "Token provider didn't start; continuing without it"
-
       - name: Mark job as fetching
         run: |
           curl -sS -X PATCH \

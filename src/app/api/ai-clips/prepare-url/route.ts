@@ -9,7 +9,9 @@ export const maxDuration = 30;
 const GITHUB_PAT = process.env.GITHUB_PAT!;
 const GITHUB_REPO = process.env.GITHUB_REPO || "mateo2lit/clip-scheduler";
 
-const ALLOWED_DOMAINS = ["youtube.com", "youtu.be", "twitch.tv", "www.youtube.com", "www.twitch.tv", "m.youtube.com", "m.twitch.tv"];
+// YouTube is not here on purpose: it blocks downloads from GitHub's servers ("sign in to
+// confirm you're not a bot"), so YouTube videos have to be uploaded as files.
+const ALLOWED_DOMAINS = ["twitch.tv", "www.twitch.tv", "m.twitch.tv"];
 
 function isAllowedUrl(rawUrl: string): boolean {
   try {
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
     }
     if (!isAllowedUrl(source_url)) {
       return NextResponse.json(
-        { ok: false, error: "Only YouTube and Twitch URLs are supported." },
+        { ok: false, error: "Only Twitch VOD links are supported. For YouTube videos, upload the file." },
         { status: 400 }
       );
     }

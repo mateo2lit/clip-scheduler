@@ -58,7 +58,10 @@ test("download failures are recognised, old wording included, and match the work
 
   const { readFileSync } = await import("node:fs");
   const yml = readFileSync(new URL("../.github/workflows/ai-clips.yml", import.meta.url), "utf8");
-  for (const msg of Object.values(w.DOWNLOAD_FAILED)) {
-    assert.ok(yml.includes(`ERR_MSG="${msg}"`), `ai-clips.yml must write: ${msg}`);
-  }
+  // `blocked` only exists on older YouTube jobs; the workflow now writes just `unavailable`.
+  assert.ok(yml.includes(`ERR_MSG="${w.DOWNLOAD_FAILED.unavailable}"`), "ai-clips.yml must write DOWNLOAD_FAILED.unavailable");
+});
+
+test("YouTube links get a clear 'upload the file' message", () => {
+  assert.match(w.YOUTUBE_LINK_UNSUPPORTED, /upload the file/i);
 });
