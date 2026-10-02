@@ -16,6 +16,7 @@ import ImportModal from "./ImportModal";
 import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
+import RenderProgressBanner from "@/components/uploads/RenderProgressBanner";
 import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
 import { AI_LABEL_PLATFORMS, normalizeInstagramCollaborators, parseList, pinterestExtras } from "@/lib/postOptions";
 import {
@@ -478,6 +479,8 @@ export default function UploadsPage() {
 
   // Object URL for the in-browser video preview
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  // AI Clips: burn job of a captioned video that is still rendering (null once ready / for other videos)
+  const [renderJobId, setRenderJobId] = useState<string | null>(null);
 
   // Video duration (seconds) and dimensions, read client-side when file is selected
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
@@ -884,6 +887,8 @@ export default function UploadsPage() {
       // Pre-load a specific upload from AI Clips "Schedule →" link
       const preloadUploadId = new URLSearchParams(window.location.search).get("uploadId");
       const preloadTitle = new URLSearchParams(window.location.search).get("title");
+      const preloadRenderJob = new URLSearchParams(window.location.search).get("renderJob");
+      const preloadSourceUploadId = new URLSearchParams(window.location.search).get("sourceUploadId");
       if (preloadUploadId && !draftGroupId) {
         try {
           const res = await fetch(`/api/uploads/${preloadUploadId}`, {
@@ -893,7 +898,25 @@ export default function UploadsPage() {
           if (uploadJson.ok && uploadJson.upload) {
             setLastUploadId(preloadUploadId);
             if (preloadTitle) setTitle(decodeURIComponent(preloadTitle));
-            if (uploadJson.signedUrl) {
+            const renderingJob: string | null = preloadRenderJob
+              || (uploadJson.upload.render_status === "rendering" ? uploadJson.upload.render_job_id : null);
+            if (renderingJob) setRenderJobId(renderingJob);
+            if (renderingJob && preloadSourceUploadId) {
+              // The captioned file doesn't exist yet: preview the uncaptioned source clip meanwhile.
+              // No autoThumb here: the render workflow stores the captioned thumbnail for this post.
+              const srcRes = await fetch(`/api/uploads/${preloadSourceUploadId}`, {
+                headers: { Authorization: `Bearer ${data.session.access_token}` },
+              });
+              const srcJson = await srcRes.json();
+              if (srcJson.signedUrl) {
+                setVideoPreviewUrl(srcJson.signedUrl);
+                extractMetaAndThumbFromUrl(srcJson.signedUrl).then((meta) => {
+                  if (meta.width) setVideoWidth(meta.width);
+                  if (meta.height) setVideoHeight(meta.height);
+                  if (meta.duration) setVideoDuration(meta.duration);
+                });
+              }
+            } else if (uploadJson.signedUrl) {
               setVideoPreviewUrl(uploadJson.signedUrl);
               // Bootstrap thumbnail + dimensions + duration in the background.
               // The file-watcher effect only fires for File objects (line ~858), so imported/AI-clip
@@ -1703,6 +1726,26 @@ export default function UploadsPage() {
         }
       }
 
+      // Preloaded videos (AI Clips without captions, link imports) skip the upload step that
+      // normally saves the auto-extracted frame, so save it here. Captioned AI clips are left to
+      // the render workflow, which stores the captioned frame.
+      if (!thumbnailPath && autoThumb && !renderJobId) {
+        try {
+          const thumbKey = `${teamId || userId}/thumbnails/${Date.now()}-auto.jpg`;
+          const r = await supabase.storage.from(BUCKET).upload(thumbKey, autoThumb, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: "image/jpeg",
+          });
+          if (!r.error) {
+            thumbnailPath = thumbKey;
+            setLastThumbnailPath(thumbKey);
+          }
+        } catch {
+          // Non-fatal
+        }
+      }
+
       // Create a separate scheduled post for each selected platform × selected account
       const errors: string[] = [];
       const groupId = crypto.randomUUID();
@@ -1768,7 +1811,9 @@ export default function UploadsPage() {
           body.hashtags = hashtags;
         }
 
-        if (!isTextPost && ["youtube", "facebook", "instagram", "linkedin"].includes(platform) && thumbnailPath) {
+        // Stored for every video post so the Scheduled page can show it; the worker only sends it
+        // to platforms that take a custom thumbnail (YouTube, Facebook, Instagram, LinkedIn).
+        if (!isTextPost && thumbnailPath) {
           body.thumbnail_path = thumbnailPath;
         }
 
@@ -2301,6 +2346,20 @@ export default function UploadsPage() {
         {step === "details" && (
           <div className="mt-8 grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 items-start">
           <div className="space-y-6">
+            {renderJobId && accessToken && (
+              <RenderProgressBanner
+                burnJobId={renderJobId}
+                token={accessToken}
+                onDone={async (doneUploadId) => {
+                  // Swap the preview to the captioned video once it exists
+                  try {
+                    const r = await fetch(`/api/uploads/${doneUploadId}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+                    const j = await r.json();
+                    if (j.signedUrl) setVideoPreviewUrl(j.signedUrl);
+                  } catch {}
+                }}
+              />
+            )}
             {/* Platform Selector */}
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
               <div className="mb-3 text-sm text-white/70">Post to</div>
