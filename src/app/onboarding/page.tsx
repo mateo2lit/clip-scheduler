@@ -118,6 +118,7 @@ export default function OnboardingPage() {
   const [blueskyConnecting, setBlueskyConnecting] = useState(false);
   const [blueskyError, setBlueskyError] = useState<string | null>(null);
   const [justConnected, setJustConnected] = useState<string | null>(null);
+  const [youtubeConnectionError, setYoutubeConnectionError] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual");
 
@@ -152,6 +153,7 @@ export default function OnboardingPage() {
       if (json.completed) { router.replace("/dashboard"); return; }
 
       const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "youtube_confirmation_failed") { setStep(2); setYoutubeConnectionError(true); }
       const connectedParam = params.get("connected");
       if (connectedParam) {
         setStep(2);
@@ -345,6 +347,7 @@ export default function OnboardingPage() {
               <p className="text-center text-white/40 mb-10">
                 We&apos;ll personalize your experience based on how you use Clip Dash.
               </p>
+              {youtubeConnectionError && <p role="alert" className="mb-5 text-sm text-red-300">We couldn't verify that YouTube connection. Your existing connections were kept. Try connecting again and choose the intended channel.</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {ROLES.map((r) => (
                   <button
@@ -445,6 +448,7 @@ export default function OnboardingPage() {
                         )}
                       </div>
                       {/* Bluesky inline form */}
+                      {p.key === "youtube" && <p className="mt-2 px-2 text-xs text-white/45">Google may show an older Brand Account name. Check the current channel identity when you return to ClipDash.</p>}
                       {isBluesky && showBlueskyForm && !isConnected && (
                         <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
                           <p className="text-xs text-white/40">

@@ -87,6 +87,8 @@ export function humanizePostError(
     }
   }
   if (provider === "youtube") {
+    if (r.includes("channel identity could not be verified")) return "YouTube channel mismatch or missing identity — reconnect the intended channel";
+    if (r.includes("channel verification is temporarily unavailable")) return "YouTube channel verification unavailable — try again later";
     if (r.includes("quotaexceeded")) {
       return "YouTube daily upload quota exceeded";
     }

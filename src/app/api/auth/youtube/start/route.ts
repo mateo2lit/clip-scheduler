@@ -3,8 +3,11 @@ import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { generateOAuthState } from "@/lib/oauthState";
+import { youtubeFeatureEnabled } from "@/lib/youtubeIdentity";
+import { startYouTubeAttempt } from "@/lib/youtubeConnection";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function mustEnv(name: string) {
   const v = process.env[name];
@@ -39,6 +42,8 @@ async function handler(req: Request) {
   const { userId, role } = result.ctx;
   const ownerCheck = requireOwnerOrAdmin(role);
   if (ownerCheck) return ownerCheck;
+
+  if (youtubeFeatureEnabled("CONFIRMATION", result.ctx.teamId)) return startYouTubeAttempt(req, result.ctx);
 
   const siteUrl = getSiteUrl(req);
   const redirectUri = `${siteUrl}/api/auth/youtube/callback`;

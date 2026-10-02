@@ -94,6 +94,13 @@ function requireWorkerAuth(req: Request) {
 async function runRefresh(req: Request) {
   requireWorkerAuth(req);
 
+  // Independent maintenance: an unapplied migration must not interrupt token refresh.
+  // Run even with rollout flags off, so attempts created before rollback are purged.
+  try {
+    const { error } = await supabaseAdmin.rpc("cleanup_youtube_connections");
+    if (error && error.code !== "PGRST202") console.warn("YouTube pending connection cleanup failed");
+  } catch { console.warn("YouTube pending connection cleanup unavailable"); }
+
   const results: any[] = [];
 
   const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { uploadSupabaseVideoToYouTube, CATEGORY_IDS } from "@/lib/youtubeUpload";
+import { youtubeFeatureEnabled } from "@/lib/youtubeIdentity";
 import { uploadSupabaseVideoToTikTok, checkTikTokPublishStatus } from "@/lib/tiktokUpload";
 import { getTikTokAccessToken } from "@/lib/tiktok";
 import { uploadSupabaseVideoToFacebook, postTextToFacebook } from "@/lib/facebookUpload";
@@ -707,6 +708,7 @@ async function runWorker(req: Request) {
       let acct: any = null;
       let acctErr: { message: string } | null = null;
       if (post.platform_account_id) {
+        if (provider === "youtube") acctQ.eq("team_id", post.team_id).eq("provider", "youtube");
         ({ data: acct, error: acctErr } = await acctQ.eq("id", post.platform_account_id).maybeSingle());
       } else {
         // No account on the post: only safe when the team has exactly one account for this
@@ -1072,6 +1074,8 @@ async function runWorker(req: Request) {
         // YouTube (default)
         const yts = (post.youtube_settings ?? {}) as any;
         const ytArgs: any = {
+          verifyChannelIdentity: youtubeFeatureEnabled("IDENTITY_ENFORCEMENT", post.team_id),
+          expectedChannelId: acct.platform_user_id,
           userId: post.user_id,
           platformAccountId: acct.id,
           refreshToken: acct.refresh_token,

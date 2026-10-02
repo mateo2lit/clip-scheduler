@@ -2,12 +2,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext, requireOwnerOrAdmin } from "@/lib/teamAuth";
+import { youtubeFeatureEnabled } from "@/lib/youtubeIdentity";
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
@@ -18,15 +20,33 @@ export async function GET(req: Request) {
 
     const { data, error: dbError } = await supabaseAdmin
       .from("platform_accounts")
-      .select("id, provider, created_at, updated_at, expiry, profile_name, avatar_url, label, page_id, ig_user_id")
+      .select("id, provider, created_at, updated_at, expiry, profile_name, avatar_url, label, page_id, ig_user_id, platform_user_id")
       .eq("team_id", teamId);
 
     if (dbError) return jsonError(dbError.message, 500);
 
+    const confirmationEnabled = youtubeFeatureEnabled("CONFIRMATION", teamId);
+    const youtubeIds = (data || []).filter(a => a.provider === "youtube").map(a => a.id);
+    const identities = new Map<string, any>();
+    if (confirmationEnabled && youtubeIds.length) {
+      // Optional enrichment: old deployments/missing metadata must not break account lists.
+      const result = await supabaseAdmin.from("youtube_account_identity")
+        .select("platform_account_id,title,custom_url,avatar_url,verified_at").in("platform_account_id", youtubeIds);
+      if (!result.error) for (const row of result.data || []) identities.set(row.platform_account_id, row);
+    }
+
     // Return stable avatar URLs:
     // - Facebook: stable public Graph API picture URL (no signed tokens)
     // - Instagram/TikTok/LinkedIn/Bluesky: live endpoint that re-fetches with credentials server-side
-    const accounts = (data ?? []).map(({ page_id, ig_user_id, ...acct }) => {
+    const accounts = (data ?? []).map(({ page_id, ig_user_id, platform_user_id, ...acct }) => {
+      if (acct.provider === "youtube") {
+        const identity = identities.get(acct.id);
+        return { ...acct, youtube_identity: platform_user_id ? {
+          channelId: platform_user_id, title: identity?.title || "YouTube channel",
+          customUrl: identity?.custom_url || null, avatarUrl: identity?.avatar_url || null,
+          verifiedAt: identity?.verified_at || null,
+        } : null };
+      }
       if (acct.provider === "facebook" && page_id) {
         return { ...acct, avatar_url: `https://graph.facebook.com/${page_id}/picture?type=large` };
       }
@@ -36,7 +56,7 @@ export async function GET(req: Request) {
       return acct;
     });
 
-    return NextResponse.json({ ok: true, data: accounts });
+    return NextResponse.json({ ok: true, data: accounts, youtubeConfirmationEnabled: confirmationEnabled });
   } catch (e: any) {
     console.error("GET /api/platform-accounts failed:", e?.message ?? e);
     return jsonError(e?.message ?? "Server error", 500);

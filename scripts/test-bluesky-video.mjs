@@ -168,12 +168,13 @@ test("Bluesky: job status maps completed, failed, in-progress and outages", asyn
 
 // ── Worker ───────────────────────────────────────────────────────────────────
 
-function loadWorker(db, network = []) {
+function loadWorker(db, network = [], overrides = {}) {
   const noop = async () => {};
   return load("src/app/api/worker/run-scheduled/route.ts", {
     "next/server": { NextResponse: { json: (body, init) => Response.json(body, init) } },
     "@/lib/supabaseAdmin": { supabaseAdmin: db },
     "@/lib/youtubeUpload": { CATEGORY_IDS: {} },
+    "@/lib/youtubeIdentity": { youtubeFeatureEnabled: () => false },
     "@/lib/tiktokUpload": {},
     "@/lib/tiktok": {},
     "@/lib/facebookUpload": {},
@@ -186,10 +187,74 @@ function loadWorker(db, network = []) {
     "@/lib/email": { sendPostSuccessEmail: noop, sendPostFailedEmail: noop, sendReconnectEmail: noop, sendGroupSummaryEmail: noop },
     "@/lib/postOptions": { blueskyExtras: () => ({}), tiktokPostInfoExtras: () => ({}), youtubeExtras: () => ({}), instagramContainerExtras: () => ({}), pinterestExtras: () => ({}) },
     "@/lib/blueskyUpload": loadBlueskyLib(network, db).exports,
+    ...overrides,
   }, { env: { WORKER_SECRET: "s" } });
 }
 
 const workerReq = () => new Request("https://clipdash.test/api/worker/run-scheduled?token=s", { method: "POST" });
+
+function youtubeWorkerFixture({ accounts = [{ id: "yt-account", team_id: "t", provider: "youtube", refresh_token: "refresh", platform_user_id: "UC" + "a".repeat(22) }], legacy = false, shorts = false, uploadFails = false, poll = false } = {}) {
+  const post = { id: "yt-post", user_id: "u", team_id: "t", provider: "youtube", upload_id: "up", platform_account_id: legacy ? null : "yt-account", title: "YouTube post", privacy_status: "private", youtube_settings: { is_short: shorts }, status: poll ? "ig_processing" : "scheduled", ig_container_id: poll ? "existing-video" : null, ig_container_created_at: new Date().toISOString() };
+  const uploads = [];
+  const db = fakeDb({
+    scheduled_posts: q => {
+      if (q.payload?.status === "posting") return { data: [{ id: post.id }], error: null };
+      if (q.payload) return { data: [], error: null };
+      if (q.ops.includes("lte")) return { data: poll ? [] : [post], error: null };
+      if (q.args.some(([op, col, val]) => op === "eq" && col === "status" && val === "ig_processing")) return { data: poll ? [post] : [], error: null };
+      return { data: [], error: null };
+    },
+    uploads: () => ({ data: { bucket: "clips", file_path: "test.mp4" }, error: null }),
+    platform_accounts: q => {
+      const rows = accounts.filter(a => q.args.filter(([op]) => op === "eq").every(([, key, value]) => a[key] === value));
+      return { data: q.ops.includes("maybeSingle") ? rows[0] || null : rows, error: null };
+    },
+    notification_preferences: () => ({ data: { notify_post_success: false, notify_post_failed: false, notify_reconnect: false }, error: null }),
+  });
+  const worker = loadWorker(db, [], {
+    "@/lib/youtubeIdentity": { youtubeFeatureEnabled: () => true },
+    "@/lib/youtubeUpload": { CATEGORY_IDS: {}, uploadSupabaseVideoToYouTube: async args => {
+      if (uploadFails) throw new Error("YouTube channel identity could not be verified. Please reconnect the intended channel before retrying.");
+      uploads.push(args); return { youtubeVideoId: "new-video" };
+    } },
+    "@/lib/youtube": { getYouTubeOAuthClient: async () => ({}), getYouTubeApi: () => ({ videos: { list: async args => {
+      assert.deepEqual([...args.id], ["existing-video"]);
+      return { data: { items: [{ status: { privacyStatus: "private" }, processingDetails: { processingStatus: "succeeded" } }] } };
+    } } }) },
+  });
+  return { worker, db, uploads };
+}
+
+test("YouTube worker passes the stored channel ID and retains the selected account", async () => {
+  const f = youtubeWorkerFixture(); await f.worker.exports.POST(workerReq());
+  assert.equal(f.uploads.length, 1); assert.equal(f.uploads[0].platformAccountId, "yt-account");
+  assert.equal(f.uploads[0].expectedChannelId, "UC" + "a".repeat(22)); assert.equal(f.uploads[0].verifyChannelIdentity, true);
+  assert.ok(f.db.queries.some(q => q.payload?.platform_post_id === "new-video"));
+});
+test("YouTube worker rejects a cross-team account reference before uploading", async () => {
+  const f = youtubeWorkerFixture({ accounts: [{ id: "yt-account", team_id: "other", provider: "youtube", refresh_token: "refresh" }] });
+  await f.worker.exports.POST(workerReq()); assert.equal(f.uploads.length, 0);
+  assert.ok(f.db.queries.some(q => q.payload?.status === "failed"));
+});
+test("YouTube worker keeps the legacy single-account fallback and rejects ambiguity", async () => {
+  const single = youtubeWorkerFixture({ legacy: true }); await single.worker.exports.POST(workerReq()); assert.equal(single.uploads.length, 1);
+  const multiple = youtubeWorkerFixture({ legacy: true, accounts: ["a", "b"].map(id => ({ id, team_id: "t", provider: "youtube", refresh_token: "refresh" })) });
+  await multiple.worker.exports.POST(workerReq()); assert.equal(multiple.uploads.length, 0);
+  assert.ok(multiple.db.queries.some(q => q.payload?.last_error?.includes("Several youtube accounts")));
+});
+test("YouTube worker uses existing failed status for identity rejection", async () => {
+  const f = youtubeWorkerFixture({ uploadFails: true }); await f.worker.exports.POST(workerReq());
+  assert.equal(f.uploads.length, 0); assert.ok(f.db.queries.some(q => q.payload?.status === "failed" && q.payload.last_error.includes("identity")));
+  assert.ok(!f.db.queries.some(q => q.payload?.status === "posted"));
+});
+test("YouTube Shorts keeps its processing state and recorded video ID", async () => {
+  const f = youtubeWorkerFixture({ shorts: true }); await f.worker.exports.POST(workerReq()); assert.equal(f.uploads.length, 1);
+  assert.ok(f.db.queries.some(q => q.payload?.status === "ig_processing" && q.payload.ig_container_id === "new-video"));
+});
+test("YouTube Shorts polling finishes an existing video without a second upload", async () => {
+  const f = youtubeWorkerFixture({ poll: true }); await f.worker.exports.POST(workerReq()); assert.equal(f.uploads.length, 0);
+  assert.ok(f.db.queries.some(q => q.payload?.status === "posted" && q.payload.platform_post_id === "existing-video"));
+});
 
 test("Worker: posts left in 'posting' by a killed run are failed, recent ones are left alone", async () => {
   let reaperQuery;

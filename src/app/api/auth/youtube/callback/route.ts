@@ -4,8 +4,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { verifyOAuthState } from "@/lib/oauthState";
 import { cookies } from "next/headers";
+import { handleYouTubeCallback } from "@/lib/youtubeConnection";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function mustEnv(name: string) {
   const v = process.env[name];
@@ -27,6 +29,8 @@ function redirectError(req: Request, code: string): NextResponse {
 }
 
 export async function GET(req: Request) {
+  // Versioned attempts must keep working while flags change or old callbacks drain.
+  if (new URL(req.url).searchParams.get("state")?.startsWith("yt1.")) return handleYouTubeCallback(req);
   try {
     const url = new URL(req.url);
 

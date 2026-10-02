@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/login/supabaseClient";
+import YouTubeChannelIdentity, { type YouTubeIdentityDisplay } from "@/components/YouTubeChannelIdentity";
 import { useTeam } from "@/lib/useTeam";
 
 function proxiedAvatar(url: string | null | undefined): string | null {
@@ -347,7 +348,7 @@ export default function UploadsPage() {
     pinterest: { profileName: null, avatarUrl: null },
   });
   // Full list of connected accounts per provider (for multi-account picker)
-  const [platformAccountsList, setPlatformAccountsList] = useState<Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>>>({});
+  const [platformAccountsList, setPlatformAccountsList] = useState<Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null; youtubeIdentity?: YouTubeIdentityDisplay }>>>({});
   // Which account ids are selected per provider (supports multi-select)
   const [selectedAccountIds, setSelectedAccountIds] = useState<Record<string, string[]>>({});
 
@@ -689,13 +690,13 @@ export default function UploadsPage() {
         });
         const paJson = await paRes.json();
         if (paJson.ok) {
-          const lists: Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null }>> = {};
+          const lists: Record<string, Array<{ id: string; profileName: string | null; avatarUrl: string | null; youtubeIdentity?: YouTubeIdentityDisplay }>> = {};
           const autoSelect: Record<string, string[]> = {};
           const accts: Record<string, { profileName: string | null; avatarUrl: string | null }> = {};
           for (const row of paJson.data || []) {
             if (!row.provider || !row.id) continue;
             if (!lists[row.provider]) lists[row.provider] = [];
-            lists[row.provider].push({ id: row.id, profileName: row.profile_name || null, avatarUrl: row.avatar_url || null });
+            lists[row.provider].push({ id: row.id, profileName: row.profile_name || null, avatarUrl: row.avatar_url || null, youtubeIdentity: row.youtube_identity });
           }
           for (const [provider, provAccts] of Object.entries(lists)) {
             if (provAccts.length > 0) {
@@ -2416,8 +2417,8 @@ export default function UploadsPage() {
                           {accts.map((acct) => {
                             const checked = selectedIds.includes(acct.id);
                             return (
+                              <div key={acct.id}>
                               <button
-                                key={acct.id}
                                 type="button"
                                 onClick={() => toggleAccountSelection(p, acct.id)}
                                 className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all ${checked ? "border-blue-400/50 bg-blue-400/15 text-blue-200" : "border-white/10 bg-white/5 text-white/40 hover:border-white/20 hover:text-white/60"}`}
@@ -2426,6 +2427,8 @@ export default function UploadsPage() {
                                 <span>{acct.profileName || "Account"}</span>
                                 <span className={`ml-0.5 h-1.5 w-1.5 rounded-full ${checked ? "bg-blue-400" : "bg-white/20"}`} />
                               </button>
+                              {p === "youtube" && <YouTubeChannelIdentity identity={acct.youtubeIdentity} />}
+                              </div>
                             );
                           })}
                         </div>
@@ -2439,6 +2442,11 @@ export default function UploadsPage() {
               )}
             </div>
 
+            {selectedPlatforms.includes("youtube") && (platformAccountsList.youtube || []).filter(a => (selectedAccountIds.youtube || []).includes(a.id)).map(a => (
+              <div key={`youtube-identity-${a.id}`} className="text-xs text-white/60 px-4 mb-3">
+                YouTube destination: {a.profileName || "YouTube channel"}<YouTubeChannelIdentity identity={a.youtubeIdentity} />
+              </div>
+            ))}
             {/* Main Content Area */}
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
               {/* Templates */}

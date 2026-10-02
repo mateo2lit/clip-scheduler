@@ -1,11 +1,15 @@
 import { Readable } from "node:stream";
 import { getYouTubeApi, getYouTubeOAuthClient, readOAuthTokens } from "./youtube";
 import { supabaseAdmin } from "./supabaseAdmin";
+import { verifyYouTubeIdentity, YouTubeIdentityError } from "./youtubeIdentity";
 
 type UploadToYouTubeArgs = {
   userId: string;
   platformAccountId: string;
   refreshToken: string;
+  /** Set only from the trusted, team-scoped account row when enforcement is enabled. */
+  expectedChannelId?: string | null;
+  verifyChannelIdentity?: boolean;
 
   bucket: string;
   storagePath: string;
@@ -109,6 +113,13 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
 
   // 1) Get OAuth client authenticated for this user (via refresh token)
   const auth = await getYouTubeOAuthClient({ refreshToken });
+  if (args.verifyChannelIdentity) {
+    try { await verifyYouTubeIdentity(getYouTubeApi(auth), args.expectedChannelId); }
+    catch (error) {
+      console.warn(JSON.stringify({ event: "youtube.upload.identity_check_failed", platformAccountId, code: error instanceof YouTubeIdentityError ? error.code : "unknown" }));
+      throw error;
+    }
+  }
 
   // 2) Optional: persist refreshed access token + expiry
   const { accessToken, expiresAt } = readOAuthTokens(auth);

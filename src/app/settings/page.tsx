@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/app/login/supabaseClient";
+import YouTubeChannelIdentity, { type YouTubeIdentityDisplay } from "@/components/YouTubeChannelIdentity";
 import Link from "next/link";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import { comingSoonNotice } from "@/lib/platformAvailability";
@@ -183,7 +184,8 @@ export default function SettingsPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
   const [isResubscribe, setIsResubscribe] = useState(false);
 
-  type AccountInfo = { id: string; profileName?: string; avatarUrl?: string; label?: string };
+  type AccountInfo = { id: string; profileName?: string; avatarUrl?: string; label?: string; youtubeIdentity?: YouTubeIdentityDisplay };
+  const [youtubeConfirmationEnabled, setYoutubeConfirmationEnabled] = useState(false);
   const [accounts, setAccounts] = useState<Record<ProviderKey, AccountInfo[]>>({
     youtube: [],
     tiktok: [],
@@ -224,6 +226,7 @@ export default function SettingsPage() {
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
     if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
     const error = query.get("error");
+    if (error === "youtube_confirmation_failed") return { kind: "error" as const, text: "We couldn't verify that YouTube connection. Your existing connections were kept. Try again and choose the intended channel." };
     if (error === "auth_denied") return { kind: "error" as const, text: "Connection was canceled." };
     if (error === "expired") return { kind: "error" as const, text: "Connection timed out — the authorization window is 15 minutes. Please try again." };
     if (error === "invalid") return { kind: "error" as const, text: "Something went wrong during authorization. Please try again." };
@@ -273,7 +276,8 @@ export default function SettingsPage() {
       const { json } = await safeReadJson(res);
       if (!res.ok || !json?.ok) return;
 
-      const rows = (json.data || []) as Array<{ id?: string; provider?: string; profile_name?: string; avatar_url?: string; label?: string }>;
+      setYoutubeConfirmationEnabled(json.youtubeConfirmationEnabled === true);
+      const rows = (json.data || []) as Array<{ id?: string; provider?: string; profile_name?: string; avatar_url?: string; label?: string; youtube_identity?: YouTubeIdentityDisplay }>;
       const next: Record<ProviderKey, AccountInfo[]> = {
         youtube: [],
         tiktok: [],
@@ -287,7 +291,7 @@ export default function SettingsPage() {
 
       for (const r of rows) {
         const p = (r.provider || "").toLowerCase() as ProviderKey;
-        if (p in next && r.id) next[p].push({ id: r.id, profileName: r.profile_name, avatarUrl: r.avatar_url, label: r.label });
+        if (p in next && r.id) next[p].push({ id: r.id, profileName: r.profile_name, avatarUrl: r.avatar_url, label: r.label, youtubeIdentity: r.youtube_identity });
       }
 
       setAccounts(next);
@@ -493,7 +497,20 @@ export default function SettingsPage() {
     }
   }
 
-  async function connectYouTube() {
+  async function refreshYouTubeIdentity(accountId: string) {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    try {
+      const response = await fetch("/api/youtube/identity", { method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }) });
+      const json = await response.json();
+      if (!response.ok) { alert(json.error || "Channel refresh failed"); return; }
+      await loadConnectedAccounts();
+    } catch { alert("Channel refresh failed. Please try again."); }
+  }
+
+  async function connectYouTube(accountId?: string) {
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
@@ -504,7 +521,8 @@ export default function SettingsPage() {
 
       const res = await fetch("/api/auth/youtube/start", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId, returnPath: "/settings" }),
       });
 
       const { json } = await safeReadJson(res);
@@ -1495,7 +1513,7 @@ export default function SettingsPage() {
               const accts = accounts[platform.key];
               const isConnected = accts.length > 0;
               const connectFns: Partial<Record<ProviderKey, () => void>> = {
-                youtube: connectYouTube,
+                youtube: () => connectYouTube(),
                 tiktok: connectTikTok,
                 facebook: connectFacebook,
                 instagram: connectInstagram,
@@ -1546,6 +1564,9 @@ export default function SettingsPage() {
                   </div>
 
                   <ComingSoonNote provider={platform.key} className="mx-4 mb-3.5" />
+                  {platform.key === "youtube" && <p className="mx-4 mb-3 text-xs text-white/45">
+                    Google may show an older Brand Account name.{youtubeConfirmationEnabled ? " You'll confirm the current YouTube channel before it is connected." : " Use the channel link below to check your destination."}
+                  </p>}
 
                   {/* Connected account rows */}
                   {accts.length > 0 && (
@@ -1568,6 +1589,7 @@ export default function SettingsPage() {
                               )}
                             </div>
                             {/* Name / edit */}
+                            <div>
                             {editingName?.id === acct.id ? (
                               <form onSubmit={(e) => { e.preventDefault(); saveAccountName(acct.id, editingName.value); }} className="flex items-center gap-2">
                                 <input
@@ -1590,7 +1612,13 @@ export default function SettingsPage() {
                                 <PencilSimple className="w-3 h-3 text-white/20 group-hover:text-white/40 transition-colors" weight="bold" />
                               </button>
                             )}
+                            {platform.key === "youtube" && <YouTubeChannelIdentity identity={acct.youtubeIdentity} />}
+                            </div>
                           </div>
+                          {canManage && platform.key === "youtube" && youtubeConfirmationEnabled && <div className="flex gap-3 mx-3 text-xs text-white/55">
+                            <button onClick={() => refreshYouTubeIdentity(acct.id)} className="hover:text-white">Refresh channel</button>
+                            <button onClick={() => connectYouTube(acct.id)} className="hover:text-white">Reconnect</button>
+                          </div>}
                           {canManage && (
                             <button
                               onClick={() => disconnectAccount(platform.key, acct.id)}
