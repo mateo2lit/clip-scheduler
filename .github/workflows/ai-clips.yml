@@ -103,6 +103,8 @@ jobs:
                 --no-warnings \
                 -o /tmp/source.mp4 \
                 "$SOURCE_URL" 2>&1 | tee -a /tmp/yt_dlp_log.txt
+              # This step runs without pipefail, so return yt-dlp's status, not tee's.
+              return "${PIPESTATUS[0]}"
             }
             if ! fetch_source; then
               # YouTube asks GitHub's datacenter IPs to "sign in to confirm you're not a bot".
