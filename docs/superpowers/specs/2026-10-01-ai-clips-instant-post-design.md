@@ -88,6 +88,25 @@ showing is the captioned, cropped one.
 - Encoder preset `fast` → `veryfast` (CRF unchanged). Short-form platforms re-encode anyway.
 - Measure 3+ real runs afterwards and record the numbers.
 
+### 7. Every wait explains itself
+
+The user asked for this explicitly: whenever something takes a while, the screen says **what** is happening,
+**why** it takes time, and **roughly how long**, so a slow step never looks broken. It applies to every wait in the
+AI Clips flow:
+
+| Wait | What the user sees |
+|---|---|
+| Generating clips (existing progress card) | The current stage, plus one plain line on why, e.g. "Transcribing audio: we listen to the whole video to find what's said and when. Longer videos take longer." and "Finding best moments: AI is reading the transcript to pick the strongest clips." Show an estimate based on the video's length. |
+| Adding captions (scheduling screen, Download) | "Adding captions · Rendering 62% · about 30 sec left", plus "We're drawing your captions and title into the video so they show on every platform." |
+| Post waiting on captions (Scheduled page) | "Waiting for captions": "This post goes out as soon as its captions finish rendering, usually within a minute or two." |
+| A stage running longer than expected (over 2× its estimate) | "Taking longer than usual. It's still working, and you can leave this page; we'll keep going." |
+
+**Rules:**
+- No bare spinners or "Processing…".
+- Estimates are labelled "about".
+- Wherever true, tell the user it's safe to leave the page.
+- Copy lives in one map (`src/app/ai-clips/waitCopy.ts`) so it stays consistent.
+
 ## Data changes (pasted into Supabase by hand; `supabase.skipDbPush=true`)
 
 ```sql
