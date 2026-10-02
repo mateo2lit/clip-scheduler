@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
+import { RENDER_WHY } from "@/app/ai-clips/waitCopy";
 import {
   SubtitleStyle, DEFAULT_SUBTITLE_STYLE, PRESETS, PRESET_LABELS, PresetKey,
   type ConvertMode, CONVERT_MODE_OPTIONS,
@@ -286,8 +287,11 @@ export default function AiClipProjectPage() {
     }
   }
 
-  function handleScheduled(uploadId: string, title: string) {
-    window.location.href = `/uploads?uploadId=${encodeURIComponent(uploadId)}&title=${encodeURIComponent(title)}`;
+  function handleScheduled(uploadId: string, title: string, render?: { burnJobId: string; sourceUploadId: string }) {
+    const q = new URLSearchParams({ uploadId, title });
+    // Captions still rendering: the scheduling screen previews the source clip and shows progress
+    if (render) { q.set("renderJob", render.burnJobId); q.set("sourceUploadId", render.sourceUploadId); }
+    window.location.href = `/uploads?${q.toString()}`;
   }
 
   /**
@@ -719,11 +723,12 @@ export default function AiClipProjectPage() {
             </div>
 
             {/* Stage text */}
-            <p className="text-[11px] text-white/50">{downloadInfo.stage}</p>
+            <p className="text-[11px] text-white/70">{downloadInfo.stage}</p>
+            <p className="text-[10px] text-white/40 leading-snug">{RENDER_WHY}</p>
 
             {/* Step dots */}
             <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
+              {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
                   className={`h-1 flex-1 rounded-full transition-all duration-300 ${

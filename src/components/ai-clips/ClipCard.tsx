@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { SubtitleStyle, type ConvertMode } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
+import { renderLabel, RENDER_WHY } from "@/app/ai-clips/waitCopy";
 import { Play, Calendar, DownloadSimple, Prohibit, ArrowsOut } from "@phosphor-icons/react/dist/ssr";
 
 type TimedWord = { start: number; end: number; word: string };
@@ -25,13 +26,16 @@ function cleanWord(word: string): string {
   return t.replace(/^[.,!?;:"'""''`—–…\-]+|[.,!?;:"'""''`—–…\-]+$/g, "").trim();
 }
 
-const DOWNLOAD_STAGES = [
-  "Starting burn job…",
-  "Processing video…",
-  "Applying captions & effects…",
-  "Optimizing output…",
-  "Finalizing…",
-];
+// Real stages reported by ai-clip-burn.yml (ai_clip_burn_jobs.progress_stage), in order.
+const RENDER_STAGES = ["starting", "preparing", "rendering", "uploading"] as const;
+
+/** Bar position from the render's real stage and percent. */
+function renderProgressPct(stage: string | null, pct: number | null): number {
+  if (stage === "uploading") return 97;
+  if (stage === "rendering") return 10 + Math.min(100, Math.max(0, pct ?? 0)) * 0.85;
+  if (stage === "preparing") return 8;
+  return 3;
+}
 
 // ── TitleOverlay ──────────────────────────────────────────────────────────────
 
@@ -331,7 +335,7 @@ function ViralityBadge({ score, reason }: { score: number; reason?: string }) {
   );
 }
 
-function DownloadOverlay({ active, progress, stageIdx }: { active: boolean; progress: number; stageIdx: number }) {
+function DownloadOverlay({ active, progress, stageIdx, label }: { active: boolean; progress: number; stageIdx: number; label: string }) {
   if (!active) return null;
 
   return (
@@ -345,11 +349,10 @@ function DownloadOverlay({ active, progress, stageIdx }: { active: boolean; prog
           }}
         />
       </div>
-      <p className="text-[10px] text-white/70 text-center font-medium">
-        {DOWNLOAD_STAGES[stageIdx]}
-      </p>
+      <p className="text-[10px] text-white/80 text-center font-medium">{label}</p>
+      <p className="text-[9px] text-white/50 text-center leading-snug">{RENDER_WHY}</p>
       <div className="flex gap-1">
-        {DOWNLOAD_STAGES.map((_, i) => (
+        {RENDER_STAGES.map((_, i) => (
           <div
             key={i}
             className={`w-1 h-1 rounded-full transition-all duration-300 ${
@@ -391,7 +394,7 @@ export function ClipCard({
   jobId: string;
   token: string;
   convertMode: ConvertMode;
-  onScheduled: (uploadId: string, title: string) => void;
+  onScheduled: (uploadId: string, title: string, render?: { burnJobId: string; sourceUploadId: string }) => void;
   onStyleChange?: (updates: Partial<SubtitleStyle>) => void;
   cardWidth?: number;
   onExpand?: () => void;
@@ -403,6 +406,8 @@ export function ClipCard({
   const [downloading, setDownloading] = useState(false);
   const [dlProgress, setDlProgress] = useState(0);
   const [dlStageIdx, setDlStageIdx] = useState(0);
+  const [dlLabel, setDlLabel] = useState(() => renderLabel({ stage: null, pct: null, elapsedSec: 0 }).headline);
+  const dlRealRef = useRef<{ stage: string | null; pct: number | null }>({ stage: null, pct: null });
   const [burnError, setBurnError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -425,27 +430,23 @@ export function ClipCard({
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  // Progress simulation — drives both the in-card overlay and the parent indicator
+  // Real render progress (from the burn job) drives the in-card overlay and the parent indicator
   useEffect(() => {
     if (!downloading) {
       setDlProgress(0);
       setDlStageIdx(0);
+      setDlLabel(renderLabel({ stage: null, pct: null, elapsedSec: 0 }).headline);
       return;
     }
-    const MILESTONES = [30, 55, 72, 83, 87];
-    let current = 0;
-    let stage = 0;
-    const interval = setInterval(() => {
-      const target = MILESTONES[stage] ?? 90;
-      if (current < target) {
-        current += Math.max(0.4, (target - current) * 0.06);
-        setDlProgress(Math.min(current, 90));
-      }
-      if (current >= target - 2 && stage < MILESTONES.length - 1) {
-        stage++;
-        setDlStageIdx(stage);
-      }
-    }, 300);
+    const startedAt = Date.now();
+    const tick = () => {
+      const { stage, pct } = dlRealRef.current;
+      setDlProgress(renderProgressPct(stage, pct));
+      setDlStageIdx(Math.max(0, RENDER_STAGES.indexOf((stage ?? "starting") as (typeof RENDER_STAGES)[number])));
+      setDlLabel(renderLabel({ stage, pct, elapsedSec: (Date.now() - startedAt) / 1000 }).headline);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [downloading]);
 
@@ -453,10 +454,10 @@ export function ClipCard({
   useEffect(() => {
     onDownloadChange?.(
       downloading
-        ? { stage: DOWNLOAD_STAGES[dlStageIdx], stageIdx: dlStageIdx, progress: dlProgress }
+        ? { stage: dlLabel, stageIdx: dlStageIdx, progress: dlProgress }
         : null
     );
-  }, [downloading, dlProgress, dlStageIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [downloading, dlProgress, dlStageIdx, dlLabel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!playing) {
@@ -495,6 +496,7 @@ export function ClipCard({
   async function handleDownload() {
     if (downloading) return;
     setDownloading(true);
+    dlRealRef.current = { stage: null, pct: null };
     setBurnError(null);
 
     if (!needsBurn) {
@@ -544,6 +546,7 @@ export function ClipCard({
             const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, { headers: { Authorization: `Bearer ${token}` } });
             const pollJson = await pollRes.json();
             if (pollJson.ok && pollJson.job) {
+              dlRealRef.current = { stage: pollJson.job.progress_stage ?? null, pct: pollJson.job.progress_pct ?? null };
               if (pollJson.job.status === "done" && pollJson.job.result_upload_id) {
                 clearInterval(poll);
                 const uploadRes = await fetch(`/api/uploads/${pollJson.job.result_upload_id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -605,33 +608,9 @@ export function ClipCard({
         return;
       }
 
-      const burnJobId = json.burnJobId;
-      const startTime = Date.now();
-
-      pollRef.current = setInterval(async () => {
-        if (Date.now() - startTime > 3 * 60 * 1000) {
-          clearInterval(pollRef.current!);
-          setBurning(false);
-          setBurnError("Subtitle burn timed out. Try again.");
-          return;
-        }
-        try {
-          const pollRes = await fetch(`/api/ai-clips/burn/${burnJobId}`, { headers: { Authorization: `Bearer ${token}` } });
-          const pollJson = await pollRes.json();
-          if (pollJson.ok && pollJson.job) {
-            const job = pollJson.job;
-            if (job.status === "done" && job.result_upload_id) {
-              clearInterval(pollRef.current!);
-              setBurning(false);
-              onScheduled(job.result_upload_id, title);
-            } else if (job.status === "failed") {
-              clearInterval(pollRef.current!);
-              setBurning(false);
-              setBurnError(job.error || "Subtitle burn failed.");
-            }
-          }
-        } catch {}
-      }, 2000);
+      // The captioned video renders in the background; the scheduling screen shows its progress.
+      setBurning(false);
+      onScheduled(json.uploadId, title, { burnJobId: json.burnJobId, sourceUploadId: uploadId });
     } catch (e: any) {
       setBurning(false);
       setBurnError(e?.message || "Unknown error");
@@ -743,7 +722,7 @@ export function ClipCard({
         </div>
 
         {/* Download loading overlay */}
-        <DownloadOverlay active={downloading} progress={dlProgress} stageIdx={dlStageIdx} />
+        <DownloadOverlay active={downloading} progress={dlProgress} stageIdx={dlStageIdx} label={dlLabel} />
       </div>
 
       {/* Action row */}
@@ -751,7 +730,7 @@ export function ClipCard({
         <button
           onClick={() => handleSchedule(true)}
           disabled={burning}
-          title={burning ? "Burning subtitles…" : "Schedule to publish"}
+          title={burning ? "Opening the scheduler…" : "Schedule to publish"}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300 hover:bg-violet-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {burning ? (
