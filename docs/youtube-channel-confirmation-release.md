@@ -12,7 +12,7 @@ Implementation prepared in `.worktrees/youtube-channel-confirmation`, branch `fe
 - Settings and upload destinations expose canonical channel links. Verified metadata is displayed separately from editable labels. A rate-limited refresh retrieves metadata without altering the label or channel ID.
 - A separately gated pre-upload lookup checks the same authenticated client that will upload. A mismatch, missing identity, or ambiguous result blocks media download and upload. Temporary lookup errors get one bounded retry and then the existing failed-post recovery path.
 - YouTube's selected account lookup is team/provider scoped. Legacy one-account fallback remains; ambiguous fallback remains blocked. Shorts continue through existing polling, without a new upload.
-- New tables use service-only access and cascading cleanup. Existing nightly maintenance purges expired attempts without blocking other token refresh work if the migration is absent.
+- New tables use service-only access and cascading cleanup. Existing nightly maintenance purges expired attempts without blocking other token refresh work if the migration is absent. Expiry checks use the wall clock after database locks, preventing an expired attempt from being accepted after waiting.
 
 ## Changes to review
 
@@ -48,11 +48,18 @@ Existing `OAUTH_STATE_SECRET`, Google credentials, Supabase credentials, and sit
 - TypeScript: `node ../../node_modules/typescript/bin/tsc --noEmit --incremental false -p .` passes in the isolated checkout using existing installed dependencies.
 - `git diff --check` passes.
 - Production build compiles and passes type validation, then fails while generating `/blog/[slug]/opengraph-image` with `TypeError: Invalid URL` inside `@vercel/og` on Windows. A separate unchanged checkout at `c1622fd` reproduces the same failure. This is not a green full build. Require a supported-environment build before release.
-- Build inputs used placeholder environment values, not production credentials. No dependencies were installed and no live database/OAuth/publishing calls were made.
+- Build inputs used placeholder environment values, not production credentials. Test-only PostgreSQL 17 and browser tools were installed in an ignored sibling directory; application dependencies and the lockfile are unchanged.
+- **16 real PostgreSQL 17.10 integration cases pass**, using synthetic records and the relevant live table/constraint shapes inspected read-only. Coverage includes migration preservation, RLS/grants, idempotent commits, competing confirmations, cancellation and permission races, expiry while waiting for locks, rollback, cascading deletion, and cleanup/throttling. These tests found and fixed a transaction-time versus wall-clock expiry bug.
+- **Nine real Chrome browser scenarios pass**, using the actual Next page with synthetic authenticated sessions/API responses and all external network blocked. Desktop/mobile previews, confirm, cancel, choose another account, reconnect/onboarding return, expiry, signed-out state, error recovery and confirmed reload are covered.
+- Read-only production inspection found PostgreSQL 17.6, 59 YouTube connections, one connection with a missing/placeholder channel ID, and zero cross-team/provider YouTube post references. No credentials or personal account rows were selected. Broad enforcement remains off.
 
-The local mocked tests validate application behavior, not PostgreSQL lock execution or Google consent UI. PostgreSQL/psql/Docker and a browser automation runtime were not available in this environment. The migration has **not been applied or executed against PostgreSQL**, and real-browser OAuth testing remains a release gate. Do not treat these outstanding checks as passed.
+The migration has now been executed on disposable PostgreSQL, not production. Browser tests do not exercise Google's live consent UI. A Linux production build runs in `.github/workflows/youtube-connection-checks.yml` on this feature branch. Record its result before release; do not treat live Google consent or an actual test post as completed by fixture tests.
+
+Production migration history does not record four older local migrations: `20260416_pinterest_settings.sql`, both `20260507_*` files, and `20261001_platform_accounts_meta_user_id.sql`. Some of their schema already exists, and two files share the same version prefix. Do not use a blanket `db push` for this feature. Apply only the reviewed YouTube migration transaction and record only its version, or reconcile the older migration history separately with its owner.
 
 Run the test suite from this worktree with `node --test scripts/test-*.mjs`. For a normal checkout with installed dependencies, typecheck with `node node_modules/typescript/bin/tsc --noEmit --incremental false -p .`.
+
+For integration tests, set `YOUTUBE_TEST_TOOL_ROOT` to a directory containing test-only `node_modules` with `embedded-postgres@17.10.0-beta.17`, `pg`, and `playwright-core`. Run `node scripts/integration/youtube-database.mjs`. Start an isolated Next server on port 3187 with the placeholder Supabase URL above, then run `node scripts/integration/youtube-browser.mjs`; it uses installed Chrome and never signs in to a real account. Database files and screenshots remain in the test tool directory. All processes started by these scripts are test-specific.
 
 ## Database acceptance gate
 

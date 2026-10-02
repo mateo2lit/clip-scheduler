@@ -54,7 +54,7 @@ begin
   select * into a from public.youtube_connection_attempts where id = p_attempt_id and user_id = p_user_id and team_id = p_team_id for update;
   if not found then raise exception 'YouTube attempt not found'; end if;
   if a.status = 'confirmed' then return a.account_id; end if;
-  if a.status <> 'awaiting_confirmation' or a.expires_at <= now() then raise exception 'YouTube attempt is no longer pending'; end if;
+  if a.status <> 'awaiting_confirmation' or a.expires_at <= clock_timestamp() then raise exception 'YouTube attempt is no longer pending'; end if;
   if coalesce(p_refresh_token, '') = '' then raise exception 'Missing YouTube refresh token'; end if;
   channel_id := a.identity->>'channelId';
   if channel_id is null or channel_id !~ '^UC[A-Za-z0-9_-]{22}$' then raise exception 'Invalid YouTube identity'; end if;
@@ -69,6 +69,8 @@ begin
   if exists (select 1 from public.youtube_account_identity where platform_account_id = acct.id and confirmed_at > a.created_at) then
     raise exception 'A newer YouTube connection was already confirmed';
   end if;
+  -- Advisory/account locks can also take time. now() is transaction-stable, not a deadline clock.
+  if a.expires_at <= clock_timestamp() then raise exception 'YouTube attempt expired while waiting'; end if;
   if acct.id is not null then
     update public.platform_accounts set refresh_token = p_refresh_token, access_token = p_access_token,
       expiry = p_expiry, avatar_url = a.identity->>'avatarUrl', updated_at = now()

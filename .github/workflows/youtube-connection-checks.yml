@@ -1,0 +1,38 @@
+name: YouTube connection checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/youtube-channel-confirmation]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.invalid
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: build-placeholder
+      STRIPE_SECRET_KEY: sk_test_build_placeholder
+      NEXT_TELEMETRY_DISABLED: '1'
+      YOUTUBE_TEST_TOOL_ROOT: ${{ github.workspace }}/.validation-tools
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Existing and YouTube application regressions
+        run: node --test scripts/test-*.mjs
+      - name: Typecheck
+        run: node node_modules/typescript/bin/tsc --noEmit --incremental false -p .
+      - name: Install isolated database test tools
+        run: npm install --prefix .validation-tools --no-save --no-package-lock embedded-postgres@17.10.0-beta.17 pg
+      - name: Real PostgreSQL transaction and permission tests
+        run: node scripts/integration/youtube-database.mjs
+      - name: Production build on Linux
+        run: npm run build
