@@ -898,8 +898,10 @@ export default function UploadsPage() {
           if (uploadJson.ok && uploadJson.upload) {
             setLastUploadId(preloadUploadId);
             if (preloadTitle) setTitle(decodeURIComponent(preloadTitle));
-            const renderingJob: string | null = preloadRenderJob
-              || (uploadJson.upload.render_status === "rendering" ? uploadJson.upload.render_job_id : null);
+            // The upload row knows the current render (a Retry repoints it); the URL may be stale.
+            const renderingJob: string | null = uploadJson.upload.render_status
+              ? uploadJson.upload.render_job_id
+              : preloadRenderJob;
             if (renderingJob) setRenderJobId(renderingJob);
             if (renderingJob && preloadSourceUploadId) {
               // The captioned file doesn't exist yet: preview the uncaptioned source clip meanwhile.
@@ -2350,7 +2352,9 @@ export default function UploadsPage() {
               <RenderProgressBanner
                 burnJobId={renderJobId}
                 token={accessToken}
-                onDone={async (doneUploadId) => {
+                onDone={async (doneUploadId, doneThumbPath) => {
+                  // Posts scheduled from here on get the captioned thumbnail (unless one was picked)
+                  if (doneThumbPath && !thumbnail) setLastThumbnailPath((cur) => cur ?? doneThumbPath);
                   // Swap the preview to the captioned video once it exists
                   try {
                     const r = await fetch(`/api/uploads/${doneUploadId}`, { headers: { Authorization: `Bearer ${accessToken}` } });

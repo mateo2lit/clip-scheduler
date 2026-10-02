@@ -573,14 +573,25 @@ async function runWorker(req: Request) {
 
   const statuses = retryFailed ? ["scheduled", "failed"] : ["scheduled"];
 
+  // Posts whose AI Clips video is still rendering can't go out yet; leave them out of the batch
+  // so a team with many of them can't hold up everyone else's due posts.
+  const { data: renderingUploads } = await supabaseAdmin
+    .from("uploads")
+    .select("id")
+    .eq("render_status", "rendering")
+    .limit(500);
+  const renderingIds = (renderingUploads ?? []).map((u: { id: string }) => u.id);
+
   // Pull due posts (or a single post)
   let query = supabaseAdmin
     .from("scheduled_posts")
     .select("*")
     .in("status", statuses)
-    .lte("scheduled_for", nowIso)
+    .lte("scheduled_for", nowIso);
+  if (renderingIds.length > 0) query = query.not("upload_id", "in", `(${renderingIds.join(",")})`);
+  query = query
     .order("scheduled_for", { ascending: true })
-    .limit(MAX_BATCH * 4); // extra rows so posts waiting on a render can't starve the batch
+    .limit(MAX_BATCH * 4); // headroom for posts whose render finishes or fails mid-run
 
   if (postId) {
     query = supabaseAdmin

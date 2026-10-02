@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
 import { dispatchBurnWorkflow } from "@/lib/aiClipBurn";
+import { RENDER_FAILED_MESSAGE, RENDER_TIMEOUT_MS } from "@/lib/renderGate";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -20,12 +21,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { data: old } = await supabaseAdmin
       .from("ai_clip_burn_jobs")
-      .select("id, team_id, source_job_id, clip_index, source_clip_path, subtitle_data, subtitle_style, mode, status")
+      .select("id, team_id, source_job_id, clip_index, source_clip_path, subtitle_data, subtitle_style, mode, status, created_at, updated_at")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
     if (!old) return NextResponse.json({ ok: false, error: "Caption job not found." }, { status: 404 });
-    if (old.status !== "failed") {
+    // A run that timed out or was cancelled never gets marked failed, so a render stuck past
+    // the timeout counts as failed too.
+    const lastActivity = Date.parse(old.updated_at || old.created_at || "");
+    const stuck = old.status !== "done" && Number.isFinite(lastActivity) && Date.now() - lastActivity > RENDER_TIMEOUT_MS;
+    if (old.status !== "failed" && !stuck) {
       return NextResponse.json({ ok: false, error: "Only failed caption jobs can be retried." }, { status: 409 });
     }
 
@@ -68,6 +73,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       .from("uploads")
       .update({ render_status: "rendering", render_job_id: burnJobId, render_started_at: new Date().toISOString() })
       .eq("id", upload.id);
+
+    // Posts that failed only because these captions failed get another chance: they go back to
+    // "scheduled" and the worker publishes them once the new render is ready.
+    await supabaseAdmin
+      .from("scheduled_posts")
+      .update({ status: "scheduled", last_error: null })
+      .eq("upload_id", upload.id)
+      .eq("status", "failed")
+      .eq("last_error", RENDER_FAILED_MESSAGE);
 
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")

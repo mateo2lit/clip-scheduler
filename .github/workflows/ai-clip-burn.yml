@@ -870,22 +870,27 @@ jobs:
                   print(f"{method} failed: {e.code} {e.read()[:200]}", flush=True)
                   raise
 
+          upload_id = reserved or str(uuid.uuid4())
+
+          # Thumbnail first, while the upload still reads "rendering": the worker can't publish in between
+          # without it. Best effort: a hiccup here must never turn a good render into a failed one.
+          if thumb_path and reserved:
+              try:
+                  # Posts scheduled before the render finished get the captioned thumbnail
+                  call(f"{supabase_url}/rest/v1/scheduled_posts?upload_id=eq.{upload_id}&thumbnail_path=is.null",
+                       {"thumbnail_path": thumb_path}, "PATCH")
+              except Exception as e:
+                  print(f"thumbnail backfill failed (non-fatal): {e}", flush=True)
+
           if reserved:
               # Post reserved this row so the user could schedule before the file existed; fill it in.
-              upload_id = reserved
               call(f"{supabase_url}/rest/v1/uploads?id=eq.{upload_id}",
                    {"file_size": file_size, "render_status": None}, "PATCH")
           else:
               # Legacy dispatch without a reserved row
-              upload_id = str(uuid.uuid4())
               call(f"{supabase_url}/rest/v1/uploads",
                    {"id": upload_id, "user_id": user_id, "team_id": team_id, "bucket": "clips",
                     "file_path": output_path, "file_size": file_size, "storage_deleted": False}, "POST")
-
-          if thumb_path:
-              # Posts may have been scheduled before the render finished; give them the captioned thumbnail.
-              call(f"{supabase_url}/rest/v1/scheduled_posts?upload_id=eq.{upload_id}&thumbnail_path=is.null",
-                   {"thumbnail_path": thumb_path}, "PATCH")
 
           # Mark burn job done
           done_payload = json.dumps({
@@ -910,7 +915,8 @@ jobs:
           PYEOF
 
       - name: Mark burn failed on error
-        if: failure()
+        # cancelled() covers the 15-minute job timeout and manual cancels, which skip failure() steps
+        if: failure() || cancelled()
         run: |
           if [ ! -s /tmp/clip.mp4 ]; then
             DL_STATUS=$(cat /tmp/dl_status.txt 2>/dev/null || echo "no-response")

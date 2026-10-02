@@ -27,12 +27,19 @@ function fakeDb(responses, storageBytes = Buffer.from("fake-mp4-bytes")) {
     },
     auth: { admin: { getUserById: async () => ({ data: { user: { email: "user@example.invalid" } } }) } },
     from(table) {
+      // The worker's "which uploads are still rendering?" list query gets a list in production;
+      // responders written for single-row upload lookups shouldn't have to know about it.
+      const answer = (t, q) => {
+        const r = responses[t]?.(q) ?? { data: null, error: null };
+        const isRenderingList = t === "uploads" && q.args.some(([op, c, v]) => op === "eq" && c === "render_status" && v === "rendering");
+        return isRenderingList && !Array.isArray(r.data) ? { data: [], error: null } : r;
+      };
       const q = { table, ops: [], args: [], payload: null };
       queries.push(q);
       const chain = new Proxy({}, {
         get(_, prop) {
           if (prop === "then") {
-            return (resolve, reject) => Promise.resolve(responses[table]?.(q) ?? { data: null, error: null }).then(resolve, reject);
+            return (resolve, reject) => Promise.resolve(answer(table, q)).then(resolve, reject);
           }
           return (...args) => {
             q.ops.push(prop);

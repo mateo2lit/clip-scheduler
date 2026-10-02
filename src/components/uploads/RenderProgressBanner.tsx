@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { renderLabel } from "@/app/ai-clips/waitCopy";
+import { RENDER_TIMEOUT_MS } from "@/lib/renderGate";
 
 type Props = {
   burnJobId: string;
   token: string;
-  /** Called once with the captioned upload's id when the render finishes. */
-  onDone: (uploadId: string) => void;
+  /** Called once when the render finishes, with the captioned upload and its thumbnail (if stored). */
+  onDone: (uploadId: string, thumbnailPath: string | null) => void;
 };
 
 type JobState = { stage: string | null; pct: number | null; status: string; error?: string | null };
@@ -33,12 +34,18 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
         const r = await fetch(`/api/ai-clips/burn/${jobId}`, { headers: { Authorization: `Bearer ${token}` } });
         const j = await r.json();
         if (stopped || !j.ok) return;
-        setJob({ stage: j.job.progress_stage, pct: j.job.progress_pct, status: j.job.status, error: j.job.error });
-        if (j.job.status === "done" && j.job.result_upload_id) {
+        // A run that timed out or was cancelled never reports "failed"; past the timeout, treat it
+        // as failed so the user gets Retry instead of an endless "taking longer than usual".
+        const lastActivity = Date.parse(j.job.updated_at || j.job.created_at || "");
+        const stuck = j.job.status !== "done" && j.job.status !== "failed"
+          && Number.isFinite(lastActivity) && Date.now() - lastActivity > RENDER_TIMEOUT_MS;
+        const status = stuck ? "failed" : j.job.status;
+        setJob({ stage: j.job.progress_stage, pct: j.job.progress_pct, status, error: j.job.error });
+        if (status === "done" && j.job.result_upload_id) {
           stopped = true;
-          onDoneRef.current(j.job.result_upload_id);
+          onDoneRef.current(j.job.result_upload_id, j.job.thumbnail_path ?? null);
         }
-        if (j.job.status === "failed") stopped = true;
+        if (status === "failed") stopped = true;
       } catch {
         // Transient network error: the next tick tries again
       }
@@ -75,7 +82,7 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
   if (job.status === "failed") {
     return (
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-        <span>Couldn&apos;t add captions. Anything you schedule waits until they&apos;re added, so try again.</span>
+        <span>Couldn&apos;t add captions. Retry, and any posts for this video go out once the captions are ready.</span>
         <button
           onClick={retry}
           disabled={retrying}

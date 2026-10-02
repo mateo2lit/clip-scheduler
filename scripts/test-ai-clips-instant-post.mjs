@@ -26,12 +26,19 @@ function fakeDb(responses) {
     },
     auth: { admin: { getUserById: async () => ({ data: { user: { email: "user@example.invalid" } } }) } },
     from(table) {
+      // The worker's "which uploads are still rendering?" list query gets a list in production;
+      // responders written for single-row upload lookups shouldn't have to know about it.
+      const answer = (t, q) => {
+        const r = responses[t]?.(q) ?? { data: null, error: null };
+        const isRenderingList = t === "uploads" && q.args.some(([op, c, v]) => op === "eq" && c === "render_status" && v === "rendering");
+        return isRenderingList && !Array.isArray(r.data) ? { data: [], error: null } : r;
+      };
       const q = { table, ops: [], args: [], payload: null };
       queries.push(q);
       const chain = new Proxy({}, {
         get(_, prop) {
           if (prop === "then") {
-            return (resolve, reject) => Promise.resolve(responses[table]?.(q) ?? { data: null, error: null }).then(resolve, reject);
+            return (resolve, reject) => Promise.resolve(answer(table, q)).then(resolve, reject);
           }
           return (...args) => {
             q.ops.push(prop);
@@ -171,6 +178,7 @@ function routeMocks(db, dispatched) {
       BURN_MODES: ["portrait_auto", "portrait_blur", "portrait_crop", "portrait_45", "square", "landscape"],
       dispatchBurnWorkflow: async (inputs) => { dispatched.push(inputs); },
     },
+    "@/lib/renderGate": renderGateModule,
   };
 }
 
@@ -231,4 +239,68 @@ test("retry refuses a burn job that didn't fail", async () => {
   const route = load("src/app/api/ai-clips/burn/[id]/retry/route.ts", routeMocks(db, []), { env: { GITHUB_PAT: "pat" } });
   const res = await route.exports.POST(new Request("https://x", { method: "POST" }), { params: { id: "b1" } });
   assert.equal(res.status, 409);
+});
+
+// ── Final-review fixes ───────────────────────────────────────────────────────
+
+function retryDb({ jobStatus = "failed", jobUpdatedAt = new Date().toISOString() } = {}) {
+  return fakeDb({
+    ai_clip_burn_jobs: (q) => q.ops.includes("insert") ? { data: null, error: null }
+      : { data: { id: "b1", team_id: "t", source_job_id: "j", clip_index: 0, source_clip_path: "t/src.mp4",
+          subtitle_data: [], subtitle_style: {}, mode: "portrait_auto", status: jobStatus,
+          created_at: jobUpdatedAt, updated_at: jobUpdatedAt }, error: null },
+    uploads: (q) => {
+      if (q.ops.includes("update")) return { data: null, error: null };
+      if (eqArg(q, "render_job_id") === "b1") return { data: { id: "up1", file_path: "t/ai_burned_b1.mp4" }, error: null };
+      return { data: { bucket: "clips" }, error: null };
+    },
+    scheduled_posts: () => ({ data: null, error: null }),
+    ai_clip_jobs: () => ({ data: { result_titles: ["Hello"] }, error: null }),
+  });
+}
+const loadRetry = (db) => load("src/app/api/ai-clips/burn/[id]/retry/route.ts", routeMocks(db, []), { env: { GITHUB_PAT: "pat" } });
+const retryReq = () => new Request("https://x", { method: "POST" });
+
+test("Review #2: retry brings back posts that failed only because the captions failed", async () => {
+  const db = retryDb();
+  const res = await loadRetry(db).exports.POST(retryReq(), { params: { id: "b1" } });
+  assert.equal(res.status, 200);
+  const revive = db.queries.find((q) => q.table === "scheduled_posts" && q.ops.includes("update"));
+  assert.ok(revive, "failed posts on this upload are revived");
+  assert.equal(revive.payload.status, "scheduled");
+  assert.equal(eqArg(revive, "upload_id"), "up1");
+  assert.equal(eqArg(revive, "status"), "failed");
+  assert.equal(eqArg(revive, "last_error"), renderGateModule.RENDER_FAILED_MESSAGE, "only caption failures, not other errors");
+});
+
+test("Review #1: a render stuck past the timeout can be retried (cancelled/timed-out runs never mark failed)", async () => {
+  const old = new Date(Date.now() - renderGateModule.RENDER_TIMEOUT_MS - 60_000).toISOString();
+  const res = await loadRetry(retryDb({ jobStatus: "burning", jobUpdatedAt: old })).exports.POST(retryReq(), { params: { id: "b1" } });
+  assert.equal(res.status, 200);
+  const fresh = await loadRetry(retryDb({ jobStatus: "burning" })).exports.POST(retryReq(), { params: { id: "b1" } });
+  assert.equal(fresh.status, 409, "a render still within its window can't be retried");
+});
+
+test("Review #3: the burn status reports the captioned thumbnail once done, so later posts get it", async () => {
+  const db = fakeDb({
+    ai_clip_burn_jobs: () => ({ data: { id: "b1", status: "done", result_upload_id: "up1", error: null,
+      created_at: "x", updated_at: "x", progress_stage: "uploading", progress_pct: 100 }, error: null }),
+  });
+  db.storage.from = () => ({ list: async (dir, opts) => ({ data: dir === "t/thumbnails" && opts?.search === "ai_burned_b1.jpg" ? [{ name: "ai_burned_b1.jpg" }] : [], error: null }) });
+  const route = load("src/app/api/ai-clips/burn/[id]/route.ts", { "next/server": nextServer, "@/lib/supabaseAdmin": { supabaseAdmin: db }, "@/lib/teamAuth": teamAuthOk });
+  const body = await (await route.exports.GET(new Request("https://x"), { params: { id: "b1" } })).json();
+  assert.equal(body.job.thumbnail_path, "t/thumbnails/ai_burned_b1.jpg");
+});
+
+test("Review #4: the due-post query leaves out posts whose upload is still rendering", async () => {
+  const db = fakeDb({
+    uploads: (q) => eqArg(q, "render_status") === "rendering" ? { data: [{ id: "busy" }], error: null } : { data: null, error: null },
+    scheduled_posts: () => ({ data: [], error: null }),
+  });
+  await loadWorker(db).exports.GET(workerReq());
+  const due = db.queries.find((q) => q.table === "scheduled_posts" && q.ops.includes("lte") && !q.payload);
+  const not = due.args.find(([op, col]) => op === "not" && col === "upload_id");
+  assert.ok(not, "due query excludes rendering uploads");
+  assert.equal(not[2], "in");
+  assert.equal(not[3], "(busy)");
 });
