@@ -48,14 +48,29 @@ jobs:
       - name: Install static ffmpeg (cache miss only)
         if: steps.ffcache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/ffmpeg-static
-          curl -sSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.0.2-amd64-static.tar.xz | tar -xJ -C ~/ffmpeg-static --strip-components=1
+          # Pinned by SHA-256 (taken 2026-10-01; the publisher posts no checksum). Any failure
+          # removes the directory, so nothing broken gets cached and the next step falls back to apt.
+          URL=https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.0.2-amd64-static.tar.xz
+          SHA=abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67
+          if curl -sSLf --max-time 120 -o /tmp/ffmpeg.tar.xz "$URL"              && echo "$SHA  /tmp/ffmpeg.tar.xz" | sha256sum -c -              && mkdir -p ~/ffmpeg-static              && tar -xJf /tmp/ffmpeg.tar.xz -C ~/ffmpeg-static --strip-components=1; then
+            echo "static ffmpeg installed"
+          else
+            echo "::warning::static ffmpeg download or checksum failed; falling back to apt"
+            rm -rf ~/ffmpeg-static
+          fi
       - name: Put ffmpeg on PATH
         run: |
-          echo "$HOME/ffmpeg-static" >> "$GITHUB_PATH"
-          # The static build's fontconfig doesn't know the system config path; point it there
-          echo "FONTCONFIG_FILE=/etc/fonts/fonts.conf" >> "$GITHUB_ENV"
-          "$HOME/ffmpeg-static/ffmpeg" -version | head -1
+          if [ -x "$HOME/ffmpeg-static/ffmpeg" ]; then
+            echo "$HOME/ffmpeg-static" >> "$GITHUB_PATH"
+            # The static build's fontconfig doesn't know the system config path; point it there
+            echo "FONTCONFIG_FILE=/etc/fonts/fonts.conf" >> "$GITHUB_ENV"
+            "$HOME/ffmpeg-static/ffmpeg" -version | head -1
+          else
+            # Fallback: the slower apt install the workflow used before
+            sudo apt-get update -qq || true
+            sudo apt-get install -y --no-install-recommends ffmpeg
+            ffmpeg -version | head -1
+          fi
 
       - name: Install fonts
         run: |

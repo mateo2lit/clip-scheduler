@@ -56,6 +56,10 @@ export function isSlow(elapsedSec: number, estimateSec: number): boolean {
 
 export const SLOW_COPY = "Taking longer than usual. It's still working, and you can leave this page; we'll keep going.";
 export const RENDER_WHY = "We're drawing your captions and title into the video so they show on every platform.";
+export const CAPTIONS_FAILED = {
+  label: "Captions failed",
+  why: "Open the clip in AI Clips and use Retry before this post's time, or it won't go out.",
+};
 export const WAITING_FOR_CAPTIONS = {
   label: "Waiting for captions",
   why: "This post goes out as soon as its captions finish rendering, usually within a minute or two.",
@@ -68,6 +72,14 @@ const RENDER_STAGE_TEXT: Record<string, string> = {
   uploading: "Saving the finished video",
 };
 const RENDER_ESTIMATE_SEC = 60;
+
+/** Progress-bar position (0–100) from a render's real stage and percent. */
+export function renderBarPct(stage: string | null, pct: number | null): number {
+  if (stage === "uploading") return 97;
+  if (stage === "rendering") return 10 + Math.min(100, Math.max(0, pct ?? 0)) * 0.85;
+  if (stage === "preparing") return 8;
+  return 3;
+}
 
 export function renderLabel(p: { stage: string | null; pct: number | null; elapsedSec: number }): {
   headline: string;

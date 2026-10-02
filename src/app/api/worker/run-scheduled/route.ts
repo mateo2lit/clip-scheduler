@@ -625,12 +625,13 @@ async function runWorker(req: Request) {
     // AI Clips can schedule a post before its captioned video exists. Wait for the render;
     // never publish an uncaptioned or missing file.
     if (post.upload_id && (post as any).post_type !== "text") {
-      const { data: up } = await supabaseAdmin
+      const { data: up, error: upErr } = await supabaseAdmin
         .from("uploads")
         .select("render_status, render_started_at")
         .eq("id", post.upload_id)
         .maybeSingle();
-      if (renderGate(up) === "wait") {
+      // Can't tell whether the captions are ready: wait for the next run rather than risk it
+      if (upErr || renderGate(up) === "wait") {
         results.push({ id: post.id, ok: true, skipped: true, reason: "waiting_for_render" });
         continue;
       }

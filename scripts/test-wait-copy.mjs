@@ -40,3 +40,11 @@ test("renderLabel flags slow renders past twice the ~60 s estimate", () => {
   assert.equal(l.slow, true);
   assert.match(l.detail, /Taking longer than usual/);
 });
+
+test("renderBarPct maps real stages onto one bar (shared by the clip card and the scheduling banner)", () => {
+  assert.equal(w.renderBarPct(null, null), 3);
+  assert.equal(w.renderBarPct("preparing", null), 8);
+  assert.equal(w.renderBarPct("rendering", 0), 10);
+  assert.equal(w.renderBarPct("rendering", 100), 95);
+  assert.equal(w.renderBarPct("uploading", 100), 97);
+});

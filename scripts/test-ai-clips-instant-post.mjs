@@ -304,3 +304,41 @@ test("Review #4: the due-post query leaves out posts whose upload is still rende
   assert.equal(not[2], "in");
   assert.equal(not[3], "(busy)");
 });
+
+// ── Minor fixes ──────────────────────────────────────────────────────────────
+
+test("Minor: if Retry can't start the render, the slot and job are marked failed and the user gets a clear error", async () => {
+  const db = retryDb();
+  const mocks = routeMocks(db, []);
+  mocks["@/lib/aiClipBurn"].dispatchBurnWorkflow = async () => { throw new Error("GitHub dispatch failed (500)"); };
+  const route = load("src/app/api/ai-clips/burn/[id]/retry/route.ts", mocks, { env: { GITHUB_PAT: "pat" } });
+  const res = await route.exports.POST(retryReq(), { params: { id: "b1" } });
+  const body = await res.json();
+  assert.equal(body.ok, false);
+  assert.match(body.error, /couldn't start/i);
+  const uploadFailed = db.queries.filter((q) => q.table === "uploads" && q.ops.includes("update")).at(-1);
+  assert.equal(uploadFailed.payload.render_status, "failed", "slot not left 'rendering'");
+  const jobFailed = db.queries.filter((q) => q.table === "ai_clip_burn_jobs" && q.ops.includes("update")).at(-1);
+  assert.equal(jobFailed?.payload.status, "failed", "new job not left pending");
+});
+
+test("Minor: if the render state can't be read, the worker waits instead of publishing", async () => {
+  const db = fakeDb({
+    scheduled_posts: (q) => {
+      if (q.ops.includes("lte") && !q.payload) {
+        return { data: [{ id: "p1", user_id: "u", team_id: "t", upload_id: "up1", provider: "youtube", status: "scheduled",
+          platform_account_id: "a1", title: "T", description: "", group_id: null }], error: null };
+      }
+      return { data: [], error: null };
+    },
+    uploads: () => ({ data: null, error: { message: "connection reset" } }),
+    notification_preferences: () => ({ data: null, error: null }),
+  });
+  const body = await (await loadWorker(db).exports.GET(workerReq())).json();
+  assert.equal(body.results[0]?.reason, "waiting_for_render");
+  assert.ok(!db.queries.some((q) => q.payload?.status === "posting"), "not claimed");
+});
+
+test("Minor: the caption-failure message points at Retry", () => {
+  assert.match(renderGateModule.RENDER_FAILED_MESSAGE, /Retry/);
+});

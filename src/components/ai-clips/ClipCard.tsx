@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { SubtitleStyle, type ConvertMode } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
-import { renderLabel, RENDER_WHY } from "@/app/ai-clips/waitCopy";
+import { renderLabel, renderBarPct, RENDER_WHY } from "@/app/ai-clips/waitCopy";
 import { Play, Calendar, DownloadSimple, Prohibit, ArrowsOut } from "@phosphor-icons/react/dist/ssr";
 
 type TimedWord = { start: number; end: number; word: string };
@@ -29,13 +29,6 @@ function cleanWord(word: string): string {
 // Real stages reported by ai-clip-burn.yml (ai_clip_burn_jobs.progress_stage), in order.
 const RENDER_STAGES = ["starting", "preparing", "rendering", "uploading"] as const;
 
-/** Bar position from the render's real stage and percent. */
-function renderProgressPct(stage: string | null, pct: number | null): number {
-  if (stage === "uploading") return 97;
-  if (stage === "rendering") return 10 + Math.min(100, Math.max(0, pct ?? 0)) * 0.85;
-  if (stage === "preparing") return 8;
-  return 3;
-}
 
 // ── TitleOverlay ──────────────────────────────────────────────────────────────
 
@@ -441,7 +434,7 @@ export function ClipCard({
     const startedAt = Date.now();
     const tick = () => {
       const { stage, pct } = dlRealRef.current;
-      setDlProgress(renderProgressPct(stage, pct));
+      setDlProgress(renderBarPct(stage, pct));
       setDlStageIdx(Math.max(0, RENDER_STAGES.indexOf((stage ?? "starting") as (typeof RENDER_STAGES)[number])));
       setDlLabel(renderLabel({ stage, pct, elapsedSec: (Date.now() - startedAt) / 1000 }).headline);
     };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { renderLabel } from "@/app/ai-clips/waitCopy";
+import { renderLabel, renderBarPct } from "@/app/ai-clips/waitCopy";
 import { RENDER_TIMEOUT_MS } from "@/lib/renderGate";
 
 type Props = {
@@ -23,6 +23,7 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
   const [job, setJob] = useState<JobState>({ stage: null, pct: null, status: "pending" });
   const [now, setNow] = useState(() => Date.now());
   const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const startRef = useRef(Date.now());
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -58,6 +59,7 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
 
   async function retry() {
     setRetrying(true);
+    setRetryError(null);
     try {
       const r = await fetch(`/api/ai-clips/burn/${jobId}/retry`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json();
@@ -65,7 +67,11 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
         startRef.current = Date.now();
         setJob({ stage: null, pct: null, status: "pending" });
         setJobId(j.burnJobId);
+      } else {
+        setRetryError(j.error || "Couldn't start the caption render. Please try again.");
       }
+    } catch {
+      setRetryError("Couldn't reach Clip Dash. Check your connection and try again.");
     } finally {
       setRetrying(false);
     }
@@ -82,7 +88,10 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
   if (job.status === "failed") {
     return (
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-        <span>Couldn&apos;t add captions. Retry, and any posts for this video go out once the captions are ready.</span>
+        <span>
+          Couldn&apos;t add captions. Retry, and any posts for this video go out once the captions are ready.
+          {retryError && <span className="mt-1 block text-xs text-red-300/80">{retryError}</span>}
+        </span>
         <button
           onClick={retry}
           disabled={retrying}
@@ -95,11 +104,7 @@ export default function RenderProgressBanner({ burnJobId, token, onDone }: Props
   }
 
   const label = renderLabel({ stage: job.stage, pct: job.pct, elapsedSec: (now - startRef.current) / 1000 });
-  const barPct =
-    job.stage === "uploading" ? 97
-    : job.stage === "rendering" ? 10 + Math.min(100, Math.max(0, job.pct ?? 0)) * 0.85
-    : job.stage === "preparing" ? 8
-    : 3;
+  const barPct = renderBarPct(job.stage, job.pct);
 
   return (
     <div className="rounded-2xl border border-violet-400/25 bg-violet-500/10 px-4 py-3" role="status" aria-live="polite">

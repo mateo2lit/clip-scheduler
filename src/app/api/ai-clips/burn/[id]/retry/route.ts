@@ -89,16 +89,27 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       .eq("id", old.source_job_id)
       .maybeSingle();
 
-    await dispatchBurnWorkflow({
-      burn_job_id: burnJobId,
-      source_clip_url: signed.signedUrl,
-      output_path: upload.file_path,
-      mode: old.mode,
-      team_id: teamId,
-      user_id: userId,
-      clip_title: (job?.result_titles as string[] | null)?.[old.clip_index] ?? `Clip ${old.clip_index + 1}`,
-      upload_id: upload.id,
-    });
+    try {
+      await dispatchBurnWorkflow({
+        burn_job_id: burnJobId,
+        source_clip_url: signed.signedUrl,
+        output_path: upload.file_path,
+        mode: old.mode,
+        team_id: teamId,
+        user_id: userId,
+        clip_title: (job?.result_titles as string[] | null)?.[old.clip_index] ?? `Clip ${old.clip_index + 1}`,
+        upload_id: upload.id,
+      });
+    } catch (e: any) {
+      // Nothing will ever render into the slot: don't leave it (or the new job) looking in progress.
+      await supabaseAdmin.from("ai_clip_burn_jobs")
+        .update({ status: "failed", error: e?.message || "Dispatch failed" }).eq("id", burnJobId);
+      await supabaseAdmin.from("uploads").update({ render_status: "failed" }).eq("id", upload.id);
+      return NextResponse.json(
+        { ok: false, error: "Couldn't start the caption render. Please try again in a minute." },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({ ok: true, burnJobId, uploadId: upload.id });
   } catch (e: any) {

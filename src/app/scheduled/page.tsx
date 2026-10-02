@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
-import { WAITING_FOR_CAPTIONS } from "@/app/ai-clips/waitCopy";
+import { WAITING_FOR_CAPTIONS, CAPTIONS_FAILED } from "@/app/ai-clips/waitCopy";
 import { CaretLeft, Clock, PencilSimple, Warning, CheckCircle, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 import { humanizePostError } from "@/lib/postErrorMessages";
 import { PlatformIcon } from "@/components/PlatformIcon";
@@ -697,6 +697,10 @@ export default function ScheduledPage() {
                                     {providerLabel(post.provider)}
                                     {post.status === "scheduled" && post.upload_id && renderStatuses[post.upload_id] === "rendering" && (
                                       <span className="text-violet-300" title={WAITING_FOR_CAPTIONS.why}>· {WAITING_FOR_CAPTIONS.label}</span>
+                                    )}
+                                    {post.status === "scheduled" && post.upload_id && renderStatuses[post.upload_id] === "failed" && (
+                                      // Warn before the post's time, while there's still time to Retry
+                                      <span className="text-red-300" title={CAPTIONS_FAILED.why}>· {CAPTIONS_FAILED.label}</span>
                                     )}
                                   </span>
                                 ))}

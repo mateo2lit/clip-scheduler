@@ -7,7 +7,7 @@
 export const RENDER_TIMEOUT_MS = 20 * 60 * 1000;
 
 export const RENDER_FAILED_MESSAGE =
-  "Captions couldn't be added to this video. Open AI Clips and post the clip again.";
+  "Captions couldn't be added to this video. Open the clip in AI Clips and use Retry, or post it again.";
 
 export function renderGate(
   upload: { render_status?: string | null; render_started_at?: string | null } | null,

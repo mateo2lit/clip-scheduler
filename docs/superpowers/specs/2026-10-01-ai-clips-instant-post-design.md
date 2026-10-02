@@ -112,11 +112,12 @@ AI Clips flow:
 ```sql
 alter table uploads add column if not exists render_status text;      -- null = ready | 'rendering' | 'failed'
 alter table uploads add column if not exists render_job_id uuid;
+alter table uploads add column if not exists render_started_at timestamptz; -- resets on Retry (20-min timeout)
 alter table ai_clip_burn_jobs add column if not exists progress_stage text;
 alter table ai_clip_burn_jobs add column if not exists progress_pct int;
 ```
 
-The code must deploy **after** these run (the burn route writes the new columns).
+Canonical copy: `supabase/migrations/20261001_render_status.sql`. The code must deploy **after** these run (the burn route writes the new columns).
 
 Storage limits: a reserved row has `file_size = null`, which counts as 0 until the render fills it. That's acceptable.
 
