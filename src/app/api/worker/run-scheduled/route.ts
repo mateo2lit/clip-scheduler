@@ -26,6 +26,7 @@ import {
   blueskyExtras,
   pinterestExtras,
 } from "@/lib/postOptions";
+import { renderGate, RENDER_FAILED_MESSAGE } from "@/lib/renderGate";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -579,7 +580,7 @@ async function runWorker(req: Request) {
     .in("status", statuses)
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
-    .limit(MAX_BATCH);
+    .limit(MAX_BATCH * 4); // extra rows so posts waiting on a render can't starve the batch
 
   if (postId) {
     query = supabaseAdmin
@@ -604,8 +605,25 @@ async function runWorker(req: Request) {
 
   const results: any[] = [];
 
+  let claimedCount = 0;
+
   for (const post of duePosts) {
+    if (claimedCount >= MAX_BATCH) break;
     const debugOut: any = debug ? { post: { ...post } } : undefined;
+
+    // AI Clips can schedule a post before its captioned video exists. Wait for the render;
+    // never publish an uncaptioned or missing file.
+    if (post.upload_id && (post as any).post_type !== "text") {
+      const { data: up } = await supabaseAdmin
+        .from("uploads")
+        .select("render_status, render_started_at")
+        .eq("id", post.upload_id)
+        .maybeSingle();
+      if (renderGate(up) === "wait") {
+        results.push({ id: post.id, ok: true, skipped: true, reason: "waiting_for_render" });
+        continue;
+      }
+    }
 
     try {
       // Optional debug override: set upload_id on this post
@@ -644,6 +662,18 @@ async function runWorker(req: Request) {
           ...(debugOut ? { debug: debugOut } : {}),
         });
         continue;
+      }
+
+      claimedCount++;
+
+      // A render that failed or hung fails the post, through the normal failure path below.
+      if (post.upload_id && (post as any).post_type !== "text") {
+        const { data: up } = await supabaseAdmin
+          .from("uploads")
+          .select("render_status, render_started_at")
+          .eq("id", post.upload_id)
+          .maybeSingle();
+        if (renderGate(up) === "fail") throw new Error(RENDER_FAILED_MESSAGE);
       }
 
       const isTextPost = (post as any).post_type === "text";

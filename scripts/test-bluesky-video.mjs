@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const renderGateModule = await import("../src/lib/renderGate.ts");
 
 /** Minimal chainable Supabase stand-in: records every query and answers from `responses[table]`. */
 function fakeDb(responses, storageBytes = Buffer.from("fake-mp4-bytes")) {
@@ -186,6 +187,7 @@ function loadWorker(db, network = []) {
     "@/lib/email": { sendPostSuccessEmail: noop, sendPostFailedEmail: noop, sendReconnectEmail: noop, sendGroupSummaryEmail: noop },
     "@/lib/postOptions": { blueskyExtras: () => ({}), tiktokPostInfoExtras: () => ({}), youtubeExtras: () => ({}), instagramContainerExtras: () => ({}), pinterestExtras: () => ({}) },
     "@/lib/blueskyUpload": loadBlueskyLib(network, db).exports,
+    "@/lib/renderGate": renderGateModule,
   }, { env: { WORKER_SECRET: "s" } });
 }
 
