@@ -27,6 +27,10 @@ on:
         description: "Clip title for overlay"
         required: false
         default: ""
+      upload_id:
+        description: "Reserved uploads row to fill (empty = insert a new row, legacy)"
+        required: false
+        default: ""
 
 jobs:
   burn:
@@ -34,15 +38,24 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Check ffmpeg
+      # A pinned static ffmpeg, cached between runs, instead of apt-installing it every time (~25 s).
+      - name: Restore static ffmpeg
+        id: ffcache
+        uses: actions/cache@v4
+        with:
+          path: ~/ffmpeg-static
+          key: ffmpeg-static-7.0.2-amd64-v1
+      - name: Install static ffmpeg (cache miss only)
+        if: steps.ffcache.outputs.cache-hit != 'true'
         run: |
-          if command -v ffmpeg &>/dev/null; then
-            echo "ffmpeg ready: $(ffmpeg -version 2>&1 | head -1)"
-          else
-            sudo apt-get update -qq || true
-            sudo apt-get install -y --no-install-recommends ffmpeg || true
-          fi
-          ffmpeg -version 2>&1 | head -1
+          mkdir -p ~/ffmpeg-static
+          curl -sSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.0.2-amd64-static.tar.xz | tar -xJ -C ~/ffmpeg-static --strip-components=1
+      - name: Put ffmpeg on PATH
+        run: |
+          echo "$HOME/ffmpeg-static" >> "$GITHUB_PATH"
+          # The static build's fontconfig doesn't know the system config path; point it there
+          echo "FONTCONFIG_FILE=/etc/fonts/fonts.conf" >> "$GITHUB_ENV"
+          "$HOME/ffmpeg-static/ffmpeg" -version | head -1
 
       - name: Install fonts
         run: |
@@ -60,6 +73,9 @@ jobs:
           wget -q --timeout=15 "${BASE}/poppins/Poppins-ExtraBold.ttf" -O /usr/local/share/fonts/clip-dash/Poppins-ExtraBold.ttf || true
           wget -q --timeout=15 "${BASE}/rubik/static/Rubik-Bold.ttf" -O /usr/local/share/fonts/clip-dash/Rubik-Bold.ttf || true
           wget -q --timeout=15 "${BASE}/rubik/static/Rubik-ExtraBold.ttf" -O /usr/local/share/fonts/clip-dash/Rubik-ExtraBold.ttf || true
+          # Default caption font (Liberation Sans) also goes in fontsdir, so libass finds it
+          # even if the static build's fontconfig can't read the system fonts.
+          sudo cp /usr/share/fonts/truetype/liberation/*.ttf /usr/local/share/fonts/clip-dash/ 2>/dev/null || true
           fc-cache -f /usr/local/share/fonts/clip-dash 2>/dev/null || true
           fc-cache -f 2>/dev/null || true
           echo "Installed fonts:"
@@ -74,7 +90,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\":\"burning\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "$(jq -nc '{status:"burning",progress_stage:"starting",progress_pct:0,updated_at:(now|todate)}')"
 
       - name: Download source clip
         env:
@@ -292,9 +308,53 @@ jobs:
       - name: Generate ASS subtitle file and burn
         env:
           BURN_MODE: ${{ inputs.mode }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BURN_JOB_ID: ${{ inputs.burn_job_id }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, re, subprocess
+          import json, os, re, subprocess, time, urllib.request
+
+          supabase_url = os.environ["SUPABASE_URL"]
+          service_key = os.environ["SERVICE_KEY"]
+          burn_job_id = os.environ["BURN_JOB_ID"]
+
+          def report(stage, pct=None):
+              """Tell the app what the render is doing, for the user's progress label. Never fatal."""
+              body = {"progress_stage": stage}
+              if pct is not None:
+                  body["progress_pct"] = int(max(0, min(100, pct)))
+              try:
+                  r = urllib.request.Request(
+                      f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}",
+                      data=json.dumps(body).encode(), method="PATCH",
+                      headers={"Authorization": f"Bearer {service_key}", "apikey": service_key,
+                               "Content-Type": "application/json"})
+                  urllib.request.urlopen(r, timeout=10).read()
+              except Exception as e:
+                  print(f"progress report failed (non-fatal): {e}", flush=True)
+
+          def run_ffmpeg_with_progress(cmd, duration_s):
+              """Runs ffmpeg, reporting progress_pct at most every 2 s. Returns (returncode, stderr_tail).
+              stderr goes to a file and stdin is detached: a stderr PIPE nobody drains fills up and
+              blocks ffmpeg forever (reproduced locally), and ffmpeg can wait on stdin otherwise."""
+              cmd = cmd[:1] + ["-progress", "pipe:1", "-nostats"] + cmd[1:]
+              with open("/tmp/ffmpeg_stderr.log", "w+") as errf:
+                  p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=errf,
+                                       stdin=subprocess.DEVNULL, text=True)
+                  last = 0.0
+                  for line in p.stdout:
+                      if line.startswith("out_time_us=") and duration_s and duration_s < 9999:
+                          try:
+                              pct = int(line.split("=", 1)[1]) / 1e6 / duration_s * 100
+                          except ValueError:
+                              continue
+                          if time.time() - last >= 2:
+                              report("rendering", pct)
+                              last = time.time()
+                  p.wait()
+                  errf.seek(0)
+                  return p.returncode, errf.read()[-1000:]
 
           with open("/tmp/subtitle_data.json") as f:
               words = json.load(f)
@@ -387,6 +447,7 @@ jobs:
               clip_duration = 9999.0
 
           print(f"Source dimensions: {src_w}x{src_h}, duration: {clip_duration:.1f}s, mode: {mode}", flush=True)
+          report("preparing")
 
           # ── Compute target canvas ────────────────────────────────────────────────
           # Every mode except landscape re-frames onto a fixed canvas. The crop family
@@ -676,104 +737,58 @@ jobs:
           FONTS_DIR = "/usr/local/share/fonts/clip-dash"
           ASS_VF = f"ass=/tmp/subtitles.ass:fontsdir={FONTS_DIR}"
 
-          # ── FFmpeg processing ────────────────────────────────────────────────────
+          # ── FFmpeg processing (single pass: geometry + captions together) ──────────
           import shutil
 
-          if mode in ("portrait_blur",) + CROP_MODES:
-              # Pass 1: Convert geometry to the target canvas (no subtitles yet)
-              if mode == "portrait_blur":
-                  bg_chain  = f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg]"
-                  fg_chain  = f"[0:v]scale={fg_w}:{fg_h}[fg]"
-                  compose   = "[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
-                  fc        = f"{bg_chain};{fg_chain};{compose}"
-                  p1_cmd = [
-                      "ffmpeg", "-i", "/tmp/clip.mp4",
-                      "-filter_complex", fc, "-map", "[out]", "-map", "0:a:0?",
-                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                      "-pix_fmt", "yuv420p", "-r", "30",
-                      "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
-                      "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
-                  ]
-              else:  # crop family: portrait_crop / portrait_auto / portrait_45 / square
-                  static_vf = f"scale={pc_scale_w}:{pc_scale_h},crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
+          ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-r", "30",
+                 "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-movflags", "+faststart"]
+          sub_tail = f",{ASS_VF}" if has_subs else ""
 
-                  if reframe_cmds:
-                      # Drive the crop filter's x over time. crop exposes x as a runtime
-                      # command, so sendcmd can pan the window frame-accurately without
-                      # re-encoding per segment.
-                      with open("/tmp/reframe.cmd", "w") as f:
-                          for t, px in reframe_cmds:
-                              f.write(f"{t:.2f} crop x {px};\n")
-                      vf = (
-                          f"scale={pc_scale_w}:{pc_scale_h},"
-                          f"sendcmd=f=/tmp/reframe.cmd,"
-                          f"crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
-                      )
-                  else:
-                      vf = static_vf
+          def geometry_cmd(vf_or_fc, is_complex):
+              """One ffmpeg pass that reframes onto the canvas and burns captions on top of it."""
+              if is_complex:
+                  fc = vf_or_fc + (f";[out]{ASS_VF}[final]" if has_subs else ";[out]null[final]")
+                  return ["ffmpeg", "-i", "/tmp/clip.mp4", "-filter_complex", fc,
+                          "-map", "[final]", "-map", "0:a:0?", *ENC, "/tmp/burned.mp4", "-y"]
+              return ["ffmpeg", "-i", "/tmp/clip.mp4", "-vf", vf_or_fc + sub_tail,
+                      "-map", "0:v:0", "-map", "0:a:0?", *ENC, "/tmp/burned.mp4", "-y"]
 
-                  def crop_cmd(filter_str):
-                      return [
-                          "ffmpeg", "-i", "/tmp/clip.mp4",
-                          "-vf", filter_str, "-map", "0:v:0", "-map", "0:a:0?",
-                          "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                          "-pix_fmt", "yuv420p", "-r", "30",
-                          "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
-                          "-movflags", "+faststart", "/tmp/portrait.mp4", "-y"
-                      ]
-
-                  p1_cmd = crop_cmd(vf)
-
-              proc1 = subprocess.run(p1_cmd, capture_output=True, text=True)
-
-              # A malformed sendcmd script is the one new way pass 1 can fail, and it
-              # only costs the pan — retry once as a plain centre crop rather than
-              # failing a burn that would otherwise have succeeded.
-              if proc1.returncode != 0 and reframe_cmds:
-                  print(f"Auto-reframe pass failed (rc={proc1.returncode}), retrying as centre crop", flush=True)
-                  print(f"stderr:\n{proc1.stderr[-600:]}", flush=True)
-                  proc1 = subprocess.run(crop_cmd(static_vf), capture_output=True, text=True)
-
-              if proc1.returncode != 0:
-                  print(f"FFmpeg pass 1 stderr:\n{proc1.stderr[-1000:]}", flush=True)
-                  raise RuntimeError(f"FFmpeg geometry conversion failed (rc={proc1.returncode})")
-              print(f"Pass 1 done: {os.path.getsize('/tmp/portrait.mp4'):,} bytes", flush=True)
-
-              # Pass 2: Burn subtitles/title via a clean separate -vf ass= pass
+          report("rendering", 0)
+          if mode == "portrait_blur":
+              fc = (f"[0:v]scale={bg_w}:{bg_h},crop={TW}:{TH}:{bg_crop_x}:{bg_crop_y},boxblur=20:4[bg];"
+                    f"[0:v]scale={fg_w}:{fg_h}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[out]")
+              rc, err = run_ffmpeg_with_progress(geometry_cmd(fc, True), clip_duration)
+          elif mode in CROP_MODES:
+              static_vf = f"scale={pc_scale_w}:{pc_scale_h},crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}"
+              vf = static_vf
+              if reframe_cmds:
+                  # Drive the crop filter's x over time. crop exposes x as a runtime command, so
+                  # sendcmd can pan the window frame-accurately.
+                  with open("/tmp/reframe.cmd", "w") as f:
+                      for t, px in reframe_cmds:
+                          f.write(f"{t:.2f} crop x {px};\n")
+                  vf = (f"scale={pc_scale_w}:{pc_scale_h},sendcmd=f=/tmp/reframe.cmd,"
+                        f"crop={TW}:{TH}:{pc_crop_x}:{pc_crop_y}")
+              rc, err = run_ffmpeg_with_progress(geometry_cmd(vf, False), clip_duration)
+              # A malformed sendcmd script only costs the pan; retry once as a plain centre crop
+              # rather than failing a burn that would otherwise have succeeded.
+              if rc != 0 and reframe_cmds:
+                  print(f"Auto-reframe pass failed (rc={rc}), retrying as centre crop\n{err[-600:]}", flush=True)
+                  rc, err = run_ffmpeg_with_progress(geometry_cmd(static_vf, False), clip_duration)
+          else:  # landscape
               if has_subs:
-                  proc2 = subprocess.run([
-                      "ffmpeg", "-i", "/tmp/portrait.mp4",
-                      "-vf", ASS_VF,
-                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                      "-pix_fmt", "yuv420p",
-                      "-c:a", "copy", "-movflags", "+faststart",
-                      "/tmp/burned.mp4", "-y"
-                  ], capture_output=True, text=True)
-                  if proc2.returncode != 0:
-                      print(f"FFmpeg pass 2 stderr:\n{proc2.stderr[-1000:]}", flush=True)
-                      raise RuntimeError(f"FFmpeg subtitle burn failed (rc={proc2.returncode})")
-                  print(f"Pass 2 done: {os.path.getsize('/tmp/burned.mp4'):,} bytes", flush=True)
+                  rc, err = run_ffmpeg_with_progress(
+                      ["ffmpeg", "-i", "/tmp/clip.mp4", "-vf", ASS_VF, "-map", "0:v:0", "-map", "0:a:0?",
+                       *ENC, "/tmp/burned.mp4", "-y"], clip_duration)
               else:
-                  shutil.copy("/tmp/portrait.mp4", "/tmp/burned.mp4")
-                  print("No subtitles — using portrait output directly", flush=True)
-
-          else:
-              # Landscape: burn subtitles directly or copy if none
-              if not has_subs:
                   shutil.copy("/tmp/clip.mp4", "/tmp/burned.mp4")
+                  rc, err = 0, ""
                   print("No subtitles — copying source", flush=True)
-              else:
-                  proc = subprocess.run([
-                      "ffmpeg", "-i", "/tmp/clip.mp4",
-                      "-vf", ASS_VF,
-                      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                      "-pix_fmt", "yuv420p", "-r", "30",
-                      "-c:a", "copy", "-movflags", "+faststart",
-                      "/tmp/burned.mp4", "-y"
-                  ], capture_output=True, text=True)
-                  if proc.returncode != 0:
-                      print(f"FFmpeg stderr (last 1000 chars):\n{proc.stderr[-1000:]}", flush=True)
-                      raise RuntimeError(f"FFmpeg processing failed (rc={proc.returncode})")
+
+          if rc != 0:
+              print(f"FFmpeg stderr (last 1000 chars):\n{err}", flush=True)
+              raise RuntimeError(f"FFmpeg render failed (rc={rc})")
+          report("uploading", 100)
 
           if not os.path.exists("/tmp/burned.mp4") or os.path.getsize("/tmp/burned.mp4") == 0:
               raise RuntimeError("Output file missing or empty")
@@ -790,6 +805,7 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.output_path }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: video/mp4" \
+            -H "x-upsert: true" \
             --data-binary @/tmp/burned.mp4)
 
           echo "Upload status: $HTTP_STATUS"
@@ -800,6 +816,18 @@ jobs:
           fi
           echo "BURNED_FILE_SIZE=${FILE_SIZE}" >> $GITHUB_ENV
 
+          # Thumbnail from the finished (captioned, reframed) video, for the Scheduled page and platforms
+          ffmpeg -hide_banner -loglevel error -ss 1 -i /tmp/burned.mp4 -frames:v 1 -q:v 3 /tmp/thumb.jpg -y < /dev/null || true
+          if [ -s /tmp/thumb.jpg ]; then
+            THUMB_PATH="${{ inputs.team_id }}/thumbnails/ai_burned_${{ inputs.burn_job_id }}.jpg"
+            curl -sS -o /dev/null -w "thumb upload %{http_code}\n" -X POST \
+              "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${THUMB_PATH}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "Content-Type: image/jpeg" -H "x-upsert: true" \
+              --data-binary @/tmp/thumb.jpg || true
+            echo "THUMB_PATH=${THUMB_PATH}" >> $GITHUB_ENV
+          fi
+
       - name: Create uploads row and mark burn done
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -809,6 +837,8 @@ jobs:
           BURN_JOB_ID: ${{ inputs.burn_job_id }}
           OUTPUT_PATH: ${{ inputs.output_path }}
           BURNED_FILE_SIZE: ${{ env.BURNED_FILE_SIZE }}
+          UPLOAD_ID: ${{ inputs.upload_id }}
+          THUMB_PATH: ${{ env.THUMB_PATH }}
         run: |
           python3 - <<'PYEOF'
           import json
@@ -827,40 +857,40 @@ jobs:
           file_size = int(os.environ.get("BURNED_FILE_SIZE", "0"))
           now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
-          upload_id = str(uuid.uuid4())
+          reserved = os.environ.get("UPLOAD_ID", "").strip()
+          thumb_path = os.environ.get("THUMB_PATH", "").strip()
+          H = {"Authorization": f"Bearer {service_key}", "apikey": service_key, "Content-Type": "application/json"}
 
-          # Create uploads row
-          payload = json.dumps({
-              "id": upload_id,
-              "user_id": user_id,
-              "team_id": team_id,
-              "bucket": "clips",
-              "file_path": output_path,
-              "file_size": file_size,
-              "storage_deleted": False,
-          }).encode()
+          def call(url, body, method):
+              r = urllib.request.Request(url, data=json.dumps(body).encode(), method=method, headers=H)
+              try:
+                  with urllib.request.urlopen(r) as resp:
+                      print(f"{method} {url.split('/rest/v1/')[1][:70]} -> HTTP {resp.status}", flush=True)
+              except urllib.error.HTTPError as e:
+                  print(f"{method} failed: {e.code} {e.read()[:200]}", flush=True)
+                  raise
 
-          req = urllib.request.Request(
-              f"{supabase_url}/rest/v1/uploads",
-              data=payload,
-              method="POST",
-              headers={
-                  "Authorization": f"Bearer {service_key}",
-                  "apikey": service_key,
-                  "Content-Type": "application/json",
-                  "Prefer": "return=minimal",
-              }
-          )
-          try:
-              with urllib.request.urlopen(req) as resp:
-                  print(f"Created upload row: {upload_id} (HTTP {resp.status})", flush=True)
-          except urllib.error.HTTPError as e:
-              print(f"Upload row error: {e.code} {e.read()[:200]}", flush=True)
-              raise
+          if reserved:
+              # Post reserved this row so the user could schedule before the file existed; fill it in.
+              upload_id = reserved
+              call(f"{supabase_url}/rest/v1/uploads?id=eq.{upload_id}",
+                   {"file_size": file_size, "render_status": None}, "PATCH")
+          else:
+              # Legacy dispatch without a reserved row
+              upload_id = str(uuid.uuid4())
+              call(f"{supabase_url}/rest/v1/uploads",
+                   {"id": upload_id, "user_id": user_id, "team_id": team_id, "bucket": "clips",
+                    "file_path": output_path, "file_size": file_size, "storage_deleted": False}, "POST")
+
+          if thumb_path:
+              # Posts may have been scheduled before the render finished; give them the captioned thumbnail.
+              call(f"{supabase_url}/rest/v1/scheduled_posts?upload_id=eq.{upload_id}&thumbnail_path=is.null",
+                   {"thumbnail_path": thumb_path}, "PATCH")
 
           # Mark burn job done
           done_payload = json.dumps({
               "status": "done",
+              "progress_pct": 100,
               "result_upload_id": upload_id,
               "updated_at": now,
           }).encode()
@@ -897,3 +927,13 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc --arg e "${ERR_MSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"
+          # The reserved upload never got its file: mark it so scheduled posts fail clearly
+          # (and the scheduling screen offers Retry) instead of waiting out the 20-minute timeout.
+          if [ -n "${{ inputs.upload_id }}" ]; then
+            curl -sS -X PATCH \
+              "${{ secrets.SUPABASE_URL }}/rest/v1/uploads?id=eq.${{ inputs.upload_id }}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -nc '{render_status:"failed"}')" || true
+          fi
