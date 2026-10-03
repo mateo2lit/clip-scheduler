@@ -600,7 +600,9 @@ export default function AiClipsPage() {
       const { extractAudioChunksFfmpeg } = await import("@/lib/aiClips/ffmpegFallback");
       const { uploadChunkStream } = await import("@/lib/aiClips/chunkedUploader");
 
-      const generator = largePathCaps.encoder === "webcodecs" && largePathCaps.container === "mp4"
+      // MP4/MOV audio is read straight from the file (no WebCodecs needed); the extractor
+      // hands non-AAC audio to FFmpeg.wasm itself.
+      const generator = largePathCaps.container === "mp4" || largePathCaps.container === "mov"
         ? extractAudioChunks(file, {
             chunkSeconds: 30,
             onProgress: (sec, totalSec) => setExtractionProgress((p) => ({ ...p, sec, totalSec })),
