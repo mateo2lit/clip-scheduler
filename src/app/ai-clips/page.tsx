@@ -45,6 +45,7 @@ const LARGE_READING_COPY = {
   title: "Reading your video's audio",
   why: "Your video stays on your computer. We send just its audio, which is much faster than uploading the whole file.",
 };
+const NO_AUDIO_MESSAGE = "This video has no sound. AI Clips finds the best moments by listening to what's said, so pick a video with audio.";
 const LARGE_KEEP_OPEN = "Keep this tab open: once the moments are found, your clips are cut right here in your browser.";
 
 /** A large job whose moments are found but whose clips haven't been cut yet. */
@@ -69,7 +70,7 @@ const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: 
 // ─── Large-path imports + constants ──────────────────────────────────────────
 
 import { detectCodecCapabilities } from "@/lib/aiClips/codecDetect";
-import { probeMp4DurationSeconds } from "@/lib/aiClips/audioExtractor";
+import { probeMp4 } from "@/lib/aiClips/audioExtractor";
 
 const LARGE_ENABLED = process.env.NEXT_PUBLIC_AI_CLIPS_LARGE_ENABLED === "true";
 const FILE_SIZE_THRESHOLD_BYTES = 1024 * 1024 * 1024;       // 1 GB
@@ -77,11 +78,13 @@ const DURATION_THRESHOLD_SECONDS = 30 * 60;                 // 30 min
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function readVideoDurationSafe(file: File): Promise<{ minutes: number; useLargePath: boolean; failed: boolean }> {
+async function readVideoDurationSafe(file: File): Promise<{ minutes: number; useLargePath: boolean; failed: boolean; hasAudio: boolean | null }> {
   // Always try mp4box first — fast and doesn't hang
   let durationSec = 0;
+  // null = couldn't tell (non-MP4); the server still fails it cleanly
+  let hasAudio: boolean | null = null;
   try {
-    durationSec = await probeMp4DurationSeconds(file);
+    ({ durationSec, hasAudio } = await probeMp4(file));
   } catch {
     // Fall back to <video> blob URL with a 10s timeout for non-MP4 small files
     durationSec = await new Promise<number>((resolve) => {
@@ -97,7 +100,7 @@ async function readVideoDurationSafe(file: File): Promise<{ minutes: number; use
   const minutes = durationSec / 60;
   const failed = !Number.isFinite(durationSec) || durationSec <= 0;
   const useLargePath = file.size > FILE_SIZE_THRESHOLD_BYTES || durationSec > DURATION_THRESHOLD_SECONDS;
-  return { minutes: Math.ceil(minutes * 10) / 10, useLargePath, failed };
+  return { minutes: Math.ceil(minutes * 10) / 10, useLargePath, failed, hasAudio };
 }
 
 function uploadFileWithProgress(file: File, signedUrl: string, onProgress: (pct: number) => void): Promise<void> {
@@ -477,13 +480,20 @@ export default function AiClipsPage() {
     setSubmitError(null);
     setLargePathRefusal(null);
 
-    const { minutes, useLargePath, failed } = await readVideoDurationSafe(selectedFile);
+    const { minutes, useLargePath, failed, hasAudio } = await readVideoDurationSafe(selectedFile);
     setFileDurationMinutes(minutes);
 
     if (failed) {
       setSubmitError(
         `Couldn't read the duration of "${selectedFile.name}". This usually means the file isn't an MP4 (H.264) video — for example .mpg, .mpeg, .ts, .flv, or .wmv files aren't supported by browsers. Convert to MP4 first using HandBrake or: ffmpeg -i input -c:v libx264 -c:a aac -movflags +faststart output.mp4`
       );
+      setFile(null);
+      setFileDurationMinutes(0);
+      return;
+    }
+
+    if (hasAudio === false) {
+      setSubmitError(NO_AUDIO_MESSAGE);
       setFile(null);
       setFileDurationMinutes(0);
       return;

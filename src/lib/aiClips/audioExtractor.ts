@@ -83,13 +83,13 @@ const PROBE_TAIL_SIZE = 10 * 1024 * 1024;  // 10 MB
 const PROBE_TIMEOUT_MS = 15_000;
 
 /**
- * Probe a video's duration by parsing only the moov atom, which sits in the
+ * Probe a video's duration and tracks by parsing only the moov atom, which sits in the
  * first few MB (faststart) or the last few MB (OBS, screen recorders, YouTube
  * Studio and Twitch downloads).
  *
  * Hard 15s timeout prevents hangs on broken / unparseable files.
  */
-export async function probeMp4DurationSeconds(file: File): Promise<number> {
+export async function probeMp4(file: File): Promise<{ durationSec: number; hasAudio: boolean }> {
   // Head and tail in one pass. Trying the head alone first cost a full timeout
   // (15 s of "Reading duration…") on every file with moov at the end, which is
   // most exports (YouTube Studio, OBS); reading 15 MB up front costs nothing.
@@ -106,8 +106,8 @@ export async function probeMp4DurationSeconds(file: File): Promise<number> {
 async function probeFromRanges(
   file: File,
   ranges: { start: number; end: number }[],
-): Promise<number> {
-  return new Promise<number>((resolve, reject) => {
+): Promise<{ durationSec: number; hasAudio: boolean }> {
+  return new Promise((resolve, reject) => {
     const mp4 = createFile();
     let settled = false;
 
@@ -124,7 +124,11 @@ async function probeFromRanges(
     );
 
     mp4.onError = (e: unknown) => finish(() => reject(new Error(`mp4box error: ${e}`)));
-    mp4.onReady = (info: Movie) => finish(() => resolve(info.duration / info.timescale));
+    mp4.onReady = (info: Movie) => finish(() => resolve({
+      durationSec: info.duration / info.timescale,
+      // AI Clips finds moments from speech, so a silent video can't be clipped
+      hasAudio: info.tracks.some((t) => t.type === "audio"),
+    }));
 
     void (async () => {
       try {

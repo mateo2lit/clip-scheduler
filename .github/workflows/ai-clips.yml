@@ -609,6 +609,11 @@ jobs:
               fi
             fi
           done
+          # A silent video fails audio extraction with an ffmpeg log line; say what it means instead.
+          # Keep in sync with NO_AUDIO_MESSAGE in src/app/ai-clips/page.tsx (the browser catches MP4s first).
+          if [ -s /tmp/source.mp4 ] && [ -z "$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 /tmp/source.mp4 2>/dev/null)" ]; then
+            ERR_MSG="This video has no sound. AI Clips finds the best moments by listening to what's said, so pick a video with audio."
+          fi
           # Check if the source file is still missing (yt-dlp likely timed out or was blocked)
           if [ ! -s /tmp/source.mp4 ]; then
             SOURCE_URL="${{ inputs.source_url }}"
