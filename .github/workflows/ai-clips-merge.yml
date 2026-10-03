@@ -18,7 +18,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # package.json requires 24; supabase-js's realtime client also needs a global WebSocket (Node 22+)
+          node-version: 24
 
       - name: Install minimal deps
         run: npm install --no-save @anthropic-ai/sdk@^0.74.0 @supabase/supabase-js@^2.93.3 tsx
@@ -89,6 +90,28 @@ jobs:
           });
 
           // 3. Claude detection (single-pass for now; map-reduce TBD if transcript too long)
+          // Claude can only pick real timestamps if it sees them, so send timed lines
+          // ("[12.3s-20.1s] text", same format as the small path) instead of plain text.
+          const words = merged.word_segments_json;
+          const durationSec = Math.max(
+            ...chunks.map((c) => Number(c.end_sec) || 0),
+            words.length ? words[words.length - 1].end : 0,
+          ) || job.source_duration_minutes * 60;
+          const lines: string[] = [];
+          let line: { start: number; end: number; words: string[] } | null = null;
+          for (const w of words) {
+            line ??= { start: w.start, end: w.end, words: [] };
+            line.words.push(w.word);
+            line.end = w.end;
+            const len = line.end - line.start;
+            if (len >= 10 || (len >= 3 && /[.!?]$/.test(w.word))) {
+              lines.push(`[${line.start.toFixed(1)}s-${line.end.toFixed(1)}s] ${line.words.join(" ")}`);
+              line = null;
+            }
+          }
+          if (line) lines.push(`[${line.start.toFixed(1)}s-${line.end.toFixed(1)}s] ${line.words.join(" ")}`);
+          const timedTranscript = lines.join("\n");
+
           const anthropic = new Anthropic();
           // Kept deliberately in step with the small-path prompt in ai-clips.yml so a
           // clip scored 90 here means the same thing as a clip scored 90 there.
@@ -110,8 +133,10 @@ jobs:
           Order the array from HIGHEST score to LOWEST. Return JSON only:
           [{"start_sec":<number>,"end_sec":<number>,"title":"<short>","hook_title":"<hook>","score":<0-100>,"reason":"<one sentence>"}]
 
-          Transcript:
-          ${merged.transcript.slice(0, 100_000)}`;
+          The video is ${Math.round(durationSec)} seconds long. Take start_sec/end_sec from the transcript timestamps.
+
+          Transcript (format: [start-end] text):
+          ${timedTranscript.slice(0, 100_000)}`;
 
           const resp = await anthropic.messages.create({
             model: "claude-haiku-4-5-20251001",
@@ -125,9 +150,14 @@ jobs:
             moments = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
           } catch { moments = []; }
 
+          // Drop moments outside the video and clamp the rest to it
+          moments = moments
+            .map((m) => ({ ...m, start_sec: Math.max(0, Number(m.start_sec)), end_sec: Math.min(durationSec, Number(m.end_sec)) }))
+            .filter((m) => Number.isFinite(m.start_sec) && Number.isFinite(m.end_sec) && m.end_sec - m.start_sec >= 5);
+
           // Fallback: evenly spaced
           if (!moments.length) {
-            const dur = job.source_duration_minutes * 60;
+            const dur = durationSec;
             const step = dur / job.clip_count;
             moments = Array.from({ length: job.clip_count }, (_, i) => ({
               start_sec: Math.round(i * step),

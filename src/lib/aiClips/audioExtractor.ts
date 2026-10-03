@@ -154,7 +154,7 @@ async function probeFromRanges(
  * before we start streaming the body. Required for non-faststart MP4s (moov at end).
  * Returns the parsed Movie info.
  */
-async function primeMp4WithMoov(
+export async function primeMp4WithMoov(
   file: Blob,
   mp4: ReturnType<typeof createFile>,
 ): Promise<Movie> {

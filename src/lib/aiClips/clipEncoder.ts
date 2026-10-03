@@ -1,250 +1,144 @@
 // src/lib/aiClips/clipEncoder.ts
-// WebCodecs lazy clip encoder — cuts a frame-accurate clip from the original file,
-// decodes via VideoDecoder, re-encodes to H.264 via VideoEncoder, and muxes with mp4-muxer.
+// Cuts a clip out of a large local MP4 for the large-file AI Clips path.
 //
-// NOTE: The plan's import used non-existent aliases (MP4ArrayBuffer, MP4Info, MP4Sample).
-// mp4box@1.5.x named exports are: createFile, MP4BoxBuffer, DataStream, Movie, Sample, Track.
-// There is no default export — use named imports only.
+// It remuxes instead of re-encoding: the sample tables in moov say where every
+// video and audio frame is, so only the clip's bytes are read from the file and
+// handed straight to mp4-muxer. The old version streamed the whole file through
+// mp4box (which kept all of it in memory, the same NotReadableError bug as the
+// audio extractor), decoded every frame into memory, and dropped the audio.
+//
+// The clip starts on the keyframe at or before startSec, because a remux can
+// only cut on keyframes; for typical exports that is at most a couple of seconds early.
 
-import {
-  createFile,
-  MP4BoxBuffer,
-  DataStream,
-  Endianness,
-  type Movie,
-  type Sample,
-  type Track,
-} from "mp4box";
+import { createFile, DataStream, Endianness } from "mp4box";
+import { primeMp4WithMoov } from "@/lib/aiClips/audioExtractor";
+import { planReads, type AacSample } from "@/lib/aiClips/aacChunks";
 
 export type EncodeClipOptions = {
   startSec: number;
   endSec: number;
-  bitrate?: number;       // default 8 Mbps
-  width?: number;         // default: source width
-  height?: number;        // default: source height
-  framerate?: number;     // default: 30
-  onProgress?: (frameIdx: number, totalFrames: number | undefined) => void;
+  onProgress?: (done: number, total: number | undefined) => void;
 };
 
-const DEFAULT_BITRATE = 8_000_000;
+type TrakSample = AacSample & { cts: number; is_sync: boolean };
 
-/**
- * Encode a single clip as MP4/H.264. Frame-accurate at the start by seeking to the
- * keyframe before startSec and dropping pre-roll frames whose timestamp < desiredStartUs.
- *
- * MP4-only. For other containers, route via FFmpeg.wasm.
- */
-export async function encodeClip(file: File, opts: EncodeClipOptions): Promise<Blob> {
-  const { startSec, endSec } = opts;
-  const targetBitrate = opts.bitrate ?? DEFAULT_BITRATE;
-
-  // Demux source to find video track + sample positions
+export async function encodeClip(file: Blob, opts: EncodeClipOptions): Promise<Blob> {
   const mp4 = createFile();
-  const info = await new Promise<Movie>((resolve, reject) => {
-    mp4.onError = (e: unknown) => reject(new Error(`mp4box error: ${e}`));
-    mp4.onReady = (info: Movie) => resolve(info);
-    streamFileToMp4(file, mp4).catch(reject);
-  });
+  const info = await primeMp4WithMoov(file, mp4);
 
-  const videoTrack: Track | undefined = info.tracks.find((t) => t.type === "video");
+  const videoTrack = info.tracks.find((t) => t.type === "video");
   if (!videoTrack) throw new Error("No video track in source.");
+  const vTrak: any = mp4.getTrackById(videoTrack.id);
+  const vEntry = vTrak?.mdia?.minf?.stbl?.stsd?.entries?.[0];
+  if (!vEntry?.avcC) throw new Error("This video isn't H.264, which large-file clips need. Re-export it as H.264 MP4.");
+  const vSamples: TrakSample[] = vTrak.samples ?? [];
 
-  const width = opts.width ?? videoTrack.video?.width ?? 1920;
-  const height = opts.height ?? videoTrack.video?.height ?? 1080;
-  const framerate = opts.framerate ?? 30;
+  const audioTrack = info.tracks.find((t) => t.type === "audio");
+  const aTrak: any = audioTrack ? mp4.getTrackById(audioTrack.id) : null;
+  const asc = aTrak ? findDecoderSpecificInfo(aTrak.mdia?.minf?.stbl?.stsd?.entries?.[0]?.esds?.esd) : null;
+  const aSamples: TrakSample[] = audioTrack?.codec?.startsWith("mp4a") && asc ? aTrak.samples ?? [] : [];
 
-  // Pull samples that intersect [startSec, endSec]
-  const desiredStartUs = startSec * 1_000_000;
-  const desiredEndUs = endSec * 1_000_000;
+  const cut = selectClipSamples(vSamples, aSamples, opts.startSec, opts.endSec);
+  if (!cut.video.length) throw new Error("This moment is outside the video.");
 
-  // Set up VideoDecoder
-  const decodedFrames: VideoFrame[] = [];
-  let decoderError: Error | null = null;
-  const decoder = new VideoDecoder({
-    output: (f) => decodedFrames.push(f),
-    error: (e) => { decoderError = e instanceof Error ? e : new Error(String(e)); },
-  });
-  decoder.configure({
-    codec: videoTrack.codec || "avc1.42E01E",
-    codedWidth: videoTrack.video?.width ?? width,
-    codedHeight: videoTrack.video?.height ?? height,
-    description: extractAvcConfig(mp4, videoTrack.id),
-  });
-
-  // Set up VideoEncoder
-  const encodedChunks: { data: Uint8Array; timestamp: number; duration: number; type: "key" | "delta" }[] = [];
-  let encoderError: Error | null = null;
-  const encoder = new VideoEncoder({
-    output: (chunk) => {
-      const buf = new Uint8Array(chunk.byteLength);
-      chunk.copyTo(buf);
-      encodedChunks.push({
-        data: buf,
-        timestamp: chunk.timestamp,
-        duration: chunk.duration ?? 0,
-        type: chunk.type as "key" | "delta",
-      });
-    },
-    error: (e) => { encoderError = e instanceof Error ? e : new Error(String(e)); },
-  });
-  await encoder.configure({
-    codec: "avc1.42E01E",
-    width,
-    height,
-    bitrate: targetBitrate,
-    framerate,
-  });
-
-  // Walk samples: back to nearest keyframe before startSec, decode through endSec
-  mp4.setExtractionOptions(videoTrack.id, null, { nbSamples: 60 });
-
-  const samplesQueue: Sample[] = [];
-  let streamingDone = false;
-
-  mp4.onSamples = (_id: number, _user: unknown, batch: Sample[]) => {
-    samplesQueue.push(...batch);
-  };
-
-  // Start streaming concurrently; set streamingDone only after flush completes.
-  // Do NOT set it in .catch() — errors are surfaced via the awaited promise below.
-  const streamPromise = streamFileToMp4(file, mp4).then(() => {
-    streamingDone = true;
-  });
-
-  mp4.start();
-
-  // Wait for the full stream to complete before walking samplesQueue.
-  // A single event-loop tick is not enough for files larger than ~256 KB —
-  // the stream reads in a loop and may not have fed all samples yet.
-  while (!streamingDone) {
-    await new Promise<void>((r) => setTimeout(r, 0));
-  }
-  // Surface any streaming error.
-  await streamPromise;
-
-  // Find keyframe at-or-before desiredStartUs
-  let firstKeyframeIdx = 0;
-  for (let i = 0; i < samplesQueue.length; i++) {
-    const sUs = (samplesQueue[i].cts / samplesQueue[i].timescale) * 1_000_000;
-    if (samplesQueue[i].is_sync && sUs <= desiredStartUs) firstKeyframeIdx = i;
-    if (sUs > desiredEndUs) break;
-  }
-
-  for (let i = firstKeyframeIdx; i < samplesQueue.length; i++) {
-    const s = samplesQueue[i];
-    const sUs = (s.cts / s.timescale) * 1_000_000;
-    if (sUs > desiredEndUs) break;
-    decoder.decode(new EncodedVideoChunk({
-      type: s.is_sync ? "key" : "delta",
-      timestamp: sUs,
-      duration: (s.duration / s.timescale) * 1_000_000,
-      data: s.data!,
-    }));
-  }
-
-  await decoder.flush();
-  if (decoderError) throw decoderError;
-
-  // Re-encode each decoded frame, skipping pre-roll (before desiredStartUs) and frames beyond endSec
-  let outFrameIdx = 0;
-  for (const frame of decodedFrames) {
-    if (frame.timestamp < desiredStartUs) {
-      frame.close();
-      continue;
-    }
-    if (frame.timestamp > desiredEndUs) {
-      frame.close();
-      continue;
-    }
-    encoder.encode(frame, { keyFrame: outFrameIdx === 0 });
-    frame.close();
-    outFrameIdx++;
-    // Pass undefined for total — totalFrames includes pre-roll frames that are dropped,
-    // so it would overcount. The UI shows indeterminate progress for clips.
-    opts.onProgress?.(outFrameIdx, undefined);
-  }
-  await encoder.flush();
-  if (encoderError) throw encoderError;
-
-  encoder.close();
-  decoder.close();
-
-  // Mux encoded chunks back into MP4 container via mp4-muxer
-  const muxed = await muxAvcChunksToMp4(encodedChunks, { width, height, framerate });
-  return new Blob([muxed], { type: "video/mp4" });
-}
-
-/**
- * Extracts the avcC box payload from the source track's sample description.
- * Skips the leading 8-byte box header (size + fourCC) — WebCodecs expects the raw record.
- */
-function extractAvcConfig(mp4: ReturnType<typeof createFile>, trackId: number): Uint8Array {
-  const trak = mp4.getTrackById(trackId);
-  const entry = (trak as any)?.mdia?.minf?.stbl?.stsd?.entries?.[0];
-  const avcC = entry?.avcC;
-  if (!avcC) throw new Error("Source track is missing avcC box (not H.264?)");
-
-  const stream = new DataStream(undefined, 0, Endianness.BIG_ENDIAN);
-  avcC.write(stream);
-  // avcC.write writes a full box; strip the leading 8-byte size+type header.
-  return new Uint8Array(stream.buffer, 8);
-}
-
-async function muxAvcChunksToMp4(
-  chunks: { data: Uint8Array; timestamp: number; duration: number; type: "key" | "delta" }[],
-  cfg: { width: number; height: number; framerate: number }
-): Promise<Uint8Array<ArrayBuffer>> {
   const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
-    video: {
-      codec: "avc",
-      width: cfg.width,
-      height: cfg.height,
-      frameRate: cfg.framerate,
-    },
-    fastStart: "in-memory",
+    video: { codec: "avc", width: videoTrack.video?.width ?? 1920, height: videoTrack.video?.height ?? 1080 },
+    ...(cut.audio.length
+      ? { audio: { codec: "aac" as const, numberOfChannels: audioTrack!.audio?.channel_count ?? 2, sampleRate: audioTrack!.audio?.sample_rate ?? 48000 } }
+      : {}),
+    // Reserve moov space up front: same fast-start file as "in-memory" without holding
+    // every chunk a second time until finalize.
+    fastStart: { expectedVideoChunks: cut.video.length, expectedAudioChunks: cut.audio.length },
+    firstTimestampBehavior: "offset",
   });
-  for (const c of chunks) {
-    muxer.addVideoChunk(
-      new EncodedVideoChunk({
-        type: c.type,
-        timestamp: c.timestamp,
-        duration: c.duration,
-        data: c.data,
-      }),
-      undefined
-    );
-  }
+
+  const vMeta = {
+    decoderConfig: {
+      codec: videoTrack.codec,
+      codedWidth: videoTrack.video?.width,
+      codedHeight: videoTrack.video?.height,
+      description: avcConfigRecord(vEntry.avcC),
+    },
+  } as EncodedVideoChunkMetadata;
+  const aMeta = cut.audio.length
+    ? ({ decoderConfig: { codec: audioTrack!.codec, sampleRate: audioTrack!.audio?.sample_rate, numberOfChannels: audioTrack!.audio?.channel_count, description: asc } } as EncodedAudioChunkMetadata)
+    : undefined;
+
+  const us = (t: number, ts: number) => Math.round((t / ts) * 1_000_000);
+  const total = cut.video.length + cut.audio.length;
+  let done = 0;
+
+  // Video and audio are muxed into separate tracks, so each can be added in its own order.
+  await readSamples(file, cut.video, (s, data, first) => {
+    muxer.addVideoChunkRaw(data, s.is_sync ? "key" : "delta", us(s.cts, s.timescale), us(s.duration, s.timescale),
+      first ? vMeta : undefined, us(s.cts - s.dts, s.timescale));
+    opts.onProgress?.(++done, total);
+  });
+  await readSamples(file, cut.audio, (s, data, first) => {
+    muxer.addAudioChunkRaw(data, "key", us(s.dts, s.timescale), us(s.duration, s.timescale), first ? aMeta : undefined);
+    opts.onProgress?.(++done, total);
+  });
+
   muxer.finalize();
-  return new Uint8Array(muxer.target.buffer) as Uint8Array<ArrayBuffer>;
+  return new Blob([muxer.target.buffer], { type: "video/mp4" });
 }
 
-async function streamFileToMp4(
-  file: File,
-  mp4: ReturnType<typeof createFile>,
-  signal?: AbortSignal,
-): Promise<void> {
-  const reader = file.stream().getReader();
-  let offset = 0;
-  try {
-    while (true) {
-      if (signal?.aborted) {
-        const err = new DOMException("Aborted", "AbortError");
-        reader.cancel(err);
-        throw err;
-      }
-      const { done, value } = await reader.read();
-      if (done) {
-        mp4.flush();
-        return;
-      }
-      const ab = MP4BoxBuffer.fromArrayBuffer(value.buffer, offset);
-      mp4.appendBuffer(ab);
-      offset += value.byteLength;
-    }
-  } catch (e) {
-    reader.cancel(e);
-    throw e;
+/**
+ * Picks the decode-order run of video samples from the keyframe at or before
+ * startSec up to endSec, and the audio samples over the same span. A
+ * decode-order prefix starting on a keyframe is always decodable.
+ */
+export function selectClipSamples<T extends TrakSample>(video: T[], audio: T[], startSec: number, endSec: number) {
+  let first = -1;
+  for (let i = 0; i < video.length; i++) {
+    const s = video[i];
+    if (s.dts / s.timescale > startSec) break;
+    if (s.is_sync && s.cts / s.timescale <= startSec) first = i;
   }
+  if (first < 0) first = video.findIndex((s) => s.is_sync);
+  if (first < 0) return { video: [] as T[], audio: [] as T[] };
+
+  let last = first;
+  while (last + 1 < video.length && video[last + 1].dts / video[last + 1].timescale < endSec) last++;
+  const clipVideo = video.slice(first, last + 1);
+
+  const fromSec = clipVideo[0].cts / clipVideo[0].timescale;
+  const toSec = Math.max(...clipVideo.map((s) => (s.cts + s.duration) / s.timescale));
+  const clipAudio = audio.filter((s) => s.dts / s.timescale >= fromSec && s.dts / s.timescale < toSec);
+  return { video: clipVideo, audio: clipAudio };
+}
+
+/** Reads samples by byte range (batched, never the whole file) and hands each one over in order. */
+async function readSamples<T extends TrakSample>(
+  file: Blob,
+  samples: T[],
+  onSample: (s: T, data: Uint8Array, first: boolean) => void,
+): Promise<void> {
+  for (const read of planReads(samples)) {
+    const bytes = new Uint8Array(await file.slice(read.start, read.end).arrayBuffer());
+    for (let i = read.first; i <= read.last; i++) {
+      const s = samples[i];
+      const at = s.offset - read.start;
+      onSample(s, bytes.subarray(at, at + s.size), i === 0);
+    }
+  }
+}
+
+/** The avcC payload WebCodecs/mp4-muxer expect: the box minus its 8-byte header. */
+function avcConfigRecord(avcC: any): Uint8Array {
+  const stream = new DataStream(undefined, 0, Endianness.BIG_ENDIAN);
+  avcC.write(stream);
+  return new Uint8Array(stream.buffer, 8);
+}
+
+function findDecoderSpecificInfo(d: any): Uint8Array | null {
+  if (!d) return null;
+  if (d.tag === 5 && d.data?.length) return new Uint8Array(d.data);
+  for (const c of d.descs ?? []) {
+    const r = findDecoderSpecificInfo(c);
+    if (r) return r;
+  }
+  return null;
 }

@@ -28,6 +28,7 @@ type MomentResult = {
 
 type AiClipJob = {
   id: string;
+  team_id?: string;
   clip_count: number;
   source_duration_minutes: number;
   status: AiClipJobStatus;
@@ -258,17 +259,28 @@ export default function AiClipProjectPage() {
         setEncoding({ momentIdx: moment.index, pct: total ? Math.round((i / total) * 100) : 0 });
       },
     });
-    const fd = new FormData();
-    fd.append("file", blob, `clip_${moment.index}.mp4`);
-    const res = await fetch("/api/uploads", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${authToken}` },
-      body: fd,
+    // Same flow as the uploads page: straight to Storage (clips are far over Vercel's
+    // request body limit), then register the row.
+    const { data: sess } = await supabase.auth.getSession();
+    const prefix = job?.team_id || sess.session?.user.id;
+    if (!prefix) throw new Error("Not logged in");
+    const objectKey = `${prefix}/${Date.now()}-ai-clip-${moment.index + 1}.mp4`;
+    const stored = await supabase.storage.from("clips").upload(objectKey, blob, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: "video/mp4",
     });
-    const json = await res.json();
+    if (stored.error) throw new Error(stored.error.message);
+
+    const res = await fetch("/api/uploads/create", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ bucket: "clips", file_path: objectKey, file_size: blob.size }),
+    });
+    const json = await res.json().catch(() => null);
     setEncoding(null);
-    if (!json.ok) throw new Error(json.error || "Upload failed");
-    return json.uploadId as string;
+    if (!res.ok || !json?.ok) throw new Error(json?.error || "Upload failed");
+    return json.id as string;
   }
 
   async function handleScheduleLargeMoment(moment: MomentResult) {
