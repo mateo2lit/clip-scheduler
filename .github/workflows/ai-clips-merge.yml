@@ -30,8 +30,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           JOB_ID: ${{ inputs.job_id }}
+        # Written to a file because tsx doesn't transform a script piped on stdin:
+        # node gets raw TypeScript and dies on the first `!`.
         run: |
-          npx tsx <<'TSEOF'
+          cat > merge-job.mts <<'TSEOF'
           import { mergeChunkTranscripts } from "./src/lib/aiClipsTranscriptMerge.ts";
           import Anthropic from "@anthropic-ai/sdk";
 
@@ -49,8 +51,10 @@ jobs:
                 "Content-Type": "application/json",
               },
             });
-            if (!r.ok) throw new Error(`${path} → ${r.status} ${await r.text()}`);
-            return r.json();
+            const body = await r.text();
+            if (!r.ok) throw new Error(`${path} → ${r.status} ${body}`);
+            // PATCH answers 204 with an empty body
+            return body ? JSON.parse(body) : null;
           }
 
           // 1. Pull job + chunks
@@ -197,17 +201,20 @@ jobs:
             }
           }
 
+          // 5. Delete the audio chunks. Storage removes exact paths only, so list the folder first.
+          try {
+            const { createClient } = await import("@supabase/supabase-js");
+            const bucket = createClient(SB, SR).storage.from("clips");
+            const folder = `ai_audio_chunks/${JOB}`;
+            const { data: files } = await bucket.list(folder, { limit: 1000 });
+            if (files?.length) await bucket.remove(files.map((f) => `${folder}/${f.name}`));
+          } catch (e) {
+            console.warn("chunk cleanup failed:", e);
+          }
+
           console.log("Merge + detection complete.");
           TSEOF
-
-      - name: Cleanup audio chunks
-        if: success()
-        run: |
-          curl -sS -X DELETE \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{"prefixes":["ai_audio_chunks/${{ inputs.job_id }}/"]}' || true
+          npx tsx merge-job.mts
 
       - name: Mark job failed on error
         if: failure()

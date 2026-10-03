@@ -95,18 +95,14 @@ jobs:
 
       - name: Persist chunk result
         run: |
-          BODY=$(jq -Rs --argjson result "$(cat /tmp/result.json)" '{
-            status: "done",
-            transcript: $result.transcript,
-            word_segments_json: $result.word_segments_json,
-            updated_at: (now | todate)
-          } * {transcript: $result.transcript, word_segments_json: $result.word_segments_json}' <<<'')
-          curl -sS -X PATCH \
+          # status "done" is what the merge workflow checks; without it every chunk reads as failed.
+          jq '. + {status: "done", updated_at: (now | todate)}' /tmp/result.json > /tmp/body.json
+          curl -fsS -X PATCH \
             "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d @/tmp/result.json
+            -d @/tmp/body.json
 
       - name: Mark chunk failed on error
         if: failure()
