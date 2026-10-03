@@ -8,6 +8,7 @@ import { GENERATION_COPY, generationEstimateSec, formatAbout, isSlow, SLOW_COPY,
 import { SubtitleStyle, DEFAULT_SUBTITLE_STYLE } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { LinkSimple, CaretRight, Check, CloudArrowUp } from "@phosphor-icons/react/dist/ssr";
+import type { FinishProgress } from "@/lib/aiClips/finishLargeJob";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,11 +30,27 @@ type AiClipJob = {
   result_upload_ids: string[] | null;
   result_titles: string[] | null;
   result_subtitles: any[] | null;
-  result_moments_json?: { index: number; score?: number; title?: string }[] | null;
+  result_moments_json?: { index: number; score?: number; title?: string; start_sec: number; end_sec: number }[] | null;
+  processing_path?: "small" | "large";
+  team_id?: string;
   error: string | null;
   created_at: string;
   updated_at: string;
 };
+
+// Large files never leave the user's computer: the tab reads the audio out, and
+// once moments are found it cuts the clips itself. These replace the server-side
+// wording for the stages the browser does.
+const LARGE_READING_COPY = {
+  title: "Reading your video's audio",
+  why: "Your video stays on your computer. We send just its audio, which is much faster than uploading the whole file.",
+};
+const LARGE_KEEP_OPEN = "Keep this tab open: once the moments are found, your clips are cut right here in your browser.";
+
+/** A large job whose moments are found but whose clips haven't been cut yet. */
+function needsLargeFinish(job: AiClipJob): boolean {
+  return job.processing_path === "large" && job.status === "done" && !job.result_upload_ids?.length;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -294,6 +311,11 @@ export default function AiClipsPage() {
   const [largePathCaps, setLargePathCaps] = useState<import("@/types/aiClipsLarge").CodecCapabilities | null>(null);
   const [largePathRefusal, setLargePathRefusal] = useState<string | null>(null);
   const [extractionProgress, setExtractionProgress] = useState({ done: 0, total: 0, sec: 0, totalSec: 0 });
+  // The file a large job is reading from; kept so its clips can be cut in this tab.
+  const largeFileRef = useRef<File | null>(null);
+  const largeFinishJobRef = useRef<string | null>(null);
+  const [finishing, setFinishing] = useState<FinishProgress | null>(null);
+  const [finishError, setFinishError] = useState<{ jobId: string; message: string } | null>(null);
 
   const [activeJob, setActiveJob] = useState<AiClipJob | null>(null);
   const [pastJobs, setPastJobs] = useState<AiClipJob[]>([]);
@@ -303,7 +325,55 @@ export default function AiClipsPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const progress = useSimulatedProgress(activeJob?.status ?? null, uploadProgress);
+  const isLargeJob = activeJob?.processing_path === "large";
+  const readingPct = extractionProgress.totalSec > 0
+    ? Math.min(100, Math.round((extractionProgress.sec / extractionProgress.totalSec) * 100))
+    : 0;
+  const simulatedProgress = useSimulatedProgress(activeJob?.status ?? null, isLargeJob ? readingPct : uploadProgress);
+  // Cutting in the browser has real progress: each clip is a cut then an upload.
+  const progress = finishing
+    ? (() => {
+        const { min, max } = STATUS_CONFIG.cutting;
+        // Cutting is ~1 s per clip; uploading is the slow part, so it gets most of each clip's share.
+        const step = finishing.phase === "saving"
+          ? finishing.total
+          : finishing.clip - 1 + (finishing.phase === "uploading" ? 0.1 + 0.9 * (finishing.fraction ?? 0) : 0);
+        return min + (max - min) * (step / finishing.total);
+      })()
+    : simulatedProgress;
+
+  // Leaving mid-way strands the job: the browser is doing the work.
+  const browserIsWorking = !!finishing || (isLargeJob && !!activeJob && activeJob.status !== "done" && activeJob.status !== "failed");
+  useEffect(() => {
+    if (!browserIsWorking) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [browserIsWorking]);
+
+  /** Cuts and uploads a large job's clips from the file this tab still holds. */
+  async function finishLargeInTab(job: AiClipJob, token: string) {
+    const file = largeFileRef.current;
+    if (!file) return;
+    setFinishError(null);
+    setFinishing({ phase: "cutting", clip: 1, total: job.result_moments_json?.length || 1 });
+    try {
+      const { finishLargeJob } = await import("@/lib/aiClips/finishLargeJob");
+      await finishLargeJob(file, job, token, setFinishing);
+      largeFileRef.current = null;
+      const res = await fetch(`/api/ai-clips/${job.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json().catch(() => null);
+      const finished: AiClipJob = json?.ok && json.job ? json.job : job;
+      setActiveJob(finished);
+      setPastJobs((prev) => [finished, ...prev.filter((j) => j.id !== finished.id)]);
+    } catch (e: any) {
+      // The moments are saved; the project page can finish the job once the file is reconnected.
+      setFinishError({ jobId: job.id, message: describeSubmitError(e) });
+      setPastJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
+    } finally {
+      setFinishing(null);
+    }
+  }
 
   // ── Boot ────────────────────────────────────────────────────────────────
 
@@ -371,6 +441,14 @@ export default function AiClipsPage() {
             clearInterval(pollRef.current!);
             if (job.status === "done") {
               setCreditsUsed((prev) => prev + (job.source_duration_minutes ?? 0));
+              if (needsLargeFinish(job) && largeFileRef.current) {
+                // Moments are in; this tab still has the video, so cut the clips now.
+                // Claim the file first so an overlapping poll can't start a second run.
+                if (largeFinishJobRef.current === job.id) return;
+                largeFinishJobRef.current = job.id;
+                void finishLargeInTab(job, token);
+                return;
+              }
               setPastJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
             }
           }
@@ -586,9 +664,12 @@ export default function AiClipsPage() {
 
       jobId = prepJson.jobId as string;
       const { chunkUploadToken } = prepJson;
+      largeFileRef.current = file;
+      largeFinishJobRef.current = null;
+      setFinishError(null);
 
       const optimisticJob: AiClipJob = {
-        id: jobId, clip_count: clipCount, source_duration_minutes: fileDurationMinutes,
+        id: jobId, clip_count: clipCount, source_duration_minutes: fileDurationMinutes, processing_path: "large",
         status: "uploading", clips_generated: null, result_upload_ids: null,
         result_titles: null, result_subtitles: null, error: null,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -648,8 +729,19 @@ export default function AiClipsPage() {
 
   const creditsRemaining = Math.max(0, MONTHLY_CREDIT_LIMIT - creditsUsed);
   const wouldExceedLimit = fileDurationMinutes > 0 && creditsUsed + fileDurationMinutes > MONTHLY_CREDIT_LIMIT;
-  const hasActiveJob = !!activeJob && activeJob.status !== "done" && activeJob.status !== "failed";
-  const statusCfg = activeJob ? STATUS_CONFIG[activeJob.status] : null;
+  const hasActiveJob = !!finishing || (!!activeJob && activeJob.status !== "done" && activeJob.status !== "failed");
+  // While this tab cuts a large job's clips the server already says "done"; show it as cutting.
+  const displayStatus: AiClipJobStatus | undefined = finishing ? "cutting" : activeJob?.status;
+  const statusCfg = displayStatus ? STATUS_CONFIG[displayStatus] : null;
+  const stageLabel = finishing
+    ? finishing.phase === "saving"
+      ? "Saving your clips…"
+      : finishing.phase === "cutting"
+        ? `Cutting clip ${finishing.clip} of ${finishing.total}…`
+        : `Uploading clip ${finishing.clip} of ${finishing.total} (${Math.round((finishing.fraction ?? 0) * 100)}%)…`
+    : isLargeJob && (displayStatus === "pending" || displayStatus === "uploading")
+      ? `${LARGE_READING_COPY.title}…`
+      : statusCfg?.label || activeJob?.status;
 
   // The upload-instead banner has done its job once the new generation starts.
   useEffect(() => { if (hasActiveJob) setUploadInsteadFor(null); }, [hasActiveJob]);
@@ -1080,7 +1172,7 @@ export default function AiClipsPage() {
         {hasActiveJob && (
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-white">{statusCfg?.label || activeJob?.status}</p>
+              <p className="text-sm font-semibold text-white">{stageLabel}</p>
               <span className="text-xs text-white/40 tabular-nums">{Math.round(progress)}%</span>
             </div>
             <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
@@ -1096,32 +1188,42 @@ export default function AiClipsPage() {
               {(["uploading", "transcribing", "detecting", "cutting"] as const).map((s) => {
                 const stages = ["uploading", "transcribing", "detecting", "cutting"];
                 const idx = stages.indexOf(s);
-                const activeIdx = stages.indexOf(activeJob?.status as any);
+                const activeIdx = stages.indexOf(displayStatus as any);
                 const done = idx < activeIdx;
-                const active = s === activeJob?.status;
+                const active = s === displayStatus;
                 return (
                   <span key={s} className={`rounded-full px-3 py-1 text-[11px] font-medium border ${
                     done ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                     : active ? "border-violet-400/40 bg-violet-400/10 text-violet-300"
                     : "border-white/10 bg-transparent text-white/20"
                   }`}>
-                    {done ? "✓ " : ""}{STATUS_CONFIG[s].label}
+                    {done ? "✓ " : ""}{isLargeJob && s === "uploading" ? "Reading audio…" : STATUS_CONFIG[s].label}
                   </span>
                 );
               })}
             </div>
-            {activeJob && activeJob.status in GENERATION_COPY && (() => {
+            {finishing && (
+              <div className="mt-3 space-y-1 text-center">
+                <p className="text-xs text-white/60">Your video stays on your computer, so each clip is cut right here in your browser and then uploaded.</p>
+                <p className="text-xs text-white/40">Keep this tab open until your clips are ready.</p>
+              </div>
+            )}
+            {!finishing && activeJob && activeJob.status in GENERATION_COPY && (() => {
               const stage = activeJob.status as GenerationStage;
               const est = generationEstimateSec(stage, activeJob.source_duration_minutes ?? 0, activeJob.clip_count ?? 5);
               // updated_at changes on every stage transition, so it marks when this stage began
               const elapsed = (Date.now() - new Date(activeJob.updated_at).getTime()) / 1000;
               return (
                 <div className="mt-3 space-y-1 text-center">
-                  <p className="text-xs text-white/60">{GENERATION_COPY[stage].why}</p>
+                  <p className="text-xs text-white/60">
+                    {isLargeJob && (stage === "pending" || stage === "uploading") ? LARGE_READING_COPY.why : GENERATION_COPY[stage].why}
+                  </p>
                   <p className="text-xs text-white/40">
-                    {isSlow(elapsed, est)
-                      ? SLOW_COPY
-                      : `This step takes ${formatAbout(est)}. You can leave this page; your clips will be in Projects when they're done.`}
+                    {isLargeJob
+                      ? LARGE_KEEP_OPEN
+                      : isSlow(elapsed, est)
+                        ? SLOW_COPY
+                        : `This step takes ${formatAbout(est)}. You can leave this page; your clips will be in Projects when they're done.`}
                   </p>
                 </div>
               );
@@ -1129,8 +1231,23 @@ export default function AiClipsPage() {
           </div>
         )}
 
+        {/* Large job whose clips couldn't be cut in this tab — the moments are saved */}
+        {finishError && !finishing && (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 flex items-center justify-between gap-4">
+            <p className="text-sm text-red-400">
+              {finishError.message} Your moments are saved: open the project and pick the video again to finish your clips.
+            </p>
+            <Link
+              href={`/ai-clips/${finishError.jobId}`}
+              className="flex-shrink-0 text-sm font-semibold text-red-300 hover:text-red-200 transition-colors"
+            >
+              Open project →
+            </Link>
+          </div>
+        )}
+
         {/* Done job — navigate to project page */}
-        {activeJob?.status === "done" && (
+        {activeJob?.status === "done" && !finishing && !(finishError?.jobId === activeJob.id) && (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 flex items-center justify-between">
             <p className="text-sm text-emerald-400 font-medium">
               ✓ {activeJob.clips_generated} clip{activeJob.clips_generated !== 1 ? "s" : ""} ready

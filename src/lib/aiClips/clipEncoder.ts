@@ -22,7 +22,8 @@ export type EncodeClipOptions = {
 
 type TrakSample = AacSample & { cts: number; is_sync: boolean };
 
-export async function encodeClip(file: Blob, opts: EncodeClipOptions): Promise<Blob> {
+/** `startSec` is where the clip really starts in the source (its first keyframe), for subtitle timing. */
+export async function encodeClip(file: Blob, opts: EncodeClipOptions): Promise<{ blob: Blob; startSec: number }> {
   const mp4 = createFile();
   const info = await primeMp4WithMoov(file, mp4);
 
@@ -82,7 +83,8 @@ export async function encodeClip(file: Blob, opts: EncodeClipOptions): Promise<B
   });
 
   muxer.finalize();
-  return new Blob([muxer.target.buffer], { type: "video/mp4" });
+  const first = cut.video[0];
+  return { blob: new Blob([muxer.target.buffer], { type: "video/mp4" }), startSec: first.cts / first.timescale };
 }
 
 /**

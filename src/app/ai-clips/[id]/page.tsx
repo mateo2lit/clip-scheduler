@@ -11,7 +11,8 @@ import {
 } from "@/app/ai-clips/types";
 import { SubtitleStylePicker } from "@/components/ai-clips/SubtitleStylePicker";
 import { ClipCard, viralityTier, type DownloadInfo } from "@/components/ai-clips/ClipCard";
-import { CaretLeft, CaretRight, X as XIcon, Calendar } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, X as XIcon } from "@phosphor-icons/react/dist/ssr";
+import type { FinishProgress } from "@/lib/aiClips/finishLargeJob";
 
 type AiClipJobStatus =
   | "pending" | "uploading" | "transcribing" | "detecting" | "cutting" | "done" | "failed";
@@ -186,10 +187,10 @@ export default function AiClipProjectPage() {
   const [modalIndex, setModalIndex] = useState(0);
   const [downloadInfo, setDownloadInfo] = useState<DownloadInfo>(null);
 
-  // Large-path lazy encode state
-  const [encoding, setEncoding] = useState<{ momentIdx: number; pct: number } | null>(null);
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [encodeError, setEncodeError] = useState<string | null>(null);
+  // Large path: the video never left the user's computer, so its clips are cut in
+  // this tab once they pick the file (normally the AI Clips page does it right away).
+  const [finishing, setFinishing] = useState<FinishProgress | null>(null);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -248,56 +249,35 @@ export default function AiClipProjectPage() {
     }, 2500);
   }
 
-  async function lazyEncodeAndUpload(moment: MomentResult): Promise<string> {
-    if (!originalFile) throw new Error("Original source file not available — pick the file again to encode.");
-    const { encodeClip } = await import("@/lib/aiClips/clipEncoder");
-    setEncoding({ momentIdx: moment.index, pct: 0 });
-    const blob = await encodeClip(originalFile, {
-      startSec: moment.start_sec,
-      endSec: moment.end_sec,
-      onProgress: (i, total) => {
-        setEncoding({ momentIdx: moment.index, pct: total ? Math.round((i / total) * 100) : 0 });
-      },
-    });
-    // Same flow as the uploads page: straight to Storage (clips are far over Vercel's
-    // request body limit), then register the row.
-    const { data: sess } = await supabase.auth.getSession();
-    const prefix = job?.team_id || sess.session?.user.id;
-    if (!prefix) throw new Error("Not logged in");
-    const objectKey = `${prefix}/${Date.now()}-ai-clip-${moment.index + 1}.mp4`;
-    const stored = await supabase.storage.from("clips").upload(objectKey, blob, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: "video/mp4",
-    });
-    if (stored.error) throw new Error(stored.error.message);
-
-    const res = await fetch("/api/uploads/create", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ bucket: "clips", file_path: objectKey, file_size: blob.size }),
-    });
-    const json = await res.json().catch(() => null);
-    setEncoding(null);
-    if (!res.ok || !json?.ok) throw new Error(json?.error || "Upload failed");
-    return json.id as string;
-  }
-
-  async function handleScheduleLargeMoment(moment: MomentResult) {
-    setEncodeError(null);
-    if (!originalFile) {
-      setEncodeError("To finalize this clip, please reconnect your source file using the banner above.");
-      fileInputRef.current?.click();
-      return;
-    }
+  async function finishWithFile(file: File) {
+    if (!job || !authToken || finishing) return;
+    setFinishError(null);
+    setFinishing({ phase: "cutting", clip: 1, total: job.result_moments_json?.length || 1 });
     try {
-      const uploadId = await lazyEncodeAndUpload(moment);
-      handleScheduled(uploadId, moment.title ?? `Clip ${moment.index + 1}`);
+      const { finishLargeJob } = await import("@/lib/aiClips/finishLargeJob");
+      await finishLargeJob(file, job, authToken, setFinishing);
+      const res = await fetch(`/api/ai-clips/${jobId}`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const json = await res.json();
+      if (json.ok && json.job) setJob(json.job);
     } catch (e: any) {
-      setEncoding(null);
-      setEncodeError(e?.message || "Encode failed. Please try again.");
+      setFinishError(
+        e?.name === "NotReadableError"
+          ? "Your browser lost access to the video file. Make sure it's saved on this computer, then pick it again."
+          : e?.message || "Cutting your clips failed. Please try again.",
+      );
+    } finally {
+      setFinishing(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
+
+  // Leaving mid-way loses the clips cut so far.
+  useEffect(() => {
+    if (!finishing) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [finishing]);
 
   function handleScheduled(uploadId: string, title: string, render?: { burnJobId: string; sourceUploadId: string }) {
     const q = new URLSearchParams({ uploadId, title });
@@ -446,109 +426,80 @@ export default function AiClipProjectPage() {
           </div>
         )}
 
-        {/* Large-path: reconnect source file banner */}
-        {job.processing_path === "large" && job.status === "done" && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) { setOriginalFile(f); setEncodeError(null); }
-              }}
-            />
-            {!originalFile && (
-              <div className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-3 text-xs text-blue-300">
-                To schedule clips, reconnect your source file. (We don't store it on our servers.)
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="ml-2 underline hover:text-blue-200 transition-colors"
-                >
-                  Reconnect file
-                </button>
-              </div>
-            )}
-            {originalFile && (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-400 flex items-center justify-between">
-                <span>Source file connected: <span className="font-medium">{originalFile.name}</span></span>
-                <button
-                  onClick={() => { setOriginalFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-                  className="ml-3 text-emerald-300/60 hover:text-emerald-300 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-            {encodeError && (
-              <p className="text-xs text-red-400">{encodeError}</p>
-            )}
-          </>
-        )}
-
-        {/* Large-path: moments grid */}
-        {job.processing_path === "large" && job.status === "done" && job.result_moments_json && (
-          <div className="space-y-3">
-            <p className="text-sm text-white/40">
-              {job.result_moments_json.length} moment{job.result_moments_json.length !== 1 ? "s" : ""} detected — click Post to encode and schedule
-            </p>
-            {job.result_moments_json.map((moment) => {
-              const durationSec = Math.round(moment.end_sec - moment.start_sec);
-              const startLabel = new Date(moment.start_sec * 1000).toISOString().slice(11, 19).replace(/^00:/, "");
-              const isEncoding = encoding?.momentIdx === moment.index;
-              return (
-                <div
-                  key={moment.index}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 flex items-center gap-4"
-                >
-                  {/* Index badge */}
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-xs font-semibold text-violet-300">
-                    {moment.index + 1}
-                  </div>
-
-                  {/* Meta */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      {moment.title ?? `Clip ${moment.index + 1}`}
+        {/* Large path, clips not cut yet: pick the video again and they're cut here */}
+        {job.processing_path === "large" && job.status === "done" && !job.result_upload_ids?.length && job.result_moments_json && (() => {
+          const moments = job.result_moments_json;
+          const pct = finishing
+            ? Math.round(100 * (finishing.phase === "saving"
+                ? 1
+                : (finishing.clip - 1 + (finishing.phase === "uploading" ? 0.1 + 0.9 * (finishing.fraction ?? 0) : 0)) / finishing.total))
+            : 0;
+          return (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void finishWithFile(f);
+                }}
+              />
+              {finishing ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-white">
+                      {finishing.phase === "saving"
+                        ? "Saving your clips…"
+                        : finishing.phase === "cutting"
+                          ? `Cutting clip ${finishing.clip} of ${finishing.total}…`
+                          : `Uploading clip ${finishing.clip} of ${finishing.total} (${Math.round((finishing.fraction ?? 0) * 100)}%)…`}
                     </p>
-                    <p className="text-xs text-white/30 mt-0.5">
-                      {startLabel} · {durationSec}s
-                      {moment.score !== undefined && (
-                        <span className="ml-2 text-white/20">score {moment.score.toFixed(2)}</span>
-                      )}
-                    </p>
-                    {moment.reason && (
-                      <p className="text-[11px] text-white/25 mt-1 line-clamp-2">{moment.reason}</p>
-                    )}
+                    <span className="text-xs text-white/40 tabular-nums">{pct}%</span>
                   </div>
-
-                  {/* Post button */}
+                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-violet-500 to-purple-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-xs text-white/40 text-center">
+                    Your video stays on your computer, so each clip is cut right here in your browser and then uploaded. Keep this tab open.
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Finish your {moments.length} clips</p>
+                    <p className="text-xs text-white/40 mt-1">
+                      The moments are ready. Clips are cut from your video right here in your browser, so pick the same video file
+                      and we&apos;ll cut them all. The video itself isn&apos;t uploaded, only the clips.
+                    </p>
+                  </div>
                   <button
-                    onClick={() => handleScheduleLargeMoment(moment)}
-                    disabled={!!encoding}
-                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300 hover:bg-violet-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
                   >
-                    {isEncoding ? (
-                      <>
-                        <span className="inline-block h-3 w-3 rounded-full border-2 border-violet-300/30 border-t-violet-300 animate-spin" />
-                        <span>{encoding.pct > 0 ? `${encoding.pct}%` : "Encoding…"}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Calendar className="w-3 h-3" weight="duotone" />
-                        <span>Post</span>
-                      </>
-                    )}
+                    Pick video file
                   </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+              {finishError && <p className="text-xs text-red-400">{finishError}</p>}
+              <ol className="space-y-1.5">
+                {moments.map((m) => (
+                  <li key={m.index} className="flex items-center gap-3 text-xs text-white/50">
+                    <span className="w-5 text-white/25 tabular-nums">{m.index + 1}.</span>
+                    <span className="flex-1 truncate">{m.title ?? `Clip ${m.index + 1}`}</span>
+                    <span className="text-white/25 tabular-nums">
+                      {new Date(m.start_sec * 1000).toISOString().slice(11, 19).replace(/^00:/, "")} · {Math.round(m.end_sec - m.start_sec)}s
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          );
+        })()}
 
         {/* Small-path clips */}
-        {job.processing_path !== "large" && job.status === "done" && job.result_upload_ids && authToken && (
+        {job.status === "done" && !!job.result_upload_ids?.length && authToken && (
           <>
             {/* Subtitle quick controls + format selector */}
             <SubtitleQuickBar
@@ -590,7 +541,7 @@ export default function AiClipProjectPage() {
       </div>
 
       {/* Large preview modal — always mounted once job is done so ClipCard download state survives close */}
-      {job.processing_path !== "large" && job.status === "done" && job.result_upload_ids && authToken && (() => {
+      {job.status === "done" && !!job.result_upload_ids?.length && authToken && (() => {
         // Use previewClipIndex when open, fall back to modalIndex when closed so ClipCard stays mounted
         const mi = previewClipIndex ?? modalIndex;
         return (
