@@ -54,6 +54,12 @@ jobs:
       cancel-in-progress: false
 
     steps:
+      # Only the word cleanup module (GTA spelled "G -T -A" etc.); the rest of the repo isn't needed
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ai_clips_words.py
+          sparse-checkout-cone-mode: false
+
       - name: Install dependencies
         run: |
           # ffmpeg is pre-installed on ubuntu-latest runners; check before installing
@@ -151,8 +157,11 @@ jobs:
 
           python3 - <<'PYEOF'
           import sys
+          import os
           import json
           from faster_whisper import WhisperModel
+          sys.path.insert(0, os.path.join(os.environ["GITHUB_WORKSPACE"], "scripts"))
+          from ai_clips_words import normalize_text, normalize_words
 
           print("Loading Whisper base model...", flush=True)
           model = WhisperModel("base", device="cpu", compute_type="int8")
@@ -170,7 +179,7 @@ jobs:
           all_words = []
 
           for seg in segments:
-              transcript_lines.append(f"[{seg.start:.1f}s-{seg.end:.1f}s] {seg.text.strip()}")
+              transcript_lines.append(f"[{seg.start:.1f}s-{seg.end:.1f}s] {normalize_text(seg.text.strip())}")
               print(f"  {seg.start:.1f}s: {seg.text.strip()[:80]}", flush=True)
               if seg.words:
                   for w in seg.words:
@@ -180,6 +189,7 @@ jobs:
                           "word": w.word.strip(),
                       })
 
+          all_words = normalize_words(all_words)
           transcript = "\n".join(transcript_lines) if transcript_lines else "[No speech detected]"
 
           with open("/tmp/transcript.txt", "w") as f:

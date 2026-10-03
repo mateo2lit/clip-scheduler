@@ -35,6 +35,12 @@ jobs:
         chunk_index: ${{ fromJSON(needs.build-matrix.outputs.indices) }}
     continue-on-error: true
     steps:
+      # Only the word cleanup module (GTA spelled "G -T -A" etc.); the rest of the repo isn't needed
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ai_clips_words.py
+          sparse-checkout-cone-mode: false
+
       - name: Install dependencies
         run: |
           if ! command -v ffmpeg &>/dev/null; then
@@ -66,8 +72,10 @@ jobs:
       - name: Transcribe with distil-whisper
         run: |
           python3 - <<'PYEOF'
-          import json
+          import json, os, sys
           from faster_whisper import WhisperModel
+          sys.path.insert(0, os.path.join(os.environ["GITHUB_WORKSPACE"], "scripts"))
+          from ai_clips_words import normalize_text, normalize_words
 
           # distil-whisper-medium.en is fast on CPU and high quality for English.
           model = WhisperModel("distil-medium.en", device="cpu", compute_type="int8")
@@ -82,12 +90,12 @@ jobs:
           words = []
           lines = []
           for seg in segments:
-              lines.append(seg.text.strip())
+              lines.append(normalize_text(seg.text.strip()))
               if seg.words:
                   for w in seg.words:
                       words.append({"start": round(w.start, 3), "end": round(w.end, 3), "word": w.word.strip()})
 
-          out = {"transcript": " ".join(lines), "word_segments_json": words}
+          out = {"transcript": " ".join(lines), "word_segments_json": normalize_words(words)}
           with open("/tmp/result.json", "w") as f:
               json.dump(out, f)
           print(f"Transcribed {len(words)} words")
