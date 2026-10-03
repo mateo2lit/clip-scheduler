@@ -83,30 +83,24 @@ const PROBE_TAIL_SIZE = 10 * 1024 * 1024;  // 10 MB
 const PROBE_TIMEOUT_MS = 15_000;
 
 /**
- * Probe a video's duration by parsing only the moov atom. Tries the head first
- * (works for faststart MP4s — moov near start). If that doesn't reveal moov within
- * the timeout, tries head+tail (works for non-faststart MP4s — moov at end, typical
- * of OBS recordings, screen recorders, and Twitch VOD downloads).
+ * Probe a video's duration by parsing only the moov atom, which sits in the
+ * first few MB (faststart) or the last few MB (OBS, screen recorders, YouTube
+ * Studio and Twitch downloads).
  *
- * Hard 15s timeout per attempt prevents hangs on broken / unparseable files.
+ * Hard 15s timeout prevents hangs on broken / unparseable files.
  */
 export async function probeMp4DurationSeconds(file: File): Promise<number> {
-  // Attempt 1: head only — fast for faststart MP4s
-  try {
-    return await probeFromRanges(file, [
-      { start: 0, end: Math.min(file.size, PROBE_HEAD_SIZE) },
-    ]);
-  } catch {
-    // Attempt 2: head + tail — works for non-faststart MP4s
-    if (file.size <= PROBE_HEAD_SIZE) {
-      throw new Error("Could not parse MP4 metadata from this file");
-    }
-    const tailStart = Math.max(PROBE_HEAD_SIZE, file.size - PROBE_TAIL_SIZE);
-    return probeFromRanges(file, [
-      { start: 0, end: PROBE_HEAD_SIZE },
-      { start: tailStart, end: file.size },
-    ]);
+  // Head and tail in one pass. Trying the head alone first cost a full timeout
+  // (15 s of "Reading duration…") on every file with moov at the end, which is
+  // most exports (YouTube Studio, OBS); reading 15 MB up front costs nothing.
+  if (file.size <= PROBE_HEAD_SIZE) {
+    return probeFromRanges(file, [{ start: 0, end: file.size }]);
   }
+  const tailStart = Math.max(PROBE_HEAD_SIZE, file.size - PROBE_TAIL_SIZE);
+  return probeFromRanges(file, [
+    { start: 0, end: PROBE_HEAD_SIZE },
+    { start: tailStart, end: file.size },
+  ]);
 }
 
 async function probeFromRanges(

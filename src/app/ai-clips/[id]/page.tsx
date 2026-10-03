@@ -316,6 +316,8 @@ export default function AiClipProjectPage() {
 
   const statusCfg = STATUS_CONFIG[job.status];
   const isProcessing = job.status !== "done" && job.status !== "failed";
+  // Large job with moments but no clips yet: they get cut from the user's file in the browser.
+  const awaitingCut = job.processing_path === "large" && job.status === "done" && !job.result_upload_ids?.length;
 
   return (
     <main className="min-h-screen bg-[#050505] text-white relative">
@@ -363,11 +365,13 @@ export default function AiClipProjectPage() {
                   ? "border-red-500/30 bg-red-500/10 text-red-400"
                   : "border-violet-400/30 bg-violet-400/10 text-violet-300 animate-pulse"
               }`}>
-                {statusCfg?.label || job.status}
+                {awaitingCut ? "Ready to cut" : statusCfg?.label || job.status}
               </span>
             </div>
             <h1 className="text-2xl font-semibold text-white">
-              {job.clips_generated
+              {awaitingCut
+                ? `${job.clips_generated} moment${job.clips_generated !== 1 ? "s" : ""} found`
+                : job.clips_generated
                 ? `${job.clips_generated} clip${job.clips_generated !== 1 ? "s" : ""} ready`
                 : isProcessing ? "Generating clips…" : "Project"}
             </h1>
@@ -454,7 +458,7 @@ export default function AiClipProjectPage() {
                         ? "Saving your clips…"
                         : finishing.phase === "cutting"
                           ? `Cutting clip ${finishing.clip} of ${finishing.total}…`
-                          : `Uploading clip ${finishing.clip} of ${finishing.total} (${Math.round((finishing.fraction ?? 0) * 100)}%)…`}
+                          : `Uploading clip ${finishing.clip} of ${finishing.total}${finishing.fraction ? ` (${Math.round(finishing.fraction * 100)}%)` : ""}…`}
                     </p>
                     <span className="text-xs text-white/40 tabular-nums">{pct}%</span>
                   </div>

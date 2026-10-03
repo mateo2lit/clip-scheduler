@@ -235,11 +235,17 @@ function ProjectCard({ job, token }: { job: AiClipJob; token: string | null }) {
                 <div className="text-3xl font-bold text-white/80 mb-1">
                   {job.clips_generated ?? job.clip_count}
                 </div>
-                <div className="text-xs text-white/40">clips</div>
+                <div className="text-xs text-white/40">{needsLargeFinish(job) ? "moments" : "clips"}</div>
               </div>
-              <div className="absolute top-2 right-2 z-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-400 font-medium">
-                Ready
-              </div>
+              {needsLargeFinish(job) ? (
+                <div className="absolute top-2 right-2 z-10 rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[10px] text-amber-300 font-medium">
+                  Finish
+                </div>
+              ) : (
+                <div className="absolute top-2 right-2 z-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-400 font-medium">
+                  Ready
+                </div>
+              )}
               {topScore !== null && (
                 <div
                   className="absolute top-2 left-2 z-10 rounded-full bg-black/55 backdrop-blur-sm border border-white/15 px-2 py-0.5 text-[10px] font-semibold text-white/85 tabular-nums"
@@ -260,7 +266,9 @@ function ProjectCard({ job, token }: { job: AiClipJob; token: string | null }) {
         </div>
         <div className="p-3">
           <p className="text-sm font-medium text-white/80 group-hover:text-white transition-colors">
-            {job.clips_generated
+            {needsLargeFinish(job)
+              ? `${job.clips_generated} moment${job.clips_generated !== 1 ? "s" : ""} found · pick file to finish`
+              : job.clips_generated
               ? `${job.clips_generated} clip${job.clips_generated !== 1 ? "s" : ""} generated`
               : job.status === "failed"
               ? "Generation failed"
@@ -738,7 +746,7 @@ export default function AiClipsPage() {
       ? "Saving your clips…"
       : finishing.phase === "cutting"
         ? `Cutting clip ${finishing.clip} of ${finishing.total}…`
-        : `Uploading clip ${finishing.clip} of ${finishing.total} (${Math.round((finishing.fraction ?? 0) * 100)}%)…`
+        : `Uploading clip ${finishing.clip} of ${finishing.total}${finishing.fraction ? ` (${Math.round(finishing.fraction * 100)}%)` : ""}…`
     : isLargeJob && (displayStatus === "pending" || displayStatus === "uploading")
       ? `${LARGE_READING_COPY.title}…`
       : statusCfg?.label || activeJob?.status;
