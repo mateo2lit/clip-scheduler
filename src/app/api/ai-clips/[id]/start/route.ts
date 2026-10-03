@@ -77,19 +77,29 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // Dispatch GitHub Actions workflow
     if (GITHUB_PAT) {
-      await dispatchWorkflow({
-        job_id: job.id,
-        source_file_path: job.source_file_path || "",
-        source_bucket: job.source_bucket || "clips",
-        source_url: job.source_url || "",
-        team_id: teamId,
-        user_id: userId,
-        clip_count: String(job.clip_count),
-        genre: job.genre || "auto",
-        clip_length: job.clip_length || "auto",
-        auto_hook: String(job.auto_hook !== false),
-        moment_prompt: job.moment_prompt || "",
-      });
+      try {
+        await dispatchWorkflow({
+          job_id: job.id,
+          source_file_path: job.source_file_path || "",
+          source_bucket: job.source_bucket || "clips",
+          source_url: job.source_url || "",
+          team_id: teamId,
+          user_id: userId,
+          clip_count: String(job.clip_count),
+          genre: job.genre || "auto",
+          clip_length: job.clip_length || "auto",
+          auto_hook: String(job.auto_hook !== false),
+          moment_prompt: job.moment_prompt || "",
+        });
+      } catch (dispatchErr) {
+        // No workflow will ever advance this job. Roll back to pending so the
+        // browser's abandon call (which only touches browser-owned statuses) can close it.
+        await supabaseAdmin
+          .from("ai_clip_jobs")
+          .update({ status: "pending", updated_at: new Date().toISOString() })
+          .eq("id", job.id);
+        throw dispatchErr;
+      }
     } else {
       console.warn("GITHUB_PAT not set — ai-clips workflow not dispatched");
     }

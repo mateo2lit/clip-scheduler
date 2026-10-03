@@ -95,6 +95,27 @@ function uploadFileWithProgress(file: File, signedUrl: string, onProgress: (pct:
   });
 }
 
+// Chrome's wording for a file it lost access to mid-read ("The requested file could not
+// be read, typically due to permission problems...") tells the user nothing actionable.
+function describeSubmitError(e: any): string {
+  if (e?.name === "NotReadableError" || e?.name === "NotFoundError") {
+    return "Your browser lost access to the video file while reading it. Make sure it has finished downloading and is saved on this computer (not online-only in OneDrive), then pick it again.";
+  }
+  return e?.message || "Something went wrong.";
+}
+
+// Closes a job whose browser-side half failed, so it doesn't block new jobs until the
+// 3-hour stale reaper. Best effort: the reaper is still the backstop if this call fails.
+async function abandonJob(jobId: string, authToken: string, error: string): Promise<void> {
+  try {
+    await fetch(`/api/ai-clips/${jobId}/abandon`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ error }),
+    });
+  } catch {}
+}
+
 function formatMinutes(minutes: number): string {
   const m = Math.round(minutes);
   if (m < 60) return `${m} min`;
@@ -484,6 +505,7 @@ export default function AiClipsPage() {
     setSubmitError(null);
     setSubmitting(true);
     setUploadProgress(0);
+    let jobId: string | null = null;
 
     try {
       const prepRes = await fetch("/api/ai-clips/prepare", {
@@ -494,7 +516,8 @@ export default function AiClipsPage() {
       const prepJson = await prepRes.json();
       if (!prepJson.ok) { setSubmitError(prepJson.error || "Failed to create job."); setSubmitting(false); return; }
 
-      const { jobId, uploadUrl } = prepJson;
+      jobId = prepJson.jobId as string;
+      const { uploadUrl } = prepJson;
       const optimisticJob: AiClipJob = {
         id: jobId, clip_count: clipCount, source_duration_minutes: fileDurationMinutes,
         status: "uploading", clips_generated: null, result_upload_ids: null,
@@ -510,14 +533,20 @@ export default function AiClipsPage() {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const startJson = await startRes.json();
-      if (!startJson.ok) { setSubmitError(startJson.error || "Failed to start processing."); setActiveJob(null); setSubmitting(false); return; }
+      if (!startJson.ok) {
+        const message = startJson.error || "Failed to start processing.";
+        await abandonJob(jobId, authToken, message);
+        setSubmitError(message); setActiveJob(null); setSubmitting(false); return;
+      }
 
       setFile(null);
       setFileDurationMinutes(0);
       setSubmitting(false);
       startPolling(jobId, authToken);
     } catch (e: any) {
-      setSubmitError(e?.message || "Something went wrong.");
+      const message = describeSubmitError(e);
+      if (jobId) await abandonJob(jobId, authToken, message);
+      setSubmitError(message);
       setSubmitting(false);
       setActiveJob(null);
     }
@@ -531,6 +560,7 @@ export default function AiClipsPage() {
     setSubmitting(true);
     setUploadProgress(0);
     setExtractionProgress({ done: 0, total: 0, sec: 0, totalSec: 0 });
+    let jobId: string | null = null;
 
     try {
       // 1. Prepare large path job
@@ -554,7 +584,8 @@ export default function AiClipsPage() {
         return;
       }
 
-      const { jobId, chunkUploadToken } = prepJson;
+      jobId = prepJson.jobId as string;
+      const { chunkUploadToken } = prepJson;
 
       const optimisticJob: AiClipJob = {
         id: jobId, clip_count: clipCount, source_duration_minutes: fileDurationMinutes,
@@ -590,7 +621,9 @@ export default function AiClipsPage() {
       });
       const startJson = await startRes.json();
       if (!startJson.ok) {
-        setSubmitError(startJson.error || "Failed to start processing.");
+        const message = startJson.error || "Failed to start processing.";
+        await abandonJob(jobId, authToken, message);
+        setSubmitError(message);
         setActiveJob(null);
         setSubmitting(false);
         return;
@@ -601,7 +634,9 @@ export default function AiClipsPage() {
       setSubmitting(false);
       startPolling(jobId, authToken);
     } catch (e: any) {
-      setSubmitError(e?.message || "Something went wrong.");
+      const message = describeSubmitError(e);
+      if (jobId) await abandonJob(jobId, authToken, message);
+      setSubmitError(message);
       setSubmitting(false);
       setActiveJob(null);
     }
