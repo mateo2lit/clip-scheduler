@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabaseAdmin";
+import type { LinkedInVisibility } from "./postOptions";
 
 type UploadToLinkedInArgs = {
   userId: string;
@@ -14,7 +15,10 @@ type UploadToLinkedInArgs = {
 
   thumbnailBucket?: string;
   thumbnailPath?: string;
-  visibility?: "PUBLIC" | "CONNECTIONS";
+  visibility?: LinkedInVisibility;
+  /** From linkedinExtras: stop others from resharing, and the video's alt text. */
+  isReshareDisabledByAuthor?: boolean;
+  altText?: string;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -40,10 +44,47 @@ async function getSignedDownloadUrl(params: {
 }
 
 /**
+ * Reads a stream in exact-size pieces, holding at most one piece (plus one network
+ * chunk) in memory. LinkedIn takes videos in ~4 MB parts, so this keeps a large
+ * upload's memory flat instead of loading the whole file.
+ */
+export class ByteReader {
+  private reader: ReadableStreamDefaultReader<Uint8Array>;
+  private leftover: Uint8Array = new Uint8Array(0);
+
+  constructor(stream: ReadableStream<Uint8Array>) {
+    this.reader = stream.getReader();
+  }
+
+  /** The next `n` bytes; throws if the stream ends first. */
+  async read(n: number): Promise<Uint8Array<ArrayBuffer>> {
+    const out = new Uint8Array(new ArrayBuffer(n));
+    let filled = 0;
+    while (filled < n) {
+      if (this.leftover.byteLength === 0) {
+        const { done, value } = await this.reader.read();
+        if (done) throw new Error(`Video ended early: needed ${n} bytes, got ${filled}`);
+        this.leftover = value;
+        continue;
+      }
+      const take = Math.min(n - filled, this.leftover.byteLength);
+      out.set(this.leftover.subarray(0, take), filled);
+      this.leftover = this.leftover.subarray(take);
+      filled += take;
+    }
+    return out;
+  }
+
+  cancel(): Promise<void> {
+    return this.reader.cancel().catch(() => {});
+  }
+}
+
+/**
  * Upload a video to LinkedIn using the Video API.
  *
  * Flow:
- * 1. Download video from Supabase
+ * 1. Open a stream of the video from Supabase (only its size is needed up front)
  * 2. Initialize upload — register the video with LinkedIn (get upload URLs + video URN)
  * 3. Upload binary parts — PUT each chunk to LinkedIn's upload URLs (collect ETags)
  * 4. Finalize upload — link all parts together
@@ -64,6 +105,8 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     thumbnailBucket,
     thumbnailPath,
     visibility = "PUBLIC",
+    isReshareDisabledByAuthor = false,
+    altText,
   } = args;
 
   assertOk(accessToken, "Missing accessToken");
@@ -79,16 +122,18 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
     "X-Restli-Protocol-Version": "2.0.0",
   };
 
-  // 1) Download video from Supabase first (need file size for init)
+  // 1) Open the video from storage. Only its size is needed for init; the bytes are read
+  // part by part in step 3. Loading a large video whole got worker runs killed for memory,
+  // which leaves no error behind (see CLAUDE.md).
   const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath });
   const videoRes = await fetch(signedUrl);
+  const sizeHeader = videoRes.headers.get("content-length");
+  const fileSizeBytes = sizeHeader ? Number(sizeHeader) : NaN;
 
-  if (!videoRes.ok || !videoRes.body) {
+  if (!videoRes.ok || !videoRes.body || !Number.isFinite(fileSizeBytes) || fileSizeBytes <= 0) {
     throw new Error(`Failed to fetch video from storage: ${videoRes.status}`);
   }
-
-  const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
-  const fileSizeBytes = videoBuffer.byteLength;
+  const video = new ByteReader(videoRes.body);
 
   const hasThumbnail = !!(thumbnailBucket && thumbnailPath);
 
@@ -108,6 +153,7 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
 
   if (!initRes.ok) {
     const text = await initRes.text();
+    await video.cancel();
     throw new Error(`LinkedIn video init failed: ${initRes.status} ${text}`);
   }
 
@@ -117,35 +163,55 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
   const uploadToken = initData.value?.uploadToken ?? "";
 
   if (!uploadInstructions?.length || !videoUrn) {
+    await video.cancel();
     throw new Error(`LinkedIn video init missing uploadInstructions or video URN. Response: ${JSON.stringify(initData)}`);
   }
 
-  // 3) Upload each part and collect ETags
+  // 3) Upload each part and collect ETags. The stream is read front to back, so the parts
+  // must cover the file in order with no gaps; LinkedIn's instructions always do.
+  const parts = [...uploadInstructions].sort((a: any, b: any) => a.firstByte - b.firstByte);
+  let expectedFirst = 0;
+  for (const part of parts) {
+    if (part.firstByte !== expectedFirst || part.lastByte < part.firstByte) {
+      await video.cancel();
+      throw new Error(`LinkedIn upload instructions don't cover the file in order: ${JSON.stringify(uploadInstructions)}`);
+    }
+    expectedFirst = part.lastByte + 1;
+  }
+  if (expectedFirst !== fileSizeBytes) {
+    await video.cancel();
+    throw new Error(`LinkedIn upload instructions cover ${expectedFirst} bytes, but the video is ${fileSizeBytes}`);
+  }
+
   const uploadedPartIds: string[] = [];
 
-  for (const instruction of uploadInstructions) {
-    const { uploadUrl, firstByte, lastByte } = instruction;
-    const chunk = videoBuffer.slice(firstByte, lastByte + 1);
+  try {
+    for (const { uploadUrl, firstByte, lastByte } of parts) {
+      const chunk = await video.read(lastByte - firstByte + 1);
 
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/octet-stream",
-      },
-      body: chunk,
-    });
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/octet-stream",
+        },
+        body: chunk,
+      });
 
-    if (!uploadRes.ok) {
-      const text = await uploadRes.text().catch(() => "");
-      throw new Error(`LinkedIn video part upload failed: ${uploadRes.status} ${text}`);
+      if (!uploadRes.ok) {
+        const text = await uploadRes.text().catch(() => "");
+        throw new Error(`LinkedIn video part upload failed: ${uploadRes.status} ${text}`);
+      }
+
+      // Collect ETag from response header
+      const etag = uploadRes.headers.get("etag");
+      if (etag) {
+        // Strip quotes if present
+        uploadedPartIds.push(etag.replace(/"/g, ""));
+      }
     }
-
-    // Collect ETag from response header
-    const etag = uploadRes.headers.get("etag");
-    if (etag) {
-      // Strip quotes if present
-      uploadedPartIds.push(etag.replace(/"/g, ""));
-    }
+  } catch (e) {
+    await video.cancel();
+    throw e;
   }
 
   // 4) Finalize the upload
@@ -212,10 +278,11 @@ export async function uploadSupabaseVideoToLinkedIn(args: UploadToLinkedInArgs):
         media: {
           title: title.slice(0, 200),
           id: videoUrn,
+          ...(altText ? { altText } : {}),
         },
       },
       lifecycleState: "PUBLISHED",
-      isReshareDisabledByAuthor: false,
+      isReshareDisabledByAuthor,
     }),
   });
 
@@ -239,7 +306,8 @@ type PostTextToLinkedInArgs = {
   accessToken: string;
   personUrn: string; // "urn:li:person:{id}"
   text: string; // max 3000 chars
-  visibility?: "PUBLIC" | "CONNECTIONS";
+  visibility?: LinkedInVisibility;
+  isReshareDisabledByAuthor?: boolean;
   linkUrl?: string;
   linkTitle?: string;
   linkDescription?: string;
@@ -252,7 +320,7 @@ type PostTextToLinkedInArgs = {
 export async function postTextToLinkedIn(args: PostTextToLinkedInArgs): Promise<{
   linkedinPostId: string;
 }> {
-  const { accessToken, personUrn, text, visibility = "PUBLIC", linkUrl, linkTitle, linkDescription } = args;
+  const { accessToken, personUrn, text, visibility = "PUBLIC", isReshareDisabledByAuthor = false, linkUrl, linkTitle, linkDescription } = args;
 
   assertOk(accessToken, "Missing accessToken");
   assertOk(personUrn, "Missing personUrn");
@@ -274,7 +342,7 @@ export async function postTextToLinkedIn(args: PostTextToLinkedInArgs): Promise<
       thirdPartyDistributionChannels: [],
     },
     lifecycleState: "PUBLISHED",
-    isReshareDisabledByAuthor: false,
+    isReshareDisabledByAuthor,
   };
 
   // Add article link card when a URL is provided

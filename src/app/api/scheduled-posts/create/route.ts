@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
 import { resolvePlatformSettings } from "@/lib/scheduledPostSettings";
+import { ONE_ACCOUNT_PER_POST, isOneAccountPerPost } from "@/lib/accountLimits";
 
 export async function POST(req: Request) {
   try {
@@ -75,6 +76,27 @@ export async function POST(req: Request) {
           { error: "Missing required fields: upload_id, scheduled_for" },
           { status: 400 }
         );
+      }
+    }
+
+    // The uploads page creates one row per account, all sharing a group_id. On X a
+    // second row in the same group would be the same post on another account, which
+    // X's policy forbids (see accountLimits.ts), so the second one is refused.
+    if (isOneAccountPerPost(normalizedProvider) && group_id) {
+      const { data: siblings, error: siblingError } = await supabaseAdmin
+        .from("scheduled_posts")
+        .select("id")
+        .eq("team_id", teamId)
+        .eq("group_id", group_id)
+        .eq("provider", normalizedProvider)
+        .limit(1);
+
+      if (siblingError) {
+        console.error("scheduled_posts sibling check error:", siblingError);
+        return NextResponse.json({ error: siblingError.message }, { status: 500 });
+      }
+      if (siblings && siblings.length > 0) {
+        return NextResponse.json({ error: ONE_ACCOUNT_PER_POST[normalizedProvider] }, { status: 409 });
       }
     }
 

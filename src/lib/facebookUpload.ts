@@ -123,6 +123,119 @@ export async function uploadSupabaseVideoToFacebook(args: UploadToFacebookArgs):
   return { facebookVideoId };
 }
 
+// ── Reels ───────────────────────────────────────────────────────────────────
+//
+// Reels go through their own endpoint (/{page-id}/video_reels): start a session, let
+// Meta pull the file from a signed URL (nothing is buffered here), then finish with
+// video_state=PUBLISHED. Meta processes and publishes asynchronously, so the worker
+// marks the post as processing and checks back with checkFacebookReel on later runs.
+// Same permissions as Page videos (pages_manage_posts). Reels must be 3-90 seconds.
+
+type StartFacebookReelArgs = {
+  pageId: string;
+  pageAccessToken: string;
+  bucket: string;
+  storagePath: string;
+  title?: string;
+  description?: string;
+};
+
+async function graphJson(res: Response, what: string): Promise<any> {
+  const text = await res.text();
+  let data: any = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // handled below
+  }
+  if (!res.ok || !data || data.error) {
+    throw new Error(`${what}: ${res.status} ${data?.error?.message || text}`);
+  }
+  return data;
+}
+
+export async function startFacebookReel(args: StartFacebookReelArgs): Promise<{ videoId: string }> {
+  const { pageId, pageAccessToken, bucket, storagePath, title, description } = args;
+  assertOk(pageId, "Missing pageId");
+  assertOk(pageAccessToken, "Missing pageAccessToken");
+
+  // 1) Start an upload session
+  const start = await graphJson(
+    await fetch(`https://graph.facebook.com/v21.0/${pageId}/video_reels`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upload_phase: "start", access_token: pageAccessToken }),
+    }),
+    "Facebook Reel start failed"
+  );
+  const videoId: string | undefined = start.video_id;
+  assertOk(videoId, "Facebook Reel start returned no video_id");
+
+  // 2) Meta pulls the file from storage. An hour covers slow fetches of large files.
+  const signedUrl = await getSignedDownloadUrl({ bucket, path: storagePath, expiresInSeconds: 60 * 60 });
+  await graphJson(
+    await fetch(`https://rupload.facebook.com/video-upload/v21.0/${videoId}`, {
+      method: "POST",
+      headers: { Authorization: `OAuth ${pageAccessToken}`, file_url: signedUrl },
+    }),
+    "Facebook Reel upload failed"
+  );
+
+  // 3) Finish and publish
+  const params = new URLSearchParams({
+    access_token: pageAccessToken,
+    video_id: videoId,
+    upload_phase: "finish",
+    video_state: "PUBLISHED",
+  });
+  if (title?.trim()) params.set("title", title.trim().slice(0, 255));
+  if (description?.trim()) params.set("description", description.trim().slice(0, 5000));
+  await graphJson(
+    await fetch(`https://graph.facebook.com/v21.0/${pageId}/video_reels`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params,
+    }),
+    "Facebook Reel publish failed"
+  );
+
+  return { videoId };
+}
+
+export type FacebookReelStatus =
+  | { status: "processing" }
+  | { status: "posted" }
+  | { status: "failed"; error: string };
+
+/** Reads a Reel's status. Published means done; any phase error means it failed. */
+export function readFacebookReelStatus(body: any): FacebookReelStatus {
+  const st = body?.status ?? {};
+  const phases = [st.uploading_phase, st.processing_phase, st.publishing_phase];
+  const phaseError = phases.find((p) => p?.status === "error");
+  if (st.video_status === "error" || st.video_status === "upload_failed" || st.video_status === "expired" || phaseError) {
+    const message = phaseError?.error?.message || phaseError?.errors?.[0]?.message || st.video_status || "unknown reason";
+    return { status: "failed", error: `Facebook couldn't publish the Reel: ${message}` };
+  }
+  const pub = st.publishing_phase ?? {};
+  if (pub.publish_status === "published" || pub.status === "complete" || pub.status === "completed") {
+    return { status: "posted" };
+  }
+  return { status: "processing" };
+}
+
+export async function checkFacebookReel(videoId: string, pageAccessToken: string): Promise<FacebookReelStatus> {
+  const res = await fetch(
+    `https://graph.facebook.com/v21.0/${videoId}?fields=status&access_token=${encodeURIComponent(pageAccessToken)}`
+  );
+  // A 5xx is Meta having a bad moment; the next worker run checks again.
+  if (res.status >= 500) return { status: "processing" };
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.error) {
+    return { status: "failed", error: `Facebook Reel check failed: ${res.status} ${body?.error?.message || ""}`.trim() };
+  }
+  return readFacebookReelStatus(body);
+}
+
 // ── Text-only post ────────────────────────────────────────────────────────────
 
 type PostTextToFacebookArgs = {

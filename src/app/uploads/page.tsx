@@ -18,7 +18,18 @@ import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/Tex
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import RenderProgressBanner from "@/components/uploads/RenderProgressBanner";
 import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
-import { AI_LABEL_PLATFORMS, normalizeInstagramCollaborators, parseList, pinterestExtras } from "@/lib/postOptions";
+import { ONE_ACCOUNT_PER_POST, isOneAccountPerPost } from "@/lib/accountLimits";
+import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
+import { buildTemplate, parseTemplates, templateTitle, type PostTemplate, type TemplateSettings } from "@/lib/postTemplates";
+import {
+  AI_LABEL_PLATFORMS,
+  FACEBOOK_REEL_MAX_SECONDS,
+  FACEBOOK_REEL_MIN_SECONDS,
+  normalizeInstagramCollaborators,
+  normalizeInstagramUserTags,
+  parseList,
+  pinterestExtras,
+} from "@/lib/postOptions";
 import {
   CaretLeft,
   CaretRight,
@@ -49,9 +60,9 @@ const EMOJI_CATEGORIES = {
 
 type Privacy = "private" | "unlisted" | "public";
 
-const AI_LABEL_PLATFORM_NAMES: Record<string, string> = { tiktok: "TikTok", youtube: "YouTube", instagram: "Instagram" };
+const AI_LABEL_PLATFORM_NAMES: Record<string, string> = { tiktok: "TikTok", youtube: "YouTube", instagram: "Instagram", x: "X", pinterest: "Pinterest" };
 
-// Offered for YouTube's default language and Bluesky's post language.
+// Offered for Bluesky's post language. YouTube uses its own list (YOUTUBE_LANGUAGES).
 const LANGUAGE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "en", label: "English" },
   { value: "es", label: "Spanish" },
@@ -72,6 +83,30 @@ const LANGUAGE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "zh-Hant", label: "Chinese (Traditional)" },
 ];
 
+/** A small (i) button that shows `children` on hover, focus or tap. */
+function InfoTip({ label, align = "left", children }: { label: string; align?: "left" | "right"; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        onBlur={() => setOpen(false)}
+        className="flex text-white/40 transition-colors hover:text-white/70"
+      >
+        <Info className="h-3.5 w-3.5" weight="bold" />
+      </button>
+      {open && (
+        <div role="tooltip" className={`absolute ${align === "right" ? "right-0" : "left-0"} top-full z-50 mt-2 w-72 rounded-lg border border-white/15 bg-neutral-900 p-3 text-xs font-normal leading-relaxed text-white/70 shadow-xl`}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** "2.5" -> 2500. Blank, invalid, or past the end of the video -> undefined (not sent). */
 function secondsToMs(value: string, durationSec: number | null): number | undefined {
   if (!value.trim()) return undefined;
@@ -90,10 +125,13 @@ type YouTubePreset = {
   category: YouTubeCategory;
   visibility: Privacy;
   notifySubscribers: boolean;
-  allowComments: boolean;
   allowEmbedding: boolean;
   madeForKids: boolean;
   publicStats?: boolean;
+  // Added 2026-10-11; presets saved earlier don't have them.
+  tags?: string;
+  language?: string;
+  license?: "youtube" | "creativeCommon";
 };
 
 type PlatformConfig = {
@@ -198,7 +236,7 @@ const PLATFORMS: PlatformConfig[] = [
     key: "pinterest",
     name: "Pinterest",
     available: true,
-    charLimit: 500,
+    charLimit: 800,
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
@@ -414,7 +452,8 @@ export default function UploadsPage() {
   const [ytCategory, setYtCategory] = useState<YouTubeCategory>("gaming");
   const [ytVisibility, setYtVisibility] = useState<Privacy>("private");
   const [ytNotifySubscribers, setYtNotifySubscribers] = useState(true);
-  const [ytAllowComments, setYtAllowComments] = useState(true);
+  // YouTube's API has no per-video comment setting, so there is no "Allow comments" option.
+  const [ytPaidPromotion, setYtPaidPromotion] = useState(false);
   const [ytAllowEmbedding, setYtAllowEmbedding] = useState(true);
   const [ytMadeForKids, setYtMadeForKids] = useState(false);
   const [ytPublicStats, setYtPublicStats] = useState(true);
@@ -461,17 +500,17 @@ export default function UploadsPage() {
   const [platformTitleOverrides, setPlatformTitleOverrides] = useState<Record<string, string>>({});
   const [platformDescOverrides, setPlatformDescOverrides] = useState<Record<string, string>>({});
   const [openCaptionOverride, setOpenCaptionOverride] = useState<string | null>(null);
-  const [linkedinVisibility, setLinkedinVisibility] = useState<"PUBLIC" | "CONNECTIONS">("PUBLIC");
-  const [xReplySettings, setXReplySettings] = useState<"everyone" | "mentionedUsers" | "subscribers">("everyone");
+  const [linkedinVisibility, setLinkedinVisibility] = useState<"PUBLIC" | "CONNECTIONS" | "LOGGED_IN">("PUBLIC");
+  const [xReplySettings, setXReplySettings] = useState<"everyone" | "following" | "mentionedUsers" | "subscribers" | "verified">("everyone");
 
   // Post templates (localStorage)
   const TEMPLATES_KEY = "clipdash_post_templates";
-  type PostTemplate = { id: string; name: string; title: string; description: string; hashtags: string[]; platforms: string[] };
   const [templates, setTemplates] = useState<PostTemplate[]>([]);
   const [showTemplatesMenu, setShowTemplatesMenu] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
+  const [templateIncludesTitle, setTemplateIncludesTitle] = useState(false);
   const templatesMenuRef = useRef<HTMLDivElement>(null);
 
   // Queue state
@@ -523,6 +562,8 @@ export default function UploadsPage() {
   const [ttCoverSeconds, setTtCoverSeconds] = useState("");
   const [ytTags, setYtTags] = useState("");
   const [ytLanguage, setYtLanguage] = useState("");
+  // The user's saved YouTube tags/language defaults (Settings), restored when the form is reset.
+  const ytTextDefaults = useRef<{ tags: string; language: string }>({ tags: "", language: "" });
   const [ytLicense, setYtLicense] = useState<"youtube" | "creativeCommon">("youtube");
   const [ytPlaylists, setYtPlaylists] = useState<Array<{ id: string; title: string }>>([]);
   const [ytPlaylistsFor, setYtPlaylistsFor] = useState<string | null>(null);
@@ -532,6 +573,29 @@ export default function UploadsPage() {
   const [bskyReplyGate, setBskyReplyGate] = useState<"everyone" | "following" | "mentioned" | "followers" | "nobody">("everyone");
   const [pinLink, setPinLink] = useState("");
   const [pinAltText, setPinAltText] = useState("");
+  const [pinSections, setPinSections] = useState<Array<{ id: string; name: string }>>([]);
+  const [pinSectionsFor, setPinSectionsFor] = useState<string | null>(null);
+  const [pinBoardSectionId, setPinBoardSectionId] = useState("");
+  const [pinCoverSeconds, setPinCoverSeconds] = useState("");
+  // YouTube: per-video recording date and translated titles/descriptions
+  const [ytRecordingDate, setYtRecordingDate] = useState("");
+  const [ytLocalizations, setYtLocalizations] = useState<Array<{ language: string; title: string; description: string }>>([]);
+  // Instagram: tagged people, a name for the reel's original audio, and trial reels
+  const [igUserTags, setIgUserTags] = useState("");
+  const [igAudioName, setIgAudioName] = useState("");
+  const [igTrialReel, setIgTrialReel] = useState(false);
+  const [igTrialGraduation, setIgTrialGraduation] = useState<"MANUAL" | "SS_PERFORMANCE">("MANUAL");
+  // Facebook: post as a Reel instead of a Page video
+  const [fbPostAsReel, setFbPostAsReel] = useState(false);
+  // LinkedIn: resharing and alt text
+  const [liDisableReshare, setLiDisableReshare] = useState(false);
+  const [liAltText, setLiAltText] = useState("");
+  // X: paid-partnership label (the AI label comes from the global toggle)
+  const [xPaidPartnership, setXPaidPartnership] = useState(false);
+  // Bluesky: content warnings and quote posts
+  const [bskyAdultLabel, setBskyAdultLabel] = useState<"" | "sexual" | "nudity" | "porn">("");
+  const [bskyGraphicMedia, setBskyGraphicMedia] = useState(false);
+  const [bskyAllowQuotes, setBskyAllowQuotes] = useState(true);
 
   // Playlists belong to one channel, so "Add to playlist" is only offered when
   // exactly one YouTube account will receive the post.
@@ -566,6 +630,31 @@ export default function UploadsPage() {
     })();
     return () => { cancelled = true; };
   }, [ytSingleAccountId, postMode, selectedPlatforms, ytPlaylistsFor]);
+
+  // Sections of the chosen Pinterest board, for the optional "Board section" picker.
+  useEffect(() => {
+    if (!pinterestBoardId || postMode !== "video" || !selectedPlatforms.includes("pinterest")) return;
+    if (pinSectionsFor === pinterestBoardId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`/api/pinterest/board-sections?boardId=${encodeURIComponent(pinterestBoardId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        setPinSections(json?.ok && Array.isArray(json.sections) ? json.sections : []);
+      } catch {
+        if (cancelled) return;
+        setPinSections([]);
+      }
+      setPinSectionsFor(pinterestBoardId);
+    })();
+    return () => { cancelled = true; };
+  }, [pinterestBoardId, postMode, selectedPlatforms, pinSectionsFor]);
 
   const aiLabelTargets = AI_LABEL_PLATFORMS.filter((p) => selectedPlatforms.includes(p));
 
@@ -610,12 +699,7 @@ export default function UploadsPage() {
         setYtPresets(JSON.parse(saved));
       } catch {}
     }
-    const savedTemplates = localStorage.getItem(TEMPLATES_KEY);
-    if (savedTemplates) {
-      try {
-        setTemplates(JSON.parse(savedTemplates));
-      } catch {}
-    }
+    setTemplates(parseTemplates(localStorage.getItem(TEMPLATES_KEY)));
   }, []);
 
   // Close emoji picker when clicking outside
@@ -704,7 +788,10 @@ export default function UploadsPage() {
             if (provAccts.length > 0) {
               // Facebook can bring in several Pages at once when the user reconnects, including
               // ones they never meant to post to, so with more than one Page nothing is preselected.
-              autoSelect[provider] = provider === "facebook" && provAccts.length > 1 ? [] : provAccts.map((a) => a.id);
+              // X allows one account per post, so with several the user picks which one.
+              autoSelect[provider] = (provider === "facebook" || isOneAccountPerPost(provider)) && provAccts.length > 1
+                ? []
+                : provAccts.map((a) => a.id);
               accts[provider] = { profileName: provAccts[0].profileName, avatarUrl: provAccts[0].avatarUrl };
             }
           }
@@ -741,10 +828,15 @@ export default function UploadsPage() {
               if (s.category) setYtCategory(s.category);
               if (s.visibility) setYtVisibility(s.visibility);
               if (typeof s.notifySubscribers === "boolean") setYtNotifySubscribers(s.notifySubscribers);
-              if (typeof s.allowComments === "boolean") setYtAllowComments(s.allowComments);
               if (typeof s.allowEmbedding === "boolean") setYtAllowEmbedding(s.allowEmbedding);
               if (typeof s.madeForKids === "boolean") setYtMadeForKids(s.madeForKids);
               if (typeof s.publicStats === "boolean") setYtPublicStats(s.publicStats);
+              if (typeof s.language === "string") setYtLanguage(s.language);
+              if (typeof s.tags === "string") setYtTags(s.tags);
+              ytTextDefaults.current = {
+                tags: typeof s.tags === "string" ? s.tags : "",
+                language: typeof s.language === "string" ? s.language : "",
+              };
             } else if (row.platform === "tiktok") {
               // TikTok privacy, comments, duet, and stitch settings must be chosen
               // manually on each upload per TikTok UX requirements — never pre-fill.
@@ -803,6 +895,8 @@ export default function UploadsPage() {
             for (const post of draftPosts) {
               if (post.provider && post.platform_account_id) {
                 if (!draftAccountIds[post.provider]) draftAccountIds[post.provider] = [];
+                // Drafts saved before the one-X-account rule may name several; keep the first.
+                if (isOneAccountPerPost(post.provider) && draftAccountIds[post.provider].length > 0) continue;
                 draftAccountIds[post.provider].push(post.platform_account_id);
               }
             }
@@ -823,15 +917,23 @@ export default function UploadsPage() {
               if (s.is_short !== undefined) setYtIsShort(s.is_short);
               if (s.category) setYtCategory(s.category);
               if (s.notify_subscribers !== undefined) setYtNotifySubscribers(s.notify_subscribers);
-              if (s.allow_comments !== undefined) setYtAllowComments(s.allow_comments);
               if (s.allow_embedding !== undefined) setYtAllowEmbedding(s.allow_embedding);
               if (s.made_for_kids !== undefined) setYtMadeForKids(s.made_for_kids);
               if (s.public_stats_viewable !== undefined) setYtPublicStats(s.public_stats_viewable);
               if (s.contains_synthetic_media === true) setAiGenerated(true);
+              if (s.has_paid_product_placement === true) setYtPaidPromotion(true);
               if (typeof s.tags === "string") setYtTags(s.tags);
               if (typeof s.default_language === "string") setYtLanguage(s.default_language);
               if (s.license === "creativeCommon") setYtLicense("creativeCommon");
               if (typeof s.playlist_id === "string") setYtPlaylistId(s.playlist_id);
+              if (typeof s.recording_date === "string") setYtRecordingDate(s.recording_date);
+              if (Array.isArray(s.localizations)) {
+                setYtLocalizations(
+                  s.localizations
+                    .filter((l: any) => l && typeof l.language === "string")
+                    .map((l: any) => ({ language: l.language, title: String(l.title ?? ""), description: String(l.description ?? "") }))
+                );
+              }
             }
             if (ytPost?.privacy_status) setYtVisibility(ytPost.privacy_status);
 
@@ -855,6 +957,29 @@ export default function UploadsPage() {
               if (typeof s.collaborators === "string") setIgCollaborators(s.collaborators);
               if (s.share_to_feed === false) setIgShareToFeed(false);
               if (typeof s.cover_offset_ms === "number") setIgCoverSeconds(String(s.cover_offset_ms / 1000));
+              if (typeof s.user_tags === "string") setIgUserTags(s.user_tags);
+              if (typeof s.audio_name === "string") setIgAudioName(s.audio_name);
+              if (s.trial_reel === true) setIgTrialReel(true);
+              if (s.trial_graduation === "SS_PERFORMANCE") setIgTrialGraduation("SS_PERFORMANCE");
+            }
+
+            const fbPost = draftPosts.find((p: any) => p.provider === "facebook");
+            if (fbPost?.facebook_settings?.post_as_reel === true) setFbPostAsReel(true);
+
+            const liPost = draftPosts.find((p: any) => p.provider === "linkedin");
+            if (liPost?.linkedin_settings) {
+              const s = liPost.linkedin_settings;
+              if (s.visibility === "CONNECTIONS" || s.visibility === "LOGGED_IN") setLinkedinVisibility(s.visibility);
+              if (s.disable_reshare === true) setLiDisableReshare(true);
+              if (typeof s.alt_text === "string") setLiAltText(s.alt_text);
+            }
+
+            const xPost = draftPosts.find((p: any) => p.provider === "x");
+            if (xPost?.x_settings) {
+              const s = xPost.x_settings;
+              if (["following", "mentionedUsers", "subscribers", "verified"].includes(s.reply_settings)) setXReplySettings(s.reply_settings);
+              if (s.made_with_ai === true) setAiGenerated(true);
+              if (s.paid_partnership === true) setXPaidPartnership(true);
             }
 
             const bskyPost = draftPosts.find((p: any) => p.provider === "bluesky");
@@ -863,6 +988,9 @@ export default function UploadsPage() {
               if (typeof s.language === "string") setBskyLanguage(s.language);
               if (typeof s.alt_text === "string") setBskyAltText(s.alt_text);
               if (["following", "mentioned", "followers", "nobody"].includes(s.reply_gate)) setBskyReplyGate(s.reply_gate);
+              if (["sexual", "nudity", "porn"].includes(s.adult_label)) setBskyAdultLabel(s.adult_label);
+              if (s.graphic_media === true) setBskyGraphicMedia(true);
+              if (s.allow_quotes === false) setBskyAllowQuotes(false);
             }
 
             const pinPost = draftPosts.find((p: any) => p.provider === "pinterest");
@@ -870,6 +998,10 @@ export default function UploadsPage() {
               const s = pinPost.pinterest_settings;
               if (typeof s.link === "string") setPinLink(s.link);
               if (typeof s.alt_text === "string") setPinAltText(s.alt_text);
+              if (typeof s.board_id === "string") setPinterestBoardId(s.board_id);
+              if (typeof s.board_section_id === "string") setPinBoardSectionId(s.board_section_id);
+              if (s.ai_generated === true) setAiGenerated(true);
+              if (typeof s.cover_offset_ms === "number") setPinCoverSeconds(String(s.cover_offset_ms / 1000));
             }
 
             setDraftEditGroupId(draftGroupId);
@@ -1387,6 +1519,8 @@ export default function UploadsPage() {
       if (current.includes(accountId)) {
         return { ...prev, [provider]: current.filter((id) => id !== accountId) };
       }
+      // One-account platforms (X) behave like radio buttons.
+      if (isOneAccountPerPost(provider)) return { ...prev, [provider]: [accountId] };
       return { ...prev, [provider]: [...current, accountId] };
     });
   }
@@ -1442,10 +1576,12 @@ export default function UploadsPage() {
       category: ytCategory,
       visibility: ytVisibility,
       notifySubscribers: ytNotifySubscribers,
-      allowComments: ytAllowComments,
       allowEmbedding: ytAllowEmbedding,
       madeForKids: ytMadeForKids,
       publicStats: ytPublicStats,
+      tags: ytTags,
+      language: ytLanguage,
+      license: ytLicense,
     };
     const updated = [...ytPresets.filter((p) => p.name !== preset.name), preset];
     setYtPresets(updated);
@@ -1458,10 +1594,12 @@ export default function UploadsPage() {
     setYtCategory(preset.category);
     setYtVisibility(preset.visibility);
     setYtNotifySubscribers(preset.notifySubscribers);
-    setYtAllowComments(preset.allowComments);
     setYtAllowEmbedding(preset.allowEmbedding);
     setYtMadeForKids(preset.madeForKids);
     setYtPublicStats(preset.publicStats ?? true);
+    if (typeof preset.tags === "string") setYtTags(preset.tags);
+    if (typeof preset.language === "string") setYtLanguage(preset.language);
+    if (preset.license) setYtLicense(preset.license);
   }
 
   function deleteYtPreset(name: string) {
@@ -1758,13 +1896,17 @@ export default function UploadsPage() {
 
       // Count total posts to create (for error threshold check)
       let totalPostsToCreate = 0;
+      // X takes one account per post (the picker allows only one; this is a backstop).
+      const accountsFor = (platform: string) => {
+        const ids = (selectedAccountIds[platform] || []).filter(Boolean);
+        return isOneAccountPerPost(platform) ? ids.slice(0, 1) : ids;
+      };
       for (const platform of platformsToSchedule) {
-        const acctIds = (selectedAccountIds[platform] || []).filter(Boolean);
-        totalPostsToCreate += Math.max(acctIds.length, 1);
+        totalPostsToCreate += Math.max(accountsFor(platform).length, 1);
       }
 
       for (const platform of platformsToSchedule) {
-        const acctIds = (selectedAccountIds[platform] || []).filter(Boolean);
+        const acctIds = accountsFor(platform);
         const idsToPost: Array<string | null> = acctIds.length > 0 ? acctIds : [null];
 
         for (const accountId of idsToPost) {
@@ -1787,9 +1929,16 @@ export default function UploadsPage() {
             link_image: linkPreview?.image,
             link_domain: linkPreview?.domain,
           };
-          // LinkedIn visibility for text posts
+          // LinkedIn visibility and resharing for text posts
           if (platform === "linkedin") {
-            body.linkedin_settings = { visibility: linkedinVisibility };
+            body.linkedin_settings = { visibility: linkedinVisibility, disable_reshare: liDisableReshare || undefined };
+          }
+          // X reply settings and paid-partnership label apply to text posts too
+          if (platform === "x") {
+            body.x_settings = {
+              reply_settings: xReplySettings !== "everyone" ? xReplySettings : undefined,
+              paid_partnership: xPaidPartnership || undefined,
+            };
           }
         } else {
           body.upload_id = (burnStatus === "done" && burnUploadId)
@@ -1836,14 +1985,18 @@ export default function UploadsPage() {
             is_short: ytIsShort,
             category: ytCategory,
             notify_subscribers: ytNotifySubscribers,
-            allow_comments: ytAllowComments,
             allow_embedding: ytAllowEmbedding,
             made_for_kids: ytMadeForKids,
             public_stats_viewable: ytPublicStats,
             contains_synthetic_media: aiGenerated || undefined,
+            has_paid_product_placement: ytPaidPromotion || undefined,
             tags: ytTags.trim() || undefined,
             default_language: ytLanguage || undefined,
             license: ytLicense !== "youtube" ? ytLicense : undefined,
+            recording_date: ytRecordingDate || undefined,
+            localizations: ytLanguage && ytLocalizations.some((l) => l.language && l.title.trim())
+              ? ytLocalizations.filter((l) => l.language && l.title.trim())
+              : undefined,
             playlist_id:
               ytPlaylistId && ytSingleAccountId && ytPlaylistsFor === ytSingleAccountId && (accountId === null || accountId === ytSingleAccountId)
               && ytPlaylists.some((pl) => pl.id === ytPlaylistId)
@@ -1882,6 +2035,7 @@ export default function UploadsPage() {
           body.facebook_settings = {
             title_override: platformTitleOverrides.facebook || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.facebook),
+            post_as_reel: fbPostAsReel || undefined,
           };
         }
 
@@ -1893,6 +2047,10 @@ export default function UploadsPage() {
             collaborators: igCollaborators.trim() || undefined,
             share_to_feed: igShareToFeed ? undefined : false,
             cover_offset_ms: secondsToMs(igCoverSeconds, videoDuration),
+            user_tags: igUserTags.trim() || undefined,
+            audio_name: igAudioName.trim() || undefined,
+            trial_reel: (igType !== "story" && igTrialReel) || undefined,
+            trial_graduation: igType !== "story" && igTrialReel ? igTrialGraduation : undefined,
             title_override: platformTitleOverrides.instagram || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.instagram),
           };
@@ -1903,6 +2061,8 @@ export default function UploadsPage() {
             title_override: platformTitleOverrides.linkedin || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.linkedin),
             visibility: linkedinVisibility !== "PUBLIC" ? linkedinVisibility : undefined,
+            disable_reshare: liDisableReshare || undefined,
+            alt_text: liAltText.trim() || undefined,
           };
         }
 
@@ -1913,6 +2073,9 @@ export default function UploadsPage() {
             language: bskyLanguage || undefined,
             alt_text: bskyAltText.trim() || undefined,
             reply_gate: bskyReplyGate !== "everyone" ? bskyReplyGate : undefined,
+            adult_label: bskyAdultLabel || undefined,
+            graphic_media: bskyGraphicMedia || undefined,
+            allow_quotes: bskyAllowQuotes ? undefined : false,
           };
         }
 
@@ -1920,14 +2083,21 @@ export default function UploadsPage() {
           body.x_settings = {
             description_override: appendTagsToOverride(platformDescOverrides.x),
             reply_settings: xReplySettings !== "everyone" ? xReplySettings : undefined,
+            made_with_ai: aiGenerated || undefined,
+            paid_partnership: xPaidPartnership || undefined,
           };
         }
 
         if (platform === "pinterest") {
           body.pinterest_settings = {
             board_id: pinterestBoardId,
+            board_section_id: pinBoardSectionId && pinSectionsFor === pinterestBoardId && pinSections.some((sec) => sec.id === pinBoardSectionId)
+              ? pinBoardSectionId
+              : undefined,
             link: pinLink.trim() || undefined,
             alt_text: pinAltText.trim() || undefined,
+            ai_generated: aiGenerated || undefined,
+            cover_offset_ms: secondsToMs(pinCoverSeconds, videoDuration),
           };
         }
         } // end !isTextPost block
@@ -2006,7 +2176,9 @@ export default function UploadsPage() {
 
 
   function loadTemplate(t: PostTemplate) {
-    setTitle(t.title);
+    // Older templates and ones saved without "Include title" leave the current title alone.
+    const savedTitle = templateTitle(t);
+    if (savedTitle !== null) setTitle(savedTitle);
     setDescription(t.description);
     setHashtags(t.hashtags);
     setSelectedPlatforms(
@@ -2014,23 +2186,94 @@ export default function UploadsPage() {
         (p) => enabledPlatforms.some((pl) => pl.key === p)
       )
     );
+    if (t.version === 2) {
+      setPlatformDescOverrides(t.descriptionOverrides ?? {});
+      if (savedTitle !== null) setPlatformTitleOverrides(t.titleOverrides ?? {});
+    }
+
+    // Per-platform settings; only fields the template has are applied. TikTok never has any
+    // (see postTemplates.ts).
+    const s = t.settings ?? {};
+    const y = s.youtube ?? {};
+    if (y.isShort !== undefined) setYtIsShort(y.isShort);
+    if (y.category !== undefined && YOUTUBE_CATEGORIES.some((c) => c.value === y.category)) setYtCategory(y.category as YouTubeCategory);
+    if (y.visibility !== undefined) setYtVisibility(y.visibility);
+    if (y.notifySubscribers !== undefined) setYtNotifySubscribers(y.notifySubscribers);
+    if (y.allowEmbedding !== undefined) setYtAllowEmbedding(y.allowEmbedding);
+    if (y.madeForKids !== undefined) setYtMadeForKids(y.madeForKids);
+    if (y.publicStats !== undefined) setYtPublicStats(y.publicStats);
+    if (y.tags !== undefined) setYtTags(y.tags);
+    if (y.language !== undefined) setYtLanguage(y.language);
+    if (y.license !== undefined) setYtLicense(y.license);
+    // Only used if the playlist belongs to the selected channel (checked when rendering and scheduling).
+    if (y.playlistId !== undefined) setYtPlaylistId(y.playlistId);
+    const ig = s.instagram ?? {};
+    if (ig.igType !== undefined) setIgType(ig.igType);
+    if (ig.firstComment !== undefined) setIgFirstComment(ig.firstComment);
+    if (ig.collaborators !== undefined) setIgCollaborators(ig.collaborators);
+    if (ig.shareToFeed !== undefined) setIgShareToFeed(ig.shareToFeed);
+    if (ig.trialReel !== undefined) setIgTrialReel(ig.trialReel);
+    if (ig.trialGraduation !== undefined) setIgTrialGraduation(ig.trialGraduation);
+    if (s.facebook?.postAsReel !== undefined) setFbPostAsReel(s.facebook.postAsReel);
+    if (s.linkedin?.visibility !== undefined) setLinkedinVisibility(s.linkedin.visibility);
+    if (s.linkedin?.disableReshare !== undefined) setLiDisableReshare(s.linkedin.disableReshare);
+    if (s.x?.replySettings !== undefined) setXReplySettings(s.x.replySettings);
+    if (s.bluesky?.language !== undefined) setBskyLanguage(s.bluesky.language);
+    if (s.bluesky?.replyGate !== undefined) setBskyReplyGate(s.bluesky.replyGate);
+    if (s.bluesky?.allowQuotes !== undefined) setBskyAllowQuotes(s.bluesky.allowQuotes);
+    const boardId = s.pinterest?.boardId;
+    if (boardId !== undefined && pinterestBoards.some((b) => b.id === boardId)) {
+      setPinterestBoardId(boardId);
+      // Only checked against the board's sections once they load (rendering and scheduling).
+      if (s.pinterest?.boardSectionId !== undefined) setPinBoardSectionId(s.pinterest.boardSectionId);
+    }
+    if (s.pinterest?.link !== undefined) setPinLink(s.pinterest.link);
     setShowTemplatesMenu(false);
   }
 
   function saveCurrentTemplate(name: string) {
-    const newTemplate: PostTemplate = {
+    const settings: TemplateSettings = {
+      youtube: {
+        isShort: ytIsShort,
+        category: ytCategory,
+        visibility: ytVisibility,
+        notifySubscribers: ytNotifySubscribers,
+        allowEmbedding: ytAllowEmbedding,
+        madeForKids: ytMadeForKids,
+        publicStats: ytPublicStats,
+        tags: ytTags,
+        language: ytLanguage,
+        license: ytLicense,
+        playlistId: ytPlaylistId,
+      },
+      instagram: {
+        igType, firstComment: igFirstComment, collaborators: igCollaborators, shareToFeed: igShareToFeed,
+        trialReel: igTrialReel, trialGraduation: igTrialGraduation,
+      },
+      facebook: { postAsReel: fbPostAsReel },
+      linkedin: { visibility: linkedinVisibility, disableReshare: liDisableReshare },
+      x: { replySettings: xReplySettings },
+      bluesky: { language: bskyLanguage, replyGate: bskyReplyGate, allowQuotes: bskyAllowQuotes },
+      pinterest: { boardId: pinterestBoardId, boardSectionId: pinBoardSectionId, link: pinLink },
+    };
+    const newTemplate = buildTemplate({
       id: crypto.randomUUID(),
       name,
+      includeTitle: templateIncludesTitle,
       title,
       description,
       hashtags,
       platforms: selectedPlatforms,
-    };
+      titleOverrides: platformTitleOverrides,
+      descriptionOverrides: platformDescOverrides,
+      settings,
+    });
     const updated = [...templates, newTemplate];
     setTemplates(updated);
     localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
     setShowSaveTemplateName(false);
     setNewTemplateName("");
+    setTemplateIncludesTitle(false);
     setShowTemplatesMenu(false);
   }
 
@@ -2072,8 +2315,9 @@ export default function UploadsPage() {
     setTtCreatorErrorsMap({});
     setTtCoverSeconds("");
     // Reset the extra per-platform options
-    setYtTags("");
-    setYtLanguage("");
+    setYtPaidPromotion(false);
+    setYtTags(ytTextDefaults.current.tags);
+    setYtLanguage(ytTextDefaults.current.language);
     setYtLicense("youtube");
     setYtPlaylistId("");
     setIgCollaborators("");
@@ -2084,6 +2328,21 @@ export default function UploadsPage() {
     setBskyReplyGate("everyone");
     setPinLink("");
     setPinAltText("");
+    setPinBoardSectionId("");
+    setPinCoverSeconds("");
+    setYtRecordingDate("");
+    setYtLocalizations([]);
+    setIgUserTags("");
+    setIgAudioName("");
+    setIgTrialReel(false);
+    setIgTrialGraduation("MANUAL");
+    setFbPostAsReel(false);
+    setLiDisableReshare(false);
+    setLiAltText("");
+    setXPaidPartnership(false);
+    setBskyAdultLabel("");
+    setBskyGraphicMedia(false);
+    setBskyAllowQuotes(true);
     // Reset text post state
     setPostMode("video");
     setTextPostBody("");
@@ -2459,13 +2718,20 @@ export default function UploadsPage() {
                     if (accts.length <= 1) return null;
                     const platform = PLATFORMS.find((pl) => pl.key === p);
                     const selectedIds = selectedAccountIds[p] || [];
+                    const oneOnly = isOneAccountPerPost(p);
                     return (
                       <div key={p} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-white/50">{platform?.icon}</span>
                           <span className="text-xs font-medium text-white/60">{platform?.name}</span>
-                          <span className="text-xs text-white/30">— select accounts to post to</span>
-                          {selectedIds.length < accts.length ? (
+                          <span className="text-xs text-white/30">— {oneOnly ? "choose one account" : "select accounts to post to"}</span>
+                          {oneOnly ? (
+                            <div className="ml-auto">
+                              <InfoTip label={`Why only one ${platform?.name} account`} align="right">
+                                {ONE_ACCOUNT_PER_POST[p]} Posting the same thing on several accounts can get them suspended.
+                              </InfoTip>
+                            </div>
+                          ) : selectedIds.length < accts.length ? (
                             <button type="button" onClick={() => setSelectedAccountIds((prev) => ({ ...prev, [p]: accts.map((a) => a.id) }))} className="ml-auto text-xs text-blue-400/70 hover:text-blue-300 transition-colors">
                               Select all
                             </button>
@@ -2493,7 +2759,9 @@ export default function UploadsPage() {
                           })}
                         </div>
                         {selectedIds.length === 0 && (
-                          <p className="mt-2 text-xs text-amber-400/70">Select at least one account to post to {platform?.name}</p>
+                          <p className="mt-2 text-xs text-amber-400/70">
+                            {oneOnly ? `Choose the ${platform?.name} account to post to` : `Select at least one account to post to ${platform?.name}`}
+                          </p>
                         )}
                       </div>
                     );
@@ -2506,57 +2774,134 @@ export default function UploadsPage() {
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-[0_20px_70px_rgba(2,6,23,0.45)] backdrop-blur-xl">
               {/* Templates */}
               <div className="border-b border-white/10 px-5 py-3 flex items-center gap-2">
-                <div className="relative" ref={templatesMenuRef}>
+                <div
+                  className="relative"
+                  ref={templatesMenuRef}
+                  onKeyDown={(e) => { if (e.key === "Escape") setShowTemplatesMenu(false); }}
+                >
                   <button
                     type="button"
-                    onClick={() => { setShowTemplatesMenu((v) => !v); setShowSaveTemplateName(false); }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white/70 hover:bg-white/[0.07] transition-colors"
+                    aria-haspopup="true"
+                    aria-expanded={showTemplatesMenu}
+                    onClick={() => { setShowTemplatesMenu((v) => !v); setShowSaveTemplateName(false); setTemplateIncludesTitle(false); }}
+                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm transition-colors ${showTemplatesMenu ? "bg-white/[0.12] text-white" : "bg-white/[0.06] text-white/75 hover:bg-white/[0.09] hover:text-white"}`}
                   >
                     <Stack className="w-4 h-4" weight="duotone" />
                     Templates
-                    <CaretDown className={`w-3.5 h-3.5 text-white/40 transition-transform ${showTemplatesMenu ? "rotate-180" : ""}`} weight="bold" />
+                    {templates.length > 0 && <span className="tabular-nums text-white/40">{templates.length}</span>}
+                    <CaretDown className={`w-3 h-3 text-white/40 transition-transform ${showTemplatesMenu ? "rotate-180" : ""}`} weight="bold" />
                   </button>
 
                   {showTemplatesMenu && (
-                    <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-72 overflow-hidden rounded-2xl border border-white/12 bg-[#0e1118] shadow-[0_24px_60px_rgba(2,6,23,0.6)]">
-                      {templates.length === 0 && (
-                        <p className="px-4 py-3 text-xs text-white/40">No saved templates yet.</p>
-                      )}
-                      {templates.map((t) => (
-                        <div key={t.id} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0 hover:bg-white/[0.05]">
-                          <button onClick={() => loadTemplate(t)} className="flex-1 text-left text-sm text-white/80 hover:text-white">
-                            {t.name}
-                          </button>
-                          <button onClick={() => deleteTemplate(t.id)} className="shrink-0 rounded p-1 text-white/30 hover:bg-white/10 hover:text-red-400">
-                            <XIcon className="w-3.5 h-3.5" weight="bold" />
-                          </button>
+                    <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-[min(20rem,calc(100vw-3rem))] overflow-hidden rounded-2xl bg-[#161618] p-1.5 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_60px_rgba(0,0,0,0.6)]">
+                      {templates.length === 0 && !showSaveTemplateName && (
+                        <div className="px-3 pb-2 pt-3">
+                          <p className="text-sm text-white/80">No templates yet</p>
+                          <p className="mt-1 text-xs leading-relaxed text-white/45">Save this post&apos;s caption, hashtags and platform settings to reuse them next time.</p>
                         </div>
-                      ))}
-                      <div className="border-t border-white/10">
+                      )}
+                      {templates.length > 0 && (
+                        <ul className="max-h-72 overflow-y-auto">
+                          {templates.map((t) => (
+                            <li key={t.id} className="group relative">
+                              <button
+                                type="button"
+                                onClick={() => loadTemplate(t)}
+                                className="flex w-full flex-col gap-1.5 rounded-xl px-3 py-2.5 pr-10 text-left transition-colors hover:bg-white/[0.06] focus-visible:bg-white/[0.06] focus-visible:outline-none"
+                              >
+                                <span className="truncate text-sm text-white/90">{t.name}</span>
+                                <span className="flex items-center gap-2 text-white/40">
+                                  {t.platforms.length === 0 ? (
+                                    <span className="text-xs">Caption only</span>
+                                  ) : (
+                                    t.platforms.map((p) => {
+                                      const platform = PLATFORMS.find((pl) => pl.key === p);
+                                      return platform ? (
+                                        <span key={p} title={platform.name} className="flex [&_svg]:h-3.5 [&_svg]:w-3.5">{platform.icon}</span>
+                                      ) : null;
+                                    })
+                                  )}
+                                  {templateTitle(t) !== null && (
+                                    <span className="rounded-md bg-white/[0.07] px-1.5 py-px text-[11px] text-white/55">Title</span>
+                                  )}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteTemplate(t.id)}
+                                aria-label={`Delete template ${t.name}`}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-white/40 opacity-100 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                              >
+                                <XIcon className="w-3 h-3" weight="bold" />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      <div className={templates.length > 0 ? "mt-1.5 border-t border-white/[0.08] pt-1.5" : ""}>
                         {showSaveTemplateName ? (
-                          <div className="flex items-center gap-2 p-3">
+                          <form
+                            className="space-y-3 p-2"
+                            onSubmit={(e) => { e.preventDefault(); if (newTemplateName.trim()) saveCurrentTemplate(newTemplateName.trim()); }}
+                          >
                             <input
                               type="text"
                               value={newTemplateName}
                               onChange={(e) => setNewTemplateName(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim()) saveCurrentTemplate(newTemplateName.trim()); }}
-                              placeholder="Template name..."
+                              placeholder="Template name"
+                              aria-label="Template name"
+                              maxLength={60}
                               autoFocus
-                              className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                              className="w-full rounded-lg bg-white/[0.07] px-3 py-2 text-sm text-white placeholder-white/35 outline-none ring-1 ring-transparent transition focus:ring-white/25"
                             />
-                            <button
-                              onClick={() => { if (newTemplateName.trim()) saveCurrentTemplate(newTemplateName.trim()); }}
-                              disabled={!newTemplateName.trim()}
-                              className="rounded-lg bg-blue-400 px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50"
-                            >Save</button>
-                          </div>
+                            <label className="flex cursor-pointer items-center justify-between gap-3">
+                              <span className="min-w-0">
+                                <span className="block text-sm text-white/80">Include title</span>
+                                <span className="block truncate text-xs text-white/40">{title.trim() ? title.trim() : "The title box is empty"}</span>
+                              </span>
+                              <input
+                                type="checkbox"
+                                role="switch"
+                                checked={templateIncludesTitle}
+                                onChange={(e) => setTemplateIncludesTitle(e.target.checked)}
+                                className="peer sr-only"
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-white/40 ${templateIncludesTitle ? "bg-[#30d158]" : "bg-white/15"}`}
+                              >
+                                <span className={`absolute left-[2px] top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow transition-transform ${templateIncludesTitle ? "translate-x-4" : ""}`} />
+                              </span>
+                            </label>
+                            <p className="text-xs leading-relaxed text-white/40">
+                              Saves your description, hashtags, platforms and their settings. TikTok&apos;s settings are left out because TikTok asks you to choose them on every post.
+                            </p>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setShowSaveTemplateName(false); setNewTemplateName(""); setTemplateIncludesTitle(false); }}
+                                className="rounded-full px-3.5 py-1.5 text-sm text-white/60 transition-colors hover:text-white"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={!newTemplateName.trim()}
+                                className="rounded-full bg-white px-4 py-1.5 text-sm font-medium text-black transition-opacity hover:bg-white/90 disabled:opacity-40"
+                              >
+                                Save template
+                              </button>
+                            </div>
+                          </form>
                         ) : (
                           <button
+                            type="button"
                             onClick={() => setShowSaveTemplateName(true)}
-                            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-white/60 hover:bg-white/[0.05] hover:text-white"
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-white/75 transition-colors hover:bg-white/[0.06] hover:text-white"
                           >
-                            <Plus className="w-4 h-4" weight="bold" />
-                            Save current as template...
+                            <Plus className="w-3.5 h-3.5" weight="bold" />
+                            Save as template
                           </button>
                         )}
                       </div>
@@ -2888,8 +3233,10 @@ export default function UploadsPage() {
                               <li><span className="text-white">TikTok</span>: &quot;Creator labeled as AI-generated&quot;</li>
                               <li><span className="text-white">YouTube</span>: &quot;Altered or synthetic content&quot;</li>
                               <li><span className="text-white">Instagram</span>: &quot;AI info&quot;</li>
+                              <li><span className="text-white">X</span>: &quot;Made with AI&quot;</li>
+                              <li><span className="text-white">Pinterest</span>: &quot;AI modified&quot;</li>
                             </ul>
-                            <p className="mt-2 text-white/50">Facebook, LinkedIn, X, Bluesky and Pinterest don&apos;t let apps set an AI label. They detect AI content from the video file on their own.</p>
+                            <p className="mt-2 text-white/50">Facebook, LinkedIn and Bluesky don&apos;t let apps set an AI label. They detect AI content from the video file on their own.</p>
                           </div>
                         )}
                       </div>
@@ -3220,10 +3567,6 @@ export default function UploadsPage() {
                       <span className="text-sm text-white/70">Notify Subscribers</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={ytAllowComments} onChange={(e) => setYtAllowComments(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                      <span className="text-sm text-white/70">Allow Comments</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={ytAllowEmbedding} onChange={(e) => setYtAllowEmbedding(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
                       <span className="text-sm text-white/70">Allow Embedding</span>
                     </label>
@@ -3235,19 +3578,33 @@ export default function UploadsPage() {
                       <input type="checkbox" checked={ytPublicStats} onChange={(e) => setYtPublicStats(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
                       <span className="text-sm text-white/70">Show Like Count</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={ytPaidPromotion} onChange={(e) => setYtPaidPromotion(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                      <span className="text-sm text-white/70">Includes paid promotion</span>
+                    </label>
                   </div>
+                  <p className="-mt-1 text-xs text-white/30">
+                    Comments follow your channel&apos;s comment settings in YouTube Studio. YouTube doesn&apos;t let apps change them per video.
+                  </p>
 
                   <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs text-white/40 mb-1.5">Tags</label>
-                      <input type="text" value={ytTags} onChange={(e) => setYtTags(e.target.value)} placeholder="Comma-separated, e.g. warzone, gaming highlights" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <label htmlFor="yt-tags" className="text-xs text-white/40">Tags</label>
+                        <InfoTip label="How YouTube tags work">
+                          <p>Tags work on Shorts and regular videos alike. Clip Dash sends them to YouTube as real tags, not as text in your description.</p>
+                          <p className="mt-2">Viewers don&apos;t see tags, and YouTube says they play a minimal role in discovery. Your title, description and hashtags matter more, especially for Shorts.</p>
+                          <p className="mt-2 text-white/50">YouTube Studio&apos;s upload defaults only apply to uploads made on youtube.com, not to videos posted through apps like Clip Dash. To reuse tags, save them in a template or in Settings → Upload Defaults.</p>
+                        </InfoTip>
+                      </div>
+                      <input id="yt-tags" type="text" value={ytTags} onChange={(e) => setYtTags(e.target.value)} placeholder="Comma-separated, e.g. warzone, gaming highlights" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                       <p className="mt-1 text-xs text-white/30">Search keywords, separate from the hashtags in your description. 500 characters in total.</p>
                     </div>
                     <div>
                       <label className="block text-xs text-white/40 mb-1.5">Video language</label>
                       <select value={ytLanguage} onChange={(e) => setYtLanguage(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
                         <option value="" className="bg-neutral-900">Not set</option>
-                        {LANGUAGE_OPTIONS.map((l) => (<option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>))}
+                        {YOUTUBE_LANGUAGES.map((l) => (<option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>))}
                       </select>
                     </div>
                     <div>
@@ -3256,6 +3613,17 @@ export default function UploadsPage() {
                         <option value="youtube" className="bg-neutral-900">Standard YouTube License</option>
                         <option value="creativeCommon" className="bg-neutral-900">Creative Commons (Attribution)</option>
                       </select>
+                    </div>
+                    <div>
+                      <label htmlFor="yt-recording-date" className="block text-xs text-white/40 mb-1.5">Recording date</label>
+                      <input
+                        id="yt-recording-date"
+                        type="date"
+                        value={ytRecordingDate}
+                        max={toDatePart(new Date())}
+                        onChange={(e) => setYtRecordingDate(e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none [color-scheme:dark] focus:border-blue-300/40"
+                      />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-xs text-white/40 mb-1.5">Add to playlist</label>
@@ -3278,6 +3646,65 @@ export default function UploadsPage() {
                         <p className="text-xs text-white/40">Select a single YouTube channel to add this video to a playlist.</p>
                       )}
                     </div>
+                  </div>
+
+                  {/* Translations: title and description shown to viewers in other languages */}
+                  <div className="pt-4 border-t border-white/10">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-white/40">Translations</p>
+                      <InfoTip label="About YouTube translations">
+                        Viewers whose YouTube is set to one of these languages see your translated title and description instead. YouTube needs the video language set first.
+                      </InfoTip>
+                    </div>
+                    {!ytLanguage ? (
+                      <p className="mt-2 text-xs text-white/30">Set the video language above to add translations.</p>
+                    ) : (
+                      <div className="mt-2 space-y-3">
+                        {ytLocalizations.map((loc, i) => {
+                          const taken = new Set(ytLocalizations.filter((_, j) => j !== i).map((l) => l.language));
+                          const update = (patch: Partial<typeof loc>) =>
+                            setYtLocalizations((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+                          return (
+                            <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={loc.language}
+                                  onChange={(e) => update({ language: e.target.value })}
+                                  aria-label="Translation language"
+                                  className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
+                                >
+                                  <option value="" className="bg-neutral-900">Choose a language</option>
+                                  {YOUTUBE_LANGUAGES.filter((l) => l.value !== ytLanguage && (!taken.has(l.value) || l.value === loc.language)).map((l) => (
+                                    <option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => setYtLocalizations((prev) => prev.filter((_, j) => j !== i))}
+                                  aria-label="Remove translation"
+                                  className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                  <XIcon className="h-3.5 w-3.5" weight="bold" />
+                                </button>
+                              </div>
+                              <input type="text" value={loc.title} maxLength={100} onChange={(e) => update({ title: e.target.value })} placeholder="Translated title" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                              <textarea value={loc.description} maxLength={5000} onChange={(e) => update({ description: e.target.value })} placeholder="Translated description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                              {loc.language && !loc.title.trim() && (
+                                <p className="text-xs text-amber-400/70">Add a title, or this translation will be skipped.</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => setYtLocalizations((prev) => [...prev, { language: "", title: "", description: "" }])}
+                          className="flex items-center gap-1.5 text-xs text-blue-400/80 transition-colors hover:text-blue-300"
+                        >
+                          <Plus className="h-3.5 w-3.5" weight="bold" />
+                          Add a translation
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Per-platform caption override */}
@@ -3686,46 +4113,91 @@ export default function UploadsPage() {
                     <label className="block text-xs text-white/40 mb-1.5">First Comment</label>
                     <input type="text" value={igFirstComment} onChange={(e) => setIgFirstComment(e.target.value)} placeholder="Add hashtags or a comment..." className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                   </div>
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Tag people</label>
+                    <input type="text" value={igUserTags} onChange={(e) => setIgUserTags(e.target.value)} placeholder="Usernames, e.g. @friend, @brand" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    {parseList(igUserTags).length > normalizeInstagramUserTags(igUserTags).length ? (
+                      <p className="mt-1 text-xs text-amber-400/70">
+                        Only {normalizeInstagramUserTags(igUserTags).map((u) => `@${u}`).join(", ") || "valid usernames"} will be tagged (max 20; letters, numbers, periods and underscores).
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-white/30">Tagged accounts are notified, and the {igType === "story" ? "story" : "reel"} appears on their profile&apos;s Tagged tab.</p>
+                    )}
+                  </div>
                   {igType !== "story" && (
                     <>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1.5">Collaborators</label>
-                        <input type="text" value={igCollaborators} onChange={(e) => setIgCollaborators(e.target.value)} placeholder="Up to 3 usernames, e.g. @friend, @brand" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                        {parseList(igCollaborators).length > normalizeInstagramCollaborators(igCollaborators).length ? (
-                          <p className="mt-1 text-xs text-amber-400/70">
-                            Only {normalizeInstagramCollaborators(igCollaborators).map((u) => `@${u}`).join(", ") || "valid usernames"} will be invited (max 3; letters, numbers, periods and underscores).
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-xs text-white/30">They get an invite to be shown as co-authors of the post.</p>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                        <label className="flex cursor-pointer items-start justify-between gap-4">
+                          <span>
+                            <span className="block text-sm text-white/80">Trial reel</span>
+                            <span className="mt-0.5 block text-xs text-white/40">Shown first to people who don&apos;t follow you, so you can test it before your followers see it.</span>
+                          </span>
+                          <input type="checkbox" checked={igTrialReel} onChange={(e) => setIgTrialReel(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-white" />
+                        </label>
+                        {igTrialReel && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {([
+                              { value: "MANUAL", label: "I'll share it to followers myself" },
+                              { value: "SS_PERFORMANCE", label: "Share automatically if it does well" },
+                            ] as const).map((o) => (
+                              <button
+                                key={o.value}
+                                type="button"
+                                onClick={() => setIgTrialGraduation(o.value)}
+                                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${igTrialGraduation === o.value ? "border-blue-300/40 bg-blue-400/15 text-blue-100" : "border-white/10 bg-white/5 text-white/60 hover:text-white/80"}`}
+                              >
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
                         )}
+                        {igTrialReel && (
+                          <p className="mt-2 text-xs text-white/30">Trial reels can&apos;t have collaborators and don&apos;t appear in your main feed.</p>
+                        )}
+                      </div>
+                      {!igTrialReel && (
+                        <div>
+                          <label className="block text-xs text-white/40 mb-1.5">Collaborators</label>
+                          <input type="text" value={igCollaborators} onChange={(e) => setIgCollaborators(e.target.value)} placeholder="Up to 3 usernames, e.g. @friend, @brand" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                          {parseList(igCollaborators).length > normalizeInstagramCollaborators(igCollaborators).length ? (
+                            <p className="mt-1 text-xs text-amber-400/70">
+                              Only {normalizeInstagramCollaborators(igCollaborators).map((u) => `@${u}`).join(", ") || "valid usernames"} will be invited (max 3; letters, numbers, periods and underscores).
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-white/30">They get an invite to be shown as co-authors of the post.</p>
+                          )}
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Audio name</label>
+                        <input type="text" value={igAudioName} maxLength={100} onChange={(e) => setIgAudioName(e.target.value)} placeholder="Name your original audio (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                        <p className="mt-1 text-xs text-white/30">Shown instead of &quot;Original audio&quot;. Instagram lets you rename it only once.</p>
                       </div>
                       <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                         <div>
                           <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
-                          {thumbnail || lastThumbnailPath ? (
-                            <p className="py-2 text-xs text-white/40">Using your custom thumbnail as the cover.</p>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min={0}
-                                step={0.1}
-                                value={igCoverSeconds}
-                                onChange={(e) => setIgCoverSeconds(e.target.value)}
-                                placeholder="0"
-                                aria-label="Instagram cover frame, in seconds"
-                                className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
-                              />
-                              <span className="text-xs text-white/40">seconds in (optional)</span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.1}
+                              value={igCoverSeconds}
+                              onChange={(e) => setIgCoverSeconds(e.target.value)}
+                              placeholder="0"
+                              aria-label="Instagram cover frame, in seconds"
+                              className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                            />
+                            <span className="text-xs text-white/40">seconds in{thumbnail || lastThumbnailPath ? " (blank uses your thumbnail)" : " (optional)"}</span>
+                          </div>
                         </div>
-                        <label className="flex cursor-pointer items-center gap-2 pb-2">
-                          <input type="checkbox" checked={igShareToFeed} onChange={(e) => setIgShareToFeed(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                          <span className="text-sm text-white/70">Also show in main feed</span>
-                        </label>
+                        {!igTrialReel && (
+                          <label className="flex cursor-pointer items-center gap-2 pb-2">
+                            <input type="checkbox" checked={igShareToFeed} onChange={(e) => setIgShareToFeed(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                            <span className="text-sm text-white/70">Also show in main feed</span>
+                          </label>
+                        )}
                       </div>
-                      {!(thumbnail || lastThumbnailPath) && igCoverSeconds.trim() !== "" && secondsToMs(igCoverSeconds, videoDuration) === undefined && (
+                      {igCoverSeconds.trim() !== "" && secondsToMs(igCoverSeconds, videoDuration) === undefined && (
                         <p className="text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
                       )}
                     </>
@@ -3776,6 +4248,18 @@ export default function UploadsPage() {
                   )}
                   {postMode === "video" && (
                   <>
+                  <label className="mb-4 flex cursor-pointer items-start justify-between gap-4">
+                    <span>
+                      <span className="block text-sm text-white/80">Post as a Reel</span>
+                      <span className="mt-0.5 block text-xs text-white/40">
+                        Reels must be {FACEBOOK_REEL_MIN_SECONDS}–{FACEBOOK_REEL_MAX_SECONDS} seconds and look best vertical (9:16). Off posts a regular Page video.
+                      </span>
+                      {fbPostAsReel && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS) && (
+                        <span className="mt-1 block text-xs text-amber-400/80">This video is {Math.round(videoDuration)} seconds, so it can&apos;t be a Reel.</span>
+                      )}
+                    </span>
+                    <input type="checkbox" checked={fbPostAsReel} onChange={(e) => setFbPostAsReel(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-white" />
+                  </label>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "facebook" ? null : "facebook")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
                     <CaretRight className={`w-3 h-3 transition-transform ${openCaptionOverride === "facebook" ? "rotate-90" : ""}`} weight="bold" />
                     Customize caption for Facebook
@@ -3813,11 +4297,22 @@ export default function UploadsPage() {
                 <div className="p-5">
                   <div className="mb-4">
                     <label className="block text-xs text-white/40 mb-1.5">Audience visibility</label>
-                    <select value={linkedinVisibility} onChange={(e) => setLinkedinVisibility(e.target.value as "PUBLIC" | "CONNECTIONS")} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
-                      <option value="PUBLIC">Anyone on LinkedIn</option>
-                      <option value="CONNECTIONS">Connections only</option>
+                    <select value={linkedinVisibility} onChange={(e) => setLinkedinVisibility(e.target.value as typeof linkedinVisibility)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                      <option value="PUBLIC" className="bg-neutral-900">Anyone, on or off LinkedIn</option>
+                      <option value="LOGGED_IN" className="bg-neutral-900">Anyone signed in to LinkedIn</option>
+                      <option value="CONNECTIONS" className="bg-neutral-900">Connections only</option>
                     </select>
                   </div>
+                  <label className="mb-4 flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={!liDisableReshare} onChange={(e) => setLiDisableReshare(!e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                    <span className="text-sm text-white/70">Allow others to repost</span>
+                  </label>
+                  {postMode === "video" && (
+                    <div className="mb-4">
+                      <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
+                      <textarea value={liAltText} onChange={(e) => setLiAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                    </div>
+                  )}
                   {postMode === "text" && (
                     <>
                     <p className="text-xs text-white/40 mb-3">Optionally customize the text for LinkedIn. Leave blank to use the base text.</p>
@@ -3890,6 +4385,35 @@ export default function UploadsPage() {
                         <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
                         <textarea value={bskyAltText} onChange={(e) => setBskyAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
                       </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Content warning</label>
+                        <div className="flex flex-wrap gap-2">
+                          {([
+                            { value: "", label: "None" },
+                            { value: "sexual", label: "Suggestive" },
+                            { value: "nudity", label: "Nudity" },
+                            { value: "porn", label: "Adult" },
+                          ] as const).map((o) => (
+                            <button
+                              key={o.value || "none"}
+                              type="button"
+                              onClick={() => setBskyAdultLabel(o.value)}
+                              className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${bskyAdultLabel === o.value ? "border-blue-300/40 bg-blue-400/15 text-blue-100" : "border-white/10 bg-white/5 text-white/60 hover:text-white/80"}`}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="mt-2.5 flex cursor-pointer items-center gap-2">
+                          <input type="checkbox" checked={bskyGraphicMedia} onChange={(e) => setBskyGraphicMedia(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                          <span className="text-sm text-white/70">Graphic media</span>
+                          <span className="text-xs text-white/30">Violence, gore or injury</span>
+                        </label>
+                      </div>
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input type="checkbox" checked={bskyAllowQuotes} onChange={(e) => setBskyAllowQuotes(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                        <span className="text-sm text-white/70">Allow quote posts</span>
+                      </label>
                     </div>
                   )}
                   {postMode === "text" && (
@@ -3944,14 +4468,21 @@ export default function UploadsPage() {
                     <label className="text-xs text-white/50 mb-1.5 block">Who can reply</label>
                     <select
                       value={xReplySettings}
-                      onChange={(e) => setXReplySettings(e.target.value as "everyone" | "mentionedUsers" | "subscribers")}
+                      onChange={(e) => setXReplySettings(e.target.value as typeof xReplySettings)}
                       className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
                     >
-                      <option value="everyone">Everyone</option>
-                      <option value="mentionedUsers">Mentioned users only</option>
-                      <option value="subscribers">Subscribers only</option>
+                      <option value="everyone" className="bg-neutral-900">Everyone</option>
+                      <option value="following" className="bg-neutral-900">Accounts you follow</option>
+                      <option value="verified" className="bg-neutral-900">Verified accounts</option>
+                      <option value="mentionedUsers" className="bg-neutral-900">Only accounts you mention</option>
+                      <option value="subscribers" className="bg-neutral-900">Subscribers only</option>
                     </select>
                   </div>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={xPaidPartnership} onChange={(e) => setXPaidPartnership(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                    <span className="text-sm text-white/70">Paid partnership</span>
+                    <span className="text-xs text-white/30">Adds X&apos;s &quot;Paid partnership&quot; label</span>
+                  </label>
 
                   {postMode === "text" && (
                     <>
@@ -4010,13 +4541,28 @@ export default function UploadsPage() {
                       <label className="text-xs text-white/50 mb-1.5 block">Board</label>
                       <select
                         value={pinterestBoardId}
-                        onChange={(e) => setPinterestBoardId(e.target.value)}
+                        onChange={(e) => { setPinterestBoardId(e.target.value); setPinBoardSectionId(""); }}
                         className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
                       >
                         {pinterestBoards.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
+                          <option key={b.id} value={b.id} className="bg-neutral-900">{b.name}</option>
                         ))}
                       </select>
+                      {pinSectionsFor === pinterestBoardId && pinSections.length > 0 && (
+                        <div className="mt-3">
+                          <label className="block text-xs text-white/40 mb-1.5">Board section</label>
+                          <select
+                            value={pinSections.some((sec) => sec.id === pinBoardSectionId) ? pinBoardSectionId : ""}
+                            onChange={(e) => setPinBoardSectionId(e.target.value)}
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
+                          >
+                            <option value="" className="bg-neutral-900">No section</option>
+                            {pinSections.map((sec) => (
+                              <option key={sec.id} value={sec.id} className="bg-neutral-900">{sec.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-xs text-white/40">No boards found. Make sure your Pinterest account has at least one board.</p>
@@ -4031,6 +4577,25 @@ export default function UploadsPage() {
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
                     <textarea value={pinAltText} onChange={(e) => setPinAltText(e.target.value)} maxLength={500} rows={2} placeholder="Describe the Pin for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={pinCoverSeconds}
+                        onChange={(e) => setPinCoverSeconds(e.target.value)}
+                        placeholder="0"
+                        aria-label="Pinterest cover frame, in seconds"
+                        className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                      />
+                      <span className="text-xs text-white/40">seconds in{thumbnail || lastThumbnailPath ? " (blank uses your thumbnail)" : " (optional)"}</span>
+                    </div>
+                    {pinCoverSeconds.trim() !== "" && secondsToMs(pinCoverSeconds, videoDuration) === undefined && (
+                      <p className="mt-1 text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4114,12 +4679,18 @@ export default function UploadsPage() {
               const missingAccountPlatform = selectedPlatforms.find(
                 (p) => (platformAccountsList[p]?.length ?? 0) > 1 && (selectedAccountIds[p] || []).length === 0
               );
-              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || !!missingAccountPlatform || verticalPending || burnPending;
+              // Facebook Reels must be 3-90 seconds; an unknown duration is left for Meta to judge.
+              const fbReelError = postMode === "video" && selectedPlatforms.includes("facebook") && fbPostAsReel
+                && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS)
+                ? `Facebook Reels must be ${FACEBOOK_REEL_MIN_SECONDS}–${FACEBOOK_REEL_MAX_SECONDS} seconds long. Turn off "Post as a Reel" to post it as a regular video.`
+                : null;
+              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || !!fbReelError || !!missingAccountPlatform || verticalPending || burnPending;
               const blockReason = selectedPlatforms.length === 0
                 ? "Select at least one platform"
                 : ttValidationError
+                  || fbReelError
                   || (missingAccountPlatform
-                    ? `Choose which ${PLATFORMS.find((pl) => pl.key === missingAccountPlatform)?.name ?? missingAccountPlatform} accounts to post to`
+                    ? `Choose which ${PLATFORMS.find((pl) => pl.key === missingAccountPlatform)?.name ?? missingAccountPlatform} ${isOneAccountPerPost(missingAccountPlatform) ? "account" : "accounts"} to post to`
                     : null);
               return (
                 <div className="sticky bottom-4 z-20 rounded-2xl border border-white/10 bg-neutral-950 overflow-hidden">

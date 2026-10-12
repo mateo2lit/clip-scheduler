@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "./supabaseAdmin";
 import { detectVideoContainer, remuxToMp4 } from "./videoRemux";
-import { blueskyThreadgateAllow, type BlueskyReplyGate } from "./postOptions";
+import { blueskySelfLabels, blueskyThreadgateAllow, type BlueskyReplyGate } from "./postOptions";
 
 const BSKY_SERVICE = "https://bsky.social";
 
@@ -234,10 +234,12 @@ type UploadToBlueskyArgs = {
   bucket: string;
   storagePath: string;
   caption: string;
-  /** Optional post language, video alt text and reply control, from postOptions.ts. */
+  /** Optional post language, alt text, reply control, content warnings and quote control, from postOptions.ts. */
   langs?: string[];
   alt?: string;
   replyGate?: BlueskyReplyGate;
+  labels?: string[];
+  disableQuotes?: true;
 };
 
 export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
@@ -246,7 +248,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   accessJwt: string;
   refreshJwt: string;
 }> {
-  const { did, bucket, storagePath, caption, langs, alt, replyGate } = args;
+  const { did, bucket, storagePath, caption, langs, alt, replyGate, labels, disableQuotes } = args;
   const serviceUrl = await resolvePdsServiceUrl(did);
   const opened = await openSession(serviceUrl, args.accessJwt, args.refreshJwt);
   const { callWithRefresh } = opened;
@@ -298,7 +300,7 @@ export async function uploadToBluesky(args: UploadToBlueskyArgs): Promise<{
   // After remux the blob server should store as video/mp4. Use whatever the
   // server actually returned — atproto strictly enforces that the embed
   // reference matches the stored blob's mimeType.
-  return createVideoPostRecord(serviceUrl, opened, { did, blob: uploadData.blob, caption, langs, alt, replyGate });
+  return createVideoPostRecord(serviceUrl, opened, { did, blob: uploadData.blob, caption, langs, alt, replyGate, labels, disableQuotes });
 }
 
 // ── Large video posts (two phases, via Bluesky's video service) ───────────────
@@ -436,10 +438,12 @@ type PublishBlueskyVideoArgs = {
   refreshJwt: string;
   blob: unknown;
   caption: string;
-  /** Optional post language, video alt text and reply control, from postOptions.ts. */
+  /** Optional post language, alt text, reply control, content warnings and quote control, from postOptions.ts. */
   langs?: string[];
   alt?: string;
   replyGate?: BlueskyReplyGate;
+  labels?: string[];
+  disableQuotes?: true;
 };
 
 /** Phase 2b: create the post that embeds a processed video blob. */
@@ -454,11 +458,11 @@ export async function publishBlueskyVideoPost(args: PublishBlueskyVideoArgs): Pr
   return createVideoPostRecord(serviceUrl, opened, args);
 }
 
-/** Creates the video post (and its reply-control record) using an already-open session. */
+/** Creates the video post (and its reply- and quote-control records) using an already-open session. */
 async function createVideoPostRecord(
   serviceUrl: string,
   { session, callWithRefresh }: Awaited<ReturnType<typeof openSession>>,
-  { did, blob, caption, langs, alt, replyGate }: Omit<PublishBlueskyVideoArgs, "accessJwt" | "refreshJwt">
+  { did, blob, caption, langs, alt, replyGate, labels, disableQuotes }: Omit<PublishBlueskyVideoArgs, "accessJwt" | "refreshJwt">
 ): Promise<{ uri: string; cid: string; accessJwt: string; refreshJwt: string }> {
   // Create post record with video embed
   const now = new Date().toISOString();
@@ -472,6 +476,8 @@ async function createVideoPostRecord(
       ...(alt ? { alt } : {}),
     },
     ...(langs && langs.length > 0 ? { langs } : {}),
+    // Content warnings are part of the post itself, so they apply from the first second.
+    ...(labels && labels.length > 0 ? { labels: blueskySelfLabels(labels) } : {}),
   };
 
   const createRecord = (jwt: string) =>
@@ -516,6 +522,32 @@ async function createVideoPostRecord(
       await callWithRefresh(createGate, "Bluesky reply settings failed");
     } catch (e: any) {
       console.error("[Bluesky] Posted, but setting who can reply failed:", e?.message);
+    }
+  }
+
+  // Quote control is a postgate record, also keyed by the post's rkey. Same failure handling.
+  if (disableQuotes) {
+    try {
+      const rkey = String(createData.uri).split("/").pop();
+      const createPostgate = (jwt: string) =>
+        fetch(`${serviceUrl}/xrpc/com.atproto.repo.createRecord`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repo: did,
+            collection: "app.bsky.feed.postgate",
+            rkey,
+            record: {
+              $type: "app.bsky.feed.postgate",
+              post: createData.uri,
+              embeddingRules: [{ $type: "app.bsky.feed.postgate#disableRule" }],
+              createdAt: now,
+            },
+          }),
+        });
+      await callWithRefresh(createPostgate, "Bluesky quote settings failed");
+    } catch (e: any) {
+      console.error("[Bluesky] Posted, but turning off quote posts failed:", e?.message);
     }
   }
 
