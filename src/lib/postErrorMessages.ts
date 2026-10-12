@@ -42,7 +42,10 @@ export function humanizePostError(
     r.includes("expired_access_token") ||
     r.includes("session has expired") ||
     r.includes("token has expired") ||
-    r.includes("oauthexception")
+    // Meta reports every error as type OAuthException; only code 190 is a bad login.
+    // Treating the others (e.g. code 10, a feature the account can't use) as an expired
+    // login sent people into a reconnect loop that could never fix anything.
+    (r.includes("oauthexception") && (/"code":\s*190\b/.test(r) || r.includes("validating access token")))
   ) {
     return `${name} login expired — reconnect in Settings`;
   }
@@ -76,6 +79,10 @@ export function humanizePostError(
     }
   }
   if (provider === "instagram") {
+    // Trial reels need a public professional account above a follower minimum.
+    if (r.includes("trial reel") || r.includes("2207081")) {
+      return "This Instagram account can't post trial reels yet (needs more followers) — post it as a normal reel";
+    }
     if (r.includes("media processing failed")) {
       return "Instagram couldn't process the video — check format/length";
     }
@@ -125,6 +132,15 @@ export function humanizePostError(
     if (r.includes("trial access") || /\bcode":\s*29\b/.test(r)) {
       return "Pinterest app needs Standard access — apply in the developer portal";
     }
+  }
+
+  // ── Meta's own explanation ────────────────────────────────────────────────
+  // Instagram and Facebook often include a message written for the end user
+  // (error_user_msg). It is more accurate than anything inferred from the code.
+  const metaUserMsg = raw.match(/"error_user_msg"\s*:\s*"((?:[^"\\]|\\.)+)"/)?.[1]?.replace(/\\(.)/g, "$1").trim();
+  if (metaUserMsg) {
+    const text = `${name}: ${metaUserMsg}`;
+    return text.length > 120 ? text.slice(0, 117) + "…" : text;
   }
 
   // ── Missing OAuth scope ───────────────────────────────────────────────────

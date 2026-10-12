@@ -4246,7 +4246,7 @@ export default function UploadsPage() {
                               value={igTrialGraduation}
                               onChange={setIgTrialGraduation}
                             />
-                            <p className="text-xs text-white/30">Trial reels can&apos;t have collaborators and stay off your main feed until they&apos;re shared.</p>
+                            <p className="text-xs text-white/30">Instagram only allows trial reels on public professional accounts above a follower minimum. They can&apos;t have collaborators and stay off your main feed until they&apos;re shared.</p>
                           </div>
                         )}
                       </div>

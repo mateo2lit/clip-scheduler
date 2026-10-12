@@ -110,5 +110,28 @@ check(
   (s) => s.startsWith("TikTok") && s.includes("video.publish")
 );
 
+// --- Meta: only code 190 is a bad login ------------------------------------
+// Real error from 2026-10-12: a trial reel on an account below Instagram's follower
+// minimum. It is an OAuthException (code 10), and "login expired - reconnect" sent the
+// user through three reconnects that could never help.
+const IG_TRIAL_REEL =
+  `Instagram container creation failed: 400 {"error":{"message":"Application does not have permission for this action",` +
+  `"type":"OAuthException","code":10,"error_subcode":2207081,"is_transient":false,` +
+  `"error_user_title":"Trial Reel Not Enough Followers","error_user_msg":"The instagram account does not meet the trial reel follower requirement to create trial reels.","fbtrace_id":"x"}}`;
+check("trial reel follower minimum is explained, not a reconnect", humanizePostError("instagram", IG_TRIAL_REEL),
+  (s) => s.includes("trial reels") && !/reconnect/i.test(s));
+
+const EXPIRED =
+  `Instagram container creation failed: 400 {"error":{"message":"Error validating access token: Session has expired on Friday, 28-Aug-26 23:53:23 PDT.",` +
+  `"type":"OAuthException","code":190,"error_subcode":0}}`;
+check("a real expired Meta login still says reconnect", humanizePostError("instagram", EXPIRED), "Instagram login expired — reconnect in Settings");
+
+const OTHER_190 = `Facebook video upload failed: 400 {"error":{"message":"Malformed access token","type":"OAuthException","code":190}}`;
+check("any code 190 is a login problem", humanizePostError("facebook", OTHER_190), "Facebook login expired — reconnect in Settings");
+
+const USER_MSG = `Facebook video upload failed: 400 {"error":{"message":"(#100) Invalid parameter","type":"OAuthException","code":100,` +
+  `"error_user_title":"Video too short","error_user_msg":"Your video must be at least 1 second long."}}`;
+check("Meta's own message is shown when it gives one", humanizePostError("facebook", USER_MSG), "Facebook: Your video must be at least 1 second long.");
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
