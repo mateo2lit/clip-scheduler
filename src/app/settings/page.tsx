@@ -5,6 +5,7 @@ import { supabase } from "@/app/login/supabaseClient";
 import Link from "next/link";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import { comingSoonNotice } from "@/lib/platformAvailability";
+import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
 import {
   CaretLeft,
   Check,
@@ -1890,6 +1891,28 @@ export default function SettingsPage() {
                     <option value="public" className="bg-neutral-900">Public</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">Video language</label>
+                  <select
+                    value={getDefault("youtube", "language", "")}
+                    onChange={(e) => setDefaultField("youtube", "language", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                  >
+                    <option value="" className="bg-neutral-900">Not set</option>
+                    {YOUTUBE_LANGUAGES.map((l) => (<option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">Tags</label>
+                  <input
+                    type="text"
+                    value={getDefault("youtube", "tags", "")}
+                    onChange={(e) => setDefaultField("youtube", "tags", e.target.value)}
+                    placeholder="Comma-separated, e.g. warzone, gaming highlights"
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-white/20"
+                  />
+                  <p className="mt-1 text-xs text-white/30">Filled in on every new YouTube post (Shorts too). YouTube Studio&apos;s own upload defaults don&apos;t apply to videos posted through Clip Dash, so set them here.</p>
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Notify subscribers</span>
                   <button
@@ -1897,15 +1920,6 @@ export default function SettingsPage() {
                     className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("youtube", "notifySubscribers", true) ? "bg-emerald-500" : "bg-white/10"}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("youtube", "notifySubscribers", true) ? "translate-x-5" : "translate-x-0"}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Allow comments</span>
-                  <button
-                    onClick={() => setDefaultField("youtube", "allowComments", !getDefault("youtube", "allowComments", true))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${getDefault("youtube", "allowComments", true) ? "bg-emerald-500" : "bg-white/10"}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${getDefault("youtube", "allowComments", true) ? "translate-x-5" : "translate-x-0"}`} />
                   </button>
                 </div>
                 <div className="flex items-center justify-between">

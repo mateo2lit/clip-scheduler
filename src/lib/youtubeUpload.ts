@@ -26,6 +26,11 @@ type UploadToYouTubeArgs = {
   /** Optional snippet/status fields (tags, language, AI disclosure, license) from postOptions.ts. */
   extraSnippet?: Record<string, unknown>;
   extraStatus?: Record<string, unknown>;
+  /**
+   * Extra parts from youtubeExtras (paid promotion, recording date, translations).
+   * Each key is requested as its own `part` and sent in the body.
+   */
+  extraParts?: Record<string, unknown>;
   playlistId?: string;
 };
 
@@ -99,6 +104,7 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
     publicStatsViewable,
     extraSnippet = {},
     extraStatus = {},
+    extraParts = {},
     playlistId,
   } = args;
 
@@ -141,7 +147,8 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
   const youtube = getYouTubeApi(auth);
 
   const uploadResp = await youtube.videos.insert({
-    part: ["snippet", "status"],
+    // Extra parts are only requested when used, so other uploads send exactly what they always did.
+    part: ["snippet", "status", ...Object.keys(extraParts)],
     notifySubscribers: notifySubscribers ?? true,
     requestBody: {
       snippet: {
@@ -157,6 +164,7 @@ export async function uploadSupabaseVideoToYouTube(args: UploadToYouTubeArgs): P
         publicStatsViewable: publicStatsViewable ?? true,
         ...extraStatus,
       },
+      ...extraParts,
     },
     media: {
       body: nodeStream,

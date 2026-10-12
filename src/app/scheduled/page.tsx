@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import { WAITING_FOR_CAPTIONS, CAPTIONS_FAILED } from "@/app/ai-clips/waitCopy";
+import { postStatusChanges } from "@/lib/postStatusChanges";
 import { CaretLeft, Clock, PencilSimple, Warning, CheckCircle, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 import { humanizePostError } from "@/lib/postErrorMessages";
 import { PlatformIcon } from "@/components/PlatformIcon";
@@ -215,6 +216,12 @@ export default function ScheduledPage() {
 
   const teamIdRef = useRef<string | null>(null);
   const knownStatusRef = useRef<Map<string, string>>(new Map());
+  // Posts removed on this page. A refresh that started before the delete can still return
+  // them, and they must not then be reported as failed or published.
+  const removedHereRef = useRef<Set<string>>(new Set());
+  // Bumped by every refresh and every local change; a refresh that finishes after a newer
+  // one (or after a remove/retry) carries stale rows and is dropped.
+  const fetchGenRef = useRef(0);
   const initializedRef = useRef(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -226,6 +233,7 @@ export default function ScheduledPage() {
 
   async function fetchPosts() {
     if (!teamIdRef.current) return;
+    const gen = ++fetchGenRef.current;
     const { data } = await supabase
       .from("scheduled_posts")
       .select("id, title, description, provider, scheduled_for, status, created_at, last_error, group_id, thumbnail_path, upload_id")
@@ -233,7 +241,8 @@ export default function ScheduledPage() {
       .in("status", ["scheduled", "posting", "ig_processing", "failed"])
       .order("scheduled_for", { ascending: true });
 
-    const newPosts = data ?? [];
+    if (gen !== fetchGenRef.current) return; // stale: something newer happened meanwhile
+    const newPosts = (data ?? []).filter((p) => !removedHereRef.current.has(p.id));
 
     // AI Clips posts can be scheduled before their captioned video finishes rendering
     const renderUploadIds = Array.from(new Set(
@@ -253,30 +262,36 @@ export default function ScheduledPage() {
     } else {
       setRenderStatuses({});
     }
+    if (gen !== fetchGenRef.current) return;
     const newStatusMap = new Map(newPosts.map((p) => [p.id, p.status]));
 
     if (initializedRef.current) {
-      const completedCount = [...knownStatusRef.current.keys()].filter(
-        (id) => !newStatusMap.has(id)
-      ).length;
-      if (completedCount > 0) {
-        showToast(
-          `${completedCount} post${completedCount > 1 ? "s" : ""} published successfully!`,
-          "success"
-        );
-      }
+      const { newlyFailed, vanished } = postStatusChanges(knownStatusRef.current, newStatusMap, removedHereRef.current);
 
-      const newlyFailed = newPosts.filter(
-        (p) => p.status === "failed" && knownStatusRef.current.get(p.id) !== "failed"
-      );
       if (newlyFailed.length > 0) {
         showToast(
           `${newlyFailed.length} post${newlyFailed.length > 1 ? "s" : ""} failed to publish`,
           "error"
         );
+      } else if (vanished.length > 0) {
+        // A post leaving the list may have been published, deleted elsewhere or made a
+        // draft, so only ones the database shows as posted are announced.
+        const { data: posted } = await supabase
+          .from("scheduled_posts")
+          .select("id")
+          .in("id", vanished)
+          .eq("status", "posted");
+        const publishedCount = posted?.length ?? 0;
+        if (publishedCount > 0 && gen === fetchGenRef.current) {
+          showToast(
+            `${publishedCount} post${publishedCount > 1 ? "s" : ""} published`,
+            "success"
+          );
+        }
       }
     }
 
+    if (gen !== fetchGenRef.current) return;
     initializedRef.current = true;
     knownStatusRef.current = newStatusMap;
     setPosts(newPosts);
@@ -331,6 +346,7 @@ export default function ScheduledPage() {
 
   async function handleRetry(groupId: string, postIds: string[]) {
     setRetrying(groupId);
+    fetchGenRef.current++;
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
@@ -348,6 +364,8 @@ export default function ScheduledPage() {
         })
       ));
 
+      fetchGenRef.current++;
+      for (const id of postIds) knownStatusRef.current.set(id, "scheduled");
       setPosts((prev) =>
         prev.map((p) =>
           postIds.includes(p.id) ? { ...p, status: "scheduled", last_error: null } : p
@@ -363,6 +381,7 @@ export default function ScheduledPage() {
   async function handleCancel(groupId: string, postIds: string[]) {
     if (!confirm(`Cancel ${postIds.length > 1 ? "these scheduled posts" : "this scheduled post"}?`)) return;
     setCanceling(groupId);
+    fetchGenRef.current++;
     try {
       for (const postId of postIds) {
         const { error } = await supabase
@@ -370,12 +389,11 @@ export default function ScheduledPage() {
           .delete()
           .eq("id", postId);
         if (error) throw error;
+        removedHereRef.current.add(postId);
       }
-      setPosts((prev) => {
-        const updated = prev.filter((p) => !postIds.includes(p.id));
-        knownStatusRef.current = new Map(updated.map((p) => [p.id, p.status]));
-        return updated;
-      });
+      fetchGenRef.current++;
+      for (const id of postIds) knownStatusRef.current.delete(id);
+      setPosts((prev) => prev.filter((p) => !postIds.includes(p.id)));
     } catch (e: any) {
       alert(e?.message || "Failed to cancel");
     } finally {

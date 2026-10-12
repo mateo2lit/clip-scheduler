@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { strayAuthCodeRedirect } from "@/lib/authLinks";
 
 const PROTECTED_PATHS = [
   "/dashboard",
@@ -23,6 +24,11 @@ const PROTECTED_PATHS = [
 ];
 
 export async function middleware(req: NextRequest) {
+  // An auth link whose redirect Supabase didn't allow lands on the Site URL root with
+  // ?code=...; hand it to /auth/callback so it is used (or its failure is shown).
+  const stray = strayAuthCodeRedirect(req.nextUrl.pathname, req.nextUrl.search);
+  if (stray) return NextResponse.redirect(new URL(stray, req.url));
+
   const res = NextResponse.next();
 
   const supabase = createServerClient(

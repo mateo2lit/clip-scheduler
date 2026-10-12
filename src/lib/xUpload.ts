@@ -12,7 +12,8 @@ type UploadToXArgs = {
   storagePath: string;
 
   tweetText: string;
-  replySettings?: "everyone" | "mentionedUsers" | "subscribers";
+  /** Optional create-post fields from xExtras (reply settings, AI and paid-partnership labels). */
+  postFields?: Record<string, unknown>;
 };
 
 function assertOk(condition: any, message: string): asserts condition {
@@ -38,7 +39,7 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
     bucket,
     storagePath,
     tweetText,
-    replySettings = "everyone",
+    postFields = {},
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -195,13 +196,10 @@ export async function uploadVideoToX(args: UploadToXArgs): Promise<{
 
   // 7) Post the tweet
   const tweetBody: any = {
+    ...postFields,
     text: tweetText.slice(0, 280),
     media: { media_ids: [mediaId] },
   };
-
-  if (replySettings !== "everyone") {
-    tweetBody.reply_settings = replySettings;
-  }
 
   const tweetRes = await fetch("https://api.x.com/2/tweets", {
     method: "POST",
@@ -236,7 +234,8 @@ type PostTextToXArgs = {
   accessToken?: string | null;
   expiresAt?: string | null;
   text: string;
-  replySettings?: "everyone" | "mentionedUsers" | "subscribers";
+  /** Optional create-post fields from xExtras (reply settings, AI and paid-partnership labels). */
+  postFields?: Record<string, unknown>;
 };
 
 export async function postTextToX(args: PostTextToXArgs): Promise<{ tweetId: string }> {
@@ -247,7 +246,7 @@ export async function postTextToX(args: PostTextToXArgs): Promise<{ tweetId: str
     accessToken: existingAccessToken,
     expiresAt: existingExpiresAt,
     text,
-    replySettings = "everyone",
+    postFields = {},
   } = args;
 
   assertOk(refreshToken, "Missing refreshToken");
@@ -269,10 +268,7 @@ export async function postTextToX(args: PostTextToXArgs): Promise<{ tweetId: str
     .eq("id", platformAccountId)
     .eq("user_id", userId);
 
-  const tweetBody: any = { text: text.slice(0, 280) };
-  if (replySettings !== "everyone") {
-    tweetBody.reply_settings = replySettings;
-  }
+  const tweetBody: any = { ...postFields, text: text.slice(0, 280) };
 
   const tweetRes = await fetch("https://api.x.com/2/tweets", {
     method: "POST",

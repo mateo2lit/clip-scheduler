@@ -15,7 +15,7 @@ import {
   postTextToBluesky,
 } from "@/lib/blueskyUpload";
 import { uploadVideoToX, postTextToX } from "@/lib/xUpload";
-import { uploadToPinterest } from "@/lib/pinterestUpload";
+import { uploadToPinterest, pinterestCoverUrl } from "@/lib/pinterestUpload";
 import { uploadToSnapchat } from "@/lib/snapchatUpload";
 import { sendPostSuccessEmail, sendPostFailedEmail, sendReconnectEmail, sendGroupSummaryEmail } from "@/lib/email";
 import { getYouTubeOAuthClient, getYouTubeApi } from "@/lib/youtube";
@@ -25,6 +25,9 @@ import {
   instagramContainerExtras,
   blueskyExtras,
   pinterestExtras,
+  xExtras,
+  linkedinExtras,
+  hasCoverFrame,
 } from "@/lib/postOptions";
 import { renderGate, RENDER_FAILED_MESSAGE } from "@/lib/renderGate";
 
@@ -800,7 +803,8 @@ async function runWorker(req: Request) {
             accessToken: acct.access_token,
             personUrn: `urn:li:person:${acct.platform_user_id}`,
             text: fullText.slice(0, 3000),
-            visibility: liSettings.visibility || "PUBLIC",
+            visibility: linkedinExtras(liSettings).visibility,
+            isReshareDisabledByAuthor: linkedinExtras(liSettings).isReshareDisabledByAuthor,
             linkUrl: textContent.link_url,
             linkTitle: textContent.link_title,
             linkDescription: textContent.link_description,
@@ -862,7 +866,7 @@ async function runWorker(req: Request) {
             accessToken: acct.access_token,
             expiresAt: acct.expiry || null,
             text: fullText.slice(0, 280),
-            replySettings: xSettings.reply_settings || "everyone",
+            postFields: xExtras(xSettings),
           });
           platformPostId = xResult.tweetId;
         }
@@ -927,6 +931,7 @@ async function runWorker(req: Request) {
         }
 
         const fbSettings = (post.facebook_settings ?? {}) as any;
+
         const fbArgs: any = {
           userId: post.user_id,
           platformAccountId: acct.id,
@@ -955,6 +960,9 @@ async function runWorker(req: Request) {
         const igType = igSettings?.ig_type || "reel";
         const mediaType = igType === "story" ? "STORIES" as const : "REELS" as const;
 
+        // A cover frame picked for this post wins over the thumbnail (usually auto-extracted).
+        const igSendThumbnail = Boolean(post.thumbnail_path) && !hasCoverFrame(igSettings);
+
         // Create container only — next cron tick will poll and publish
         const igContainerArgs: any = {
           igUserId: acct.ig_user_id,
@@ -963,10 +971,10 @@ async function runWorker(req: Request) {
           storagePath,
           caption: `${post.title ?? ""}\n\n${post.description ?? ""}`.trim(),
           mediaType,
-          extraParams: instagramContainerExtras(igSettings, mediaType, Boolean(post.thumbnail_path)),
+          extraParams: instagramContainerExtras(igSettings, mediaType, igSendThumbnail),
         };
 
-        if (post.thumbnail_path) {
+        if (igSendThumbnail) {
           igContainerArgs.thumbnailBucket = bucket;
           igContainerArgs.thumbnailPath = post.thumbnail_path;
         }
@@ -1044,7 +1052,7 @@ async function runWorker(req: Request) {
           storagePath,
           title: liSettings.title_override || post.title || "Clip Scheduler Upload",
           description: liSettings.description_override ?? post.description ?? "",
-          visibility: liSettings.visibility || "PUBLIC",
+          ...linkedinExtras(liSettings),
         };
 
         if (post.thumbnail_path) {
@@ -1073,7 +1081,7 @@ async function runWorker(req: Request) {
           bucket,
           storagePath,
           tweetText,
-          replySettings: xSettings.reply_settings || "everyone",
+          postFields: xExtras(xSettings),
         });
 
         platformPostId = xResult.tweetId;
@@ -1084,16 +1092,19 @@ async function runWorker(req: Request) {
         const ptSettings = ((post as any).pinterest_settings ?? {}) as any;
         const boardId = ptSettings.board_id;
         if (!boardId) throw new Error("No Pinterest board selected for this post.");
-        const ptExtras = pinterestExtras(ptSettings);
+        // The thumbnail becomes the video's cover, unless a cover frame was picked for this post.
+        const ptCoverUrl = post.thumbnail_path && !hasCoverFrame(ptSettings)
+          ? await pinterestCoverUrl(bucket, post.thumbnail_path)
+          : undefined;
         const pt = await uploadToPinterest({
           accessToken: acct.access_token,
           bucket,
           storagePath,
           title: post.title ?? "Clip Dash Upload",
-          description: post.description ?? "",
+          description: ptSettings.description_override ?? post.description ?? "",
           boardId,
-          link: ptExtras.link,
-          altText: ptExtras.alt_text,
+          extras: pinterestExtras(ptSettings),
+          coverImageUrl: ptCoverUrl,
         });
         platformPostId = pt.platform_post_id;
       } else if (provider === "snapchat") {
@@ -1134,6 +1145,7 @@ async function runWorker(req: Request) {
         const ytExtras = youtubeExtras(yts);
         ytArgs.extraSnippet = ytExtras.snippet;
         ytArgs.extraStatus = ytExtras.status;
+        ytArgs.extraParts = ytExtras.extraParts;
         if (typeof yts.playlist_id === "string" && yts.playlist_id) ytArgs.playlistId = yts.playlist_id;
 
         if (post.thumbnail_path) {
