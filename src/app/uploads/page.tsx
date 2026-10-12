@@ -24,6 +24,15 @@ import { ONE_ACCOUNT_PER_POST, isOneAccountPerPost } from "@/lib/accountLimits";
 import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
 import { buildTemplate, parseTemplates, templateTitle, type PostTemplate, type TemplateSettings } from "@/lib/postTemplates";
 import {
+  LEGACY_STORAGE_KEYS,
+  accountStorageKey,
+  legacyDismissedKey,
+  mergeByKey,
+  safeGet,
+  safeRemove,
+  safeSet,
+} from "@/lib/accountStorage";
+import {
   AI_LABEL_PLATFORMS,
   normalizeInstagramCollaborators,
   normalizeInstagramUserTags,
@@ -270,7 +279,16 @@ const YOUTUBE_CATEGORIES: { value: YouTubeCategory; label: string }[] = [
   { value: "nonprofit", label: "Nonprofits & Activism" },
 ];
 
-const STORAGE_KEY_YT_PRESETS = "clip-scheduler-yt-presets";
+/** Saved YouTube presets from storage; anything malformed is dropped. */
+function parseYtPresets(raw: string | null): YouTubePreset[] {
+  if (!raw) return [];
+  try {
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data.filter((p) => p && typeof p === "object" && typeof p.name === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 function toIsoFromDatetimeLocal(value: string) {
   return new Date(value).toISOString();
@@ -514,14 +532,16 @@ export default function UploadsPage() {
   const [linkedinVisibility, setLinkedinVisibility] = useState<"PUBLIC" | "CONNECTIONS" | "LOGGED_IN">("PUBLIC");
   const [xReplySettings, setXReplySettings] = useState<"everyone" | "following" | "mentionedUsers" | "subscribers" | "verified">("everyone");
 
-  // Post templates (localStorage)
-  const TEMPLATES_KEY = "clipdash_post_templates";
+  // Post templates (localStorage, one slot per account; see src/lib/accountStorage.ts)
   const [templates, setTemplates] = useState<PostTemplate[]>([]);
   const [showTemplatesMenu, setShowTemplatesMenu] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
   const [templateIncludesTitle, setTemplateIncludesTitle] = useState(false);
+  // Templates/presets saved in this browser before they were tied to accounts, offered once
+  const [legacyTemplates, setLegacyTemplates] = useState<PostTemplate[]>([]);
+  const [legacyPresets, setLegacyPresets] = useState<YouTubePreset[]>([]);
   const templatesMenuRef = useRef<HTMLDivElement>(null);
 
   // Queue state
@@ -700,16 +720,49 @@ export default function UploadsPage() {
   const calendarDays = useMemo(() => buildCalendarDays(calendarCursor), [calendarCursor]);
   const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
-  // Load presets from localStorage
+  // Load this account's templates and presets once we know who is signed in. Never the
+  // old shared per-browser slot: that belonged to whichever account used this browser.
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_YT_PRESETS);
-    if (saved) {
-      try {
-        setYtPresets(JSON.parse(saved));
-      } catch {}
+    if (!userId) return;
+    const store = typeof window !== "undefined" ? window.localStorage : null;
+    setYtPresets(parseYtPresets(safeGet(store, accountStorageKey(LEGACY_STORAGE_KEYS.ytPresets, userId))));
+    setTemplates(parseTemplates(safeGet(store, accountStorageKey(LEGACY_STORAGE_KEYS.templates, userId))));
+    if (safeGet(store, legacyDismissedKey(userId))) {
+      setLegacyTemplates([]);
+      setLegacyPresets([]);
+    } else {
+      setLegacyTemplates(parseTemplates(safeGet(store, LEGACY_STORAGE_KEYS.templates)));
+      setLegacyPresets(parseYtPresets(safeGet(store, LEGACY_STORAGE_KEYS.ytPresets)));
     }
-    setTemplates(parseTemplates(localStorage.getItem(TEMPLATES_KEY)));
-  }, []);
+  }, [userId]);
+
+  function saveOwn(base: string, items: unknown[]) {
+    if (!userId) return;
+    safeSet(window.localStorage, accountStorageKey(base, userId), JSON.stringify(items));
+  }
+
+  /** "Add to this account": move the older shared items here, so no other account is offered them. */
+  function claimLegacySaved() {
+    if (!userId) return;
+    const mergedTemplates = mergeByKey(templates, legacyTemplates, (t) => t.id);
+    const mergedPresets = mergeByKey(ytPresets, legacyPresets, (p) => p.name);
+    setTemplates(mergedTemplates);
+    setYtPresets(mergedPresets);
+    saveOwn(LEGACY_STORAGE_KEYS.templates, mergedTemplates);
+    saveOwn(LEGACY_STORAGE_KEYS.ytPresets, mergedPresets);
+    safeRemove(window.localStorage, LEGACY_STORAGE_KEYS.templates);
+    safeRemove(window.localStorage, LEGACY_STORAGE_KEYS.ytPresets);
+    setLegacyTemplates([]);
+    setLegacyPresets([]);
+  }
+
+  /** "Not mine": stop offering them to this account; they stay for the account that saved them. */
+  function dismissLegacySaved() {
+    if (!userId) return;
+    safeSet(window.localStorage, legacyDismissedKey(userId), "1");
+    setLegacyTemplates([]);
+    setLegacyPresets([]);
+  }
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -1603,7 +1656,7 @@ export default function UploadsPage() {
     };
     const updated = [...ytPresets.filter((p) => p.name !== preset.name), preset];
     setYtPresets(updated);
-    localStorage.setItem(STORAGE_KEY_YT_PRESETS, JSON.stringify(updated));
+    saveOwn(LEGACY_STORAGE_KEYS.ytPresets, updated);
     setNewPresetName("");
     setShowSavePreset(false);
   }
@@ -1623,7 +1676,7 @@ export default function UploadsPage() {
   function deleteYtPreset(name: string) {
     const updated = ytPresets.filter((p) => p.name !== name);
     setYtPresets(updated);
-    localStorage.setItem(STORAGE_KEY_YT_PRESETS, JSON.stringify(updated));
+    saveOwn(LEGACY_STORAGE_KEYS.ytPresets, updated);
   }
 
   function startAiSuggest() {
@@ -2288,7 +2341,7 @@ export default function UploadsPage() {
     });
     const updated = [...templates, newTemplate];
     setTemplates(updated);
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    saveOwn(LEGACY_STORAGE_KEYS.templates, updated);
     setShowSaveTemplateName(false);
     setNewTemplateName("");
     setTemplateIncludesTitle(false);
@@ -2298,7 +2351,7 @@ export default function UploadsPage() {
   function deleteTemplate(id: string) {
     const updated = templates.filter((t) => t.id !== id);
     setTemplates(updated);
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    saveOwn(LEGACY_STORAGE_KEYS.templates, updated);
   }
 
   function resetUpload() {
@@ -2813,7 +2866,26 @@ export default function UploadsPage() {
 
                   {showTemplatesMenu && (
                     <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-[min(20rem,calc(100vw-3rem))] overflow-hidden rounded-2xl bg-[#161618] p-1.5 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_60px_rgba(0,0,0,0.6)]">
-                      {templates.length === 0 && !showSaveTemplateName && (
+                      {(legacyTemplates.length > 0 || legacyPresets.length > 0) && (() => {
+                        const n = legacyTemplates.length + legacyPresets.length;
+                        return (
+                          <div className="mb-1.5 rounded-xl bg-white/[0.05] p-3">
+                            <p className="text-sm text-white/85">{n} saved {n === 1 ? "item" : "items"} found in this browser</p>
+                            <p className="mt-1 text-xs leading-relaxed text-white/45">
+                              Saved before templates were tied to accounts, possibly by another account that used this browser.
+                            </p>
+                            <div className="mt-2.5 flex gap-2">
+                              <button type="button" onClick={claimLegacySaved} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-black transition-colors hover:bg-white/90">
+                                Add to this account
+                              </button>
+                              <button type="button" onClick={dismissLegacySaved} className="rounded-full px-3 py-1 text-xs text-white/60 transition-colors hover:text-white">
+                                Not mine
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {templates.length === 0 && !showSaveTemplateName && legacyTemplates.length === 0 && legacyPresets.length === 0 && (
                         <div className="px-3 pb-2 pt-3">
                           <p className="text-sm text-white/80">No templates yet</p>
                           <p className="mt-1 text-xs leading-relaxed text-white/45">Save this post&apos;s caption, hashtags and platform settings to reuse them next time.</p>

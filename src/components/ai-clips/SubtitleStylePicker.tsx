@@ -5,18 +5,32 @@ import { useEffect, useRef, useState } from "react";
 import { SubtitleStyle, PRESETS, PRESET_LABELS } from "@/app/ai-clips/types";
 import { SubtitlePreview } from "@/components/ai-clips/SubtitlePreview";
 import { Prohibit } from "@phosphor-icons/react/dist/ssr";
+import { supabase } from "@/app/login/supabaseClient";
+import {
+  LEGACY_STORAGE_KEYS,
+  accountStorageKey,
+  legacyDismissedKey,
+  mergeByKey,
+  safeGet,
+  safeRemove,
+  safeSet,
+} from "@/lib/accountStorage";
 
 type Tab = "presets" | "font" | "effects" | "title";
 
 // ── Custom preset storage ─────────────────────────────────────────────────────
 
+// Saved per account (src/lib/accountStorage.ts). The old per-browser slot is only
+// offered, once, to whoever opens the picker: "Add to this account" or "Not mine".
 type CustomPreset = { id: string; name: string; style: SubtitleStyle };
-const CUSTOM_PRESETS_KEY = "ai-clips-custom-presets";
 
-function loadCustomPresets(): CustomPreset[] {
-  if (typeof window === "undefined") return [];
+function parseCustomPresets(raw: string | null): CustomPreset[] {
+  if (!raw) return [];
   try {
-    return JSON.parse(localStorage.getItem(CUSTOM_PRESETS_KEY) ?? "[]");
+    const data = JSON.parse(raw);
+    return Array.isArray(data)
+      ? data.filter((p) => p && typeof p.id === "string" && typeof p.name === "string" && p.style && typeof p.style === "object")
+      : [];
   } catch { return []; }
 }
 
@@ -142,12 +156,18 @@ function PresetsTab({
   customPresets,
   onSaveCustom,
   onDeleteCustom,
+  legacyCount,
+  onClaimLegacy,
+  onDismissLegacy,
 }: {
   style: SubtitleStyle;
   onSelect: (key: string, customStyle?: SubtitleStyle) => void;
   customPresets: CustomPreset[];
   onSaveCustom: (name: string) => void;
   onDeleteCustom: (id: string) => void;
+  legacyCount: number;
+  onClaimLegacy: () => void;
+  onDismissLegacy: () => void;
 }) {
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -235,8 +255,25 @@ function PresetsTab({
           </div>
         )}
 
+        {legacyCount > 0 && (
+          <div className="mb-2 rounded-lg bg-white/[0.05] p-2.5">
+            <p className="text-xs text-white/80">
+              {legacyCount} saved {legacyCount === 1 ? "preset" : "presets"} found in this browser
+            </p>
+            <p className="mt-0.5 text-[11px] text-white/40">Saved before presets were tied to accounts, possibly by another account.</p>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={onClaimLegacy} className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-medium text-black hover:bg-white/90">
+                Add to this account
+              </button>
+              <button type="button" onClick={onDismissLegacy} className="rounded-full px-2.5 py-0.5 text-[11px] text-white/60 hover:text-white">
+                Not mine
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Empty state */}
-        {customPresets.length === 0 && !showSave && (
+        {customPresets.length === 0 && !showSave && legacyCount === 0 && (
           <p className="text-[11px] text-white/20 italic">No saved presets yet — tweak any style and save it here.</p>
         )}
 
@@ -691,6 +728,8 @@ export function SubtitleStylePicker({
 }) {
   const [tab, setTab] = useState<Tab>("presets");
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+  const [legacyPresets, setLegacyPresets] = useState<CustomPreset[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Build a Blob URL for the source file so the preview can show actual video
   // frames behind the captions. Cleaned up on file change / unmount to avoid
@@ -713,8 +752,38 @@ export function SubtitleStylePicker({
   }, [sourceFile]);
 
   useEffect(() => {
-    setCustomPresets(loadCustomPresets());
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id ?? null;
+      if (cancelled || !uid) return;
+      setUserId(uid);
+      setCustomPresets(parseCustomPresets(safeGet(window.localStorage, accountStorageKey(LEGACY_STORAGE_KEYS.subtitlePresets, uid))));
+      setLegacyPresets(
+        safeGet(window.localStorage, legacyDismissedKey(uid, "subtitles"))
+          ? []
+          : parseCustomPresets(safeGet(window.localStorage, LEGACY_STORAGE_KEYS.subtitlePresets))
+      );
+    });
+    return () => { cancelled = true; };
   }, []);
+
+  function saveOwnPresets(updated: CustomPreset[]) {
+    if (!userId) return;
+    safeSet(window.localStorage, accountStorageKey(LEGACY_STORAGE_KEYS.subtitlePresets, userId), JSON.stringify(updated));
+  }
+
+  function claimLegacyPresets() {
+    const merged = mergeByKey(customPresets, legacyPresets, (p) => p.id);
+    setCustomPresets(merged);
+    saveOwnPresets(merged);
+    safeRemove(window.localStorage, LEGACY_STORAGE_KEYS.subtitlePresets);
+    setLegacyPresets([]);
+  }
+
+  function dismissLegacyPresets() {
+    if (userId) safeSet(window.localStorage, legacyDismissedKey(userId, "subtitles"), "1");
+    setLegacyPresets([]);
+  }
 
   function update<K extends keyof SubtitleStyle>(key: K, val: SubtitleStyle[K]) {
     onChange({ ...style, [key]: val, preset: "custom" });
@@ -750,13 +819,13 @@ export function SubtitleStylePicker({
     };
     const updated = [...customPresets, newPreset];
     setCustomPresets(updated);
-    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updated));
+    saveOwnPresets(updated);
   }
 
   function deleteCustomPreset(id: string) {
     const updated = customPresets.filter((p) => p.id !== id);
     setCustomPresets(updated);
-    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updated));
+    saveOwnPresets(updated);
   }
 
   const tabCls = (t: Tab) =>
@@ -794,6 +863,9 @@ export function SubtitleStylePicker({
             customPresets={customPresets}
             onSaveCustom={saveCustomPreset}
             onDeleteCustom={deleteCustomPreset}
+            legacyCount={legacyPresets.length}
+            onClaimLegacy={claimLegacyPresets}
+            onDismissLegacy={dismissLegacyPresets}
           />
         )}
         {tab === "font" && <FontTab style={style} onUpdate={update} />}
