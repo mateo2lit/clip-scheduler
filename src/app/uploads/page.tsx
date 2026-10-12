@@ -19,6 +19,7 @@ import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import RenderProgressBanner from "@/components/uploads/RenderProgressBanner";
 import { FormatPicker } from "@/components/uploads/FormatPicker";
 import { Toggle } from "@/components/uploads/Toggle";
+import { MoreOptions } from "@/components/uploads/MoreOptions";
 import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
 import { ONE_ACCOUNT_PER_POST, isOneAccountPerPost } from "@/lib/accountLimits";
 import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
@@ -63,9 +64,6 @@ import {
   FilmStrip,
   ImageSquare,
   ClockCountdown,
-  Flask,
-  ChartLineUp,
-  HandTap,
 } from "@phosphor-icons/react/dist/ssr";
 
 const EMOJI_CATEGORIES = {
@@ -611,11 +609,9 @@ export default function UploadsPage() {
   // YouTube: per-video recording date and translated titles/descriptions
   const [ytRecordingDate, setYtRecordingDate] = useState("");
   const [ytLocalizations, setYtLocalizations] = useState<Array<{ language: string; title: string; description: string }>>([]);
-  // Instagram: tagged people, a name for the reel's original audio, and trial reels
+  // Instagram: tagged people and a name for the reel's original audio
   const [igUserTags, setIgUserTags] = useState("");
   const [igAudioName, setIgAudioName] = useState("");
-  const [igTrialReel, setIgTrialReel] = useState(false);
-  const [igTrialGraduation, setIgTrialGraduation] = useState<"MANUAL" | "SS_PERFORMANCE">("MANUAL");
   // LinkedIn: resharing and alt text
   const [liDisableReshare, setLiDisableReshare] = useState(false);
   const [liAltText, setLiAltText] = useState("");
@@ -1024,8 +1020,6 @@ export default function UploadsPage() {
               if (typeof s.cover_offset_ms === "number") setIgCoverSeconds(String(s.cover_offset_ms / 1000));
               if (typeof s.user_tags === "string") setIgUserTags(s.user_tags);
               if (typeof s.audio_name === "string") setIgAudioName(s.audio_name);
-              if (s.trial_reel === true) setIgTrialReel(true);
-              if (s.trial_graduation === "SS_PERFORMANCE") setIgTrialGraduation("SS_PERFORMANCE");
             }
 
             const liPost = draftPosts.find((p: any) => p.provider === "linkedin");
@@ -2119,8 +2113,6 @@ export default function UploadsPage() {
             cover_offset_ms: secondsToMs(igCoverSeconds, videoDuration),
             user_tags: igUserTags.trim() || undefined,
             audio_name: igAudioName.trim() || undefined,
-            trial_reel: (igType !== "story" && igTrialReel) || undefined,
-            trial_graduation: igType !== "story" && igTrialReel ? igTrialGraduation : undefined,
             title_override: platformTitleOverrides.instagram || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.instagram),
           };
@@ -2285,8 +2277,6 @@ export default function UploadsPage() {
     if (ig.firstComment !== undefined) setIgFirstComment(ig.firstComment);
     if (ig.collaborators !== undefined) setIgCollaborators(ig.collaborators);
     if (ig.shareToFeed !== undefined) setIgShareToFeed(ig.shareToFeed);
-    if (ig.trialReel !== undefined) setIgTrialReel(ig.trialReel);
-    if (ig.trialGraduation !== undefined) setIgTrialGraduation(ig.trialGraduation);
     if (s.linkedin?.visibility !== undefined) setLinkedinVisibility(s.linkedin.visibility);
     if (s.linkedin?.disableReshare !== undefined) setLiDisableReshare(s.linkedin.disableReshare);
     if (s.x?.replySettings !== undefined) setXReplySettings(s.x.replySettings);
@@ -2320,7 +2310,6 @@ export default function UploadsPage() {
       },
       instagram: {
         igType, firstComment: igFirstComment, collaborators: igCollaborators, shareToFeed: igShareToFeed,
-        trialReel: igTrialReel, trialGraduation: igTrialGraduation,
       },
       linkedin: { visibility: linkedinVisibility, disableReshare: liDisableReshare },
       x: { replySettings: xReplySettings },
@@ -2407,8 +2396,6 @@ export default function UploadsPage() {
     setYtLocalizations([]);
     setIgUserTags("");
     setIgAudioName("");
-    setIgTrialReel(false);
-    setIgTrialGraduation("MANUAL");
     setLiDisableReshare(false);
     setLiAltText("");
     setXPaidPartnership(false);
@@ -3661,16 +3648,8 @@ export default function UploadsPage() {
                       <span className="text-sm text-white/70">Notify Subscribers</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={ytAllowEmbedding} onChange={(e) => setYtAllowEmbedding(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                      <span className="text-sm text-white/70">Allow Embedding</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={ytMadeForKids} onChange={(e) => setYtMadeForKids(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
                       <span className="text-sm text-white/70">Made for Kids</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={ytPublicStats} onChange={(e) => setYtPublicStats(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                      <span className="text-sm text-white/70">Show Like Count</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={ytPaidPromotion} onChange={(e) => setYtPaidPromotion(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
@@ -3702,24 +3681,6 @@ export default function UploadsPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs text-white/40 mb-1.5">License</label>
-                      <select value={ytLicense} onChange={(e) => setYtLicense(e.target.value as "youtube" | "creativeCommon")} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
-                        <option value="youtube" className="bg-neutral-900">Standard YouTube License</option>
-                        <option value="creativeCommon" className="bg-neutral-900">Creative Commons (Attribution)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="yt-recording-date" className="block text-xs text-white/40 mb-1.5">Recording date</label>
-                      <input
-                        id="yt-recording-date"
-                        type="date"
-                        value={ytRecordingDate}
-                        max={toDatePart(new Date())}
-                        onChange={(e) => setYtRecordingDate(e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none [color-scheme:dark] focus:border-blue-300/40"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
                       <label className="block text-xs text-white/40 mb-1.5">Add to playlist</label>
                       {ytSingleAccountId ? (
                         <>
@@ -3742,64 +3703,102 @@ export default function UploadsPage() {
                     </div>
                   </div>
 
-                  {/* Translations: title and description shown to viewers in other languages */}
-                  <div className="pt-4 border-t border-white/10">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs text-white/40">Translations</p>
-                      <InfoTip label="About YouTube translations">
-                        Viewers whose YouTube is set to one of these languages see your translated title and description instead. YouTube needs the video language set first.
-                      </InfoTip>
+                  <MoreOptions
+                    platformName="YouTube"
+                    changedCount={
+                      Number(!ytAllowEmbedding) + Number(!ytPublicStats) + Number(ytLicense !== "youtube")
+                      + Number(Boolean(ytRecordingDate)) + Number(ytLocalizations.some((l) => l.language))
+                    }
+                  >
+                    <div className="flex flex-wrap gap-x-6 gap-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={ytAllowEmbedding} onChange={(e) => setYtAllowEmbedding(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                        <span className="text-sm text-white/70">Allow Embedding</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={ytPublicStats} onChange={(e) => setYtPublicStats(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                        <span className="text-sm text-white/70">Show Like Count</span>
+                      </label>
                     </div>
-                    {!ytLanguage ? (
-                      <p className="mt-2 text-xs text-white/30">Set the video language above to add translations.</p>
-                    ) : (
-                      <div className="mt-2 space-y-3">
-                        {ytLocalizations.map((loc, i) => {
-                          const taken = new Set(ytLocalizations.filter((_, j) => j !== i).map((l) => l.language));
-                          const update = (patch: Partial<typeof loc>) =>
-                            setYtLocalizations((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-                          return (
-                            <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={loc.language}
-                                  onChange={(e) => update({ language: e.target.value })}
-                                  aria-label="Translation language"
-                                  className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
-                                >
-                                  <option value="" className="bg-neutral-900">Choose a language</option>
-                                  {YOUTUBE_LANGUAGES.filter((l) => l.value !== ytLanguage && (!taken.has(l.value) || l.value === loc.language)).map((l) => (
-                                    <option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="button"
-                                  onClick={() => setYtLocalizations((prev) => prev.filter((_, j) => j !== i))}
-                                  aria-label="Remove translation"
-                                  className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-                                >
-                                  <XIcon className="h-3.5 w-3.5" weight="bold" />
-                                </button>
-                              </div>
-                              <input type="text" value={loc.title} maxLength={100} onChange={(e) => update({ title: e.target.value })} placeholder="Translated title" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                              <textarea value={loc.description} maxLength={5000} onChange={(e) => update({ description: e.target.value })} placeholder="Translated description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                              {loc.language && !loc.title.trim() && (
-                                <p className="text-xs text-amber-400/70">Add a title, or this translation will be skipped.</p>
-                              )}
-                            </div>
-                          );
-                        })}
-                        <button
-                          type="button"
-                          onClick={() => setYtLocalizations((prev) => [...prev, { language: "", title: "", description: "" }])}
-                          className="flex items-center gap-1.5 text-xs text-blue-400/80 transition-colors hover:text-blue-300"
-                        >
-                          <Plus className="h-3.5 w-3.5" weight="bold" />
-                          Add a translation
-                        </button>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">License</label>
+                        <select value={ytLicense} onChange={(e) => setYtLicense(e.target.value as "youtube" | "creativeCommon")} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                          <option value="youtube" className="bg-neutral-900">Standard YouTube License</option>
+                          <option value="creativeCommon" className="bg-neutral-900">Creative Commons (Attribution)</option>
+                        </select>
                       </div>
-                    )}
-                  </div>
+                      <div>
+                        <label htmlFor="yt-recording-date" className="block text-xs text-white/40 mb-1.5">Recording date</label>
+                        <input
+                          id="yt-recording-date"
+                          type="date"
+                          value={ytRecordingDate}
+                          max={toDatePart(new Date())}
+                          onChange={(e) => setYtRecordingDate(e.target.value)}
+                          className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none [color-scheme:dark] focus:border-blue-300/40"
+                        />
+                      </div>
+                    </div>
+                    {/* Translations: title and description shown to viewers in other languages */}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs text-white/40">Translations</p>
+                        <InfoTip label="About YouTube translations">
+                          Viewers whose YouTube is set to one of these languages see your translated title and description instead. YouTube needs the video language set first.
+                        </InfoTip>
+                      </div>
+                      {!ytLanguage ? (
+                        <p className="mt-2 text-xs text-white/30">Set the video language to add translations.</p>
+                      ) : (
+                        <div className="mt-2 space-y-3">
+                          {ytLocalizations.map((loc, i) => {
+                            const taken = new Set(ytLocalizations.filter((_, j) => j !== i).map((l) => l.language));
+                            const update = (patch: Partial<typeof loc>) =>
+                              setYtLocalizations((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+                            return (
+                              <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={loc.language}
+                                    onChange={(e) => update({ language: e.target.value })}
+                                    aria-label="Translation language"
+                                    className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40"
+                                  >
+                                    <option value="" className="bg-neutral-900">Choose a language</option>
+                                    {YOUTUBE_LANGUAGES.filter((l) => l.value !== ytLanguage && (!taken.has(l.value) || l.value === loc.language)).map((l) => (
+                                      <option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => setYtLocalizations((prev) => prev.filter((_, j) => j !== i))}
+                                    aria-label="Remove translation"
+                                    className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                                  >
+                                    <XIcon className="h-3.5 w-3.5" weight="bold" />
+                                  </button>
+                                </div>
+                                <input type="text" value={loc.title} maxLength={100} onChange={(e) => update({ title: e.target.value })} placeholder="Translated title" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                                <textarea value={loc.description} maxLength={5000} onChange={(e) => update({ description: e.target.value })} placeholder="Translated description (optional)" rows={2} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                                {loc.language && !loc.title.trim() && (
+                                  <p className="text-xs text-amber-400/70">Add a title, or this translation will be skipped.</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            onClick={() => setYtLocalizations((prev) => [...prev, { language: "", title: "", description: "" }])}
+                            className="flex items-center gap-1.5 text-xs text-blue-400/80 transition-colors hover:text-blue-300"
+                          >
+                            <Plus className="h-3.5 w-3.5" weight="bold" />
+                            Add a translation
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </MoreOptions>
 
                   {/* Per-platform caption override */}
                   <div className="pt-4 border-t border-white/10">
@@ -4068,27 +4067,6 @@ export default function UploadsPage() {
                     )}
                   </div>
 
-                  {/* Cover frame */}
-                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
-                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Cover frame</p>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.1}
-                        value={ttCoverSeconds}
-                        onChange={(e) => setTtCoverSeconds(e.target.value)}
-                        placeholder="0"
-                        aria-label="TikTok cover frame, in seconds"
-                        className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
-                      />
-                      <span className="text-xs text-white/40">Seconds into the video. Optional: TikTok picks a frame if blank.</span>
-                    </div>
-                    {ttCoverSeconds.trim() !== "" && secondsToMs(ttCoverSeconds, videoDuration) === undefined && (
-                      <p className="text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
-                    )}
-                  </div>
-
                   {/* can_post warning */}
                   {ttAggregate && !ttAggregate.canPost && (
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
@@ -4153,6 +4131,28 @@ export default function UploadsPage() {
                   <p className="text-xs text-white/30 pt-1">
                     Content may take a few minutes to appear on your TikTok profile after publishing.
                   </p>
+
+                  <MoreOptions platformName="TikTok" changedCount={Number(ttCoverSeconds.trim() !== "")}>
+                    <div className="space-y-2">
+                      <label className="block text-xs text-white/40">Cover frame</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={ttCoverSeconds}
+                          onChange={(e) => setTtCoverSeconds(e.target.value)}
+                          placeholder="0"
+                          aria-label="TikTok cover frame, in seconds"
+                          className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                        />
+                        <span className="text-xs text-white/40">Seconds into the video. Optional: TikTok picks a frame if blank.</span>
+                      </div>
+                      {ttCoverSeconds.trim() !== "" && secondsToMs(ttCoverSeconds, videoDuration) === undefined && (
+                        <p className="text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
+                      )}
+                    </div>
+                  </MoreOptions>
 
                   {/* Per-platform caption override */}
                   <div className="pt-4 border-t border-white/10">
@@ -4222,80 +4222,54 @@ export default function UploadsPage() {
                       <p className="mt-1 text-xs text-white/30">Tagged accounts are notified, and the {igType === "story" ? "story" : "reel"} appears on their profile&apos;s Tagged tab.</p>
                     )}
                   </div>
+
                   {igType !== "story" && (
-                    <>
-                      <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
-                        <div className="flex items-center gap-3 px-4 py-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-white/70">
-                            <Flask className="h-4 w-4" weight="bold" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm text-white/90">Trial reel</span>
-                            <span className="block text-xs text-white/40">Shown to people who don&apos;t follow you first</span>
-                          </span>
-                          <Toggle checked={igTrialReel} onChange={setIgTrialReel} label="Trial reel" />
-                        </div>
-                        {igTrialReel && (
-                          <div className="space-y-2 border-t border-white/[0.06] px-4 py-3">
-                            <FormatPicker
-                              label="Share with your followers"
-                              options={[
-                                { value: "MANUAL", label: "Manually", hint: "From the Instagram app", icon: <HandTap className="h-4 w-4" weight="bold" /> },
-                                { value: "SS_PERFORMANCE", label: "Automatically", hint: "If it performs well", icon: <ChartLineUp className="h-4 w-4" weight="bold" /> },
-                              ]}
-                              value={igTrialGraduation}
-                              onChange={setIgTrialGraduation}
-                            />
-                            <p className="text-xs text-white/30">Instagram only allows trial reels on public professional accounts above a follower minimum. They can&apos;t have collaborators and stay off your main feed until they&apos;re shared.</p>
-                          </div>
-                        )}
-                      </div>
-                      {!igTrialReel && (
-                        <div>
-                          <label className="block text-xs text-white/40 mb-1.5">Collaborators</label>
-                          <input type="text" value={igCollaborators} onChange={(e) => setIgCollaborators(e.target.value)} placeholder="Up to 3 usernames, e.g. @friend, @brand" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                          {parseList(igCollaborators).length > normalizeInstagramCollaborators(igCollaborators).length ? (
-                            <p className="mt-1 text-xs text-amber-400/70">
-                              Only {normalizeInstagramCollaborators(igCollaborators).map((u) => `@${u}`).join(", ") || "valid usernames"} will be invited (max 3; letters, numbers, periods and underscores).
-                            </p>
-                          ) : (
-                            <p className="mt-1 text-xs text-white/30">They get an invite to be shown as co-authors of the post.</p>
-                          )}
-                        </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1.5">Collaborators</label>
+                      <input type="text" value={igCollaborators} onChange={(e) => setIgCollaborators(e.target.value)} placeholder="Up to 3 usernames, e.g. @friend, @brand" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      {parseList(igCollaborators).length > normalizeInstagramCollaborators(igCollaborators).length ? (
+                        <p className="mt-1 text-xs text-amber-400/70">
+                          Only {normalizeInstagramCollaborators(igCollaborators).map((u) => `@${u}`).join(", ") || "valid usernames"} will be invited (max 3; letters, numbers, periods and underscores).
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-white/30">They get an invite to be shown as co-authors of the post.</p>
                       )}
+                    </div>
+                  )}
+                  {igType !== "story" && (
+                    <MoreOptions
+                      platformName="Instagram"
+                      changedCount={Number(Boolean(igAudioName.trim())) + Number(igCoverSeconds.trim() !== "") + Number(!igShareToFeed)}
+                    >
                       <div>
                         <label className="block text-xs text-white/40 mb-1.5">Audio name</label>
                         <input type="text" value={igAudioName} maxLength={100} onChange={(e) => setIgAudioName(e.target.value)} placeholder="Name your original audio (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
                         <p className="mt-1 text-xs text-white/30">Shown instead of &quot;Original audio&quot;. Instagram lets you rename it only once.</p>
                       </div>
-                      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-                        <div>
-                          <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min={0}
-                              step={0.1}
-                              value={igCoverSeconds}
-                              onChange={(e) => setIgCoverSeconds(e.target.value)}
-                              placeholder="0"
-                              aria-label="Instagram cover frame, in seconds"
-                              className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
-                            />
-                            <span className="text-xs text-white/40">seconds in{thumbnail || lastThumbnailPath ? " (blank uses your thumbnail)" : " (optional)"}</span>
-                          </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            value={igCoverSeconds}
+                            onChange={(e) => setIgCoverSeconds(e.target.value)}
+                            placeholder="0"
+                            aria-label="Instagram cover frame, in seconds"
+                            className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                          />
+                          <span className="text-xs text-white/40">seconds in{thumbnail || lastThumbnailPath ? " (blank uses your thumbnail)" : " (optional)"}</span>
                         </div>
-                        {!igTrialReel && (
-                          <label className="flex cursor-pointer items-center gap-2 pb-2">
-                            <input type="checkbox" checked={igShareToFeed} onChange={(e) => setIgShareToFeed(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                            <span className="text-sm text-white/70">Also show in main feed</span>
-                          </label>
+                        {igCoverSeconds.trim() !== "" && secondsToMs(igCoverSeconds, videoDuration) === undefined && (
+                          <p className="mt-1 text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
                         )}
                       </div>
-                      {igCoverSeconds.trim() !== "" && secondsToMs(igCoverSeconds, videoDuration) === undefined && (
-                        <p className="text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
-                      )}
-                    </>
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input type="checkbox" checked={igShareToFeed} onChange={(e) => setIgShareToFeed(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                        <span className="text-sm text-white/70">Also show in main feed</span>
+                      </label>
+                    </MoreOptions>
                   )}
 
                   {/* Per-platform caption override */}
@@ -4387,16 +4361,22 @@ export default function UploadsPage() {
                       <option value="CONNECTIONS" className="bg-neutral-900">Connections only</option>
                     </select>
                   </div>
-                  <label className="mb-4 flex cursor-pointer items-center gap-2">
-                    <input type="checkbox" checked={!liDisableReshare} onChange={(e) => setLiDisableReshare(!e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                    <span className="text-sm text-white/70">Allow others to repost</span>
-                  </label>
-                  {postMode === "video" && (
-                    <div className="mb-4">
-                      <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
-                      <textarea value={liAltText} onChange={(e) => setLiAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
-                    </div>
-                  )}
+                  <MoreOptions
+                    platformName="LinkedIn"
+                    className="mb-4"
+                    changedCount={Number(liDisableReshare) + Number(postMode === "video" && Boolean(liAltText.trim()))}
+                  >
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="checkbox" checked={!liDisableReshare} onChange={(e) => setLiDisableReshare(!e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                      <span className="text-sm text-white/70">Allow others to repost</span>
+                    </label>
+                    {postMode === "video" && (
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
+                        <textarea value={liAltText} onChange={(e) => setLiAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40" />
+                      </div>
+                    )}
+                  </MoreOptions>
                   {postMode === "text" && (
                     <>
                     <p className="text-xs text-white/40 mb-3">Optionally customize the text for LinkedIn. Leave blank to use the base text.</p>
@@ -4446,17 +4426,24 @@ export default function UploadsPage() {
                   )}
                   {postMode === "video" && (
                     <div className="mb-4 space-y-4">
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-xs text-white/40 mb-1.5">Who can reply</label>
-                          <select value={bskyReplyGate} onChange={(e) => setBskyReplyGate(e.target.value as typeof bskyReplyGate)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
-                            <option value="everyone" className="bg-neutral-900">Everyone</option>
-                            <option value="following" className="bg-neutral-900">People you follow</option>
-                            <option value="followers" className="bg-neutral-900">Your followers</option>
-                            <option value="mentioned" className="bg-neutral-900">People you mention</option>
-                            <option value="nobody" className="bg-neutral-900">Nobody</option>
-                          </select>
-                        </div>
+                      <div>
+                        <label className="block text-xs text-white/40 mb-1.5">Who can reply</label>
+                        <select value={bskyReplyGate} onChange={(e) => setBskyReplyGate(e.target.value as typeof bskyReplyGate)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
+                          <option value="everyone" className="bg-neutral-900">Everyone</option>
+                          <option value="following" className="bg-neutral-900">People you follow</option>
+                          <option value="followers" className="bg-neutral-900">Your followers</option>
+                          <option value="mentioned" className="bg-neutral-900">People you mention</option>
+                          <option value="nobody" className="bg-neutral-900">Nobody</option>
+                        </select>
+                      </div>
+                      <MoreOptions
+                        platformName="Bluesky"
+                        className=""
+                        changedCount={
+                          Number(Boolean(bskyLanguage)) + Number(Boolean(bskyAltText.trim())) + Number(Boolean(bskyAdultLabel))
+                          + Number(bskyGraphicMedia) + Number(!bskyAllowQuotes)
+                        }
+                      >
                         <div>
                           <label className="block text-xs text-white/40 mb-1.5">Post language</label>
                           <select value={bskyLanguage} onChange={(e) => setBskyLanguage(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-300/40">
@@ -4464,40 +4451,40 @@ export default function UploadsPage() {
                             {LANGUAGE_OPTIONS.map((l) => (<option key={l.value} value={l.value} className="bg-neutral-900">{l.label}</option>))}
                           </select>
                         </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
-                        <textarea value={bskyAltText} onChange={(e) => setBskyAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-1.5">Content warning</label>
-                        <div className="flex flex-wrap gap-2">
-                          {([
-                            { value: "", label: "None" },
-                            { value: "sexual", label: "Suggestive" },
-                            { value: "nudity", label: "Nudity" },
-                            { value: "porn", label: "Adult" },
-                          ] as const).map((o) => (
-                            <button
-                              key={o.value || "none"}
-                              type="button"
-                              onClick={() => setBskyAdultLabel(o.value)}
-                              className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${bskyAdultLabel === o.value ? "border-blue-300/40 bg-blue-400/15 text-blue-100" : "border-white/10 bg-white/5 text-white/60 hover:text-white/80"}`}
-                            >
-                              {o.label}
-                            </button>
-                          ))}
+                        <div>
+                          <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
+                          <textarea value={bskyAltText} onChange={(e) => setBskyAltText(e.target.value)} maxLength={1000} rows={2} placeholder="Describe the video for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
                         </div>
-                        <label className="mt-2.5 flex cursor-pointer items-center gap-2">
-                          <input type="checkbox" checked={bskyGraphicMedia} onChange={(e) => setBskyGraphicMedia(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                          <span className="text-sm text-white/70">Graphic media</span>
-                          <span className="text-xs text-white/30">Violence, gore or injury</span>
+                        <div>
+                          <label className="block text-xs text-white/40 mb-1.5">Content warning</label>
+                          <div className="flex flex-wrap gap-2">
+                            {([
+                              { value: "", label: "None" },
+                              { value: "sexual", label: "Suggestive" },
+                              { value: "nudity", label: "Nudity" },
+                              { value: "porn", label: "Adult" },
+                            ] as const).map((o) => (
+                              <button
+                                key={o.value || "none"}
+                                type="button"
+                                onClick={() => setBskyAdultLabel(o.value)}
+                                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${bskyAdultLabel === o.value ? "border-blue-300/40 bg-blue-400/15 text-blue-100" : "border-white/10 bg-white/5 text-white/60 hover:text-white/80"}`}
+                              >
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
+                          <label className="mt-2.5 flex cursor-pointer items-center gap-2">
+                            <input type="checkbox" checked={bskyGraphicMedia} onChange={(e) => setBskyGraphicMedia(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                            <span className="text-sm text-white/70">Graphic media</span>
+                            <span className="text-xs text-white/30">Violence, gore or injury</span>
+                          </label>
+                        </div>
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <input type="checkbox" checked={bskyAllowQuotes} onChange={(e) => setBskyAllowQuotes(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                          <span className="text-sm text-white/70">Allow quote posts</span>
                         </label>
-                      </div>
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input type="checkbox" checked={bskyAllowQuotes} onChange={(e) => setBskyAllowQuotes(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                        <span className="text-sm text-white/70">Allow quote posts</span>
-                      </label>
+                      </MoreOptions>
                     </div>
                   )}
                   {postMode === "text" && (
@@ -4562,11 +4549,13 @@ export default function UploadsPage() {
                       <option value="subscribers" className="bg-neutral-900">Subscribers only</option>
                     </select>
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input type="checkbox" checked={xPaidPartnership} onChange={(e) => setXPaidPartnership(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
-                    <span className="text-sm text-white/70">Paid partnership</span>
-                    <span className="text-xs text-white/30">Adds X&apos;s &quot;Paid partnership&quot; label</span>
-                  </label>
+                  <MoreOptions platformName="X" className="" changedCount={Number(xPaidPartnership)}>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="checkbox" checked={xPaidPartnership} onChange={(e) => setXPaidPartnership(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5 accent-white" />
+                      <span className="text-sm text-white/70">Paid partnership</span>
+                      <span className="text-xs text-white/30">Adds X&apos;s &quot;Paid partnership&quot; label</span>
+                    </label>
+                  </MoreOptions>
 
                   {postMode === "text" && (
                     <>
@@ -4658,29 +4647,34 @@ export default function UploadsPage() {
                       <p className="mt-1 text-xs text-amber-400/70">Enter a full link starting with https://. This one will be skipped.</p>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
-                    <textarea value={pinAltText} onChange={(e) => setPinAltText(e.target.value)} maxLength={500} rows={2} placeholder="Describe the Pin for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={pinCoverSeconds}
-                        onChange={(e) => setPinCoverSeconds(e.target.value)}
-                        placeholder="0"
-                        aria-label="Pinterest cover frame, in seconds"
-                        className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
-                      />
-                      <span className="text-xs text-white/40">seconds in{thumbnail || lastThumbnailPath ? " (blank uses your thumbnail)" : " (optional)"}</span>
+                  <MoreOptions
+                    platformName="Pinterest"
+                    changedCount={Number(Boolean(pinAltText.trim())) + Number(pinCoverSeconds.trim() !== "")}
+                  >
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1.5">Alt text</label>
+                      <textarea value={pinAltText} onChange={(e) => setPinAltText(e.target.value)} maxLength={500} rows={2} placeholder="Describe the Pin for people using screen readers (optional)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40 resize-none" />
                     </div>
-                    {pinCoverSeconds.trim() !== "" && secondsToMs(pinCoverSeconds, videoDuration) === undefined && (
-                      <p className="mt-1 text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
-                    )}
-                  </div>
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1.5">Cover frame</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={pinCoverSeconds}
+                          onChange={(e) => setPinCoverSeconds(e.target.value)}
+                          placeholder="0"
+                          aria-label="Pinterest cover frame, in seconds"
+                          className="w-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-blue-300/40"
+                        />
+                        <span className="text-xs text-white/40">seconds in{thumbnail || lastThumbnailPath ? " (blank uses your thumbnail)" : " (optional)"}</span>
+                      </div>
+                      {pinCoverSeconds.trim() !== "" && secondsToMs(pinCoverSeconds, videoDuration) === undefined && (
+                        <p className="mt-1 text-xs text-amber-400/70">That time isn&apos;t within the video, so it will be ignored.</p>
+                      )}
+                    </div>
+                  </MoreOptions>
                 </div>
               </div>
             )}

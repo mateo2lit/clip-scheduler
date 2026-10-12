@@ -41,8 +41,6 @@ export type TemplateSettings = {
     firstComment: string;
     collaborators: string;
     shareToFeed: boolean;
-    trialReel: boolean;
-    trialGraduation: "MANUAL" | "SS_PERFORMANCE";
   };
   linkedin?: { visibility: "PUBLIC" | "CONNECTIONS" | "LOGGED_IN"; disableReshare: boolean };
   x?: { replySettings: "everyone" | "following" | "mentionedUsers" | "subscribers" | "verified" };
@@ -141,7 +139,6 @@ const SETTINGS_SCHEMA: Record<string, Record<string, FieldRule>> = {
   },
   instagram: {
     igType: ["post", "reel", "story"], firstComment: "string", collaborators: "string", shareToFeed: "boolean",
-    trialReel: "boolean", trialGraduation: ["MANUAL", "SS_PERFORMANCE"],
   },
   linkedin: { visibility: ["PUBLIC", "CONNECTIONS", "LOGGED_IN"], disableReshare: "boolean" },
   x: { replySettings: ["everyone", "following", "mentionedUsers", "subscribers", "verified"] },

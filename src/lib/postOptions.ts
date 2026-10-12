@@ -195,8 +195,6 @@ export function normalizeInstagramUserTags(v: unknown): string[] {
   return normalizeInstagramUsernames(v, 20);
 }
 
-export type TrialGraduation = "MANUAL" | "SS_PERFORMANCE";
-
 /**
  * Extra form fields for the Instagram media-container call. `hasCover` is true
  * when a custom cover image is being sent as cover_url, which wins over a
@@ -214,22 +212,14 @@ export function instagramContainerExtras(
   const userTags = normalizeInstagramUserTags(s?.user_tags);
   if (userTags.length > 0) out.user_tags = JSON.stringify(userTags.map((username) => ({ username })));
 
-  // Collaborators, feed sharing, cover frames, audio names and trials apply to Reels, not Stories.
+  // Collaborators, feed sharing, cover frames and audio names apply to Reels, not Stories.
+  // (Trial reels were tried and shelved on 2026-10-12: Instagram only allows them above a
+  // follower minimum. The trial_params code is in git history, commit 8cd2d1a.)
   if (mediaType === "REELS") {
-    const trial = s?.trial_reel === true;
-    if (trial) {
-      // A trial reel is shown to non-followers first; it graduates to followers manually
-      // in the Instagram app or automatically if it performs well.
-      const graduation: TrialGraduation = s?.trial_graduation === "SS_PERFORMANCE" ? "SS_PERFORMANCE" : "MANUAL";
-      out.trial_params = JSON.stringify({ graduation_strategy: graduation });
-    } else {
-      // Trial reels can't have collaborators and don't go to followers' feeds, so these are
-      // only sent for ordinary reels.
-      const collaborators = normalizeInstagramCollaborators(s?.collaborators);
-      if (collaborators.length > 0) out.collaborators = JSON.stringify(collaborators);
-      // Reels are shared to the feed by default; only opting out is sent.
-      if (s?.share_to_feed === false) out.share_to_feed = "false";
-    }
+    const collaborators = normalizeInstagramCollaborators(s?.collaborators);
+    if (collaborators.length > 0) out.collaborators = JSON.stringify(collaborators);
+    // Reels are shared to the feed by default; only opting out is sent.
+    if (s?.share_to_feed === false) out.share_to_feed = "false";
     const audioName = str(s?.audio_name);
     if (audioName) out.audio_name = audioName.slice(0, 100);
     const offset = offsetMs(s?.cover_offset_ms);

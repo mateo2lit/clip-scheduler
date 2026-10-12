@@ -132,10 +132,7 @@ check("ig user tags: max 20, invalid dropped", normalizeInstagramUserTags(Array.
 check("ig user tags: reels", instagramContainerExtras({ user_tags: "@Ann, bob" }, "REELS", false), { user_tags: '[{"username":"ann"},{"username":"bob"}]' });
 check("ig user tags: stories too", instagramContainerExtras({ user_tags: "@ann" }, "STORIES", false), { user_tags: '[{"username":"ann"}]' });
 check("ig audio name: reels only", [instagramContainerExtras({ audio_name: " My sound " }, "REELS", false), instagramContainerExtras({ audio_name: "x" }, "STORIES", false)], [{ audio_name: "My sound" }, {}]);
-check("ig trial reel: manual by default", instagramContainerExtras({ trial_reel: true }, "REELS", false), { trial_params: '{"graduation_strategy":"MANUAL"}' });
-check("ig trial reel: graduate on performance", instagramContainerExtras({ trial_reel: true, trial_graduation: "SS_PERFORMANCE" }, "REELS", false), { trial_params: '{"graduation_strategy":"SS_PERFORMANCE"}' });
-check("ig trial reel: drops collaborators and feed opt-out", instagramContainerExtras({ trial_reel: true, collaborators: "@a", share_to_feed: false }, "REELS", false), { trial_params: '{"graduation_strategy":"MANUAL"}' });
-check("ig trial reel: never on stories", instagramContainerExtras({ trial_reel: true }, "STORIES", false), {});
+check("ig: old trial-reel settings are ignored (feature shelved)", instagramContainerExtras({ trial_reel: true, trial_graduation: "MANUAL", collaborators: "@a" }, "REELS", false), { collaborators: '["a"]' });
 
 // --- LinkedIn ---------------------------------------------------------------
 check("linkedin: defaults match what every post sent before", linkedinExtras({}), { visibility: "PUBLIC", isReshareDisabledByAuthor: false });
