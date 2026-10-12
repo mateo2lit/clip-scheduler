@@ -238,20 +238,6 @@ export function instagramContainerExtras(
   return out;
 }
 
-// ── Facebook ──────────────────────────────────────────────────────────────────
-
-/**
- * Facebook Reels must be 3 to 90 seconds long (Meta's Reels publishing spec).
- * Longer videos are posted as regular Page videos instead.
- */
-export const FACEBOOK_REEL_MAX_SECONDS = 90;
-export const FACEBOOK_REEL_MIN_SECONDS = 3;
-
-/** True when the post should go out as a Facebook Reel rather than a Page video. */
-export function facebookPostsAsReel(s: Settings): boolean {
-  return s?.post_as_reel === true;
-}
-
 // ── LinkedIn ──────────────────────────────────────────────────────────────────
 
 export type LinkedInVisibility = "PUBLIC" | "CONNECTIONS" | "LOGGED_IN";

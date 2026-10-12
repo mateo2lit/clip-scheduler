@@ -25,8 +25,6 @@ import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
 import { buildTemplate, parseTemplates, templateTitle, type PostTemplate, type TemplateSettings } from "@/lib/postTemplates";
 import {
   AI_LABEL_PLATFORMS,
-  FACEBOOK_REEL_MAX_SECONDS,
-  FACEBOOK_REEL_MIN_SECONDS,
   normalizeInstagramCollaborators,
   normalizeInstagramUserTags,
   parseList,
@@ -598,11 +596,6 @@ export default function UploadsPage() {
   const [igAudioName, setIgAudioName] = useState("");
   const [igTrialReel, setIgTrialReel] = useState(false);
   const [igTrialGraduation, setIgTrialGraduation] = useState<"MANUAL" | "SS_PERFORMANCE">("MANUAL");
-  // Facebook: post as a Reel instead of a Page video
-  // Reels are the default; like YouTube Shorts, the format falls back to a regular Page
-  // video when the file can't be a Reel, until the user picks one themselves.
-  const [fbPostAsReel, setFbPostAsReel] = useState(true);
-  const fbFormatChosenRef = useRef(false);
   // LinkedIn: resharing and alt text
   const [liDisableReshare, setLiDisableReshare] = useState(false);
   const [liAltText, setLiAltText] = useState("");
@@ -982,13 +975,6 @@ export default function UploadsPage() {
               if (s.trial_graduation === "SS_PERFORMANCE") setIgTrialGraduation("SS_PERFORMANCE");
             }
 
-            const fbPost = draftPosts.find((p: any) => p.provider === "facebook");
-            if (fbPost) {
-              // Drafts saved before Reels existed were regular videos.
-              setFbPostAsReel(fbPost.facebook_settings?.post_as_reel === true);
-              fbFormatChosenRef.current = true;
-            }
-
             const liPost = draftPosts.find((p: any) => p.provider === "linkedin");
             if (liPost?.linkedin_settings) {
               const s = liPost.linkedin_settings;
@@ -1237,16 +1223,6 @@ export default function UploadsPage() {
     };
     video.onerror = () => URL.revokeObjectURL(url);
   }, [file]);
-
-  // Facebook Reels must be 3-90 seconds and vertical. Default to Reel, but fall back to a
-  // regular Page video when the file can't qualify.
-  useEffect(() => {
-    if (fbFormatChosenRef.current) return;
-    if (videoWidth === null || videoHeight === null) return;
-    const fitsReel = videoWidth <= videoHeight
-      && (videoDuration === null || (videoDuration >= FACEBOOK_REEL_MIN_SECONDS && videoDuration <= FACEBOOK_REEL_MAX_SECONDS));
-    setFbPostAsReel(fitsReel);
-  }, [videoWidth, videoHeight, videoDuration]);
 
   // YouTube only treats vertical/square videos up to 3 minutes as Shorts. Default
   // to Short, but fall back to a regular video when the file can't qualify.
@@ -2077,7 +2053,6 @@ export default function UploadsPage() {
           body.facebook_settings = {
             title_override: platformTitleOverrides.facebook || undefined,
             description_override: appendTagsToOverride(platformDescOverrides.facebook),
-            post_as_reel: fbPostAsReel || undefined,
           };
         }
 
@@ -2259,10 +2234,6 @@ export default function UploadsPage() {
     if (ig.shareToFeed !== undefined) setIgShareToFeed(ig.shareToFeed);
     if (ig.trialReel !== undefined) setIgTrialReel(ig.trialReel);
     if (ig.trialGraduation !== undefined) setIgTrialGraduation(ig.trialGraduation);
-    if (s.facebook?.postAsReel !== undefined) {
-      setFbPostAsReel(s.facebook.postAsReel);
-      fbFormatChosenRef.current = true;
-    }
     if (s.linkedin?.visibility !== undefined) setLinkedinVisibility(s.linkedin.visibility);
     if (s.linkedin?.disableReshare !== undefined) setLiDisableReshare(s.linkedin.disableReshare);
     if (s.x?.replySettings !== undefined) setXReplySettings(s.x.replySettings);
@@ -2298,7 +2269,6 @@ export default function UploadsPage() {
         igType, firstComment: igFirstComment, collaborators: igCollaborators, shareToFeed: igShareToFeed,
         trialReel: igTrialReel, trialGraduation: igTrialGraduation,
       },
-      facebook: { postAsReel: fbPostAsReel },
       linkedin: { visibility: linkedinVisibility, disableReshare: liDisableReshare },
       x: { replySettings: xReplySettings },
       bluesky: { language: bskyLanguage, replyGate: bskyReplyGate, allowQuotes: bskyAllowQuotes },
@@ -2386,8 +2356,6 @@ export default function UploadsPage() {
     setIgAudioName("");
     setIgTrialReel(false);
     setIgTrialGraduation("MANUAL");
-    setFbPostAsReel(true);
-    fbFormatChosenRef.current = false;
     setLiDisableReshare(false);
     setLiAltText("");
     setXPaidPartnership(false);
@@ -4303,23 +4271,7 @@ export default function UploadsPage() {
                   )}
                   {postMode === "video" && (
                   <>
-                  <div className="mb-4">
-                    <FormatPicker
-                      label="Post Type"
-                      options={[
-                        { value: "reel", label: "Reel", hint: `Vertical, ${FACEBOOK_REEL_MIN_SECONDS}–${FACEBOOK_REEL_MAX_SECONDS} sec`, icon: <FilmStrip className="h-4 w-4" weight="bold" /> },
-                        { value: "video", label: "Video", hint: "Regular Page video", icon: <MonitorPlay className="h-4 w-4" weight="bold" /> },
-                      ]}
-                      value={fbPostAsReel ? "reel" : "video"}
-                      onChange={(v) => {
-                        fbFormatChosenRef.current = true;
-                        setFbPostAsReel(v === "reel");
-                      }}
-                    />
-                    {fbPostAsReel && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS) && (
-                      <p className="mt-1.5 text-xs text-amber-400/80">This video is {Math.round(videoDuration)} seconds, so it can&apos;t be a Reel. Choose Video to post it.</p>
-                    )}
-                  </div>
+                  <p className="mb-4 text-xs text-white/40">Facebook shows every video as a Reel, at any length.</p>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "facebook" ? null : "facebook")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
                     <CaretRight className={`w-3 h-3 transition-transform ${openCaptionOverride === "facebook" ? "rotate-90" : ""}`} weight="bold" />
                     Customize caption for Facebook
@@ -4739,16 +4691,10 @@ export default function UploadsPage() {
               const missingAccountPlatform = selectedPlatforms.find(
                 (p) => (platformAccountsList[p]?.length ?? 0) > 1 && (selectedAccountIds[p] || []).length === 0
               );
-              // Facebook Reels must be 3-90 seconds; an unknown duration is left for Meta to judge.
-              const fbReelError = postMode === "video" && selectedPlatforms.includes("facebook") && fbPostAsReel
-                && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS)
-                ? `Facebook Reels must be ${FACEBOOK_REEL_MIN_SECONDS}–${FACEBOOK_REEL_MAX_SECONDS} seconds long. Choose Video to post it as a regular Page video.`
-                : null;
-              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || !!fbReelError || !!missingAccountPlatform || verticalPending || burnPending;
+              const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || !!missingAccountPlatform || verticalPending || burnPending;
               const blockReason = selectedPlatforms.length === 0
                 ? "Select at least one platform"
                 : ttValidationError
-                  || fbReelError
                   || (missingAccountPlatform
                     ? `Choose which ${PLATFORMS.find((pl) => pl.key === missingAccountPlatform)?.name ?? missingAccountPlatform} ${isOneAccountPerPost(missingAccountPlatform) ? "account" : "accounts"} to post to`
                     : null);

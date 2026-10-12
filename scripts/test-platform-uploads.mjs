@@ -1,5 +1,5 @@
 // Run: node --test scripts/test-platform-uploads.mjs
-// Facebook Reels and Pinterest video Pins: loads the real uploaders with mocked storage and
+// Pinterest video Pins: loads the real uploader with mocked storage and
 // network (any unmocked import fails the test). No credentials or live requests.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -55,63 +55,6 @@ function fakeNetwork(routes) {
   };
   return { calls, impl };
 }
-
-// ── Facebook Reels ───────────────────────────────────────────────────────────
-
-test("a Facebook Reel starts a session, lets Meta pull the file, then publishes", async () => {
-  const net = fakeNetwork([
-    ["https://graph.facebook.com/v21.0/page1/video_reels", (c) =>
-      Response.json(String(c.init.body).includes("upload_phase") && typeof c.init.body === "string"
-        ? { video_id: "vid9", upload_url: "https://rupload.facebook.com/video-upload/v21.0/vid9" }
-        : { success: true })],
-    ["https://rupload.facebook.com/video-upload/v21.0/vid9", () => Response.json({ success: true })],
-  ]);
-  const fb = load("src/lib/facebookUpload.ts", { "./supabaseAdmin": storage }, net.impl);
-  const out = await fb.startFacebookReel({
-    pageId: "page1", pageAccessToken: "tok", bucket: "clips", storagePath: "team/v.mp4",
-    title: "My reel", description: "Caption #tag",
-  });
-  assert.equal(out.videoId, "vid9");
-  assert.equal(net.calls.length, 3);
-
-  assert.deepEqual(JSON.parse(net.calls[0].init.body), { upload_phase: "start", access_token: "tok" });
-
-  const upload = net.calls[1];
-  assert.equal(upload.init.headers.Authorization, "OAuth tok");
-  assert.equal(upload.init.headers.file_url, "https://storage.test/team/v.mp4");
-  assert.equal(upload.init.body, undefined, "the file is pulled by Meta, never sent from the worker");
-
-  const finish = new URLSearchParams(net.calls[2].init.body);
-  assert.equal(finish.get("upload_phase"), "finish");
-  assert.equal(finish.get("video_state"), "PUBLISHED");
-  assert.equal(finish.get("video_id"), "vid9");
-  assert.equal(finish.get("description"), "Caption #tag");
-  assert.equal(finish.get("title"), "My reel");
-});
-
-test("a Meta error while starting a Reel surfaces its message", async () => {
-  const net = fakeNetwork([
-    ["https://graph.facebook.com/", () => Response.json({ error: { message: "(#200) Permissions error" } }, { status: 400 })],
-  ]);
-  const fb = load("src/lib/facebookUpload.ts", { "./supabaseAdmin": storage }, net.impl);
-  await assert.rejects(
-    fb.startFacebookReel({ pageId: "p", pageAccessToken: "t", bucket: "b", storagePath: "s" }),
-    /Facebook Reel start failed: 400 \(#200\) Permissions error/
-  );
-});
-
-test("Reel status: published, still processing, and failed", () => {
-  const fb = load("src/lib/facebookUpload.ts", { "./supabaseAdmin": storage }, async () => { throw new Error("no network"); });
-  // Plain copies: objects made inside the sandbox have its own Object prototype.
-  const read = (body) => JSON.parse(JSON.stringify(fb.readFacebookReelStatus(body)));
-  assert.deepEqual(read({ status: { video_status: "ready", publishing_phase: { status: "complete", publish_status: "published" } } }), { status: "posted" });
-  assert.deepEqual(read({ status: { video_status: "processing", processing_phase: { status: "in_progress" }, publishing_phase: { status: "not_started" } } }), { status: "processing" });
-  const failed = read({ status: { video_status: "error", processing_phase: { status: "error", error: { message: "Video too long" } } } });
-  assert.equal(failed.status, "failed");
-  assert.match(failed.error, /Video too long/);
-  assert.equal(read({ status: { video_status: "upload_failed" } }).status, "failed");
-  assert.deepEqual(read({}), { status: "processing" });
-});
 
 // ── Pinterest ────────────────────────────────────────────────────────────────
 

@@ -23,7 +23,6 @@ import {
   normalizeInstagramUserTags,
   linkedinExtras,
   xExtras,
-  facebookPostsAsReel,
   hasCoverFrame,
   parseList,
 } from "../src/lib/postOptions.ts";
@@ -137,9 +136,6 @@ check("ig trial reel: manual by default", instagramContainerExtras({ trial_reel:
 check("ig trial reel: graduate on performance", instagramContainerExtras({ trial_reel: true, trial_graduation: "SS_PERFORMANCE" }, "REELS", false), { trial_params: '{"graduation_strategy":"SS_PERFORMANCE"}' });
 check("ig trial reel: drops collaborators and feed opt-out", instagramContainerExtras({ trial_reel: true, collaborators: "@a", share_to_feed: false }, "REELS", false), { trial_params: '{"graduation_strategy":"MANUAL"}' });
 check("ig trial reel: never on stories", instagramContainerExtras({ trial_reel: true }, "STORIES", false), {});
-
-// --- Facebook ---------------------------------------------------------------
-check("facebook: reel only when chosen", [facebookPostsAsReel({ post_as_reel: true }), facebookPostsAsReel({}), facebookPostsAsReel({ post_as_reel: "true" })], [true, false, false]);
 
 // --- LinkedIn ---------------------------------------------------------------
 check("linkedin: defaults match what every post sent before", linkedinExtras({}), { visibility: "PUBLIC", isReshareDisabledByAuthor: false });

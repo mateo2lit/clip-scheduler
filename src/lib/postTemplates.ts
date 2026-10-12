@@ -44,7 +44,6 @@ export type TemplateSettings = {
     trialReel: boolean;
     trialGraduation: "MANUAL" | "SS_PERFORMANCE";
   };
-  facebook?: { postAsReel: boolean };
   linkedin?: { visibility: "PUBLIC" | "CONNECTIONS" | "LOGGED_IN"; disableReshare: boolean };
   x?: { replySettings: "everyone" | "following" | "mentionedUsers" | "subscribers" | "verified" };
   bluesky?: {
@@ -144,7 +143,6 @@ const SETTINGS_SCHEMA: Record<string, Record<string, FieldRule>> = {
     igType: ["post", "reel", "story"], firstComment: "string", collaborators: "string", shareToFeed: "boolean",
     trialReel: "boolean", trialGraduation: ["MANUAL", "SS_PERFORMANCE"],
   },
-  facebook: { postAsReel: "boolean" },
   linkedin: { visibility: ["PUBLIC", "CONNECTIONS", "LOGGED_IN"], disableReshare: "boolean" },
   x: { replySettings: ["everyone", "following", "mentionedUsers", "subscribers", "verified"] },
   bluesky: { language: "string", replyGate: ["everyone", "following", "mentioned", "followers", "nobody"], allowQuotes: "boolean" },
