@@ -4,10 +4,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../login/supabaseClient";
+import { sessionIsFresh } from "@/lib/authLinks";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [msg, setMsg] = useState("Finishing sign-in...");
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
@@ -46,6 +48,16 @@ export default function AuthCallbackPage() {
       }
 
       const { data } = await supabase.auth.getSession();
+
+      // A ?code= link only works in the browser that asked for it. If it couldn't be
+      // used, an older sign-in may still be here; don't pretend the link worked.
+      const hadCode = params.has("code");
+      if (hadCode && !sessionIsFresh(data.session?.user?.last_sign_in_at)) {
+        setFailed(true);
+        setMsg("This link couldn't be used. Links only work in the browser you requested them from and expire after an hour. Request a new one from the login page.");
+        return;
+      }
+
       if (data.session) {
         try {
           const r2 = await fetch("/api/auth/after-signup", {
@@ -72,8 +84,11 @@ export default function AuthCallbackPage() {
   return (
     <main className="min-h-screen w-full flex items-center justify-center p-6 bg-[#050505]">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-white">
-        <h1 className="text-xl font-semibold">Working...</h1>
+        <h1 className="text-xl font-semibold">{failed ? "Link didn't work" : "Working..."}</h1>
         <p className="mt-2 text-sm text-white/50">{msg}</p>
+        {failed && (
+          <a href="/login" className="mt-4 inline-block text-sm text-blue-400 hover:text-blue-300">Go to login</a>
+        )}
       </div>
     </main>
   );
