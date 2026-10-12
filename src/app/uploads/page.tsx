@@ -18,6 +18,7 @@ import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/Tex
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import RenderProgressBanner from "@/components/uploads/RenderProgressBanner";
 import { FormatPicker } from "@/components/uploads/FormatPicker";
+import { Toggle } from "@/components/uploads/Toggle";
 import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
 import { ONE_ACCOUNT_PER_POST, isOneAccountPerPost } from "@/lib/accountLimits";
 import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
@@ -55,6 +56,9 @@ import {
   FilmStrip,
   ImageSquare,
   ClockCountdown,
+  Flask,
+  ChartLineUp,
+  HandTap,
 } from "@phosphor-icons/react/dist/ssr";
 
 const EMOJI_CATEGORIES = {
@@ -595,7 +599,10 @@ export default function UploadsPage() {
   const [igTrialReel, setIgTrialReel] = useState(false);
   const [igTrialGraduation, setIgTrialGraduation] = useState<"MANUAL" | "SS_PERFORMANCE">("MANUAL");
   // Facebook: post as a Reel instead of a Page video
-  const [fbPostAsReel, setFbPostAsReel] = useState(false);
+  // Reels are the default; like YouTube Shorts, the format falls back to a regular Page
+  // video when the file can't be a Reel, until the user picks one themselves.
+  const [fbPostAsReel, setFbPostAsReel] = useState(true);
+  const fbFormatChosenRef = useRef(false);
   // LinkedIn: resharing and alt text
   const [liDisableReshare, setLiDisableReshare] = useState(false);
   const [liAltText, setLiAltText] = useState("");
@@ -976,7 +983,11 @@ export default function UploadsPage() {
             }
 
             const fbPost = draftPosts.find((p: any) => p.provider === "facebook");
-            if (fbPost?.facebook_settings?.post_as_reel === true) setFbPostAsReel(true);
+            if (fbPost) {
+              // Drafts saved before Reels existed were regular videos.
+              setFbPostAsReel(fbPost.facebook_settings?.post_as_reel === true);
+              fbFormatChosenRef.current = true;
+            }
 
             const liPost = draftPosts.find((p: any) => p.provider === "linkedin");
             if (liPost?.linkedin_settings) {
@@ -1226,6 +1237,16 @@ export default function UploadsPage() {
     };
     video.onerror = () => URL.revokeObjectURL(url);
   }, [file]);
+
+  // Facebook Reels must be 3-90 seconds and vertical. Default to Reel, but fall back to a
+  // regular Page video when the file can't qualify.
+  useEffect(() => {
+    if (fbFormatChosenRef.current) return;
+    if (videoWidth === null || videoHeight === null) return;
+    const fitsReel = videoWidth <= videoHeight
+      && (videoDuration === null || (videoDuration >= FACEBOOK_REEL_MIN_SECONDS && videoDuration <= FACEBOOK_REEL_MAX_SECONDS));
+    setFbPostAsReel(fitsReel);
+  }, [videoWidth, videoHeight, videoDuration]);
 
   // YouTube only treats vertical/square videos up to 3 minutes as Shorts. Default
   // to Short, but fall back to a regular video when the file can't qualify.
@@ -2216,7 +2237,10 @@ export default function UploadsPage() {
     // (see postTemplates.ts).
     const s = t.settings ?? {};
     const y = s.youtube ?? {};
-    if (y.isShort !== undefined) setYtIsShort(y.isShort);
+    if (y.isShort !== undefined) {
+      setYtIsShort(y.isShort);
+      ytFormatChosenRef.current = true;
+    }
     if (y.category !== undefined && YOUTUBE_CATEGORIES.some((c) => c.value === y.category)) setYtCategory(y.category as YouTubeCategory);
     if (y.visibility !== undefined) setYtVisibility(y.visibility);
     if (y.notifySubscribers !== undefined) setYtNotifySubscribers(y.notifySubscribers);
@@ -2235,7 +2259,10 @@ export default function UploadsPage() {
     if (ig.shareToFeed !== undefined) setIgShareToFeed(ig.shareToFeed);
     if (ig.trialReel !== undefined) setIgTrialReel(ig.trialReel);
     if (ig.trialGraduation !== undefined) setIgTrialGraduation(ig.trialGraduation);
-    if (s.facebook?.postAsReel !== undefined) setFbPostAsReel(s.facebook.postAsReel);
+    if (s.facebook?.postAsReel !== undefined) {
+      setFbPostAsReel(s.facebook.postAsReel);
+      fbFormatChosenRef.current = true;
+    }
     if (s.linkedin?.visibility !== undefined) setLinkedinVisibility(s.linkedin.visibility);
     if (s.linkedin?.disableReshare !== undefined) setLiDisableReshare(s.linkedin.disableReshare);
     if (s.x?.replySettings !== undefined) setXReplySettings(s.x.replySettings);
@@ -2359,7 +2386,8 @@ export default function UploadsPage() {
     setIgAudioName("");
     setIgTrialReel(false);
     setIgTrialGraduation("MANUAL");
-    setFbPostAsReel(false);
+    setFbPostAsReel(true);
+    fbFormatChosenRef.current = false;
     setLiDisableReshare(false);
     setLiAltText("");
     setXPaidPartnership(false);
@@ -2878,25 +2906,13 @@ export default function UploadsPage() {
                               autoFocus
                               className="w-full rounded-lg bg-white/[0.07] px-3 py-2 text-sm text-white placeholder-white/35 outline-none ring-1 ring-transparent transition focus:ring-white/25"
                             />
-                            <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <div className="flex items-center justify-between gap-3">
                               <span className="min-w-0">
                                 <span className="block text-sm text-white/80">Include title</span>
                                 <span className="block truncate text-xs text-white/40">{title.trim() ? title.trim() : "The title box is empty"}</span>
                               </span>
-                              <input
-                                type="checkbox"
-                                role="switch"
-                                checked={templateIncludesTitle}
-                                onChange={(e) => setTemplateIncludesTitle(e.target.checked)}
-                                className="peer sr-only"
-                              />
-                              <span
-                                aria-hidden="true"
-                                className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-white/40 ${templateIncludesTitle ? "bg-[#30d158]" : "bg-white/15"}`}
-                              >
-                                <span className={`absolute left-[2px] top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow transition-transform ${templateIncludesTitle ? "translate-x-4" : ""}`} />
-                              </span>
-                            </label>
+                              <Toggle checked={templateIncludesTitle} onChange={setTemplateIncludesTitle} label="Include title" />
+                            </div>
                             <p className="text-xs leading-relaxed text-white/40">
                               Saves your description, hashtags, platforms and their settings. TikTok&apos;s settings are left out because TikTok asks you to choose them on every post.
                             </p>
@@ -4168,33 +4184,30 @@ export default function UploadsPage() {
                   </div>
                   {igType !== "story" && (
                     <>
-                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                        <label className="flex cursor-pointer items-start justify-between gap-4">
-                          <span>
-                            <span className="block text-sm text-white/80">Trial reel</span>
-                            <span className="mt-0.5 block text-xs text-white/40">Shown first to people who don&apos;t follow you, so you can test it before your followers see it.</span>
+                      <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                        <div className="flex items-center gap-3 px-4 py-3">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-white/70">
+                            <Flask className="h-4 w-4" weight="bold" />
                           </span>
-                          <input type="checkbox" checked={igTrialReel} onChange={(e) => setIgTrialReel(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-white" />
-                        </label>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm text-white/90">Trial reel</span>
+                            <span className="block text-xs text-white/40">Shown to people who don&apos;t follow you first</span>
+                          </span>
+                          <Toggle checked={igTrialReel} onChange={setIgTrialReel} label="Trial reel" />
+                        </div>
                         {igTrialReel && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {([
-                              { value: "MANUAL", label: "I'll share it to followers myself" },
-                              { value: "SS_PERFORMANCE", label: "Share automatically if it does well" },
-                            ] as const).map((o) => (
-                              <button
-                                key={o.value}
-                                type="button"
-                                onClick={() => setIgTrialGraduation(o.value)}
-                                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${igTrialGraduation === o.value ? "border-blue-300/40 bg-blue-400/15 text-blue-100" : "border-white/10 bg-white/5 text-white/60 hover:text-white/80"}`}
-                              >
-                                {o.label}
-                              </button>
-                            ))}
+                          <div className="space-y-2 border-t border-white/[0.06] px-4 py-3">
+                            <FormatPicker
+                              label="Share with your followers"
+                              options={[
+                                { value: "MANUAL", label: "Manually", hint: "From the Instagram app", icon: <HandTap className="h-4 w-4" weight="bold" /> },
+                                { value: "SS_PERFORMANCE", label: "Automatically", hint: "If it performs well", icon: <ChartLineUp className="h-4 w-4" weight="bold" /> },
+                              ]}
+                              value={igTrialGraduation}
+                              onChange={setIgTrialGraduation}
+                            />
+                            <p className="text-xs text-white/30">Trial reels can&apos;t have collaborators and stay off your main feed until they&apos;re shared.</p>
                           </div>
-                        )}
-                        {igTrialReel && (
-                          <p className="mt-2 text-xs text-white/30">Trial reels can&apos;t have collaborators and don&apos;t appear in your main feed.</p>
                         )}
                       </div>
                       {!igTrialReel && (
@@ -4290,18 +4303,23 @@ export default function UploadsPage() {
                   )}
                   {postMode === "video" && (
                   <>
-                  <label className="mb-4 flex cursor-pointer items-start justify-between gap-4">
-                    <span>
-                      <span className="block text-sm text-white/80">Post as a Reel</span>
-                      <span className="mt-0.5 block text-xs text-white/40">
-                        Reels must be {FACEBOOK_REEL_MIN_SECONDS}–{FACEBOOK_REEL_MAX_SECONDS} seconds and look best vertical (9:16). Off posts a regular Page video.
-                      </span>
-                      {fbPostAsReel && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS) && (
-                        <span className="mt-1 block text-xs text-amber-400/80">This video is {Math.round(videoDuration)} seconds, so it can&apos;t be a Reel.</span>
-                      )}
-                    </span>
-                    <input type="checkbox" checked={fbPostAsReel} onChange={(e) => setFbPostAsReel(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-white" />
-                  </label>
+                  <div className="mb-4">
+                    <FormatPicker
+                      label="Post Type"
+                      options={[
+                        { value: "reel", label: "Reel", hint: `Vertical, ${FACEBOOK_REEL_MIN_SECONDS}–${FACEBOOK_REEL_MAX_SECONDS} sec`, icon: <FilmStrip className="h-4 w-4" weight="bold" /> },
+                        { value: "video", label: "Video", hint: "Regular Page video", icon: <MonitorPlay className="h-4 w-4" weight="bold" /> },
+                      ]}
+                      value={fbPostAsReel ? "reel" : "video"}
+                      onChange={(v) => {
+                        fbFormatChosenRef.current = true;
+                        setFbPostAsReel(v === "reel");
+                      }}
+                    />
+                    {fbPostAsReel && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS) && (
+                      <p className="mt-1.5 text-xs text-amber-400/80">This video is {Math.round(videoDuration)} seconds, so it can&apos;t be a Reel. Choose Video to post it.</p>
+                    )}
+                  </div>
                   <button type="button" onClick={() => setOpenCaptionOverride(openCaptionOverride === "facebook" ? null : "facebook")} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
                     <CaretRight className={`w-3 h-3 transition-transform ${openCaptionOverride === "facebook" ? "rotate-90" : ""}`} weight="bold" />
                     Customize caption for Facebook
@@ -4724,7 +4742,7 @@ export default function UploadsPage() {
               // Facebook Reels must be 3-90 seconds; an unknown duration is left for Meta to judge.
               const fbReelError = postMode === "video" && selectedPlatforms.includes("facebook") && fbPostAsReel
                 && videoDuration !== null && (videoDuration > FACEBOOK_REEL_MAX_SECONDS || videoDuration < FACEBOOK_REEL_MIN_SECONDS)
-                ? `Facebook Reels must be ${FACEBOOK_REEL_MIN_SECONDS}–${FACEBOOK_REEL_MAX_SECONDS} seconds long. Turn off "Post as a Reel" to post it as a regular video.`
+                ? `Facebook Reels must be ${FACEBOOK_REEL_MIN_SECONDS}–${FACEBOOK_REEL_MAX_SECONDS} seconds long. Choose Video to post it as a regular Page video.`
                 : null;
               const publishBlocked = scheduling || selectedPlatforms.length === 0 || !!ttValidationError || !!fbReelError || !!missingAccountPlatform || verticalPending || burnPending;
               const blockReason = selectedPlatforms.length === 0
