@@ -17,6 +17,7 @@ import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
 import RenderProgressBanner from "@/components/uploads/RenderProgressBanner";
+import { FormatPicker } from "@/components/uploads/FormatPicker";
 import { isComingSoon, comingSoonNotice } from "@/lib/platformAvailability";
 import { ONE_ACCOUNT_PER_POST, isOneAccountPerPost } from "@/lib/accountLimits";
 import { YOUTUBE_LANGUAGES } from "@/lib/youtubeLanguages";
@@ -49,6 +50,11 @@ import {
   Clock,
   Lock,
   Crop,
+  DeviceMobile,
+  MonitorPlay,
+  FilmStrip,
+  ImageSquare,
+  ClockCountdown,
 } from "@phosphor-icons/react/dist/ssr";
 
 const EMOJI_CATEGORIES = {
@@ -448,7 +454,10 @@ export default function UploadsPage() {
   }, [autoThumb]);
 
   // YouTube specific
-  const [ytIsShort, setYtIsShort] = useState(false);
+  // ClipDash is short-form first, so YouTube defaults to Shorts. Once the user picks
+  // a format (or a draft restores one) we stop auto-switching based on the video.
+  const [ytIsShort, setYtIsShort] = useState(true);
+  const ytFormatChosenRef = useRef(false);
   const [ytCategory, setYtCategory] = useState<YouTubeCategory>("gaming");
   const [ytVisibility, setYtVisibility] = useState<Privacy>("private");
   const [ytNotifySubscribers, setYtNotifySubscribers] = useState(true);
@@ -914,7 +923,10 @@ export default function UploadsPage() {
             const ytPost = draftPosts.find((p: any) => p.provider === "youtube");
             if (ytPost?.youtube_settings) {
               const s = ytPost.youtube_settings;
-              if (s.is_short !== undefined) setYtIsShort(s.is_short);
+              if (s.is_short !== undefined) {
+                setYtIsShort(s.is_short);
+                ytFormatChosenRef.current = true;
+              }
               if (s.category) setYtCategory(s.category);
               if (s.notify_subscribers !== undefined) setYtNotifySubscribers(s.notify_subscribers);
               if (s.allow_embedding !== undefined) setYtAllowEmbedding(s.allow_embedding);
@@ -1214,6 +1226,15 @@ export default function UploadsPage() {
     };
     video.onerror = () => URL.revokeObjectURL(url);
   }, [file]);
+
+  // YouTube only treats vertical/square videos up to 3 minutes as Shorts. Default
+  // to Short, but fall back to a regular video when the file can't qualify.
+  useEffect(() => {
+    if (ytFormatChosenRef.current) return;
+    if (videoWidth === null || videoHeight === null) return;
+    const fitsShort = videoWidth <= videoHeight && (videoDuration === null || videoDuration <= 180);
+    setYtIsShort(fitsShort);
+  }, [videoWidth, videoHeight, videoDuration]);
 
   // Object URL for the live post preview panel
   useEffect(() => {
@@ -2299,6 +2320,8 @@ export default function UploadsPage() {
     setPlatformDescOverrides({});
     setOpenCaptionOverride(null);
     setQueuePreview(null);
+    setYtIsShort(true);
+    ytFormatChosenRef.current = false;
     // Reset all TikTok state — privacy, consent, and interaction toggles must
     // be chosen fresh on every upload per TikTok's UX requirements.
     setTtPrivacyLevel("");
@@ -3519,9 +3542,6 @@ export default function UploadsPage() {
                       <span className="text-xs text-white/50">Posting as <span className="text-white/80 font-medium">{platformAccounts.youtube.profileName}</span></span>
                     </div>
                   ) : null}
-                  <button onClick={() => setYtIsShort(!ytIsShort)} className={`ml-auto flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-all ${ytIsShort ? "bg-blue-400 text-black" : "border border-white/10 bg-white/5 text-white/70"}`}>
-                    <span className={`w-2 h-2 rounded-full ${ytIsShort ? "bg-black" : "bg-white/40"}`} />Short
-                  </button>
                 </div>
 
                 {/* Presets */}
@@ -3544,6 +3564,24 @@ export default function UploadsPage() {
                 )}
 
                 <div className="p-5 space-y-4">
+                  <div>
+                    <FormatPicker
+                      options={[
+                        { value: "short", label: "Short", hint: "Vertical, up to 3 min", icon: <DeviceMobile className="h-4 w-4" weight="bold" /> },
+                        { value: "video", label: "Video", hint: "Regular upload", icon: <MonitorPlay className="h-4 w-4" weight="bold" /> },
+                      ]}
+                      value={ytIsShort ? "short" : "video"}
+                      onChange={(v) => {
+                        ytFormatChosenRef.current = true;
+                        setYtIsShort(v === "short");
+                      }}
+                    />
+                    {ytIsShort && videoWidth !== null && videoHeight !== null && (videoWidth > videoHeight || (videoDuration !== null && videoDuration > 180)) && (
+                      <p className="mt-1.5 text-xs text-amber-400/70">
+                        YouTube only shows vertical or square videos up to 3 minutes as Shorts. This one will appear as a regular video.
+                      </p>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs text-white/40 mb-1.5">Category</label>
@@ -4099,12 +4137,16 @@ export default function UploadsPage() {
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Post Type</label>
-                    <div className="flex gap-2">
-                      {(["post", "reel", "story"] as InstagramType[]).map((type) => (
-                        <button key={type} onClick={() => setIgType(type)} className={`flex-1 rounded-lg py-2 text-sm capitalize ${igType === type ? "border border-blue-300/40 bg-blue-400 text-black" : "border border-white/10 bg-white/5 text-white/70"}`}>{type}</button>
-                      ))}
-                    </div>
+                    <FormatPicker
+                      label="Post Type"
+                      options={[
+                        { value: "reel", label: "Reel", icon: <FilmStrip className="h-4 w-4" weight="bold" /> },
+                        { value: "post", label: "Post", icon: <ImageSquare className="h-4 w-4" weight="bold" /> },
+                        { value: "story", label: "Story", icon: <ClockCountdown className="h-4 w-4" weight="bold" /> },
+                      ]}
+                      value={igType}
+                      onChange={(v) => setIgType(v as InstagramType)}
+                    />
                     <p className="text-xs text-white/30 mt-1.5">
                       {igType === "story" ? "Video will be posted as a Story (24hr, no caption)" : "Video will be published as a Reel"}
                     </p>
