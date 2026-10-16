@@ -129,7 +129,18 @@ check("a real expired Meta login still says reconnect", humanizePostError("insta
 const OTHER_190 = `Facebook video upload failed: 400 {"error":{"message":"Malformed access token","type":"OAuthException","code":190}}`;
 check("any code 190 is a login problem", humanizePostError("facebook", OTHER_190), "Facebook login expired — reconnect in Settings");
 
-const USER_MSG = `Facebook video upload failed: 400 {"error":{"message":"(#100) Invalid parameter","type":"OAuthException","code":100,` +
+// Real error from 2026-10-14: the same Facebook profile was connected to a second Clip Dash
+// account with only one Page ticked, which removed the other Page from the app's access.
+// Also code 190, but the login was valid and never expiring.
+const PAGE_UNTICKED =
+  `Facebook video upload failed: 400 {"error":{"message":"Any of the pages_read_engagement, pages_manage_metadata,\\n` +
+  `        pages_read_user_content, pages_manage_ads, pages_show_list or\\n        pages_messaging permission(s) must be granted before impersonating a\\n` +
+  `        user's page.","type":"OAuthException","code":190,"fbtrace_id":"x"}}`;
+check("a Page removed from Facebook's Page list is not called an expired login", humanizePostError("facebook", PAGE_UNTICKED),
+  (s) => /page/i.test(s) && !/expired/i.test(s) && /selected/i.test(s));
+check("the Page message is one short line", humanizePostError("facebook", PAGE_UNTICKED), (s) => s.length <= 90 && !s.includes("\n"));
+
+const USER_MSG =`Facebook video upload failed: 400 {"error":{"message":"(#100) Invalid parameter","type":"OAuthException","code":100,` +
   `"error_user_title":"Video too short","error_user_msg":"Your video must be at least 1 second long."}}`;
 check("Meta's own message is shown when it gives one", humanizePostError("facebook", USER_MSG), "Facebook: Your video must be at least 1 second long.");
 

@@ -101,7 +101,7 @@ async function runRefresh(req: Request) {
   const { data: accounts, error } = await supabaseAdmin
     .from("platform_accounts")
     .select(
-      "id, provider, access_token, refresh_token, expiry, team_id, platform_user_id, last_reconnect_email_at"
+      "id, provider, access_token, refresh_token, expiry, team_id, platform_user_id, page_id, last_reconnect_email_at"
     )
     .in("provider", ["facebook", "instagram", "x", "linkedin", "bluesky", "pinterest"])
     .order("expiry", { ascending: true, nullsFirst: true });
@@ -136,7 +136,7 @@ async function runRefresh(req: Request) {
         // tokens; default to 60 days (the standard long-lived token lifetime).
         newExpiry = new Date(Date.now() + (refreshed.expires_in || 5184000) * 1000).toISOString();
 
-        // Also refresh page access tokens by re-fetching pages
+        // Also refresh the page access token by re-fetching pages
         const { getFacebookUserPages } = await import("@/lib/facebook");
         const pages = await getFacebookUserPages(newToken);
 
@@ -147,9 +147,13 @@ async function runRefresh(req: Request) {
           updated_at: new Date().toISOString(),
         };
 
-        // Update page token if we have pages
-        if (pages.length > 0) {
-          updateData.page_access_token = pages[0].access_token;
+        // Each row is one Page, and one person can manage several, so take this Page's own
+        // token. (Taking pages[0] gave every row the first Page's token, which broke posting
+        // to the others.) If the Page is no longer in the list, its token is left alone.
+        const pageId = acct.page_id || acct.platform_user_id;
+        const page = pages.find((p) => p.id === pageId);
+        if (page?.access_token) {
+          updateData.page_access_token = page.access_token;
         }
 
         await supabaseAdmin

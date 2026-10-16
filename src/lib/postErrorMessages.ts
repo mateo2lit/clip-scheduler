@@ -38,6 +38,13 @@ export function humanizePostError(
   ) {
     return `${name} disconnected — reconnect in Settings`;
   }
+  // Facebook sends this as code 190 too, but the login is fine: the Page was unticked on
+  // Facebook's "choose Pages" screen, usually by connecting the same Facebook profile
+  // again (from another Clip Dash account) with a different set of Pages. Facebook keeps
+  // one Page list per person per app, so the newest connection replaces it.
+  if (r.includes("before impersonating")) {
+    return `${name} can't post to this Page — reconnect and keep the Page selected`;
+  }
   if (
     r.includes("expired_access_token") ||
     r.includes("session has expired") ||
