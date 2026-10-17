@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { signKickVideoProxyUrl } from "@/lib/kickProxySignature";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -41,7 +42,6 @@ export async function GET(req: NextRequest) {
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clipdash.org";
-  const workerSecret = process.env.WORKER_SECRET!;
 
   try {
     let res = await fetch(targetUrl, { headers: KICK_HEADERS });
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith("#")) return line;
         const segUrl = resolveUrl(mediaUrl, trimmed);
-        return `${siteUrl}/api/kick-video-proxy?token=${encodeURIComponent(workerSecret)}&url=${encodeURIComponent(segUrl)}`;
+        return signKickVideoProxyUrl(siteUrl, segUrl);
       })
       .join("\n");
 

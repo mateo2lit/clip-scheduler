@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
 import { storageLimitBytes } from "@/lib/storageLimits";
+import { signKickVideoProxyUrl } from "@/lib/kickProxySignature";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,6 +21,8 @@ function detectPlatform(url: string): string {
 
 const BLOCKED_DOMAINS = ["instagram.com", "tiktok.com", "facebook.com", "youtube.com", "youtu.be"];
 
+// The repo is public, so workflow inputs end up in public run logs. Never pass a
+// secret here: give the runner a signed link or let it read the job row by job_id.
 async function dispatchGitHubActions(inputs: Record<string, string>) {
   if (!GITHUB_PAT) throw new Error("GITHUB_PAT not set.");
   const res = await fetch(
@@ -124,8 +127,9 @@ export async function POST(req: Request) {
             // directly from GitHub Actions — pass CDN URL straight through.
             kickDirectUrl = cdnUrl;
           } else {
-            // Direct MP4: proxy through Vercel in case the CDN blocks runner IPs
-            kickDirectUrl = `${siteUrl}/api/kick-video-proxy?token=${encodeURIComponent(workerSecret)}&url=${encodeURIComponent(cdnUrl)}`;
+            // Direct MP4: proxy through Vercel in case the CDN blocks runner IPs.
+            // Signed link, never the token: dispatch inputs show up in public run logs.
+            kickDirectUrl = signKickVideoProxyUrl(siteUrl, cdnUrl);
           }
           kickTitle = d.title ?? null;
           kickDuration = typeof d.duration === "number" ? d.duration : null;

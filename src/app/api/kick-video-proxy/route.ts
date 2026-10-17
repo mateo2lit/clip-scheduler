@@ -1,23 +1,22 @@
 import { NextRequest } from "next/server";
+import { verifyKickVideoProxyParams } from "@/lib/kickProxySignature";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 // Streams a Kick CDN video URL through Vercel so GitHub Actions can download it.
 // GitHub Actions datacenter IPs are blocked by Kick's Cloudflare CDN; Vercel IPs are not.
+// Links are signed per URL (see kickProxySignature.ts) because runner logs are public;
+// WORKER_SECRET itself is never accepted here.
 
 async function proxyKick(req: NextRequest, method: "GET" | "HEAD") {
-  const { searchParams } = req.nextUrl;
-  const token = searchParams.get("token");
-  const url = searchParams.get("url");
-
-  if (!process.env.WORKER_SECRET || token !== process.env.WORKER_SECRET) {
+  const verified = process.env.WORKER_SECRET
+    ? verifyKickVideoProxyParams(req.nextUrl.searchParams)
+    : null;
+  if (!verified?.ok) {
     return new Response("Unauthorized", { status: 403 });
   }
-
-  if (!url) {
-    return new Response("Missing url", { status: 400 });
-  }
+  const url = verified.url;
 
   let targetUrl: string;
   try {
