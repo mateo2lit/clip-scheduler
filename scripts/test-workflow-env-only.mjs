@@ -119,6 +119,20 @@ test("the checker accepts env, job outputs, matrix and the concurrency group", (
   assert.deepEqual(findViolations(good), []);
 });
 
+test("ai-clips.yml keeps the pasted link and the user's prompt out of env and GITHUB_ENV", () => {
+  // GitHub prints every env value (GITHUB_ENV included) in each later step's log header.
+  const yml = fs.readFileSync(path.join(root, ".github/workflows/ai-clips.yml"), "utf8");
+  for (const name of ["SOURCE_URL", "MOMENT_PROMPT"]) {
+    assert.ok(!new RegExp(`^\\s+${name}: `, "m").test(yml), `${name} is set in an env: block`);
+    assert.match(yml, new RegExp(`values\\.pop\\("${name}"\\)`), `${name} isn't removed before the GITHUB_ENV write`);
+  }
+  const popAt = yml.indexOf('values.pop("MOMENT_PROMPT")');
+  const writeAt = yml.indexOf('open(env["GITHUB_ENV"]');
+  assert.ok(popAt > 0 && writeAt > popAt, "the link and prompt must be removed before GITHUB_ENV is written");
+  assert.match(yml, /cat \/tmp\/job_source_url\.txt/);
+  assert.match(yml, /open\("\/tmp\/job_moment_prompt\.txt"/);
+});
+
 test("values written to GITHUB_ENV / GITHUB_OUTPUT from inputs are stripped of newlines", () => {
   // A newline in a value written to GITHUB_ENV would add another variable (BASH_ENV, LD_PRELOAD...)
   // to every later step.
