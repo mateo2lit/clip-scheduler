@@ -84,20 +84,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       .eq("status", "failed")
       .eq("last_error", RENDER_FAILED_MESSAGE);
 
-    const { data: job } = await supabaseAdmin
-      .from("ai_clip_jobs")
-      .select("result_titles")
-      .eq("id", old.source_job_id)
-      .maybeSingle();
-
     try {
+      // IDs only: inputs are public. The workflow reads mode and title from the new burn job row.
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
         output_path: upload.file_path,
-        mode: old.mode,
         team_id: teamId,
         user_id: userId,
-        clip_title: (job?.result_titles as string[] | null)?.[old.clip_index] ?? `Clip ${old.clip_index + 1}`,
         upload_id: upload.id,
       });
     } catch (e: any) {

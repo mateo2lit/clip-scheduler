@@ -129,19 +129,9 @@ export async function POST(req: Request) {
 
     // Dispatch workflow immediately (no file upload needed)
     if (GITHUB_PAT) {
-      await dispatchWorkflow({
-        job_id: jobId,
-        source_file_path: "",
-        source_bucket: "clips",
-        source_url,
-        team_id: teamId,
-        user_id: userId,
-        clip_count: String(clip_count),
-        genre,
-        clip_length,
-        auto_hook: String(auto_hook),
-        moment_prompt,
-      });
+      // IDs only: inputs are public, and the link and prompt are the user's. The workflow reads
+      // them from the row inserted above.
+      await dispatchWorkflow({ job_id: jobId, team_id: teamId, user_id: userId });
     } else {
       console.warn("GITHUB_PAT not set — ai-clips workflow not dispatched");
     }

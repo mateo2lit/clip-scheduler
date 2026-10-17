@@ -15,10 +15,12 @@ on:
       output_path:
         description: "Supabase Storage path for burned output"
         required: true
+      # mode and clip_title are legacy: the workflow reads them from the DB, since inputs are
+      # public. Kept declared so a dispatch from an older deploy isn't rejected.
       mode:
-        description: "portrait_blur | portrait_crop | portrait_auto | portrait_45 | square | landscape"
+        description: "Legacy, leave empty: read from the burn job row"
         required: false
-        default: "landscape"
+        default: ""
       team_id:
         description: "Team ID"
         required: true
@@ -26,7 +28,7 @@ on:
         description: "User ID"
         required: true
       clip_title:
-        description: "Clip title for overlay"
+        description: "Legacy, leave empty: read from the AI Clips job row"
         required: false
         default: ""
       upload_id:
@@ -209,7 +211,10 @@ jobs:
           print(f"Downloaded: {size:,} bytes", flush=True)
           PYEOF
 
+      # Mode and title come from the DB (inputs are public); the inputs are only a fallback for a
+      # dispatch from an older deploy.
       - name: Fetch subtitle data from Supabase
+        id: fetch
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -218,7 +223,7 @@ jobs:
           CLIP_TITLE_INPUT: ${{ inputs.clip_title }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, urllib.request
+          import json, os, re, urllib.request
 
           words = []
           style = {}
@@ -229,10 +234,12 @@ jobs:
               supabase_url = os.environ["SUPABASE_URL"]
               service_key  = os.environ["SERVICE_KEY"]
               burn_job_id  = os.environ["BURN_JOB_ID"]
+              H = {"Authorization": f"Bearer {service_key}", "apikey": service_key}
 
               req = urllib.request.Request(
-                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
-                  headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}"
+                  "&select=subtitle_data,subtitle_style,mode,source_job_id,clip_index",
+                  headers=H
               )
               with urllib.request.urlopen(req) as resp:
                   body = resp.read().decode("utf-8")
@@ -243,7 +250,25 @@ jobs:
                   words = row.get("subtitle_data") or []
                   style = row.get("subtitle_style") or {}
                   db_mode = row.get("mode") or db_mode
-                  print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={clip_title[:60]!r}", flush=True)
+                  # Title: the AI Clips job's title for this clip, as the burn routes pick it
+                  clip_index = row.get("clip_index")
+                  if isinstance(clip_index, int) and row.get("source_job_id"):
+                      try:
+                          treq = urllib.request.Request(
+                              f"{supabase_url}/rest/v1/ai_clip_jobs?id=eq.{row['source_job_id']}&select=result_titles",
+                              headers=H
+                          )
+                          with urllib.request.urlopen(treq) as tresp:
+                              trows = json.loads(tresp.read().decode("utf-8"))
+                          titles = (trows[0].get("result_titles") if trows else None) or []
+                          # Same as the routes: titles[i] ?? `Clip ${i + 1}`
+                          title = titles[clip_index] if 0 <= clip_index < len(titles) else None
+                          clip_title = str(title) if title is not None else f"Clip {clip_index + 1}"
+                      except Exception as e:
+                          print(f"WARNING: title fetch failed ({type(e).__name__})", flush=True)
+                          clip_title = clip_title or f"Clip {clip_index + 1}"
+                  # No title or caption text in the log: run logs are public
+                  print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={'yes' if clip_title else 'no'}", flush=True)
               else:
                   print(f"WARNING: burn job not found in DB, proceeding without subtitle data", flush=True)
 
@@ -260,6 +285,9 @@ jobs:
                   f.write(db_mode)
               with open("/tmp/clip_title.txt", "w") as f:
                   f.write(clip_title)
+              # Gates the auto-reframe step. Letters, digits and _ only, so it stays one line.
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"mode={re.sub(r'[^a-z0-9_]', '', str(db_mode))}\n")
               print(f"Written files: mode={db_mode}, words={len(words)}", flush=True)
           PYEOF
 
@@ -268,7 +296,7 @@ jobs:
       # missing wheel, a bad cascade, or a video with no detectable face all end with
       # an empty track, and the burn step falls back to a static centre crop.
       - name: Detect speaker position for auto-reframe
-        if: inputs.mode == 'portrait_auto'
+        if: steps.fetch.outputs.mode == 'portrait_auto'
         continue-on-error: true
         run: |
           pip install --quiet --disable-pip-version-check opencv-python-headless || true
@@ -761,9 +789,9 @@ jobs:
           has_subs = has_word_subs or bool(title_events)
 
           print(f"ASS: animation={animation}, {len(events)} word-events, title={'yes' if title_events else 'no'}, font={font_family}", flush=True)
-          # Debug: print first ASS event to verify timestamp format
+          # Debug: the first event's timestamps, to verify their format. Not its text: logs are public.
           if all_events:
-              print(f"First ASS event: {all_events[0][:120]}", flush=True)
+              print(f"First ASS event times: {','.join(all_events[0].split(',')[1:3])}", flush=True)
 
           FONTS_DIR = "/usr/local/share/fonts/clip-dash"
           ASS_VF = f"ass=/tmp/subtitles.ass:fontsdir={FONTS_DIR}"

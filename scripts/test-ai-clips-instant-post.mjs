@@ -209,11 +209,16 @@ test("burn-clip reserves the captioned upload and returns its id", async () => {
   assertNoPrivateLink(dispatched.at(-1));
 });
 
-/** Workflow inputs are public (public repo): a signed Storage URL there would open the user's private clip. */
+/**
+ * Workflow inputs are public (public repo): a signed Storage URL there would open the user's private
+ * clip, and the title is the user's content. The burn workflow reads mode and title from the DB.
+ */
 function assertNoPrivateLink(inputs) {
   const text = JSON.stringify(inputs);
   assert.ok(!text.includes("storage.example.invalid"), `dispatch carries a signed Storage URL: ${text}`);
   assert.ok(!/token=|sign/i.test(text), `dispatch carries a signed link: ${text}`);
+  assert.ok(!text.includes("Hello"), `dispatch carries the clip title: ${text}`);
+  assert.deepEqual(Object.keys(inputs).sort(), ["burn_job_id", "output_path", "team_id", "upload_id", "user_id"]);
 }
 
 test("retry re-renders into the same upload and restarts its clock", async () => {

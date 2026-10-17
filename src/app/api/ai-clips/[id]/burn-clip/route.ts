@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")
-      .select("id, team_id, status, result_upload_ids, result_subtitles, result_titles")
+      .select("id, team_id, status, result_upload_ids, result_subtitles")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
@@ -50,7 +50,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const subtitles: any[] = job.result_subtitles ?? [];
     const clipSubtitles = subtitles[clip_index] ?? [];
-    const clipTitle = (job.result_titles as string[] | null)?.[clip_index] ?? `Clip ${clip_index + 1}`;
 
     // Look up the source clip's storage path from the uploads row
     const uploadId = uploadIds[clip_index];
@@ -115,15 +114,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Failed to reserve the captioned video." }, { status: 500 });
     }
 
-    // Dispatch burn workflow. The runner looks up the source path from the burn job row.
+    // Dispatch burn workflow with IDs only: inputs are public. The runner reads the source path,
+    // mode and clip title from the burn job row.
     if (GITHUB_PAT) {
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
         output_path: burnedPath,
-        mode: mode,
         team_id: teamId,
         user_id: userId,
-        clip_title: clipTitle,
         upload_id: reservedUploadId,
       });
     } else {
