@@ -1,0 +1,211 @@
+name: Import from Google Drive / Dropbox
+
+# Dispatched by /api/imports/cloud with the import_jobs id and nothing else. The download
+# credential (a Drive access token or a Dropbox direct link) is read from import_job_secrets,
+# masked, kept out of command lines, and deleted as soon as the download ends. This repo is
+# public, so inputs and log lines are readable by any GitHub user: never echo the credential.
+#
+# The file is copied as-is (no re-encode), the same as a direct upload from the browser.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "import_jobs row ID"
+        required: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JOB_ID: ${{ inputs.job_id }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Ensure ffprobe
+        run: |
+          # Usually preinstalled on ubuntu-latest; install only if missing (same as import-clip.yml).
+          if ! command -v ffprobe &>/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+
+      - name: Load job
+        id: job
+        run: |
+          set -euo pipefail
+          if ! [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then echo "Invalid job id"; exit 1; fi
+          REST="$SUPABASE_URL/rest/v1"
+          AUTH=(-H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY")
+
+          curl -sSf "${AUTH[@]}" \
+            "$REST/import_jobs?id=eq.$JOB_ID&select=team_id,user_id,source_platform,source_file_id,source_file_name,title" \
+            -o /tmp/job.json
+          (umask 077; curl -sSf "${AUTH[@]}" \
+            "$REST/import_job_secrets?job_id=eq.$JOB_ID&select=secret" -o /tmp/secret.json)
+
+          # Writes /tmp/secret and a curl config (both mode 600) and prints non-secret outputs.
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, re, sys
+          jobs = json.load(open("/tmp/job.json"))
+          secrets = json.load(open("/tmp/secret.json"))
+          if len(jobs) != 1:
+              sys.exit("Job not found")
+          if len(secrets) != 1:
+              open("/tmp/user_error.txt", "w").write("This import link has already been used. Pick the file again.")
+              sys.exit("Credential missing (already used or never stored)")
+          job, secret = jobs[0], secrets[0]["secret"]
+          source = job["source_platform"]
+          if source not in ("gdrive", "dropbox"):
+              sys.exit("Not a cloud import job")
+
+          def q(v):  # curl config quoting
+              return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+          if source == "gdrive":
+              file_id = job.get("source_file_id") or ""
+              if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id):
+                  sys.exit("Bad Drive file id")
+              cfg = [
+                  "url = " + q(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&supportsAllDrives=true"),
+                  "header = " + q("Authorization: Bearer " + secret),
+              ]
+          else:
+              if not re.match(r"^https://([A-Za-z0-9-]+\.)*dropboxusercontent\.com/", secret):
+                  sys.exit("Bad Dropbox link")
+              cfg = ["url = " + q(secret)]
+
+          old = os.umask(0o077)
+          open("/tmp/secret", "w").write(secret)
+          open("/tmp/curl.cfg", "w").write("\n".join(cfg) + "\n")
+          os.umask(old)
+
+          name = job.get("source_file_name") or ""
+          ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
+          types = {"mp4": "video/mp4", "m4v": "video/mp4", "mov": "video/quicktime", "webm": "video/webm",
+                   "avi": "video/x-msvideo", "mkv": "video/x-matroska"}
+          if ext not in types:
+              ext = "mp4"
+          print(f"team_id={job['team_id']}")
+          print(f"user_id={job['user_id']}")
+          print(f"source={source}")
+          print(f"ext={ext}")
+          print(f"content_type={types[ext]}")
+          PY
+
+          echo "::add-mask::$(cat /tmp/secret)"
+          rm -f /tmp/secret /tmp/secret.json
+
+          curl -sS -X PATCH "${AUTH[@]}" -H "Content-Type: application/json" \
+            "$REST/import_jobs?id=eq.$JOB_ID" \
+            -d "{\"status\":\"uploading\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Download file
+        env:
+          SOURCE: ${{ steps.job.outputs.source }}
+        run: |
+          set -uo pipefail
+          HTTP=$(curl -sS -L --proto =https --proto-redir =https \
+            --max-filesize 2147483648 --max-time 1500 --retry 2 \
+            -K /tmp/curl.cfg -o /tmp/source -w "%{http_code}" 2>/tmp/curl_err.txt)
+          CURL_EXIT=$?
+          rm -f /tmp/curl.cfg
+
+          # The credential is no longer needed; delete it before anything else can fail.
+          curl -sS -X DELETE \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/rest/v1/import_job_secrets?job_id=eq.$JOB_ID" || true
+
+          echo "Download: curl exit $CURL_EXIT, HTTP $HTTP"
+          if [ "$CURL_EXIT" = "63" ]; then
+            echo "That file is over 2 GB, the import limit." > /tmp/user_error.txt; exit 1
+          fi
+          if [ "$CURL_EXIT" != "0" ] || [ "$HTTP" != "200" ]; then
+            if [ "$SOURCE" = "gdrive" ]; then
+              if [ "$HTTP" = "401" ]; then
+                echo "Google Drive sign-in expired before the download started. Pick the file again." > /tmp/user_error.txt
+              elif [ "$HTTP" = "403" ]; then
+                echo "Google Drive wouldn't let Clip Dash download this file. If it's shared with you, ask the owner to allow downloads." > /tmp/user_error.txt
+              else
+                echo "Couldn't download the file from Google Drive (HTTP $HTTP). Try again." > /tmp/user_error.txt
+              fi
+            else
+              if [ "$HTTP" = "404" ] || [ "$HTTP" = "410" ] || [ "$HTTP" = "403" ]; then
+                echo "The Dropbox link expired or was revoked. Pick the file again." > /tmp/user_error.txt
+              else
+                echo "Couldn't download the file from Dropbox (HTTP $HTTP). Try again." > /tmp/user_error.txt
+              fi
+            fi
+            exit 1
+          fi
+
+          if ! ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/source > /tmp/ffprobe_video.txt 2>/dev/null \
+             || [ ! -s /tmp/ffprobe_video.txt ]; then
+            echo "That file isn't a video Clip Dash can read." > /tmp/user_error.txt; exit 1
+          fi
+
+          SIZE=$(stat -c%s /tmp/source)
+          echo "Downloaded $SIZE bytes ($(cat /tmp/ffprobe_video.txt))"
+          echo "ACTUAL_SIZE=$SIZE" >> "$GITHUB_ENV"
+
+      - name: Upload to Supabase Storage
+        env:
+          TEAM_ID: ${{ steps.job.outputs.team_id }}
+          EXT: ${{ steps.job.outputs.ext }}
+          CONTENT_TYPE: ${{ steps.job.outputs.content_type }}
+        run: |
+          set -uo pipefail
+          FILE_PATH="$TEAM_ID/$JOB_ID.$EXT"
+          HTTP=$(curl -sS -o /tmp/upload_response.txt -w "%{http_code}" --max-time 1500 \
+            -X POST "$SUPABASE_URL/storage/v1/object/clips/$FILE_PATH" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: $CONTENT_TYPE" \
+            --data-binary @/tmp/source)
+          if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ]; then
+            echo "Storage upload failed with status $HTTP:"; head -c 500 /tmp/upload_response.txt
+            echo "Couldn't save the video to Clip Dash storage. Try again." > /tmp/user_error.txt
+            exit 1
+          fi
+          echo "FILE_PATH=$FILE_PATH" >> "$GITHUB_ENV"
+
+      - name: Create uploads row and mark job done
+        env:
+          TEAM_ID: ${{ steps.job.outputs.team_id }}
+          USER_ID: ${{ steps.job.outputs.user_id }}
+        run: |
+          set -euo pipefail
+          UPLOAD_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+          AUTH=(-H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY")
+          STATUS=$(curl -sS -o /tmp/row.txt -w "%{http_code}" -X POST "${AUTH[@]}" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+            "$SUPABASE_URL/rest/v1/uploads" \
+            -d "{\"id\":\"$UPLOAD_ID\",\"user_id\":\"$USER_ID\",\"team_id\":\"$TEAM_ID\",\"bucket\":\"clips\",\"file_path\":\"$FILE_PATH\",\"file_size\":$ACTUAL_SIZE,\"storage_deleted\":false}")
+          if [ "$STATUS" != "201" ] && [ "$STATUS" != "200" ]; then
+            echo "Failed to create uploads row ($STATUS):"; cat /tmp/row.txt; exit 1
+          fi
+          curl -sS -X PATCH "${AUTH[@]}" -H "Content-Type: application/json" \
+            "$SUPABASE_URL/rest/v1/import_jobs?id=eq.$JOB_ID" \
+            -d "{\"status\":\"done\",\"upload_id\":\"$UPLOAD_ID\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Delete credential
+        if: always()
+        run: |
+          rm -f /tmp/secret /tmp/secret.json /tmp/curl.cfg
+          if [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then
+            curl -sS -X DELETE \
+              -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              "$SUPABASE_URL/rest/v1/import_job_secrets?job_id=eq.$JOB_ID" || true
+          fi
+
+      - name: Mark failed on error
+        if: failure() || cancelled()
+        run: |
+          if ! [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then exit 0; fi
+          ERR_MSG="Import failed. Try again, or upload the file directly."
+          if [ -s /tmp/user_error.txt ]; then ERR_MSG=$(head -c 300 /tmp/user_error.txt); fi
+          # status=neq.done: a re-run of a finished job must not mark it failed.
+          curl -sS -X PATCH \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            "$SUPABASE_URL/rest/v1/import_jobs?id=eq.$JOB_ID&status=neq.done" \
+            -d "$(jq -nc --arg e "$ERR_MSG" '{status:"failed",error:$e,updated_at:(now|todate)}')"

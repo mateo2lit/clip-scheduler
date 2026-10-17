@@ -13,6 +13,7 @@ function proxiedAvatar(url: string | null | undefined): string | null {
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
+import CloudImportButtons, { type CloudImportStarted } from "./CloudImportButtons";
 import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
@@ -423,6 +424,7 @@ export default function UploadsPage() {
   const [dragOver, setDragOver] = useState(false);
   const [planActive, setPlanActive] = useState<boolean | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [cloudImport, setCloudImport] = useState<CloudImportStarted | null>(null);
 
   // Shared content
   const [title, setTitle] = useState("");
@@ -2646,6 +2648,15 @@ export default function UploadsPage() {
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">+1000 sites</span>
               </div>
             </button>
+
+            {/* Import from Google Drive / Dropbox (hidden until their env vars are set) */}
+            {accessToken && (
+              <CloudImportButtons
+                token={accessToken}
+                disabled={planActive === false}
+                onStarted={setCloudImport}
+              />
+            )}
 
             {/* Per-platform limits cheat sheet */}
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
@@ -4872,12 +4883,14 @@ export default function UploadsPage() {
     </div>
 
     {/* Import from URL modal */}
-    {showImportModal && accessToken && (
+    {(showImportModal || cloudImport) && accessToken && (
       <ImportModal
         token={accessToken}
-        onClose={() => setShowImportModal(false)}
+        cloudImport={cloudImport}
+        onClose={() => { setShowImportModal(false); setCloudImport(null); }}
         onImported={async (uploadId, importedTitle, options) => {
           setShowImportModal(false);
+          setCloudImport(null);
           setLastUploadId(uploadId);
           setTitle(importedTitle);
           setStep("details");

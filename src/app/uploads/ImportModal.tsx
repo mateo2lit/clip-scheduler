@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X as XIcon, Check, Crop } from "@phosphor-icons/react/dist/ssr";
+import { X as XIcon, Check, Crop, DropboxLogo, GoogleDriveLogo } from "@phosphor-icons/react/dist/ssr";
+import type { CloudImportStarted } from "./CloudImportButtons";
 
 type JobStatus = "pending" | "fetching" | "uploading" | "done" | "failed";
 
@@ -24,6 +25,8 @@ interface Props {
   token: string;
   onClose: () => void;
   onImported: (uploadId: string, title: string, options?: ImportConvertOptions) => void;
+  /** A Google Drive / Dropbox import already started by CloudImportButtons: skip the URL form and track it. */
+  cloudImport?: CloudImportStarted | null;
 }
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -58,7 +61,11 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
       <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
     </svg>
   ),
+  gdrive: <GoogleDriveLogo className="w-4 h-4" weight="bold" />,
+  dropbox: <DropboxLogo className="w-4 h-4" weight="bold" />,
 };
+
+const SOURCE_LABELS: Record<string, string> = { gdrive: "Google Drive", dropbox: "Dropbox" };
 
 const STATUS_CONFIG: Record<
   JobStatus,
@@ -104,11 +111,15 @@ function useSimulatedProgress(status: JobStatus) {
   return progress;
 }
 
-export default function ImportModal({ token, onClose, onImported }: Props) {
-  const [url, setUrl] = useState("");
+export default function ImportModal({ token, onClose, onImported, cloudImport }: Props) {
+  const [url, setUrl] = useState(cloudImport?.fileName ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [job, setJob] = useState<ImportJob | null>(null);
+  const [job, setJob] = useState<ImportJob | null>(
+    cloudImport
+      ? { id: cloudImport.jobId, status: "pending", source_platform: cloudImport.source, title: cloudImport.title }
+      : null
+  );
   // 9:16 conversion intent — captured before import, applied by parent after import done.
   // Default ON because Twitch/Kick clips are virtually always 16:9 and most users want shorts.
   const [convertTo916, setConvertTo916] = useState(true);
@@ -129,6 +140,34 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  // A cloud import is already running when the modal opens; just follow it.
+  useEffect(() => {
+    if (cloudImport) startPolling(cloudImport.jobId);
+  }, [cloudImport?.jobId]);
+
+  function startPolling(jobId: string) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollStartRef.current = Date.now();
+
+    // Timeout after 15 minutes
+    pollRef.current = setInterval(async () => {
+      if (pollStartRef.current && Date.now() - pollStartRef.current > 15 * 60 * 1000) {
+        clearInterval(pollRef.current!);
+        setJob((prev) => prev ? { ...prev, status: "failed", error: "Import timed out. The clip may be too large or the worker encountered an error." } : prev);
+        return;
+      }
+      try {
+        const pollRes = await fetch(`/api/imports/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const pollJson = await pollRes.json();
+        if (pollJson.ok && pollJson.job) {
+          setJob(pollJson.job);
+        }
+      } catch {}
+    }, 2500);
+  }
 
   function hasMultipleUrls(input: string) {
     const matches = input.match(/https?:\/\//gi) || [];
@@ -165,25 +204,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
       const newJob: ImportJob = { id: json.jobId, status: "pending", source_platform: json.platform };
       setJob(newJob);
       setSubmitting(false);
-      pollStartRef.current = Date.now();
-
-      // Start polling — timeout after 15 minutes
-      pollRef.current = setInterval(async () => {
-        if (pollStartRef.current && Date.now() - pollStartRef.current > 15 * 60 * 1000) {
-          clearInterval(pollRef.current!);
-          setJob((prev) => prev ? { ...prev, status: "failed", error: "Import timed out. The clip may be too large or the worker encountered an error." } : prev);
-          return;
-        }
-        try {
-          const pollRes = await fetch(`/api/imports/${json.jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const pollJson = await pollRes.json();
-          if (pollJson.ok && pollJson.job) {
-            setJob(pollJson.job);
-          }
-        } catch {}
-      }, 2500);
+      startPolling(json.jobId);
     } catch {
       setSubmitError("Something went wrong. Please try again.");
       setSubmitting(false);
@@ -207,8 +228,12 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-white">Import from URL</h2>
-            <p className="text-xs text-white/40 mt-0.5">Twitch and Kick clip links</p>
+            <h2 className="text-lg font-semibold text-white">
+              {cloudImport ? `Import from ${SOURCE_LABELS[cloudImport.source]}` : "Import from URL"}
+            </h2>
+            <p className="text-xs text-white/40 mt-0.5">
+              {cloudImport ? "Copying your video into Clip Dash" : "Twitch and Kick clip links"}
+            </p>
           </div>
           {!isActive && (
             <button
@@ -299,7 +324,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
               <span className="text-xs text-white/40 truncate flex-1">{url}</span>
               {job.source_platform && job.source_platform !== "unknown" && (
                 <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/30 capitalize">
-                  {job.source_platform}
+                  {SOURCE_LABELS[job.source_platform] ?? job.source_platform}
                 </span>
               )}
             </div>
@@ -370,7 +395,7 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
               <div className="space-y-3 pt-1">
                 {job.title && (
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                    <p className="text-[11px] text-white/30 mb-0.5">Clip title</p>
+                    <p className="text-[11px] text-white/30 mb-0.5">{cloudImport ? "Title" : "Clip title"}</p>
                     <p className="text-sm text-white/80 truncate">{job.title}</p>
                   </div>
                 )}
@@ -378,11 +403,12 @@ export default function ImportModal({ token, onClose, onImported }: Props) {
                   onClick={() => onImported(
                     job.upload_id!,
                     job.title || "Imported clip",
-                    { convertTo916, convertStyle },
+                    // Cloud files are the creator's own originals; the upload page still offers 9:16 after.
+                    cloudImport ? undefined : { convertTo916, convertStyle },
                   )}
                   className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
                 >
-                  {convertTo916 ? "Schedule & convert to 9:16 →" : "Schedule this clip →"}
+                  {cloudImport ? "Schedule this video →" : convertTo916 ? "Schedule & convert to 9:16 →" : "Schedule this clip →"}
                 </button>
               </div>
             )}
