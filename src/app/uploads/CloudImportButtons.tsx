@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { DropboxLogo, GoogleDriveLogo } from "@phosphor-icons/react/dist/ssr";
 
 /**
- * "Google Drive" / "Dropbox" buttons on the upload page. Each opens the provider's own file
- * picker; the picked file is handed to /api/imports/cloud, and the import-cloud workflow copies
- * it into storage. A button only appears when its env vars are set, so this ships dark.
+ * "Google Drive" / "Dropbox" cards on the upload page, rendered as items of the parent's grid
+ * beside "Import from URL". Each opens the provider's own file picker; the picked file is handed
+ * to /api/imports/cloud, and the import-cloud workflow copies it into storage. A card only
+ * appears when its env vars are set, so this ships dark.
  */
 
 // Referenced literally so Next.js inlines them at build time.
@@ -17,6 +18,9 @@ const GOOGLE_PROJECT_NUMBER = process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER || "
 
 const DRIVE_ENABLED = !!(GOOGLE_CLIENT_ID && GOOGLE_PICKER_API_KEY && GOOGLE_PROJECT_NUMBER);
 const DROPBOX_ENABLED = !!DROPBOX_APP_KEY;
+
+/** How many cards this renders, so the parent can size its grid. */
+export const CLOUD_IMPORT_SOURCE_COUNT = Number(DRIVE_ENABLED) + Number(DROPBOX_ENABLED);
 
 // Only the files the user picks; non-sensitive, so no Google security assessment.
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -188,36 +192,57 @@ export default function CloudImportButtons({ token, disabled, onStarted }: Props
     tokenClientRef.current.requestAccessToken({ prompt: "" });
   }
 
-  const buttonClass =
-    "group flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3.5 text-sm font-medium text-white/70 backdrop-blur-xl transition-all hover:border-blue-400/30 hover:bg-white/[0.04] hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-40";
+  // Same card as "Import from URL" so the row reads as one set of choices.
+  function card(opts: {
+    source: "gdrive" | "dropbox";
+    label: string;
+    hint: string;
+    icon: React.ReactNode;
+    ready: boolean;
+    onClick: () => void;
+  }) {
+    return (
+      <button
+        key={opts.source}
+        type="button"
+        onClick={opts.onClick}
+        disabled={disabled || !opts.ready || busy !== null}
+        className="group w-full rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-8 text-center backdrop-blur-xl transition-all hover:border-blue-400/30 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] transition-colors group-hover:border-blue-400/30 group-hover:bg-blue-400/10">
+          {opts.icon}
+        </div>
+        <p className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">{opts.label}</p>
+        <p className="mt-1 text-xs text-white/35">{busy === opts.source ? "Starting import…" : opts.hint}</p>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Up to 2 GB</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">MP4, MOV, WebM</span>
+        </div>
+      </button>
+    );
+  }
+
+  const iconClass = "w-5 h-5 text-white/50 group-hover:text-blue-300 transition-colors";
 
   return (
-    <div className="mt-3">
-      <div className={`grid gap-3 ${DRIVE_ENABLED && DROPBOX_ENABLED ? "grid-cols-2" : "grid-cols-1"}`}>
-        {DRIVE_ENABLED && (
-          <button
-            type="button"
-            onClick={chooseFromDrive}
-            disabled={disabled || !driveReady || busy !== null}
-            className={buttonClass}
-          >
-            <GoogleDriveLogo className="h-5 w-5 text-white/50 transition-colors group-hover:text-blue-300" weight="bold" />
-            {busy === "gdrive" ? "Starting…" : "Google Drive"}
-          </button>
-        )}
-        {DROPBOX_ENABLED && (
-          <button
-            type="button"
-            onClick={chooseFromDropbox}
-            disabled={disabled || !dropboxReady || busy !== null}
-            className={buttonClass}
-          >
-            <DropboxLogo className="h-5 w-5 text-white/50 transition-colors group-hover:text-blue-300" weight="bold" />
-            {busy === "dropbox" ? "Starting…" : "Dropbox"}
-          </button>
-        )}
-      </div>
-      {error && <p className="mt-2 px-1 text-xs text-red-400">{error}</p>}
-    </div>
+    <>
+      {DRIVE_ENABLED && card({
+        source: "gdrive",
+        label: "Import from Google Drive",
+        hint: "Pick a video from your Drive",
+        icon: <GoogleDriveLogo className={iconClass} weight="bold" />,
+        ready: driveReady,
+        onClick: chooseFromDrive,
+      })}
+      {DROPBOX_ENABLED && card({
+        source: "dropbox",
+        label: "Import from Dropbox",
+        hint: "Pick a video from your Dropbox",
+        icon: <DropboxLogo className={iconClass} weight="bold" />,
+        ready: dropboxReady,
+        onClick: chooseFromDropbox,
+      })}
+      {error && <p className="col-span-full px-1 text-xs text-red-400">{error}</p>}
+    </>
   );
 }

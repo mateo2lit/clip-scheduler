@@ -13,7 +13,7 @@ function proxiedAvatar(url: string | null | undefined): string | null {
 import Link from "next/link";
 import PostPreviewPanel from "./PostPreviewPanel";
 import ImportModal from "./ImportModal";
-import CloudImportButtons, { type CloudImportStarted } from "./CloudImportButtons";
+import CloudImportButtons, { CLOUD_IMPORT_SOURCE_COUNT, type CloudImportStarted } from "./CloudImportButtons";
 import { EnhanceVideoPanel } from "@/components/uploads/EnhanceVideoPanel";
 import TextPostComposer, { type LinkPreviewData } from "@/components/uploads/TextPostComposer";
 import { ComingSoonBadge, ComingSoonNote } from "@/components/ComingSoonBadge";
@@ -2632,31 +2632,41 @@ export default function UploadsPage() {
               <span className="text-xs text-white/25 shrink-0">or</span>
               <div className="flex-1 h-px bg-white/[0.06]" />
             </div>
-            <button
-              onClick={() => setShowImportModal(true)}
-              disabled={planActive === false}
-              className="group mt-3 w-full rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-8 text-center backdrop-blur-xl transition-all hover:border-blue-400/30 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
+            {/* URL import side by side with Google Drive / Dropbox (each hidden until its env vars are set) */}
+            <div
+              className={`mt-3 grid gap-3 ${
+                !accessToken || CLOUD_IMPORT_SOURCE_COUNT === 0
+                  ? ""
+                  : CLOUD_IMPORT_SOURCE_COUNT === 1
+                  ? "sm:grid-cols-2"
+                  : "sm:grid-cols-3"
+              }`}
             >
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] transition-colors group-hover:border-blue-400/30 group-hover:bg-blue-400/10">
-                <LinkSimple className="w-5 h-5 text-white/50 group-hover:text-blue-300 transition-colors" weight="bold" />
-              </div>
-              <p className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Import from URL</p>
-              <p className="mt-1 text-xs text-white/35">Paste a clip link and we'll fetch it for you</p>
-              <div className="mt-3 flex items-center justify-center gap-2">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Twitch</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Kick</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">+1000 sites</span>
-              </div>
-            </button>
-
-            {/* Import from Google Drive / Dropbox (hidden until their env vars are set) */}
-            {accessToken && (
-              <CloudImportButtons
-                token={accessToken}
+              <button
+                onClick={() => setShowImportModal(true)}
                 disabled={planActive === false}
-                onStarted={setCloudImport}
-              />
-            )}
+                className="group w-full rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-8 text-center backdrop-blur-xl transition-all hover:border-blue-400/30 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] transition-colors group-hover:border-blue-400/30 group-hover:bg-blue-400/10">
+                  <LinkSimple className="w-5 h-5 text-white/50 group-hover:text-blue-300 transition-colors" weight="bold" />
+                </div>
+                <p className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Import from URL</p>
+                <p className="mt-1 text-xs text-white/35">Paste a clip link and we'll fetch it for you</p>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Twitch</span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Kick</span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">+1000 sites</span>
+                </div>
+              </button>
+
+              {accessToken && (
+                <CloudImportButtons
+                  token={accessToken}
+                  disabled={planActive === false}
+                  onStarted={setCloudImport}
+                />
+              )}
+            </div>
 
             {/* Per-platform limits cheat sheet */}
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
