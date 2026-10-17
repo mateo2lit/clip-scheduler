@@ -48,9 +48,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       .eq("file_path", old.source_clip_path)
       .eq("team_id", teamId)
       .maybeSingle();
+    // Existence check only: the signed URL is never dispatched (workflow inputs are public).
     const { data: signed } = await supabaseAdmin.storage
       .from(src?.bucket || "clips")
-      .createSignedUrl(old.source_clip_path, 7200);
+      .createSignedUrl(old.source_clip_path, 60);
     if (!signed?.signedUrl) {
       return NextResponse.json({ ok: false, error: "The source clip is no longer available." }, { status: 410 });
     }
@@ -92,7 +93,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     try {
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
-        source_clip_url: signed.signedUrl,
         output_path: upload.file_path,
         mode: old.mode,
         team_id: teamId,

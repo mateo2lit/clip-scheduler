@@ -248,10 +248,15 @@ jobs:
 
       - name: Mark job failed on error
         if: failure()
+        # Values reach the script through env only (public repo, public logs)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOB_ID: ${{ inputs.job_id }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_jobs?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"status":"failed","error":"merge workflow failed","updated_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'

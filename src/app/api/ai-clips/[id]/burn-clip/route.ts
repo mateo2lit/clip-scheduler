@@ -65,10 +65,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Clip upload not found." }, { status: 404 });
     }
 
-    // Generate a signed URL for the source clip (valid 2h — enough for any queue wait + run time)
+    // Signing fails when the file is gone, so this doubles as an existence check. The URL itself is
+    // never sent anywhere: workflow inputs are public (public repo) and the runner reads the file
+    // with the service-role key.
     const { data: signedData, error: signErr } = await supabaseAdmin.storage
       .from(upload.bucket)
-      .createSignedUrl(upload.file_path, 7200);
+      .createSignedUrl(upload.file_path, 60);
 
     if (signErr || !signedData?.signedUrl) {
       return NextResponse.json({ ok: false, error: "Failed to generate signed URL for source clip." }, { status: 500 });
@@ -113,11 +115,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Failed to reserve the captioned video." }, { status: 500 });
     }
 
-    // Dispatch burn workflow — pass signed URL so the runner doesn't need Storage auth
+    // Dispatch burn workflow. The runner looks up the source path from the burn job row.
     if (GITHUB_PAT) {
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
-        source_clip_url: signedData.signedUrl,
         output_path: burnedPath,
         mode: mode,
         team_id: teamId,

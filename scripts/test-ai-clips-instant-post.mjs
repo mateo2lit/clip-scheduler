@@ -206,7 +206,15 @@ test("burn-clip reserves the captioned upload and returns its id", async () => {
   assert.equal(reserve.payload.file_size, null);
   assert.ok(reserve.payload.render_started_at);
   assert.equal(dispatched.at(-1)?.upload_id, body.uploadId, "workflow is told which row to fill");
+  assertNoPrivateLink(dispatched.at(-1));
 });
+
+/** Workflow inputs are public (public repo): a signed Storage URL there would open the user's private clip. */
+function assertNoPrivateLink(inputs) {
+  const text = JSON.stringify(inputs);
+  assert.ok(!text.includes("storage.example.invalid"), `dispatch carries a signed Storage URL: ${text}`);
+  assert.ok(!/token=|sign/i.test(text), `dispatch carries a signed link: ${text}`);
+}
 
 test("retry re-renders into the same upload and restarts its clock", async () => {
   const dispatched = [];
@@ -232,6 +240,7 @@ test("retry re-renders into the same upload and restarts its clock", async () =>
   assert.ok(upd.payload.render_started_at, "20-minute clock restarts");
   assert.equal(dispatched.at(-1).output_path, "t/ai_burned_b1.mp4");
   assert.equal(dispatched.at(-1).upload_id, "up1");
+  assertNoPrivateLink(dispatched.at(-1));
 });
 
 test("retry refuses a burn job that didn't fail", async () => {

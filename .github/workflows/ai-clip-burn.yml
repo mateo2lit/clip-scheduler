@@ -7,7 +7,9 @@ on:
         description: "ai_clip_burn_jobs row ID"
         required: true
       source_clip_url:
-        description: "Unused — workflow fetches path from DB directly"
+        # Never send a value here: inputs are public, and a signed URL would open a private clip.
+        # Kept only so a dispatch from an older deploy that still sends it isn't rejected.
+        description: "Unused, leave empty. The workflow reads the clip path from the DB"
         required: false
         default: ""
       output_path:
@@ -36,6 +38,14 @@ jobs:
   burn:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The repo is public, so run logs are public. Inputs and secrets reach the scripts
+    # only through env (never ${{ }} inside run:), so a clip title can't inject shell
+    # and the scripts printed in the logs contain no values.
+    env:
+      BURN_JOB_ID: ${{ inputs.burn_job_id }}
+      OUTPUT_PATH: ${{ inputs.output_path }}
+      TEAM_ID: ${{ inputs.team_id }}
+      UPLOAD_ID: ${{ inputs.upload_id }}
 
     steps:
       # A pinned static ffmpeg, cached between runs, instead of apt-installing it every time (~25 s).
@@ -99,11 +109,14 @@ jobs:
           ffmpeg -filters 2>&1 | grep -i "ass" || echo "No ass filter found"
 
       - name: Mark burn job as burning
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_burn_jobs?id=eq.${BURN_JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc '{status:"burning",progress_stage:"starting",progress_pct:0,updated_at:(now|todate)}')"
 
@@ -255,7 +268,7 @@ jobs:
       # missing wheel, a bad cascade, or a video with no detectable face all end with
       # an empty track, and the burn step falls back to a static centre crop.
       - name: Detect speaker position for auto-reframe
-        if: ${{ inputs.mode == 'portrait_auto' }}
+        if: inputs.mode == 'portrait_auto'
         continue-on-error: true
         run: |
           pip install --quiet --disable-pip-version-check opencv-python-headless || true
@@ -815,13 +828,16 @@ jobs:
           PYEOF
 
       - name: Upload burned clip to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           FILE_SIZE=$(stat -c%s /tmp/burned.mp4)
           HTTP_STATUS=$(curl -sS -o /tmp/burn_upload_resp.txt -w "%{http_code}" \
             --max-time 300 \
             -X POST \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.output_path }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/storage/v1/object/clips/${OUTPUT_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: video/mp4" \
             -H "x-upsert: true" \
             --data-binary @/tmp/burned.mp4)
@@ -837,10 +853,11 @@ jobs:
           # Thumbnail from the finished (captioned, reframed) video, for the Scheduled page and platforms
           ffmpeg -hide_banner -loglevel error -ss 1 -i /tmp/burned.mp4 -frames:v 1 -q:v 3 /tmp/thumb.jpg -y < /dev/null || true
           if [ -s /tmp/thumb.jpg ]; then
-            THUMB_PATH="${{ inputs.team_id }}/thumbnails/ai_burned_${{ inputs.burn_job_id }}.jpg"
+            # Strip newlines: THUMB_PATH is written to GITHUB_ENV below
+            THUMB_PATH=$(printf '%s' "${TEAM_ID}/thumbnails/ai_burned_${BURN_JOB_ID}.jpg" | tr -d '\r\n')
             curl -sS -o /dev/null -w "thumb upload %{http_code}\n" -X POST \
-              "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${THUMB_PATH}" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              "${SUPABASE_URL}/storage/v1/object/clips/${THUMB_PATH}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Content-Type: image/jpeg" -H "x-upsert: true" \
               --data-binary @/tmp/thumb.jpg || true
             echo "THUMB_PATH=${THUMB_PATH}" >> $GITHUB_ENV
@@ -935,6 +952,9 @@ jobs:
       - name: Mark burn failed on error
         # cancelled() covers the 15-minute job timeout and manual cancels, which skip failure() steps
         if: failure() || cancelled()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ ! -s /tmp/clip.mp4 ]; then
             DL_STATUS=$(cat /tmp/dl_status.txt 2>/dev/null || echo "no-response")
@@ -946,18 +966,18 @@ jobs:
             ERR_MSG="Burn upload or finalization failed."
           fi
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_burn_jobs?id=eq.${BURN_JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc --arg e "${ERR_MSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"
           # The reserved upload never got its file: mark it so scheduled posts fail clearly
           # (and the scheduling screen offers Retry) instead of waiting out the 20-minute timeout.
-          if [ -n "${{ inputs.upload_id }}" ]; then
+          if [ -n "$UPLOAD_ID" ]; then
             curl -sS -X PATCH \
-              "${{ secrets.SUPABASE_URL }}/rest/v1/uploads?id=eq.${{ inputs.upload_id }}" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              "${SUPABASE_URL}/rest/v1/uploads?id=eq.${UPLOAD_ID}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Content-Type: application/json" \
               -d "$(jq -nc '{render_status:"failed"}')" || true
           fi

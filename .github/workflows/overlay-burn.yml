@@ -649,7 +649,8 @@ jobs:
           TEAM_ID: ${{ inputs.team_id }}
           JOB_ID: ${{ inputs.job_id }}
         run: |
-          OUTPUT_PATH="${TEAM_ID}/overlay_burned_${JOB_ID}.mp4"
+          # Strip newlines: OUTPUT_PATH is written to GITHUB_ENV
+          OUTPUT_PATH=$(printf '%s' "${TEAM_ID}/overlay_burned_${JOB_ID}.mp4" | tr -d '\r\n')
           echo "OUTPUT_PATH=${OUTPUT_PATH}" >> $GITHUB_ENV
           FILE_SIZE=$(stat -c%s /tmp/burned.mp4)
           echo "BURNED_FILE_SIZE=${FILE_SIZE}" >> $GITHUB_ENV
