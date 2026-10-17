@@ -270,9 +270,15 @@ jobs:
                   # No title or caption text in the log: run logs are public
                   print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={'yes' if clip_title else 'no'}", flush=True)
               else:
-                  print(f"WARNING: burn job not found in DB, proceeding without subtitle data", flush=True)
+                  raise RuntimeError("burn job not found in DB")
 
           except Exception as e:
+              # Only a dispatch from an older deploy carries mode and title as inputs. Without them a
+              # guess would render the wrong shape and still be marked done, so fail instead: the job
+              # is marked failed and the user can Retry.
+              if not os.environ.get("BURN_MODE_INPUT"):
+                  print(f"ERROR: couldn't read the burn job ({type(e).__name__}: {e})", flush=True)
+                  raise
               print(f"WARNING: DB fetch failed ({type(e).__name__}: {e})", flush=True)
               print("Continuing without subtitle data. Mode from workflow input.", flush=True)
 
