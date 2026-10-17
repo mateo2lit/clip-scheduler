@@ -68,9 +68,10 @@ jobs:
           sparse-checkout: scripts/ai_clips_words.py
           sparse-checkout-cone-mode: false
 
-      # The job's settings come from its DB row, not from inputs (public). They reach later steps
-      # through GITHUB_ENV with a random heredoc delimiter, so a newline in the prompt can't add
-      # variables. The source URL is masked in case a tool prints it.
+      # The job's settings come from its DB row, not from inputs (public). GitHub prints every
+      # GITHUB_ENV value in later steps' log headers, so only plain settings go there (random
+      # heredoc delimiters, so no value can add variables). The pasted link and the user's prompt
+      # go to files under /tmp that later steps read; the link is also masked in case a tool prints it.
       - name: Load job settings
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -121,17 +122,21 @@ jobs:
               "AUTO_HOOK": pick("auto_hook", "true"),
               "MOMENT_PROMPT": pick("moment_prompt", ""),
           }
-          url = values["SOURCE_URL"].replace("\r", "").replace("\n", "")
-          values["SOURCE_URL"] = url
+          url = values.pop("SOURCE_URL").replace("\r", "").replace("\n", "")
+          prompt = values.pop("MOMENT_PROMPT")
           if url:
               print(f"::add-mask::{url}", flush=True)
+          with open("/tmp/job_source_url.txt", "w", encoding="utf-8") as f:
+              f.write(url)
+          with open("/tmp/job_moment_prompt.txt", "w", encoding="utf-8") as f:
+              f.write(prompt)
 
           with open(env["GITHUB_ENV"], "a", encoding="utf-8") as f:
               for name, value in values.items():
                   delim = f"EOF_{uuid.uuid4().hex}"
                   f.write(f"{name}<<{delim}\n{value}\n{delim}\n")
           print("Loaded job settings: source=" + ("url" if url else "file")
-                + f", clips={values['CLIP_COUNT']}, prompt={'yes' if values['MOMENT_PROMPT'] else 'no'}", flush=True)
+                + f", clips={values['CLIP_COUNT']}, prompt={'yes' if prompt else 'no'}", flush=True)
           PYEOF
 
       - name: Install dependencies
@@ -154,6 +159,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          # From a file, not env: GitHub prints env values in each step's log header
+          SOURCE_URL=$(cat /tmp/job_source_url.txt 2>/dev/null || true)
           if [ -n "$SOURCE_URL" ]; then
             # Not echoed, and yt-dlp's output goes to a file only: run logs are public.
             echo "Downloading from URL"
@@ -304,7 +311,12 @@ jobs:
           genre = os.environ.get("GENRE", "auto") or "auto"
           clip_length = os.environ.get("CLIP_LENGTH", "auto") or "auto"
           auto_hook = os.environ.get("AUTO_HOOK", "true").lower() in ("true", "1", "yes")
-          moment_prompt = os.environ.get("MOMENT_PROMPT", "").strip()
+          # From a file, not env: GitHub prints env values in each step's log header
+          try:
+              with open("/tmp/job_moment_prompt.txt", encoding="utf-8") as f:
+                  moment_prompt = f.read().strip()
+          except FileNotFoundError:
+              moment_prompt = ""
 
           # Clip duration constraints based on clip_length setting
           length_map = {
@@ -710,6 +722,7 @@ jobs:
           fi
           # Check if the source file is still missing (yt-dlp likely timed out or was blocked)
           if [ ! -s /tmp/source.mp4 ]; then
+            SOURCE_URL=$(cat /tmp/job_source_url.txt 2>/dev/null || true)
             if [ -n "$SOURCE_URL" ]; then
               # Keep in sync with DOWNLOAD_FAILED.unavailable in src/app/ai-clips/waitCopy.ts;
               # the app matches it to offer "Upload the video file instead".
