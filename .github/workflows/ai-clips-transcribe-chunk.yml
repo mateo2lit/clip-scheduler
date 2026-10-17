@@ -11,17 +11,23 @@ on:
         description: "Total number of audio chunks to transcribe"
         required: true
 
+# The repo is public, so run logs are public. Inputs and secrets reach the scripts only
+# through env (never ${{ }} inside run:), so a crafted value can't inject shell and the
+# scripts printed in the logs contain no values.
 jobs:
   build-matrix:
     runs-on: ubuntu-latest
     outputs:
       indices: ${{ steps.gen.outputs.indices }}
+    env:
+      CHUNKS_TOTAL: ${{ inputs.chunks_total }}
     steps:
       - name: Generate chunk index matrix
         id: gen
         run: |
-          N=${{ inputs.chunks_total }}
-          INDICES=$(python3 -c "import json; print(json.dumps(list(range(int('$N')))))")
+          N=$(printf '%s' "$CHUNKS_TOTAL" | tr -cd '0-9')
+          # json.dumps prints one line, so nothing extra can reach GITHUB_OUTPUT
+          INDICES=$(python3 -c "import json, sys; print(json.dumps(list(range(int(sys.argv[1])))))" "$N")
           echo "indices=$INDICES" >> $GITHUB_OUTPUT
 
   transcribe:
@@ -34,6 +40,9 @@ jobs:
       matrix:
         chunk_index: ${{ fromJSON(needs.build-matrix.outputs.indices) }}
     continue-on-error: true
+    env:
+      JOB_ID: ${{ inputs.job_id }}
+      CHUNK_INDEX: ${{ matrix.chunk_index }}
     steps:
       # Only the word cleanup module (GTA spelled "G -T -A" etc.); the rest of the repo isn't needed
       - uses: actions/checkout@v4
@@ -51,21 +60,26 @@ jobs:
           pip install -q faster-whisper "av<19"
 
       - name: Download chunk
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          IDX=${{ matrix.chunk_index }}
-          PADDED=$(printf "%03d" $IDX)
-          STORAGE_PATH="ai_audio_chunks/${{ inputs.job_id }}/chunk_${PADDED}.opus"
+          PADDED=$(printf "%03d" "$CHUNK_INDEX")
+          STORAGE_PATH="ai_audio_chunks/${JOB_ID}/chunk_${PADDED}.opus"
           curl -fsS -o /tmp/chunk.opus \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${STORAGE_PATH}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+            "${SUPABASE_URL}/storage/v1/object/clips/${STORAGE_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"
           ls -la /tmp/chunk.opus
 
       - name: Mark chunk as transcribing
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_audio_chunks?job_id=eq.${JOB_ID}&chunk_index=eq.${CHUNK_INDEX}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"status":"transcribing","updated_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
 
@@ -102,23 +116,29 @@ jobs:
           PYEOF
 
       - name: Persist chunk result
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           # status "done" is what the merge workflow checks; without it every chunk reads as failed.
           jq '. + {status: "done", updated_at: (now | todate)}' /tmp/result.json > /tmp/body.json
           curl -fsS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_audio_chunks?job_id=eq.${JOB_ID}&chunk_index=eq.${CHUNK_INDEX}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d @/tmp/body.json
 
       - name: Mark chunk failed on error
         if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_audio_chunks?job_id=eq.${{ inputs.job_id }}&chunk_index=eq.${{ matrix.chunk_index }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_audio_chunks?job_id=eq.${JOB_ID}&chunk_index=eq.${CHUNK_INDEX}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"status":"failed","error":"transcribe job failed"}'
 
@@ -126,11 +146,15 @@ jobs:
     needs: transcribe
     runs-on: ubuntu-latest
     if: always()
+    env:
+      JOB_ID: ${{ inputs.job_id }}
     steps:
       - name: Dispatch merge workflow
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_DISPATCH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           curl -fsS -X POST \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ai-clips-merge.yml/dispatches" \
-            -H "Authorization: Bearer ${{ secrets.WORKFLOW_DISPATCH_PAT || secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/ai-clips-merge.yml/dispatches" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            -d '{"ref":"main","inputs":{"job_id":"${{ inputs.job_id }}"}}'
+            -d "$(jq -nc --arg id "$JOB_ID" '{ref:"main",inputs:{job_id:$id}}')"

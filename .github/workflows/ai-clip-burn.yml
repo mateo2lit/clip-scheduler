@@ -7,16 +7,20 @@ on:
         description: "ai_clip_burn_jobs row ID"
         required: true
       source_clip_url:
-        description: "Unused — workflow fetches path from DB directly"
+        # Never send a value here: inputs are public, and a signed URL would open a private clip.
+        # Kept only so a dispatch from an older deploy that still sends it isn't rejected.
+        description: "Unused, leave empty. The workflow reads the clip path from the DB"
         required: false
         default: ""
       output_path:
         description: "Supabase Storage path for burned output"
         required: true
+      # mode and clip_title are legacy: the workflow reads them from the DB, since inputs are
+      # public. Kept declared so a dispatch from an older deploy isn't rejected.
       mode:
-        description: "portrait_blur | portrait_crop | portrait_auto | portrait_45 | square | landscape"
+        description: "Legacy, leave empty: read from the burn job row"
         required: false
-        default: "landscape"
+        default: ""
       team_id:
         description: "Team ID"
         required: true
@@ -24,7 +28,7 @@ on:
         description: "User ID"
         required: true
       clip_title:
-        description: "Clip title for overlay"
+        description: "Legacy, leave empty: read from the AI Clips job row"
         required: false
         default: ""
       upload_id:
@@ -36,6 +40,14 @@ jobs:
   burn:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The repo is public, so run logs are public. Inputs and secrets reach the scripts
+    # only through env (never ${{ }} inside run:), so a clip title can't inject shell
+    # and the scripts printed in the logs contain no values.
+    env:
+      BURN_JOB_ID: ${{ inputs.burn_job_id }}
+      OUTPUT_PATH: ${{ inputs.output_path }}
+      TEAM_ID: ${{ inputs.team_id }}
+      UPLOAD_ID: ${{ inputs.upload_id }}
 
     steps:
       # A pinned static ffmpeg, cached between runs, instead of apt-installing it every time (~25 s).
@@ -99,11 +111,14 @@ jobs:
           ffmpeg -filters 2>&1 | grep -i "ass" || echo "No ass filter found"
 
       - name: Mark burn job as burning
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_burn_jobs?id=eq.${BURN_JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc '{status:"burning",progress_stage:"starting",progress_pct:0,updated_at:(now|todate)}')"
 
@@ -196,7 +211,10 @@ jobs:
           print(f"Downloaded: {size:,} bytes", flush=True)
           PYEOF
 
+      # Mode and title come from the DB (inputs are public); the inputs are only a fallback for a
+      # dispatch from an older deploy.
       - name: Fetch subtitle data from Supabase
+        id: fetch
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -205,7 +223,7 @@ jobs:
           CLIP_TITLE_INPUT: ${{ inputs.clip_title }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, urllib.request
+          import json, os, re, urllib.request
 
           words = []
           style = {}
@@ -216,10 +234,12 @@ jobs:
               supabase_url = os.environ["SUPABASE_URL"]
               service_key  = os.environ["SERVICE_KEY"]
               burn_job_id  = os.environ["BURN_JOB_ID"]
+              H = {"Authorization": f"Bearer {service_key}", "apikey": service_key}
 
               req = urllib.request.Request(
-                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}&select=subtitle_data,subtitle_style,mode",
-                  headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}
+                  f"{supabase_url}/rest/v1/ai_clip_burn_jobs?id=eq.{burn_job_id}"
+                  "&select=subtitle_data,subtitle_style,mode,source_job_id,clip_index",
+                  headers=H
               )
               with urllib.request.urlopen(req) as resp:
                   body = resp.read().decode("utf-8")
@@ -230,11 +250,35 @@ jobs:
                   words = row.get("subtitle_data") or []
                   style = row.get("subtitle_style") or {}
                   db_mode = row.get("mode") or db_mode
-                  print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={clip_title[:60]!r}", flush=True)
+                  # Title: the AI Clips job's title for this clip, as the burn routes pick it
+                  clip_index = row.get("clip_index")
+                  if isinstance(clip_index, int) and row.get("source_job_id"):
+                      try:
+                          treq = urllib.request.Request(
+                              f"{supabase_url}/rest/v1/ai_clip_jobs?id=eq.{row['source_job_id']}&select=result_titles",
+                              headers=H
+                          )
+                          with urllib.request.urlopen(treq) as tresp:
+                              trows = json.loads(tresp.read().decode("utf-8"))
+                          titles = (trows[0].get("result_titles") if trows else None) or []
+                          # Same as the routes: titles[i] ?? `Clip ${i + 1}`
+                          title = titles[clip_index] if 0 <= clip_index < len(titles) else None
+                          clip_title = str(title) if title is not None else f"Clip {clip_index + 1}"
+                      except Exception as e:
+                          print(f"WARNING: title fetch failed ({type(e).__name__})", flush=True)
+                          clip_title = clip_title or f"Clip {clip_index + 1}"
+                  # No title or caption text in the log: run logs are public
+                  print(f"Fetched OK: mode={db_mode}, words={len(words)}, title={'yes' if clip_title else 'no'}", flush=True)
               else:
-                  print(f"WARNING: burn job not found in DB, proceeding without subtitle data", flush=True)
+                  raise RuntimeError("burn job not found in DB")
 
           except Exception as e:
+              # Only a dispatch from an older deploy carries mode and title as inputs. Without them a
+              # guess would render the wrong shape and still be marked done, so fail instead: the job
+              # is marked failed and the user can Retry.
+              if not os.environ.get("BURN_MODE_INPUT"):
+                  print(f"ERROR: couldn't read the burn job ({type(e).__name__}: {e})", flush=True)
+                  raise
               print(f"WARNING: DB fetch failed ({type(e).__name__}: {e})", flush=True)
               print("Continuing without subtitle data. Mode from workflow input.", flush=True)
 
@@ -247,6 +291,9 @@ jobs:
                   f.write(db_mode)
               with open("/tmp/clip_title.txt", "w") as f:
                   f.write(clip_title)
+              # Gates the auto-reframe step. Letters, digits and _ only, so it stays one line.
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"mode={re.sub(r'[^a-z0-9_]', '', str(db_mode))}\n")
               print(f"Written files: mode={db_mode}, words={len(words)}", flush=True)
           PYEOF
 
@@ -255,7 +302,7 @@ jobs:
       # missing wheel, a bad cascade, or a video with no detectable face all end with
       # an empty track, and the burn step falls back to a static centre crop.
       - name: Detect speaker position for auto-reframe
-        if: ${{ inputs.mode == 'portrait_auto' }}
+        if: steps.fetch.outputs.mode == 'portrait_auto'
         continue-on-error: true
         run: |
           pip install --quiet --disable-pip-version-check opencv-python-headless || true
@@ -748,9 +795,9 @@ jobs:
           has_subs = has_word_subs or bool(title_events)
 
           print(f"ASS: animation={animation}, {len(events)} word-events, title={'yes' if title_events else 'no'}, font={font_family}", flush=True)
-          # Debug: print first ASS event to verify timestamp format
+          # Debug: the first event's timestamps, to verify their format. Not its text: logs are public.
           if all_events:
-              print(f"First ASS event: {all_events[0][:120]}", flush=True)
+              print(f"First ASS event times: {','.join(all_events[0].split(',')[1:3])}", flush=True)
 
           FONTS_DIR = "/usr/local/share/fonts/clip-dash"
           ASS_VF = f"ass=/tmp/subtitles.ass:fontsdir={FONTS_DIR}"
@@ -815,13 +862,16 @@ jobs:
           PYEOF
 
       - name: Upload burned clip to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           FILE_SIZE=$(stat -c%s /tmp/burned.mp4)
           HTTP_STATUS=$(curl -sS -o /tmp/burn_upload_resp.txt -w "%{http_code}" \
             --max-time 300 \
             -X POST \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.output_path }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/storage/v1/object/clips/${OUTPUT_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: video/mp4" \
             -H "x-upsert: true" \
             --data-binary @/tmp/burned.mp4)
@@ -837,10 +887,11 @@ jobs:
           # Thumbnail from the finished (captioned, reframed) video, for the Scheduled page and platforms
           ffmpeg -hide_banner -loglevel error -ss 1 -i /tmp/burned.mp4 -frames:v 1 -q:v 3 /tmp/thumb.jpg -y < /dev/null || true
           if [ -s /tmp/thumb.jpg ]; then
-            THUMB_PATH="${{ inputs.team_id }}/thumbnails/ai_burned_${{ inputs.burn_job_id }}.jpg"
+            # Strip newlines: THUMB_PATH is written to GITHUB_ENV below
+            THUMB_PATH=$(printf '%s' "${TEAM_ID}/thumbnails/ai_burned_${BURN_JOB_ID}.jpg" | tr -d '\r\n')
             curl -sS -o /dev/null -w "thumb upload %{http_code}\n" -X POST \
-              "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${THUMB_PATH}" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              "${SUPABASE_URL}/storage/v1/object/clips/${THUMB_PATH}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Content-Type: image/jpeg" -H "x-upsert: true" \
               --data-binary @/tmp/thumb.jpg || true
             echo "THUMB_PATH=${THUMB_PATH}" >> $GITHUB_ENV
@@ -935,6 +986,9 @@ jobs:
       - name: Mark burn failed on error
         # cancelled() covers the 15-minute job timeout and manual cancels, which skip failure() steps
         if: failure() || cancelled()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ ! -s /tmp/clip.mp4 ]; then
             DL_STATUS=$(cat /tmp/dl_status.txt 2>/dev/null || echo "no-response")
@@ -946,18 +1000,18 @@ jobs:
             ERR_MSG="Burn upload or finalization failed."
           fi
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_burn_jobs?id=eq.${{ inputs.burn_job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_burn_jobs?id=eq.${BURN_JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc --arg e "${ERR_MSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"
           # The reserved upload never got its file: mark it so scheduled posts fail clearly
           # (and the scheduling screen offers Retry) instead of waiting out the 20-minute timeout.
-          if [ -n "${{ inputs.upload_id }}" ]; then
+          if [ -n "$UPLOAD_ID" ]; then
             curl -sS -X PATCH \
-              "${{ secrets.SUPABASE_URL }}/rest/v1/uploads?id=eq.${{ inputs.upload_id }}" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              "${SUPABASE_URL}/rest/v1/uploads?id=eq.${UPLOAD_ID}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Content-Type: application/json" \
               -d "$(jq -nc '{render_status:"failed"}')" || true
           fi

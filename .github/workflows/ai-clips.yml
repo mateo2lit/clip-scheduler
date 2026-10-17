@@ -6,16 +6,19 @@ on:
       job_id:
         description: "ai_clip_jobs row ID"
         required: true
+      # Everything below except team_id and user_id is legacy. Inputs are public (public repo),
+      # so the source link and the user's prompt are read from the ai_clip_jobs row instead.
+      # They stay declared only so a dispatch from an older deploy isn't rejected.
       source_file_path:
-        description: "Supabase Storage path of source video (leave empty if using source_url)"
+        description: "Legacy, leave empty: read from the job row"
         required: false
         default: ""
       source_bucket:
-        description: "Storage bucket name"
+        description: "Legacy, leave empty: read from the job row"
         required: false
-        default: "clips"
+        default: ""
       source_url:
-        description: "Twitch VOD URL (alternative to source_file_path)"
+        description: "Legacy, leave empty: read from the job row"
         required: false
         default: ""
       team_id:
@@ -25,23 +28,23 @@ on:
         description: "User ID"
         required: true
       clip_count:
-        description: "Number of clips to generate (3-10)"
-        required: true
-        default: "5"
+        description: "Legacy, leave empty: read from the job row"
+        required: false
+        default: ""
       genre:
-        description: "Video genre (auto/podcast/gaming/sports/education/interview/news)"
+        description: "Legacy, leave empty: read from the job row"
         required: false
-        default: "auto"
+        default: ""
       clip_length:
-        description: "Clip duration (auto/short/medium/long)"
+        description: "Legacy, leave empty: read from the job row"
         required: false
-        default: "auto"
+        default: ""
       auto_hook:
-        description: "Include auto hook clip"
+        description: "Legacy, leave empty: read from the job row"
         required: false
-        default: "true"
+        default: ""
       moment_prompt:
-        description: "Specific moments to find"
+        description: "Legacy, leave empty: read from the job row"
         required: false
         default: ""
 
@@ -52,6 +55,11 @@ jobs:
     concurrency:
       group: ai-clips-team-${{ inputs.team_id }}
       cancel-in-progress: false
+    # The repo is public, so run logs are public. Inputs and secrets reach the scripts
+    # only through env (never ${{ }} inside run:), so a pasted URL or a moment prompt
+    # can't inject shell and the scripts printed in the logs contain no values.
+    env:
+      JOB_ID: ${{ inputs.job_id }}
 
     steps:
       # Only the word cleanup module (GTA spelled "G -T -A" etc.); the rest of the repo isn't needed
@@ -59,6 +67,72 @@ jobs:
         with:
           sparse-checkout: scripts/ai_clips_words.py
           sparse-checkout-cone-mode: false
+
+      # The job's settings come from its DB row, not from inputs (public). They reach later steps
+      # through GITHUB_ENV with a random heredoc delimiter, so a newline in the prompt can't add
+      # variables. The source URL is masked in case a tool prints it.
+      - name: Load job settings
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Fallbacks for a dispatch from an older deploy (the row should always have them)
+          INPUT_SOURCE_URL: ${{ inputs.source_url }}
+          INPUT_SOURCE_FILE_PATH: ${{ inputs.source_file_path }}
+          INPUT_SOURCE_BUCKET: ${{ inputs.source_bucket }}
+          INPUT_CLIP_COUNT: ${{ inputs.clip_count }}
+          INPUT_GENRE: ${{ inputs.genre }}
+          INPUT_CLIP_LENGTH: ${{ inputs.clip_length }}
+          INPUT_AUTO_HOOK: ${{ inputs.auto_hook }}
+          INPUT_MOMENT_PROMPT: ${{ inputs.moment_prompt }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.parse, urllib.request, uuid
+
+          env = os.environ
+          cols = "source_url,source_file_path,source_bucket,clip_count,genre,clip_length,auto_hook,moment_prompt"
+          req = urllib.request.Request(
+              f"{env['SUPABASE_URL']}/rest/v1/ai_clip_jobs?id=eq.{urllib.parse.quote(env['JOB_ID'])}&select={cols}",
+              headers={"Authorization": f"Bearer {env['SUPABASE_SERVICE_ROLE_KEY']}",
+                       "apikey": env["SUPABASE_SERVICE_ROLE_KEY"]},
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              rows = json.loads(resp.read().decode())
+          if not rows:
+              raise RuntimeError("ai_clip_jobs row not found")
+          row = rows[0]
+
+          def pick(col, default):
+              v = row.get(col)
+              if v is None or v == "":
+                  v = env.get(f"INPUT_{col.upper()}", "")
+              if isinstance(v, bool):
+                  v = "true" if v else "false"
+              v = str(v)
+              return v if v != "" else default
+
+          values = {
+              "SOURCE_URL": pick("source_url", ""),
+              "SOURCE_FILE_PATH": pick("source_file_path", ""),
+              "SOURCE_BUCKET": pick("source_bucket", "clips"),
+              "CLIP_COUNT": pick("clip_count", "5"),
+              "GENRE": pick("genre", "auto"),
+              "CLIP_LENGTH": pick("clip_length", "auto"),
+              # A missing auto_hook has always meant on
+              "AUTO_HOOK": pick("auto_hook", "true"),
+              "MOMENT_PROMPT": pick("moment_prompt", ""),
+          }
+          url = values["SOURCE_URL"].replace("\r", "").replace("\n", "")
+          values["SOURCE_URL"] = url
+          if url:
+              print(f"::add-mask::{url}", flush=True)
+
+          with open(env["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              for name, value in values.items():
+                  delim = f"EOF_{uuid.uuid4().hex}"
+                  f.write(f"{name}<<{delim}\n{value}\n{delim}\n")
+          print("Loaded job settings: source=" + ("url" if url else "file")
+                + f", clips={values['CLIP_COUNT']}, prompt={'yes' if values['MOMENT_PROMPT'] else 'no'}", flush=True)
+          PYEOF
 
       - name: Install dependencies
         run: |
@@ -76,11 +150,13 @@ jobs:
           echo "yt-dlp version: $(yt-dlp --version)"
 
       - name: Acquire source video
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          SOURCE_URL="${{ inputs.source_url }}"
-
           if [ -n "$SOURCE_URL" ]; then
-            echo "Downloading from URL: $SOURCE_URL"
+            # Not echoed, and yt-dlp's output goes to a file only: run logs are public.
+            echo "Downloading from URL"
             fetch_source() {
               timeout 480 yt-dlp "$@" \
                 -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best" \
@@ -92,18 +168,19 @@ jobs:
                 --force-ipv4 \
                 --no-warnings \
                 -o /tmp/source.mp4 \
-                "$SOURCE_URL" 2>&1 | tee -a /tmp/yt_dlp_log.txt
-              # This step runs without pipefail, so return yt-dlp's status, not tee's.
-              return "${PIPESTATUS[0]}"
+                "$SOURCE_URL" >> /tmp/yt_dlp_log.txt 2>&1
+              local rc=$?
+              echo "yt-dlp exit code: $rc"
+              return "$rc"
             }
             # YouTube links aren't accepted (prepare-url): YouTube bot-blocks GitHub's IPs.
             fetch_source
           else
-            echo "Downloading from Supabase Storage: ${{ inputs.source_file_path }}"
+            echo "Downloading from Supabase Storage: ${SOURCE_FILE_PATH}"
             HTTP_STATUS=$(curl -sS -o /tmp/source.mp4 -w "%{http_code}" \
               --max-time 600 \
-              "${{ secrets.SUPABASE_URL }}/storage/v1/object/${{ inputs.source_bucket }}/${{ inputs.source_file_path }}" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+              "${SUPABASE_URL}/storage/v1/object/${SOURCE_BUCKET}/${SOURCE_FILE_PATH}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
 
             echo "Download HTTP status: $HTTP_STATUS"
             if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
@@ -124,24 +201,25 @@ jobs:
           DURATION_MINS=$(python3 -c "d=float('${DURATION_SECS}' or '0'); print(round(d/60,1))")
           echo "Duration: ${DURATION_MINS} min"
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_jobs?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"source_duration_minutes\":${DURATION_MINS},\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Mark job as transcribing
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_jobs?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"transcribing\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Extract audio and transcribe with word timestamps
-        env:
-          CLIP_COUNT: ${{ inputs.clip_count }}
         run: |
           # Extract audio at 16kHz mono WAV for Whisper
           ffmpeg -i /tmp/source.mp4 \
@@ -180,7 +258,6 @@ jobs:
 
           for seg in segments:
               transcript_lines.append(f"[{seg.start:.1f}s-{seg.end:.1f}s] {normalize_text(seg.text.strip())}")
-              print(f"  {seg.start:.1f}s: {seg.text.strip()[:80]}", flush=True)
               if seg.words:
                   for w in seg.words:
                       all_words.append({
@@ -202,22 +279,20 @@ jobs:
           PYEOF
 
       - name: Mark job as detecting
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_jobs?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"detecting\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Detect best moments with Claude
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLIP_COUNT: ${{ inputs.clip_count }}
-          GENRE: ${{ inputs.genre }}
-          CLIP_LENGTH: ${{ inputs.clip_length }}
-          AUTO_HOOK: ${{ inputs.auto_hook }}
-          MOMENT_PROMPT: ${{ inputs.moment_prompt }}
         run: |
           python3 - <<'PYEOF'
           import anthropic
@@ -301,7 +376,7 @@ jobs:
           )
 
           text = msg.content[0].text if msg.content else ""
-          print(f"Claude response preview: {text[:300]}", flush=True)
+          print(f"Claude response: {len(text)} chars", flush=True)
 
           # Clean and parse JSON
           cleaned = text.replace("```json", "").replace("```", "").strip()
@@ -371,17 +446,18 @@ jobs:
 
           print(f"Moments saved ({len(validated)} clips):", flush=True)
           for m in validated:
-              print(f"  [{m['score']:3d}] {m['start']:.1f}s-{m['end']:.1f}s ({m['end']-m['start']:.1f}s): {m['title']}", flush=True)
-              if m["reason"]:
-                  print(f"        {m['reason']}", flush=True)
+              print(f"  [{m['score']:3d}] {m['start']:.1f}s-{m['end']:.1f}s ({m['end']-m['start']:.1f}s)", flush=True)
           PYEOF
 
       - name: Mark job as cutting
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_jobs?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"cutting\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
@@ -426,7 +502,6 @@ jobs:
               out_path = f"/tmp/clip_{i}.mp4"
 
               print(f"\nCutting clip {i+1}/{len(moments)}: {start:.1f}s-{end:.1f}s ({duration:.1f}s)", flush=True)
-              print(f"  Title: {title}", flush=True)
 
               # FFmpeg cut + transcode (same flags as import-clip.yml)
               proc = subprocess.run([
@@ -557,16 +632,22 @@ jobs:
           PYEOF
 
       - name: Delete source video from Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           # Clean up the temporary source file — it's no longer needed
           curl -sS -X DELETE \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/storage/v1/object/clips" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"prefixes\":[\"${{ inputs.source_file_path }}\"]}" \
+            -d "$(jq -nc --arg p "$SOURCE_FILE_PATH" '{prefixes:[$p]}')" \
             || echo "Source cleanup failed (non-fatal)"
 
       - name: Mark job as done
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python3 - <<'PYEOF'
           import json
@@ -574,9 +655,9 @@ jobs:
           import datetime
           import urllib.request
 
-          supabase_url = "${{ secrets.SUPABASE_URL }}"
-          service_key = "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-          job_id = "${{ inputs.job_id }}"
+          supabase_url = os.environ["SUPABASE_URL"]
+          service_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          job_id = os.environ["JOB_ID"]
 
           with open("/tmp/ai_clips_results.json") as f:
               results = json.load(f)
@@ -609,6 +690,9 @@ jobs:
 
       - name: Mark failed on error
         if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ERR_MSG="AI clip generation failed."
           for LOG in /tmp/ffmpeg_audio_log.txt /tmp/yt_dlp_log.txt; do
@@ -626,7 +710,6 @@ jobs:
           fi
           # Check if the source file is still missing (yt-dlp likely timed out or was blocked)
           if [ ! -s /tmp/source.mp4 ]; then
-            SOURCE_URL="${{ inputs.source_url }}"
             if [ -n "$SOURCE_URL" ]; then
               # Keep in sync with DOWNLOAD_FAILED.unavailable in src/app/ai-clips/waitCopy.ts;
               # the app matches it to offer "Upload the video file instead".
@@ -636,15 +719,15 @@ jobs:
 
           # Also try to delete the source file on failure
           curl -sS -X DELETE \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/storage/v1/object/clips" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"prefixes\":[\"${{ inputs.source_file_path }}\"]}" \
+            -d "$(jq -nc --arg p "$SOURCE_FILE_PATH" '{prefixes:[$p]}')" \
             || true
 
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/ai_clip_jobs?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/ai_clip_jobs?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc --arg e "${ERR_MSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"

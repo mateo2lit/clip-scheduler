@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")
-      .select("id, team_id, status, result_upload_ids, result_subtitles, result_titles")
+      .select("id, team_id, status, result_upload_ids, result_subtitles")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
@@ -50,7 +50,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const subtitles: any[] = job.result_subtitles ?? [];
     const clipSubtitles = subtitles[clip_index] ?? [];
-    const clipTitle = (job.result_titles as string[] | null)?.[clip_index] ?? `Clip ${clip_index + 1}`;
 
     // Look up the source clip's storage path from the uploads row
     const uploadId = uploadIds[clip_index];
@@ -65,10 +64,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Clip upload not found." }, { status: 404 });
     }
 
-    // Generate a signed URL for the source clip (valid 2h — enough for any queue wait + run time)
+    // Signing fails when the file is gone, so this doubles as an existence check. The URL itself is
+    // never sent anywhere: workflow inputs are public (public repo) and the runner reads the file
+    // with the service-role key.
     const { data: signedData, error: signErr } = await supabaseAdmin.storage
       .from(upload.bucket)
-      .createSignedUrl(upload.file_path, 7200);
+      .createSignedUrl(upload.file_path, 60);
 
     if (signErr || !signedData?.signedUrl) {
       return NextResponse.json({ ok: false, error: "Failed to generate signed URL for source clip." }, { status: 500 });
@@ -113,16 +114,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Failed to reserve the captioned video." }, { status: 500 });
     }
 
-    // Dispatch burn workflow — pass signed URL so the runner doesn't need Storage auth
+    // Dispatch burn workflow with IDs only: inputs are public. The runner reads the source path,
+    // mode and clip title from the burn job row.
     if (GITHUB_PAT) {
       await dispatchBurnWorkflow({
         burn_job_id: burnJobId,
-        source_clip_url: signedData.signedUrl,
         output_path: burnedPath,
-        mode: mode,
         team_id: teamId,
         user_id: userId,
-        clip_title: clipTitle,
         upload_id: reservedUploadId,
       });
     } else {

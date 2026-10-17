@@ -24,25 +24,40 @@ jobs:
   convert:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The repo is public, so run logs are public. Inputs and secrets reach the scripts
+    # only through env (never ${{ }} inside run:), so a crafted value can't inject shell
+    # and the scripts printed in the logs contain no values.
+    env:
+      JOB_ID: ${{ inputs.job_id }}
+      SOURCE_FILE_PATH: ${{ inputs.source_file_path }}
+      TEAM_ID: ${{ inputs.team_id }}
+      USER_ID: ${{ inputs.user_id }}
+      STYLE: ${{ inputs.style }}
     steps:
       - name: Install ffmpeg
         run: sudo apt-get install -y ffmpeg -qq
 
       - name: Mark job as processing
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/vertical_conversions?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/vertical_conversions?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"processing\",\"updated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Download source from Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           HTTP_STATUS=$(curl -sS -o /tmp/source.mp4 -w "%{http_code}" \
             --max-time 600 \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${{ inputs.source_file_path }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+            "${SUPABASE_URL}/storage/v1/object/clips/${SOURCE_FILE_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
 
           if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "206" ]; then
             echo "Download failed with HTTP status $HTTP_STATUS"
@@ -63,8 +78,6 @@ jobs:
 
       - name: Convert to vertical
         run: |
-          STYLE="${{ inputs.style }}"
-
           if [ "$STYLE" = "crop" ]; then
             ffmpeg -i /tmp/source.mp4 \
               -vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920" \
@@ -100,14 +113,18 @@ jobs:
           echo "ACTUAL_SIZE=${ACTUAL_SIZE}" >> $GITHUB_ENV
 
       - name: Upload to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          FILE_PATH="${{ inputs.team_id }}/${{ inputs.job_id }}_vertical.mp4"
+          # Strip newlines: FILE_PATH is written to GITHUB_ENV below
+          FILE_PATH=$(printf '%s' "${TEAM_ID}/${JOB_ID}_vertical.mp4" | tr -d '\r\n')
 
           HTTP_STATUS=$(curl -sS -o /tmp/upload_response.txt -w "%{http_code}" \
             --max-time 600 \
             -X POST \
-            "${{ secrets.SUPABASE_URL }}/storage/v1/object/clips/${FILE_PATH}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/storage/v1/object/clips/${FILE_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: video/mp4" \
             --data-binary @/tmp/output.mp4)
 
@@ -120,18 +137,23 @@ jobs:
           echo "FILE_PATH=${FILE_PATH}" >> $GITHUB_ENV
 
       - name: Create uploads row and mark job done
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           UPLOAD_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
           NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
+          BODY=$(jq -nc --arg id "$UPLOAD_ID" --arg u "$USER_ID" --arg t "$TEAM_ID" --arg p "$FILE_PATH" --argjson size "$ACTUAL_SIZE" \
+            '{id:$id,user_id:$u,team_id:$t,bucket:"clips",file_path:$p,file_size:$size,storage_deleted:false}')
           UPLOAD_STATUS=$(curl -sS -o /tmp/upload_row_response.txt -w "%{http_code}" \
             -X POST \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/uploads" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/uploads" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal" \
-            -d "{\"id\":\"${UPLOAD_ID}\",\"user_id\":\"${{ inputs.user_id }}\",\"team_id\":\"${{ inputs.team_id }}\",\"bucket\":\"clips\",\"file_path\":\"${FILE_PATH}\",\"file_size\":${ACTUAL_SIZE},\"storage_deleted\":false}")
+            -d "$BODY")
 
           if [ "$UPLOAD_STATUS" != "201" ] && [ "$UPLOAD_STATUS" != "200" ]; then
             echo "Failed to create uploads row (status $UPLOAD_STATUS):"
@@ -140,14 +162,17 @@ jobs:
           fi
 
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/vertical_conversions?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/vertical_conversions?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"done\",\"result_upload_id\":\"${UPLOAD_ID}\",\"updated_at\":\"${NOW}\"}"
 
       - name: Mark failed on error
         if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ERR_MSG="Conversion failed."
           if [ -f /tmp/convert_log.txt ] && [ -s /tmp/convert_log.txt ]; then
@@ -158,8 +183,8 @@ jobs:
           fi
 
           curl -sS -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/vertical_conversions?id=eq.${{ inputs.job_id }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${SUPABASE_URL}/rest/v1/vertical_conversions?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -nc --arg e "${ERR_MSG}" '{status:"failed",error:$e,updated_at:(now|todate)}')"

@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Fetch job and verify ownership
     const { data: job } = await supabaseAdmin
       .from("ai_clip_jobs")
-      .select("id, team_id, status, source_file_path, source_bucket, clip_count, source_url, genre, clip_length, auto_hook, moment_prompt")
+      .select("id, team_id, status, source_file_path, source_bucket, source_url")
       .eq("id", params.id)
       .eq("team_id", teamId)
       .single();
@@ -78,19 +78,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Dispatch GitHub Actions workflow
     if (GITHUB_PAT) {
       try {
-        await dispatchWorkflow({
-          job_id: job.id,
-          source_file_path: job.source_file_path || "",
-          source_bucket: job.source_bucket || "clips",
-          source_url: job.source_url || "",
-          team_id: teamId,
-          user_id: userId,
-          clip_count: String(job.clip_count),
-          genre: job.genre || "auto",
-          clip_length: job.clip_length || "auto",
-          auto_hook: String(job.auto_hook !== false),
-          moment_prompt: job.moment_prompt || "",
-        });
+        // IDs only: inputs are public. The workflow reads the rest from the job row.
+        await dispatchWorkflow({ job_id: job.id, team_id: teamId, user_id: userId });
       } catch (dispatchErr) {
         // No workflow will ever advance this job. Roll back to pending so the
         // browser's abandon call (which only touches browser-owned statuses) can close it.
