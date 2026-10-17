@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import { CaretLeft, Camera, Plus, X as XIcon } from "@phosphor-icons/react/dist/ssr";
+import { LogoLink } from "@/components/LogoLink";
 
 type BioLink = {
   title: string;
@@ -158,9 +159,7 @@ export default function LinkInBioSettingsPage() {
     <main className="min-h-screen bg-[#050505] text-white relative overflow-hidden">
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-4xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="flex items-center" />
           <Link href="/dashboard" className="text-sm text-white/40 hover:text-white/70 transition-colors">
             Dashboard
           </Link>

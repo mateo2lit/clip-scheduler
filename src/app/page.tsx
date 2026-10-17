@@ -7,6 +7,7 @@ import {
   Lightning, Check, Clock, ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { ComingSoonBadge } from "@/components/ComingSoonBadge";
+import { LogoLink } from "@/components/LogoLink";
 
 const FAQ_ITEMS = [
   {
@@ -175,7 +176,7 @@ export default function Home() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" /></a>
+          <LogoLink className="flex items-center" />
           <div className="flex items-center gap-3">
             {loaded && (
               user ? (

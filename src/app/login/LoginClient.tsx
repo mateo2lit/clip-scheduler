@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "./supabaseClient";
+import { LogoLink } from "@/components/LogoLink";
 
 type Mode = "login" | "signup" | "forgot";
 
@@ -109,9 +110,7 @@ export default function LoginClient() {
 
       <div className="relative z-10 w-full max-w-md px-6">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="inline-flex items-center justify-center" />
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8">

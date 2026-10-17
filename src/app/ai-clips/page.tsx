@@ -71,6 +71,7 @@ const STATUS_CONFIG: Record<AiClipJobStatus, { label: string; min: number; max: 
 
 import { detectCodecCapabilities } from "@/lib/aiClips/codecDetect";
 import { probeMp4 } from "@/lib/aiClips/audioExtractor";
+import { LogoLink } from "@/components/LogoLink";
 
 const LARGE_ENABLED = process.env.NEXT_PUBLIC_AI_CLIPS_LARGE_ENABLED === "true";
 const FILE_SIZE_THRESHOLD_BYTES = 1024 * 1024 * 1024;       // 1 GB
@@ -775,9 +776,7 @@ export default function AiClipsPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="flex items-center" />
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="text-sm text-white/40 hover:text-white/70 transition-colors">Dashboard</Link>
             <Link href="/uploads" className="text-sm text-white/40 hover:text-white/70 transition-colors">Upload</Link>

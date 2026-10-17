@@ -2,6 +2,7 @@ import { getAllPosts, getPost } from '@/lib/blog'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { LogoLink } from '@/components/LogoLink'
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
@@ -94,9 +95,7 @@ export default async function BlogPostPage({ params }: Props) {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-3xl px-6 py-4 flex items-center justify-between">
-          <Link href="/">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="" />
           <Link
             href="/login"
             className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-white/90 transition-colors"

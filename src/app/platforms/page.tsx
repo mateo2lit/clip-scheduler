@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { ComingSoonBadge } from "@/components/ComingSoonBadge";
+import { LogoLink } from "@/components/LogoLink";
 
 const PLATFORMS = [
   {
@@ -125,7 +126,7 @@ export default function PlatformsPage() {
 
       <nav className="border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" /></Link>
+          <LogoLink className="flex items-center" />
           <Link href="/login" className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-white/90 transition-colors">
             Get Started
           </Link>

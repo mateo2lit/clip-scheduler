@@ -25,6 +25,7 @@ import StatsBar from "@/components/comments/StatsBar";
 import SearchBar from "@/components/comments/SearchBar";
 import ViewToggle from "@/components/comments/ViewToggle";
 import KeyboardShortcutsHelp from "@/components/comments/KeyboardShortcutsHelp";
+import { LogoLink } from "@/components/LogoLink";
 
 function exportCSV(comments: EnrichedComment[], readIds: Record<string, true>) {
   const escape = (s: string) => `"${(s ?? "").replace(/"/g, '""').replace(/\n/g, " ")}"`;
@@ -555,9 +556,7 @@ export default function CommentsPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="flex items-center" />
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">
               Settings

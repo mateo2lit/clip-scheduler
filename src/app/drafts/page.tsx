@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/app/login/supabaseClient";
 import { CaretLeft, PencilSimple, Trash } from "@phosphor-icons/react/dist/ssr";
 import { PlatformIcon } from "@/components/PlatformIcon";
+import { LogoLink } from "@/components/LogoLink";
 
 type DraftPost = {
   id: string;
@@ -176,7 +177,7 @@ export default function DraftsPage() {
     <main className="relative min-h-screen overflow-hidden bg-[#050505] text-white">
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center"><img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" /></Link>
+          <LogoLink className="flex items-center" />
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 transition-colors hover:text-white/70">Settings</Link>
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-[11px] font-semibold">

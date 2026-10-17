@@ -6,6 +6,7 @@ import { supabase } from "@/app/login/supabaseClient";
 import { getPostUrl } from "@/lib/postLinks";
 import { CaretLeft, Check, ArrowSquareOut, FilmSlate } from "@phosphor-icons/react/dist/ssr";
 import { PlatformIcon } from "@/components/PlatformIcon";
+import { LogoLink } from "@/components/LogoLink";
 
 type PostedPost = {
   id: string;
@@ -237,9 +238,7 @@ export default function PostedPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/[0.06]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="flex items-center" />
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/35 transition-colors hover:text-white/65">Settings</Link>
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-[11px] font-semibold">

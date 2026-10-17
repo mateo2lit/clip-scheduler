@@ -13,6 +13,7 @@ import HashtagPerformance from "@/components/analytics/HashtagPerformance";
 import FollowerGrowth from "@/components/analytics/FollowerGrowth";
 import ExportReport from "@/components/analytics/ExportReport";
 import { ArrowUpRight, CaretLeft, Eye, Heart, ChatCircle, ShareNetwork, ChartBar, Binoculars, CursorClick, Warning } from "@phosphor-icons/react/dist/ssr";
+import { LogoLink } from "@/components/LogoLink";
 
 type Metric = {
   videoId: string;
@@ -320,9 +321,7 @@ export default function AnalyticsPage() {
       {/* Nav */}
       <nav className="relative z-10 border-b border-white/5">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/logo.svg" alt="Clip Dash" className="h-10 w-auto" />
-          </Link>
+          <LogoLink className="flex items-center" />
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-sm text-white/40 hover:text-white/70 transition-colors">
               Settings
