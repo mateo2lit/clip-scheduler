@@ -138,6 +138,7 @@ test("Instagram followers are fetched from graph.instagram.com with the Instagra
     "next/server": redirects,
     "@/lib/supabaseAdmin": { supabaseAdmin: db },
     "@/lib/competitorFetchers": { fetchPublicProfile: async () => null },
+    "@/lib/x": { getXAccessToken: async () => { throw new Error("X is not under test here"); } },
   }, {
     env: { WORKER_SECRET: "s3cret" },
     network: [{
@@ -156,6 +157,48 @@ test("Instagram followers are fetched from graph.instagram.com with the Instagra
   const snap = db.queries.find((q) => q.table === "follower_snapshots");
   assert.equal(snap.payload.follower_count, 1234);
   assert.equal(snap.payload.provider, "instagram");
+  assert.equal(route.pendingNetwork.length, 0);
+});
+
+// ── X follower counts use a refreshed token ──────────────────────────────────
+
+test("X followers are fetched with a refreshed token, and the rotated pair is saved", async () => {
+  const db = fakeDb({
+    platform_accounts: (q) => q.ops.includes("update") ? { data: null, error: null }
+      : { data: [{ id: "acct-x", team_id: "team-1", provider: "x", platform_user_id: "x-42",
+          access_token: "stale", refresh_token: "r1", expiry: "2026-01-01T00:00:00Z" }], error: null },
+    follower_snapshots: () => ({ data: null, error: null }),
+    competitor_profiles: () => ({ data: [], error: null }),
+  });
+  const refreshCalls = [];
+  const route = loadRoute("src/app/api/worker/follower-snapshots/route.ts", {
+    "next/server": redirects,
+    "@/lib/supabaseAdmin": { supabaseAdmin: db },
+    "@/lib/competitorFetchers": { fetchPublicProfile: async () => null },
+    "@/lib/x": { getXAccessToken: async (p) => {
+      refreshCalls.push(p);
+      return { accessToken: "fresh", refreshToken: "r2", expiresAt: new Date("2026-10-16T12:00:00Z") };
+    } },
+  }, {
+    env: { WORKER_SECRET: "s3cret" },
+    network: [{
+      inspect: (u, options) => {
+        assert.equal(u.pathname, "/2/users/x-42");
+        assert.equal(options.headers.Authorization, "Bearer fresh");
+      },
+      body: { data: { public_metrics: { followers_count: 77 } } },
+    }],
+  });
+  const res = await route.exports.POST(new Request("https://clipdash.test/api/worker/follower-snapshots", {
+    method: "POST", headers: { authorization: "Bearer s3cret" } }));
+  assert.equal(res.status, 200);
+  // Objects built inside the vm sandbox have that realm's prototype, so compare plain copies.
+  const plain = (v) => JSON.parse(JSON.stringify(v));
+  assert.deepEqual(plain(refreshCalls), [{ refreshToken: "r1", accessToken: "stale", expiresAt: "2026-01-01T00:00:00Z" }]);
+  const saved = db.queries.find((q) => q.table === "platform_accounts" && q.ops.includes("update"));
+  assert.deepEqual(plain(saved.payload), { access_token: "fresh", refresh_token: "r2", expiry: "2026-10-16T12:00:00.000Z" });
+  const snap = db.queries.find((q) => q.table === "follower_snapshots");
+  assert.equal(snap.payload.follower_count, 77);
   assert.equal(route.pendingNetwork.length, 0);
 });
 

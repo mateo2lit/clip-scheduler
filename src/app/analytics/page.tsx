@@ -65,7 +65,8 @@ function formatStat(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
   if (n >= 10_000) return (n / 1_000).toFixed(0) + "K";
   if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  return String(n);
+  // Rates like engagement are fractional; show one decimal, not 14 digits.
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, "");
 }
 
 function KpiCard({

@@ -20,6 +20,7 @@ import {
   fetchRecentXPosts,
   fetchRecentPinterestPosts,
 } from "@/lib/recentPlatformPosts";
+import { getXAccessToken } from "@/lib/x";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
     // Load all platform accounts for this team, grouped by provider
     const { data: accounts } = await supabaseAdmin
       .from("platform_accounts")
-      .select("id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
+      .select("id, provider, refresh_token, access_token, expiry, page_id, page_access_token, ig_user_id, platform_user_id")
       .eq("team_id", teamId)
       .in("provider", ["youtube", "facebook", "instagram", "bluesky", "tiktok", "x", "pinterest"]);
 
@@ -160,12 +161,31 @@ export async function GET(req: Request) {
     // Fetch from all X accounts
     const xResults = await Promise.allSettled(
       (acctsByProvider.get("x") ?? [])
-        .filter((a) => a.access_token && a.platform_user_id)
+        .filter((a) => a.refresh_token && a.platform_user_id)
         .map(async (a) => {
-          const recent = await fetchRecentXPosts({ accessToken: a.access_token, platformUserId: a.platform_user_id, maxResults, sinceIso });
+          // X access tokens last 2 hours, so the stored one is usually stale.
+          const tokens = await getXAccessToken({
+            refreshToken: a.refresh_token,
+            accessToken: a.access_token,
+            expiresAt: a.expiry,
+          });
+
+          // X rotates the refresh token on every refresh; save the new pair.
+          if (tokens.accessToken !== a.access_token) {
+            await supabaseAdmin
+              .from("platform_accounts")
+              .update({
+                access_token: tokens.accessToken,
+                refresh_token: tokens.refreshToken,
+                expiry: tokens.expiresAt.toISOString(),
+              })
+              .eq("id", a.id);
+          }
+
+          const recent = await fetchRecentXPosts({ accessToken: tokens.accessToken, platformUserId: a.platform_user_id, maxResults, sinceIso });
           if (recent.error) errors.push(recent.error);
           if (recent.posts.length === 0) return [] as UnifiedMetric[];
-          const r = await fetchXMetrics(recent.posts, a.access_token);
+          const r = await fetchXMetrics(recent.posts, tokens.accessToken);
           if (r.error) errors.push(r.error);
           return r.metrics;
         })

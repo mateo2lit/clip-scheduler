@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchPublicProfile } from "@/lib/competitorFetchers";
+import { getXAccessToken } from "@/lib/x";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -104,6 +105,38 @@ async function fetchXFollowers(accessToken: string, platformUserId: string): Pro
   }
 }
 
+// X access tokens last 2 hours, so the stored one is stale by the time this
+// runs. Refresh it and save the rotated pair, or return null if that fails.
+async function freshXAccessToken(acct: {
+  id: string;
+  refresh_token: string | null;
+  access_token: string | null;
+  expiry: string | null;
+}): Promise<string | null> {
+  if (!acct.refresh_token) return null;
+  try {
+    const tokens = await getXAccessToken({
+      refreshToken: acct.refresh_token,
+      accessToken: acct.access_token,
+      expiresAt: acct.expiry,
+    });
+    if (tokens.accessToken !== acct.access_token) {
+      await supabaseAdmin
+        .from("platform_accounts")
+        .update({
+          access_token: tokens.accessToken,
+          refresh_token: tokens.refreshToken,
+          expiry: tokens.expiresAt.toISOString(),
+        })
+        .eq("id", acct.id);
+    }
+    return tokens.accessToken;
+  } catch (e: any) {
+    console.error(`[follower-snapshots] X token refresh failed for ${acct.id}:`, e?.message);
+    return null;
+  }
+}
+
 async function fetchPinterestFollowers(accessToken: string): Promise<number | null> {
   try {
     const res = await fetch("https://api.pinterest.com/v5/user_account", {
@@ -126,7 +159,7 @@ export async function POST(req: Request) {
     // Get all platform accounts
     const { data: accounts, error: acctErr } = await supabaseAdmin
       .from("platform_accounts")
-      .select("id, team_id, provider, refresh_token, access_token, page_id, page_access_token, ig_user_id, platform_user_id")
+      .select("id, team_id, provider, refresh_token, access_token, expiry, page_id, page_access_token, ig_user_id, platform_user_id")
       .in("provider", ["youtube", "tiktok", "instagram", "facebook", "bluesky", "x", "pinterest"]);
 
     if (acctErr || !accounts) {
@@ -154,9 +187,12 @@ export async function POST(req: Request) {
         case "bluesky":
           if (acct.platform_user_id) followers = await fetchBlueskyFollowers(acct.platform_user_id);
           break;
-        case "x":
-          if (acct.access_token && acct.platform_user_id) followers = await fetchXFollowers(acct.access_token, acct.platform_user_id);
+        case "x": {
+          if (!acct.platform_user_id) break;
+          const xToken = await freshXAccessToken(acct);
+          if (xToken) followers = await fetchXFollowers(xToken, acct.platform_user_id);
           break;
+        }
         case "pinterest":
           if (acct.access_token) followers = await fetchPinterestFollowers(acct.access_token);
           break;
