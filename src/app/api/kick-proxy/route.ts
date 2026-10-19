@@ -1,14 +1,15 @@
-export const runtime = "edge";
+import { getWorkerSecret } from "@/lib/workerSecret";
 
-const WORKER_SECRET = process.env.WORKER_SECRET;
+export const runtime = "edge";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const token = searchParams.get("token");
+  const token = searchParams.get("token")?.trim();
   const clipId = searchParams.get("clipId");
   const pageUrl = searchParams.get("url");
 
-  if (!token || token !== WORKER_SECRET) {
+  const secret = getWorkerSecret();
+  if (!secret || token !== secret) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   if (!clipId) {

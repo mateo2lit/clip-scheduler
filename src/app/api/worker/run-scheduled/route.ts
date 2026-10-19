@@ -30,6 +30,7 @@ import {
   hasCoverFrame,
 } from "@/lib/postOptions";
 import { renderGate, RENDER_FAILED_MESSAGE } from "@/lib/renderGate";
+import { getWorkerSecret, getCronSecret } from "@/lib/workerSecret";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -39,16 +40,16 @@ const MAX_BATCH = 5;
 const STUCK_POSTING_MINUTES = 15;
 
 function requireWorkerAuth(req: Request) {
-  const workerSecret = process.env.WORKER_SECRET;
+  const workerSecret = getWorkerSecret();
   if (!workerSecret) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
-  const provided = bearer || token || "";
+  const provided = bearer || token?.trim() || "";
 
   // Accept WORKER_SECRET (manual/external calls) or CRON_SECRET (Vercel cron auto-injection)
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = getCronSecret();
   const valid = provided === workerSecret || (cronSecret && provided === cronSecret);
   if (!valid) throw new Error("Unauthorized worker request");
 }

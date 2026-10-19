@@ -10,6 +10,7 @@ import {
 } from "@/lib/blueskyUpload";
 import { refreshPinterestToken } from "@/lib/pinterest";
 import { sendReconnectEmail } from "@/lib/email";
+import { getWorkerSecret, getCronSecret } from "@/lib/workerSecret";
 
 const RECONNECT_EMAIL_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -71,15 +72,15 @@ async function maybeSendReconnectEmail(acct: {
 export const runtime = "nodejs";
 
 function requireWorkerAuth(req: Request) {
-  const workerSecret = process.env.WORKER_SECRET;
+  const workerSecret = getWorkerSecret();
   if (!workerSecret) throw new Error("WORKER_SECRET is not configured");
 
   const token = new URL(req.url).searchParams.get("token");
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
-  const provided = bearer || token || "";
+  const provided = bearer || token?.trim() || "";
 
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = getCronSecret();
   const valid = provided === workerSecret || (cronSecret && provided === cronSecret);
   if (!valid) throw new Error("Unauthorized worker request");
 }

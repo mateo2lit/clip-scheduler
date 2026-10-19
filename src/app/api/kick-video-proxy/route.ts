@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { verifyKickVideoProxyParams } from "@/lib/kickProxySignature";
+import { getWorkerSecret } from "@/lib/workerSecret";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -10,7 +11,7 @@ export const maxDuration = 300;
 // WORKER_SECRET itself is never accepted here.
 
 async function proxyKick(req: NextRequest, method: "GET" | "HEAD") {
-  const verified = process.env.WORKER_SECRET
+  const verified = getWorkerSecret()
     ? verifyKickVideoProxyParams(req.nextUrl.searchParams)
     : null;
   if (!verified?.ok) {

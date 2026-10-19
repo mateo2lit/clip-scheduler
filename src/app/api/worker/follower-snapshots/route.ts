@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchPublicProfile } from "@/lib/competitorFetchers";
 import { getXAccessToken } from "@/lib/x";
+import { getWorkerSecret, getCronSecret } from "@/lib/workerSecret";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -10,8 +11,8 @@ function requireWorkerAuth(req: Request): boolean {
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const url = new URL(req.url);
-  const queryToken = url.searchParams.get("token") || "";
-  const secret = process.env.WORKER_SECRET || process.env.CRON_SECRET || "";
+  const queryToken = (url.searchParams.get("token") || "").trim();
+  const secret = getWorkerSecret() || getCronSecret();
   return secret !== "" && (token === secret || queryToken === secret);
 }
 

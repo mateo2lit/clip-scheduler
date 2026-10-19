@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getTeamContext } from "@/lib/teamAuth";
 import { storageLimitBytes } from "@/lib/storageLimits";
 import { signKickVideoProxyUrl } from "@/lib/kickProxySignature";
+import { getWorkerSecret } from "@/lib/workerSecret";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "Could not parse Kick clip ID from URL." }, { status: 400 });
       }
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clipdash.org";
-      const workerSecret = process.env.WORKER_SECRET || "";
+      const workerSecret = getWorkerSecret();
       try {
         const abort = new AbortController();
         const t = setTimeout(() => abort.abort(), 10000);

@@ -439,6 +439,39 @@ export async function sendSupportTicketAdminEmail(
   }
 }
 
+export async function sendStuckPostsAlertEmail(stuckCount: number, oldestMinutes: number) {
+  if (!process.env.SUPPORT_EMAIL) return;
+  if (!resend) return;
+
+  const oldest = oldestMinutes >= 120 ? `${Math.floor(oldestMinutes / 60)} hours` : `${oldestMinutes} minutes`;
+  const posts = stuckCount === 1 ? "1 post is" : `${stuckCount} posts are`;
+  const code = (s: string) =>
+    `<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;font-size:12px;">${escapeHtml(s)}</code>`;
+
+  try {
+    const rendered = renderEmail({
+      preview: `${posts} past due and still waiting. The oldest is ${oldest} late.`,
+      theme: "warning",
+      heading: "Posts aren't going out",
+      bodyHtml: `
+        <p style="margin:0 0 12px 0;">${posts} still <strong>scheduled</strong> 15+ minutes after their time, across all teams. The oldest is <strong>${oldest}</strong> late. The worker isn't picking them up, and no error has been saved.</p>
+        <p style="margin:0 0 6px 0;">Check, in the Supabase SQL Editor:</p>
+        <ol style="margin:0 0 12px 18px;padding:0;">
+          <li style="margin-bottom:6px;">What the worker answered: ${code("select status_code, left(content::text, 200), created from net._http_response order by created desc limit 5;")} A 500 saying "Unauthorized worker request" means WORKER_SECRET in Vercel and the Vault differ (watch for a stray space). Fix it, then redeploy.</li>
+          <li style="margin-bottom:6px;">That the every-minute job exists and is active: ${code("select jobname, schedule, active from cron.job;")}</li>
+          <li>Vercel: is the latest Production deployment Ready?</li>
+        </ol>
+        <p style="margin:0;">While posts stay stuck you'll get this at most every 6 hours.</p>
+      `,
+      footerNote: "This alert was sent to the support inbox by /api/health/stuck-posts.",
+    });
+
+    await sendEmail(process.env.SUPPORT_EMAIL, `[Alert] ${posts} stuck, the post worker isn't running`, rendered);
+  } catch (e) {
+    console.error("Failed to send stuck posts alert email:", e);
+  }
+}
+
 export async function sendSupportTicketResolvedEmail(
   to: string,
   ticketSubject: string,

@@ -67,6 +67,7 @@ function load(relative, mocks, { network = [], env = {} } = {}) {
     console: { error() {}, warn() {}, log() {} },
     require(specifier) {
       if (Object.hasOwn(mocks, specifier)) return mocks[specifier];
+      if (specifier === "@/lib/workerSecret") return { getWorkerSecret: () => (env.WORKER_SECRET ?? "").trim(), getCronSecret: () => (env.CRON_SECRET ?? "").trim() };
       throw new Error(`Unmocked import blocked: ${specifier}`);
     },
     async fetch(url, options) {

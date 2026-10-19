@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { getWorkerSecret } from "@/lib/workerSecret";
 
 // Signed, expiring links to /api/kick-video-proxy.
 //
@@ -7,12 +8,11 @@ import { createHmac, timingSafeEqual } from "crypto";
 // the link a runner gets must never contain WORKER_SECRET. Instead it carries an HMAC
 // (keyed by WORKER_SECRET) that only unlocks one CDN URL for a few hours.
 
-const SECRET_ENV = "WORKER_SECRET";
 const LINK_TTL_SECONDS = 3 * 60 * 60; // queue wait + 30 min job timeout, with room to spare
 
 function getSecret(): string {
-  const s = process.env[SECRET_ENV];
-  if (!s) throw new Error(`${SECRET_ENV} is not set`);
+  const s = getWorkerSecret();
+  if (!s) throw new Error("WORKER_SECRET is not set");
   return s;
 }
 

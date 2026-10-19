@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { signKickVideoProxyUrl } from "@/lib/kickProxySignature";
+import { getWorkerSecret } from "@/lib/workerSecret";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -25,10 +26,11 @@ function resolveUrl(base: string, relative: string): string {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const token = searchParams.get("token");
+  const token = searchParams.get("token")?.trim();
   const url = searchParams.get("url");
 
-  if (!process.env.WORKER_SECRET || token !== process.env.WORKER_SECRET) {
+  const secret = getWorkerSecret();
+  if (!secret || token !== secret) {
     return new Response("Unauthorized", { status: 403 });
   }
   if (!url) return new Response("Missing url", { status: 400 });
