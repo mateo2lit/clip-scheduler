@@ -23,6 +23,10 @@ function providerLabel(provider: string) {
   return labels[String(provider || "").toLowerCase()] || provider;
 }
 
+function listLabels(results: Array<{ platform: string }>) {
+  return results.map((r) => providerLabel(r.platform)).join(", ");
+}
+
 function appUrl(path: string) {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return `${APP_URL}${cleanPath}`;
@@ -237,14 +241,22 @@ export async function sendPostFailedEmail(
 export async function sendGroupSummaryEmail(
   to: string,
   postTitle: string,
-  results: Array<{ platform: string; ok: boolean; error?: string }>
+  results: Array<{ platform: string; ok: boolean; error?: string }>,
+  // Set after a retry: the group's other platforms, finished in an earlier run. `results` is
+  // then only what was retried, and the email reads as a retry instead of a fresh publish.
+  earlier: Array<{ platform: string; ok: boolean; error?: string }> = []
 ) {
   if (!resend) return;
 
   const failed = results.filter((r) => !r.ok);
   const succeeded = results.filter((r) => r.ok);
   const anyFailed = failed.length > 0;
-  const subject = anyFailed
+  const isRetry = earlier.length > 0;
+  const subject = isRetry
+    ? anyFailed
+      ? `Retry failed: ${listLabels(failed)}`
+      : `Retry went through: ${listLabels(succeeded)} published`
+    : anyFailed
     ? "Post summary: some platforms failed"
     : "Post summary: all platforms succeeded";
 
@@ -268,15 +280,42 @@ export async function sendGroupSummaryEmail(
     .join("");
 
   const safeTitle = escapeHtml(postTitle || "Untitled");
+  const shortTitle = truncate(postTitle || "Untitled", 60);
+  const alreadyLive = earlier.filter((r) => r.ok);
+  const stillFailed = earlier.filter((r) => !r.ok);
+
+  const retryNotes = [
+    alreadyLive.length
+      ? `Already live from the first run, and not posted again: ${escapeHtml(listLabels(alreadyLive))}.`
+      : "",
+    stillFailed.length
+      ? `Still failed from the first try: ${escapeHtml(listLabels(stillFailed))}. You can retry ${stillFailed.length === 1 ? "it" : "them"} from Scheduled.`
+      : "",
+  ]
+    .filter(Boolean)
+    .map((line) => `<p style="margin:12px 0 0 0;">${line}</p>`)
+    .join("");
 
   try {
     const rendered = renderEmail({
-      preview: anyFailed
-        ? `${failed.length} platform(s) failed for \"${truncate(postTitle || "Untitled", 60)}\".`
-        : `All ${succeeded.length} platforms succeeded for \"${truncate(postTitle || "Untitled", 60)}\".`,
+      preview: isRetry
+        ? anyFailed
+          ? `Your retry didn't go through on ${listLabels(failed)} for \"${shortTitle}\".`
+          : `${listLabels(succeeded)} published on retry for \"${shortTitle}\". The other ${alreadyLive.length} platform(s) were already live.`
+        : anyFailed
+          ? `${failed.length} platform(s) failed for \"${shortTitle}\".`
+          : `All ${succeeded.length} platforms succeeded for \"${shortTitle}\".`,
       theme: anyFailed ? "warning" : "success",
-      heading: anyFailed ? "Publishing finished with issues" : "Publishing finished successfully",
-      bodyHtml: `
+      heading: isRetry
+        ? anyFailed ? "Your retry didn't go through" : "Your retry went through"
+        : anyFailed ? "Publishing finished with issues" : "Publishing finished successfully",
+      bodyHtml: isRetry
+        ? `
+        <p style="margin:0 0 12px 0;">Your retry of <strong>${safeTitle}</strong> ${anyFailed ? "finished with issues" : "went through"}:</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+        ${retryNotes}
+      `
+        : `
         <p style="margin:0 0 12px 0;">Final results for <strong>${safeTitle}</strong>:</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
         <p style="margin:12px 0 0 0;">${anyFailed

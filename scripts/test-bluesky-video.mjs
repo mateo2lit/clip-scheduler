@@ -9,6 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import * as groupSummary from "../src/lib/groupSummary.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const renderGateModule = await import("../src/lib/renderGate.ts");
@@ -68,6 +69,7 @@ function load(relative, mocks, { network = [], env = {} } = {}) {
     console: { error() {}, warn() {}, log() {} },
     require(specifier) {
       if (Object.hasOwn(mocks, specifier)) return mocks[specifier];
+      if (specifier === "@/lib/groupSummary") return groupSummary;
       if (specifier === "@/lib/workerSecret") return { getWorkerSecret: () => (env.WORKER_SECRET ?? "").trim(), getCronSecret: () => (env.CRON_SECRET ?? "").trim() };
       throw new Error(`Unmocked import blocked: ${specifier}`);
     },

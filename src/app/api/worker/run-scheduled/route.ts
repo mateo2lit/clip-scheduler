@@ -31,6 +31,7 @@ import {
 } from "@/lib/postOptions";
 import { renderGate, RENDER_FAILED_MESSAGE } from "@/lib/renderGate";
 import { getWorkerSecret, getCronSecret } from "@/lib/workerSecret";
+import { splitByRound } from "@/lib/groupSummary";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -93,7 +94,7 @@ async function checkAndNotifyGroup(groupId: string, userId: string, postTitle: s
   try {
     const { data: groupPosts, error } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, provider, status, last_error")
+      .select("id, provider, status, last_error, ig_container_created_at")
       .eq("group_id", groupId);
 
     if (error || !groupPosts || groupPosts.length === 0) return;
@@ -107,17 +108,13 @@ async function checkAndNotifyGroup(groupId: string, userId: string, postTitle: s
     const info = await getNotificationInfo(userId);
     if (!info) return;
 
-    // Build results for summary email
-    const results = groupPosts.map((p: any) => ({
-      platform: p.provider,
-      ok: p.status === "posted",
-      error: p.last_error || undefined,
-    }));
+    // After a retry, report only what was just retried; the rest finished in an earlier run.
+    const { thisRound: results, earlier } = splitByRound(groupPosts);
 
     const anyFailed = results.some((r) => !r.ok);
 
     if (anyFailed ? info.notifyFailed : info.notifySuccess) {
-      await sendGroupSummaryEmail(info.email, postTitle, results);
+      await sendGroupSummaryEmail(info.email, postTitle, results, earlier);
     }
 
     // Send reconnect emails for any reconnect-type failures
