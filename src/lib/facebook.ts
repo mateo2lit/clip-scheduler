@@ -149,3 +149,37 @@ export async function refreshFacebookToken(token: string): Promise<{
     expires_in: data.expires_in,
   };
 }
+
+export type SavedFacebookPage = {
+  id: string;
+  page_id: string | null;
+  platform_user_id: string | null;
+  meta_user_id: string | null;
+};
+
+/**
+ * Pages this team already had connected that the person did not keep selected on
+ * Facebook's "choose Pages" screen. Facebook keeps one Page list per person per app, so
+ * an unticked Page stops working even though its row is still here. Returns row ids.
+ *
+ * Only this person's rows count: a team can also hold Pages connected by someone else
+ * (another admin's Facebook profile), and those were never on this person's list.
+ */
+export function findUnselectedFacebookPages(
+  saved: SavedFacebookPage[],
+  grantedPageIds: string[],
+  metaUserId: string | null
+): string[] {
+  // Without knowing who connected, any row could be someone else's; say nothing.
+  if (!metaUserId) return [];
+  const granted = new Set(grantedPageIds);
+  // Rows saved before 2026-10-01 have no meta_user_id. They're counted as this person's:
+  // a needless "reconnect" warning costs less than a scheduled post failing later.
+  return saved
+    .filter((row) => row.meta_user_id === metaUserId || row.meta_user_id === null)
+    .filter((row) => {
+      const pageId = row.page_id || row.platform_user_id;
+      return !!pageId && !granted.has(pageId);
+    })
+    .map((row) => row.id);
+}
