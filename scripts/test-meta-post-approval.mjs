@@ -72,10 +72,13 @@ const redirects = { NextResponse: {
 
 // ── Bug 3: Facebook keeps every granted Page ─────────────────────────────────
 
-function facebookCallback(pages) {
+// The real Page comparison, so the callback test covers the warning end to end.
+const { findUnselectedFacebookPages } = loadRoute("src/lib/facebook.ts", {}).exports;
+
+function facebookCallback(pages, saved = []) {
   const db = fakeDb({
     team_members: () => ({ data: { team_id: "team-1", role: "owner" }, error: null }),
-    platform_accounts: () => ({ data: null, error: null }),
+    platform_accounts: (q) => q.ops.includes("select") ? { data: saved, error: null } : { data: null, error: null },
   });
   const route = loadRoute("src/app/api/auth/facebook/callback/route.ts", {
     "next/server": redirects,
@@ -88,6 +91,7 @@ function facebookCallback(pages) {
       exchangeForLongLivedToken: async () => ({ access_token: "long-lived", expires_in: 5184000 }),
       getFacebookUserPages: async () => pages,
       getFacebookUserId: async () => "fb-user-42",
+      findUnselectedFacebookPages,
     },
   }, { network: [{ inspect: (u) => assert.equal(u.pathname, "/v21.0/oauth/access_token"), body: { access_token: "short" } }],
     env: { NEXT_PUBLIC_SITE_URL: "https://clipdash.test" } });
@@ -117,6 +121,16 @@ test("Facebook: a single granted Page behaves exactly as before", async () => {
   const upsert = db.queries.find((q) => q.table === "platform_accounts" && q.ops.includes("upsert"));
   assert.equal(upsert.payload.length, 1);
   assert.equal(upsert.payload[0].page_id, "demo");
+});
+
+test("Facebook: a saved Page left unticked on reconnect is named in the redirect", async () => {
+  const { run } = facebookCallback([{ id: "p1", name: "Main Page", access_token: "t1" }], [
+    { id: "row-1", page_id: "p1", platform_user_id: "p1", meta_user_id: "fb-user-42" },
+    { id: "row-2", page_id: "p2", platform_user_id: "p2", meta_user_id: "fb-user-42" },
+    { id: "row-3", page_id: "p9", platform_user_id: "p9", meta_user_id: "another-admin" },
+  ]);
+  const res = await run();
+  assert.equal(res.redirectedTo, "https://clipdash.test/settings?connected=facebook&fb_unselected=row-2");
 });
 
 test("Facebook: no usable Pages redirects with the no_pages error and saves nothing", async () => {

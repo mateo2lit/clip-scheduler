@@ -5,6 +5,8 @@ import {
   exchangeForLongLivedToken,
   getFacebookUserId,
   getFacebookUserPages,
+  findUnselectedFacebookPages,
+  type SavedFacebookPage,
 } from "@/lib/facebook";
 import { requireOwnerOrAdmin } from "@/lib/teamAuth";
 import { verifyOAuthState } from "@/lib/oauthState";
@@ -117,6 +119,19 @@ export async function GET(req: Request) {
 
     if (rows.length === 0) return redirectError(req, "no_pages");
 
+    // Pages connected earlier that were unticked this time keep their rows but can no
+    // longer post, so name them now instead of letting a scheduled post fail later.
+    const { data: saved } = await supabaseAdmin
+      .from("platform_accounts")
+      .select("id, page_id, platform_user_id, meta_user_id")
+      .eq("team_id", teamId)
+      .eq("provider", "facebook");
+    const unselected = findUnselectedFacebookPages(
+      (saved || []) as SavedFacebookPage[],
+      rows.map((r) => r.page_id),
+      metaUserId
+    );
+
     const { error: upsertErr } = await supabaseAdmin.from("platform_accounts").upsert(
       rows,
       { onConflict: "team_id,provider,platform_user_id" }
@@ -128,7 +143,13 @@ export async function GET(req: Request) {
     const cookieStore = cookies();
     const inOnboarding = cookieStore.get("clip-onboarding")?.value === "1";
     const redirectPath = inOnboarding ? "/onboarding" : "/settings";
-    const response = NextResponse.redirect(`${siteUrl}${redirectPath}?connected=facebook`);
+    // Row ids only (no Page names in the URL); Settings looks the names up itself.
+    const unselectedParam = unselected.length
+      ? `&fb_unselected=${unselected.map(encodeURIComponent).join(",")}`
+      : "";
+    const response = NextResponse.redirect(
+      `${siteUrl}${redirectPath}?connected=facebook${unselectedParam}`
+    );
     if (inOnboarding) {
       response.cookies.set("clip-onboarding", "", { maxAge: 0, path: "/" });
     }

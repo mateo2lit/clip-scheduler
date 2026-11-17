@@ -221,7 +221,22 @@ export default function SettingsPage() {
     const conn = query.get("connected");
     if (conn === "youtube") return { kind: "success" as const, text: "YouTube connected successfully" };
     if (conn === "tiktok") return { kind: "success" as const, text: "TikTok connected successfully" };
-    if (conn === "facebook") return { kind: "success" as const, text: "Facebook connected successfully" };
+    if (conn === "facebook") {
+      // Pages connected earlier but unticked on Facebook's "choose Pages" screen this time.
+      const unselectedIds = (query.get("fb_unselected") || "").split(",").filter(Boolean);
+      if (unselectedIds.length > 0) {
+        const names = accounts.facebook
+          .filter((a) => unselectedIds.includes(a.id))
+          .map((a) => a.label || a.profileName || "a Page");
+        const one = unselectedIds.length === 1;
+        const which = names.length > 0 ? names.join(", ") : `${unselectedIds.length} Page${one ? "" : "s"}`;
+        return {
+          kind: "warning" as const,
+          text: `Facebook connected, but ${which} ${one ? "wasn't" : "weren't"} selected this time, so posts to ${one ? "it" : "them"} will fail. Reconnect Facebook and keep every Page you post to ticked.`,
+        };
+      }
+      return { kind: "success" as const, text: "Facebook connected successfully" };
+    }
     if (conn === "instagram") return { kind: "success" as const, text: "Instagram connected successfully" };
     if (conn === "linkedin") return { kind: "success" as const, text: "LinkedIn connected successfully" };
     if (conn === "x") return { kind: "success" as const, text: "X connected successfully" };
@@ -240,7 +255,7 @@ export default function SettingsPage() {
     if (checkout === "success") return { kind: "success" as const, text: "Subscription activated! Welcome to ClipDash." };
     if (checkout === "canceled") return { kind: "info" as const, text: "Checkout was canceled. You can try again anytime." };
     return null;
-  }, [query]);
+  }, [query, accounts.facebook]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1148,7 +1163,7 @@ export default function SettingsPage() {
 
         {/* Banner */}
         {banner && (
-          <div className={`mt-6 rounded-xl px-4 py-3 text-sm ${banner.kind === "error" ? "border border-red-500/20 bg-red-500/10 text-red-400" : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"}`}>
+          <div className={`mt-6 rounded-xl px-4 py-3 text-sm ${banner.kind === "error" ? "border border-red-500/20 bg-red-500/10 text-red-400" : banner.kind === "warning" ? "border border-amber-500/20 bg-amber-500/10 text-amber-300" : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"}`}>
             {banner.text}
           </div>
         )}
