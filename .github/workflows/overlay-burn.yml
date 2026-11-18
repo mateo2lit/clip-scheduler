@@ -45,7 +45,7 @@ jobs:
           wget -q --timeout=15 "${BASE}/poppins/Poppins-Bold.ttf"                 -O /usr/local/share/fonts/clip-dash/Poppins-Bold.ttf       || true
           wget -q --timeout=15 "${BASE}/rubik/static/Rubik-Bold.ttf"              -O /usr/local/share/fonts/clip-dash/Rubik-Bold.ttf         || true
           fc-cache -f /usr/local/share/fonts/clip-dash 2>/dev/null || true
-          pip install faster-whisper 2>&1 | tail -3
+          pip install faster-whisper "av<19" 2>&1 | tail -3
 
       - name: Fetch overlay_config and mark job in progress
         env:
